@@ -1,0 +1,38 @@
+﻿Build started 9/16/2014 4:28:23 PM.
+     1>Project "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\OculusWorldDemo.vcxproj" on node 3 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"C:\Program Files (x86)\Oculus\OculusSDK\Samples\packages\boost.1.56.0.0\build\native\..\..\lib\native\include\\" /I../../../../../LibOVR/Include /I../../../../../LibOVR/Src /I../../../../../3rdParty/glext /I../../../../packages/boost.1.56.0.0/lib/native/include /Z7 /nologo /W4 /WX- /MP /O2 /Oi /Oy- /GL /D WIN32 /D NDEBUG /D _WINDOWS /D _UNICODE /D UNICODE /Gm- /EHsc /MT /GS /Gy /fp:precise /Zc:wchar_t /Zc:forScope /Fo"C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/" /Fd"C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/vc120.pdb" /Gd /TP /wd4512 /analyze- /errorReport:prompt /d2Zi+ ..\..\..\..\CommonSrc\Platform\Win32_Platform.cpp ..\..\..\OculusWorldDemo.cpp
+         Win32_Platform.cpp
+         OculusWorldDemo.cpp
+     1>..\..\..\OculusWorldDemo.cpp(1470): warning C4100: 'sender' : unreferenced formal parameter
+     1>..\..\..\OculusWorldDemo.cpp(1540): warning C4100: 'notifyType' : unreferenced formal parameter
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Bin/Win/VS2013/Release/Win32/OculusWorldDemo.exe" /INCREMENTAL:NO /NOLOGO /LIBPATH:../../../../../LibOVR/Lib/Win32/VS2013/ ws2_32.lib opengl32.lib Dbghelp.lib libovr.lib dxgi.lib d3d10_1.lib d3d11.lib d3dcompiler.lib winmm.lib Mfplat.lib Mmdevapi.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:"C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Bin/Win/VS2013/Release/Win32/OculusWorldDemo.pdb" /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF /LTCG /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Bin/Win/VS2013/Release/Win32/OculusWorldDemo.lib" /MACHINE:X86 /SAFESEH "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/OculusWorldDemo.res"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Platform.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Win32_Gamepad.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Win32_Platform.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Render_GL_Device.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Render_GL_Win32_Device.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Render_LoadTextureDDS.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Render_LoadTextureTGA.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Render_Device.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Render_D3D10_Device.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Render_D3D11_Device.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/tinyxml2.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Render_XmlSceneLoader.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/OptionMenu.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/RenderProfiler.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/pch.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/SimulateButtonAudioSink.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/OculusWorldDemo.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/OculusWorldDemo_Scene.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/Player.obj"
+         "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Obj/Win/VS2013/Release/Win32/AudioCaptureDevice.obj"
+         Generating code
+         Finished generating code
+         OculusWorldDemo.vcxproj -> C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\../../../Bin/Win/VS2013/Release/Win32/OculusWorldDemo.exe
+     1>Done Building Project "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusWorldDemo\Projects\Win\VS2013\OculusWorldDemo.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:07.76

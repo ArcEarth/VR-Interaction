@@ -1,0 +1,9 @@
+﻿Build started 9/16/2014 4:28:23 PM.
+     1>Project "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusRoomTiny\Projects\Win\VS2013\OculusRoomTiny.vcxproj" on node 2 (Build target(s)).
+     1>Link:
+         OculusRoomTiny.vcxproj -> C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusRoomTiny\Projects\Win\VS2013\../../../Bin/Win/VS2013/Release/Win32/OculusRoomTiny.exe
+     1>Done Building Project "C:\Program Files (x86)\Oculus\OculusSDK\Samples\OculusRoomTiny\Projects\Win\VS2013\OculusRoomTiny.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:00.20
