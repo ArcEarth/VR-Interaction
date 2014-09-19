@@ -66,7 +66,9 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Label="UserMacros">
+    <NuGetPackageImportStamp>8e5cd899</NuGetPackageImportStamp>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IntDir>$(ProjectDir)Obj/Win/VS2013/$(Configuration)/$(PlatformName)/</IntDir>
@@ -106,7 +108,7 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>OVR_BUILD_DEBUG;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(BOOST_ROOT);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src</AdditionalIncludeDirectories>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
@@ -149,7 +151,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(BOOST_ROOT);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
@@ -193,7 +195,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\CommonSrc\Audio\AudioCaptureDevice.cpp" />
-    <ClCompile Include="..\CommonSrc\Audio\MicrophoneSimulateButton.cpp" />
+    <ClCompile Include="..\CommonSrc\Audio\AudioButton.cpp" />
     <ClCompile Include="OculusRoomModel.cpp" />
     <ClCompile Include="..\CommonSrc\Platform\Win32_Gamepad.cpp" />
     <ClCompile Include="RenderTiny_D3D11_Device.cpp" />
@@ -207,12 +209,33 @@
     <ClInclude Include="..\CommonSrc\Audio\AudioCaptureDevice.h" />
     <ClInclude Include="..\CommonSrc\Audio\Common.h" />
     <ClInclude Include="..\CommonSrc\Audio\DeviceState.h" />
-    <ClInclude Include="..\CommonSrc\Audio\MicrophoneSimulateButton.h" />
+    <ClInclude Include="..\CommonSrc\Audio\AudioButton.h" />
     <ClInclude Include="..\CommonSrc\Platform\Win32_Gamepad.h" />
     <ClInclude Include="HSWDisplay_Util.h" />
     <ClInclude Include="RenderTiny_D3D11_Device.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\BulletCollision.vcxproj">
+      <Project>{8937c279-5097-eb49-b459-ce535897a306}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\BulletDynamics.vcxproj">
+      <Project>{f3e7f78e-18aa-cb43-84bc-0b1c979f0993}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\LinearMath.vcxproj">
+      <Project>{94240b48-9226-514f-b232-8d06ae1cd252}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\directxtk.2.22.13.23\build\native\directxtk.targets" Condition="Exists('..\packages\directxtk.2.22.13.23\build\native\directxtk.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\directxtk.2.22.13.23\build\native\directxtk.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtk.2.22.13.23\build\native\directxtk.targets'))" />
+  </Target>
 </Project>

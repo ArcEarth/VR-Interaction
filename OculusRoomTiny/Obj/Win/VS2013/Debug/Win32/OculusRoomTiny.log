@@ -1,24 +1,9 @@
-﻿Build started 9/17/2014 9:48:37 PM.
+﻿Build started 9/18/2014 6:16:50 PM.
      1>Project "C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\OculusRoomTiny.vcxproj" on node 2 (Build target(s)).
-     1>ClCompile:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"C:\Program Files (x86)\Oculus\OculusSDK\LibOVR/Include" /I"C:\Program Files (x86)\Oculus\OculusSDK\LibOVR/Src" /I"C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\boost_1_56_0" /Z7 /nologo /W4 /WX- /MP /Od /Oy- /D OVR_BUILD_DEBUG /D WIN32 /D _DEBUG /D _WINDOWS /D _UNICODE /D UNICODE /Gm- /EHsc /RTC1 /MTd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/" /Fd"C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/vc120.pdb" /Gd /TP /wd4996 /wd4512 /analyze- /errorReport:prompt ..\CommonSrc\Audio\AudioCaptureDevice.cpp
-         AudioCaptureDevice.cpp
-     1>..\CommonSrc\Audio\AudioCaptureDevice.cpp(390): warning C4100: 'pResult' : unreferenced formal parameter
-     1>..\CommonSrc\Audio\AudioCaptureDevice.cpp(436): warning C4100: 'pResult' : unreferenced formal parameter
-     1>..\CommonSrc\Audio\AudioCaptureDevice.cpp(491): warning C4100: 'pResult' : unreferenced formal parameter
-     1>..\CommonSrc\Audio\AudioCaptureDevice.cpp(503): warning C4100: 'pResult' : unreferenced formal parameter
-       Link:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Bin/Win/VS2013/Debug/Win32/OculusRoomTiny.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files (x86)\Oculus\OculusSDK\LibOVR/Lib/Win32/VS2013/" /LIBPATH:"C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\boost_1_56_0\stage\lib" ws2_32.lib Dbghelp.lib winmm.lib Mfplat.lib Mmdevapi.lib libovrd.lib dxgi.lib dxguid.lib d3d10.lib d3d11.lib d3dcompiler.lib winmm.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Bin/Win/VS2013/Debug/Win32/OculusRoomTiny.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Bin/Win/VS2013/Debug/Win32/OculusRoomTiny.lib" /MACHINE:X86 C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/OculusRoomTiny2.res
-         C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/AudioCaptureDevice.obj
-         C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/MicrophoneSimulateButton.obj
-         C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/OculusRoomModel.obj
-         C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/Win32_Gamepad.obj
-         C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/RenderTiny_D3D11_Device.obj
-         C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/Win32_OculusRoomTiny.obj
-         C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Obj/Win/VS2013/Debug/Win32/Win32_OculusRoomTiny_Util.obj
+     1>Link:
          OculusRoomTiny.vcxproj -> C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\Bin/Win/VS2013/Debug/Win32/OculusRoomTiny.exe
      1>Done Building Project "C:\Users\Yupeng\Documents\GitHub\VR\OculusRoomTiny\OculusRoomTiny.vcxproj" (Build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:03.82
+Time Elapsed 00:00:00.23

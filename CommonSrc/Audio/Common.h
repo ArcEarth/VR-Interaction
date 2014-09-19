@@ -25,7 +25,7 @@
 // release and zero out a possible NULL pointer. note this will
 // do the release on a temp copy to avoid reentrancy issues that can result from
 // callbacks durring the release
-template <class T> void SafeRelease( __deref_inout_opt T **ppT )
+template <class T> void SafeRelease(__deref_inout_opt T **ppT)
 {
 	T *pTTemp = *ppT;    // temp copy
 	*ppT = nullptr;      // zero the input
@@ -43,12 +43,12 @@ template <class T> void SafeDelete(_Inout_ T*&pT)
 }
 
 // Exception Helper Method
-inline void ThrowIfFailed( HRESULT hr )
+inline void ThrowIfFailed(HRESULT hr)
 {
-	if (FAILED( hr ))
+	if (FAILED(hr))
 	{
 		// Set a breakpoint on this line to catch API errors.
-		throw ;
+		throw;
 	}
 }
 
@@ -64,67 +64,120 @@ inline void ThrowIfFailed( HRESULT hr )
 #define SAFE_ARRAYDELETE(x) { delete[] x; x = nullptr; }
 #endif
 
-#ifndef METHODASYNCCALLBACK
-#define METHODASYNCCALLBACK(Parent, AsyncCallback, pfnCallback) \
-class Callback##AsyncCallback :\
-	public IMFAsyncCallback \
-{ \
-public: \
-	Callback##AsyncCallback() : \
-		_parent(((Parent*)((BYTE*)this - offsetof(Parent, m_x##AsyncCallback)))), \
-		_dwQueueID( MFASYNC_CALLBACK_QUEUE_MULTITHREADED ) \
-	{ \
-	} \
-\
-	STDMETHOD_( ULONG, AddRef )() \
-	{ \
-		return _parent->AddRef(); \
-	} \
-	STDMETHOD_( ULONG, Release )() \
-	{ \
-		return _parent->Release(); \
-	} \
-	STDMETHOD( QueryInterface )( REFIID riid, void **ppvObject ) \
-	{ \
-		if (riid == IID_IMFAsyncCallback || riid == IID_IUnknown) \
-		{ \
-			(*ppvObject) = this; \
-			AddRef(); \
-			return S_OK; \
-		} \
-		*ppvObject = NULL; \
-		return E_NOINTERFACE; \
-	} \
-	STDMETHOD( GetParameters )( \
-		/* [out] */ __RPC__out DWORD *pdwFlags, \
-		/* [out] */ __RPC__out DWORD *pdwQueue) \
-	{ \
-		*pdwFlags = 0; \
-		*pdwQueue = _dwQueueID; \
-		return S_OK; \
-	} \
-	STDMETHOD( Invoke )( /* [out] */ __RPC__out IMFAsyncResult * pResult ) \
-	{ \
-		_parent->pfnCallback( pResult ); \
-		return S_OK; \
-	} \
-	void SetQueueID( DWORD dwQueueID ) { _dwQueueID = dwQueueID; } \
-\
-protected: \
-	Parent* _parent; \
-	DWORD   _dwQueueID; \
-		   \
-} m_x##AsyncCallback;
-#endif
+//#ifndef METHODASYNCCALLBACK
+//#define METHODASYNCCALLBACK(Parent, AsyncCallback, pfnCallback) \
+//class Callback##AsyncCallback :\
+//	public IMFAsyncCallback \
+//{ \
+//public: \
+//	Callback##AsyncCallback() : \
+//		_parent(((Parent*)((BYTE*)this - offsetof(Parent, m_x##AsyncCallback)))), \
+//		_dwQueueID( MFASYNC_CALLBACK_QUEUE_MULTITHREADED ) \
+//	{ \
+//	} \
+//\
+//	STDMETHOD_( ULONG, AddRef )() \
+//	{ \
+//		return _parent->AddRef(); \
+//	} \
+//	STDMETHOD_( ULONG, Release )() \
+//	{ \
+//		return _parent->Release(); \
+//	} \
+//	STDMETHOD( QueryInterface )( REFIID riid, void **ppvObject ) \
+//	{ \
+//		if (riid == IID_IMFAsyncCallback || riid == IID_IUnknown) \
+//						{ \
+//			(*ppvObject) = this; \
+//			AddRef(); \
+//			return S_OK; \
+//						} \
+//		*ppvObject = NULL; \
+//		return E_NOINTERFACE; \
+//	} \
+//	STDMETHOD( GetParameters )( \
+//		/* [out] */ __RPC__out DWORD *pdwFlags, \
+//		/* [out] */ __RPC__out DWORD *pdwQueue) \
+//	{ \
+//		*pdwFlags = 0; \
+//		*pdwQueue = _dwQueueID; \
+//		return S_OK; \
+//	} \
+//	STDMETHOD( Invoke )( /* [out] */ __RPC__out IMFAsyncResult * pResult ) \
+//	{ \
+//		_parent->pfnCallback( pResult ); \
+//		return S_OK; \
+//	} \
+//	void SetQueueID( DWORD dwQueueID ) { _dwQueueID = dwQueueID; } \
+//\
+//protected: \
+//	Parent* _parent; \
+//	DWORD   _dwQueueID; \
+//		   \
+//} m_x##AsyncCallback;
+//#endif
+
+template <class T_Parent, HRESULT(T_Parent::*CallbackFunc)(IMFAsyncResult*)>
+class MFAsyncCallback : public IMFAsyncCallback
+{
+public:
+	//T_Parent* parent , HRESULT(T_Parent::*pCallback)(IMFAsyncResult*)
+	MFAsyncCallback(T_Parent* parent)
+		: _parent(parent)
+		, _dwQueueID(MFASYNC_CALLBACK_QUEUE_MULTITHREADED)
+	{
+	}
+	STDMETHOD_(ULONG, AddRef)()
+	{
+		return _parent->AddRef();
+	}
+	STDMETHOD_(ULONG, Release)()
+	{
+		return _parent->Release();
+	}
+	STDMETHOD(QueryInterface)(REFIID riid, void **ppvObject)
+	{
+		if (riid == IID_IMFAsyncCallback || riid == IID_IUnknown)
+		{
+			(*ppvObject) = this;
+			AddRef();
+			return S_OK;
+		}
+		*ppvObject = NULL;
+		return E_NOINTERFACE;
+	}
+
+	STDMETHOD(GetParameters)(
+		/* [out] */ __RPC__out DWORD *pdwFlags,
+		/* [out] */ __RPC__out DWORD *pdwQueue)
+	{
+		*pdwFlags = 0;
+		*pdwQueue = _dwQueueID;
+		return S_OK;
+	}
+
+	STDMETHOD(Invoke)( /* [out] */ __RPC__out IMFAsyncResult * pResult)
+	{
+		(_parent->*CallbackFunc)(pResult);
+		return S_OK;
+	}
+
+	void SetQueueID(DWORD dwQueueID) { _dwQueueID = dwQueueID; }
+
+protected:
+	T_Parent* _parent;
+	//HRESULT(T_Parent::*CallbackFunc)(IMFAsyncResult*);
+	DWORD   _dwQueueID;
+};
 
 //
 // CAsyncState
 //
 // Used to maintain state during MF Work Item callbacks
-class CAsyncState : 
-	public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags< Microsoft::WRL::ClassicCom>, IUnknown>
-{  
-public:  
+class CAsyncState :
+	public Microsoft::WRL::RuntimeClass < Microsoft::WRL::RuntimeClassFlags< Microsoft::WRL::ClassicCom>, IUnknown >
+{
+public:
 	CAsyncState(const std::shared_ptr<std::vector<int>> &pData, UINT32 size) :
 		Data(pData),
 		Size(size)
@@ -137,7 +190,7 @@ public:
 
 private:
 	virtual ~CAsyncState() {};
-}; 
+};
 
 struct RenderBuffer
 {
@@ -149,14 +202,14 @@ struct RenderBuffer
 	RenderBuffer() :
 		BufferSize(0),
 		BytesFilled(0),
-		Buffer( nullptr ),
-		Next( nullptr )
+		Buffer(nullptr),
+		Next(nullptr)
 	{
 	}
 
 	~RenderBuffer()
 	{
-		SAFE_ARRAYDELETE( Buffer );
+		SAFE_ARRAYDELETE(Buffer);
 	}
 };
 
@@ -172,20 +225,20 @@ enum RenderSampleType
 //
 //  Determine IEEE Float or PCM samples based on media type
 //
-inline RenderSampleType CalculateMixFormatType( const WAVEFORMATEX *wfx )
+inline RenderSampleType CalculateMixFormatType(const WAVEFORMATEX *wfx)
 {
-	if ( (wfx->wFormatTag == WAVE_FORMAT_PCM) ||
-		 (  (wfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE) &&
-			(reinterpret_cast<const WAVEFORMATEXTENSIBLE *>(wfx)->SubFormat == KSDATAFORMAT_SUBTYPE_PCM) ) )
+	if ((wfx->wFormatTag == WAVE_FORMAT_PCM) ||
+		((wfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE) &&
+		(reinterpret_cast<const WAVEFORMATEXTENSIBLE *>(wfx)->SubFormat == KSDATAFORMAT_SUBTYPE_PCM)))
 	{
 		if (wfx->wBitsPerSample == 16)
 		{
 			return RenderSampleType::SampleType16BitPCM;
 		}
 	}
-	else if ( (wfx->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) ||
-			  ( (wfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE) &&
-			  (reinterpret_cast<const WAVEFORMATEXTENSIBLE *>(wfx)->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)))
+	else if ((wfx->wFormatTag == WAVE_FORMAT_IEEE_FLOAT) ||
+		((wfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE) &&
+		(reinterpret_cast<const WAVEFORMATEXTENSIBLE *>(wfx)->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)))
 	{
 		return RenderSampleType::SampleTypeFloat;
 	}

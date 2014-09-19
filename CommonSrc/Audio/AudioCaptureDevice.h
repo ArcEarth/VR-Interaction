@@ -59,10 +59,10 @@ namespace Audio
 		AudioCaptureDevice();
 		~AudioCaptureDevice();
 
-		HRESULT InitializeAudioDeviceAsync(IAudioSink *pAudioSink);
+		HRESULT InitializeAudioDevice(UINT reflexIntervalMilliSec);
 		HRESULT StartCaptureAsync();
 		HRESULT StopCaptureAsync();
-		HRESULT FinishCaptureAsync();
+		//HRESULT FinishCaptureAsync();
 
 		inline const IAudioSink* AudioSink() const
 		{
@@ -73,21 +73,22 @@ namespace Audio
 
 		//AudioDeviceStateChangedEvent* GetDeviceStateEvent() { return m_pDeviceStateChanged.get(); };
 
-		METHODASYNCCALLBACK(AudioCaptureDevice, StartCapture, OnStartCapture);
-		METHODASYNCCALLBACK(AudioCaptureDevice, StopCapture, OnStopCapture);
-		METHODASYNCCALLBACK(AudioCaptureDevice, SampleReady, OnSampleReady);
-		METHODASYNCCALLBACK(AudioCaptureDevice, FinishCapture, OnFinishCapture);
 
 		// IActivateAudioInterfaceCompletionHandler
 		STDMETHOD(ActivateCompleted)(IActivateAudioInterfaceAsyncOperation *operation);
 
 	private:
 
-		HRESULT OnStartCapture(IMFAsyncResult* pResult);
-		HRESULT OnStopCapture(IMFAsyncResult* pResult);
-		HRESULT OnFinishCapture(IMFAsyncResult* pResult);
-		HRESULT OnSampleReady(IMFAsyncResult* pResult);
+		HRESULT OnStartCapture        (IMFAsyncResult* pResult);
+		HRESULT OnStopCapture         (IMFAsyncResult* pResult);
+		HRESULT OnSampleReady         (IMFAsyncResult* pResult);
+
 		HRESULT OnAudioSampleRequested(bool IsSilence = false);
+
+	public:
+		MFAsyncCallback<AudioCaptureDevice, &OnStartCapture>  cb_StartCapture;
+		MFAsyncCallback<AudioCaptureDevice, &OnStopCapture>   cb_StopCapture;
+		MFAsyncCallback<AudioCaptureDevice, &OnSampleReady>   cb_SampleReady;
 
 	private:
 		//std::string			m_DeviceIdString;

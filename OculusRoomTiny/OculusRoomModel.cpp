@@ -29,6 +29,8 @@ limitations under the License.
 // Room unit dimensions are in meters. Player starts in the middle.
 //
 
+using namespace std;
+
 enum BuiltinTexture
 {
     Tex_None,
@@ -213,17 +215,83 @@ FillCollection::FillCollection(RenderDevice* render)
 
 }
 
+enum SlabModelCollisionShapePolicy
+{
+	CompundComponents,
+	BoundingComponents,
+};
 
+struct PositionedBox
+{
+	btVector3 center;
+	btVector3 halfExtent;
+};
+
+void RegularizeSlab(Slab &s)
+{
+	if (s.x1 > s.x2)
+		swap(s.x1, s.x2);
+	if (s.y1 > s.y2)
+		swap(s.y1, s.y2);
+	if (s.z1 > s.z2)
+		swap(s.z1, s.z2);
+}
+
+PositionedBox ConvertToPBox(const Slab& s)
+{
+	PositionedBox pb{
+		btVector3(0.5f*(s.x1 + s.x2), 0.5f*(s.y1 + s.y2), 0.5f*(s.z1 + s.z2)),
+		btVector3(-0.5f*(s.x1 - s.x2), -0.5f*(s.y1 - s.y2), -0.5f*(s.z1 - s.z2))
+	};
+	return pb;
+};
+
+void ExtendSlab(const Slab& s, Slab &smax)
+{
+	smax.x1 = min(smax.x1, s.x1);
+	smax.y1 = min(smax.y1, s.y1);
+	smax.y1 = min(smax.y1, s.y1);
+	smax.x2 = max(smax.x2, s.x2);
+	smax.y2 = max(smax.y2, s.y2);
+	smax.y2 = max(smax.y2, s.y2);
+}
+
+std::pair<std::shared_ptr<btCollisionShape>,btVector3> CreateCollisionShape(SlabModel*sm, SlabModelCollisionShapePolicy policy)
+{
+	if (policy == CompundComponents)
+	{
+		auto pCompund = std::make_shared<btCompoundShape>(false);
+		for (int i = 0; i < sm->Count; i++)
+		{
+			Slab &s = sm->pSlabs[i];
+			auto t = ConvertToPBox(s);
+			pCompund->addChildShape(btTransform(btQuaternion(0,0,0,1),t.center), new btBoxShape(t.halfExtent));
+		}
+		return make_pair(pCompund,btVector3(0,0,0));
+	}
+	else
+	{
+		Slab smax = sm->pSlabs[0];
+		for (int i = 1; i < sm->Count; i++)
+		{
+			Slab &s = sm->pSlabs[i];
+			ExtendSlab(s,smax);
+		}
+		auto t = ConvertToPBox(smax);
+		return make_pair(make_shared<btBoxShape>(t.halfExtent),t.center);
+	}
+}
 
 // Helper function to create a model out of Slab arrays.
-Model* CreateModel(Vector3f pos, SlabModel* sm, const FillCollection& fills)
+Model* CreateModel(btDynamicsWorld *pWorld, Vector3f pos, SlabModel* sm, float mass, const FillCollection& fills,SlabModelCollisionShapePolicy policy)
 {
-    Model* m = new Model(Prim_Triangles);
-    m->SetPosition(pos);
+	Model* m = new Model(pWorld,Prim_Triangles);
+    //m->SetPosition(pos);
 
     for(int i=0; i< sm->Count; i++)
     {
         Slab &s = sm->pSlabs[i];
+		RegularizeSlab(s);
         m->AddSolidColorBox(s.x1, s.y1, s.z1, s.x2, s.y2, s.z2, s.c);
     }
 
@@ -231,6 +299,11 @@ Model* CreateModel(Vector3f pos, SlabModel* sm, const FillCollection& fills)
         m->Fill = fills.LitTextures[sm->tex];
     else
         m->Fill = fills.LitSolid;
+
+	auto result = CreateCollisionShape(sm, policy);
+
+	m->SetShape(result.first, mass, pos + Bt2Ovr(result.second), Quatf(0, 0, 0, 1));
+
     return m;
 }
 
@@ -239,16 +312,16 @@ Model* CreateModel(Vector3f pos, SlabModel* sm, const FillCollection& fills)
 void PopulateRoomScene(Scene* scene, RenderDevice* render)
 {
     FillCollection fills(render);  
+	auto pWorld = scene->pDynamicsWorld.get();
 
-    scene->World.Add(Ptr<Model>(*CreateModel(Vector3f(0,0,0),  &Room,       fills)));
-    scene->World.Add(Ptr<Model>(*CreateModel(Vector3f(0,0,0),  &Floor,      fills)));
-    scene->World.Add(Ptr<Model>(*CreateModel(Vector3f(0,0,0),  &Ceiling,    fills)));
-    scene->World.Add(Ptr<Model>(*CreateModel(Vector3f(0,0,0),  &Fixtures,   fills)));
-    scene->World.Add(Ptr<Model>(*CreateModel(Vector3f(0,0,0),  &Furniture,  fills)));
-    scene->World.Add(Ptr<Model>(*CreateModel(Vector3f(0,0,4),  &Furniture,  fills)));
-    scene->World.Add(Ptr<Model>(*CreateModel(Vector3f(-3,0,3), &Posts,      fills)));
-  
-
+	scene->World.Add(Ptr<Model>(*CreateModel(pWorld,Vector3f(0, 0, 0), &Room, 0, fills,CompundComponents)));
+	scene->World.Add(Ptr<Model>(*CreateModel(pWorld, Vector3f(0, 0, 0), &Floor, 0, fills, CompundComponents)));
+	scene->World.Add(Ptr<Model>(*CreateModel(pWorld, Vector3f(0, 0, 0), &Ceiling, 0, fills, CompundComponents)));
+	scene->World.Add(Ptr<Model>(*CreateModel(pWorld,Vector3f(0, 0, 0), &Fixtures,0, fills,BoundingComponents)));
+	scene->World.Add(Ptr<Model>(*CreateModel(pWorld, Vector3f(0, 1, 0), &Furniture, 1, fills, BoundingComponents)));
+	scene->World.Add(Ptr<Model>(*CreateModel(pWorld, Vector3f(0, 1, 4), &Furniture, 1, fills, BoundingComponents)));
+	scene->World.Add(Ptr<Model>(*CreateModel(pWorld, Vector3f(-3, 0, 3), &Posts, 1, fills, BoundingComponents)));
+ 
     scene->SetAmbient(Vector4f(0.65f,0.65f,0.65f,1));
     scene->AddLight(Vector3f(-2,4,-2), Vector4f(8,8,8,1));
     scene->AddLight(Vector3f(3,4,-3),  Vector4f(2,1,1,1));
@@ -290,7 +363,7 @@ void renderSphere(RenderDevice* render, Vector3f ViewAdjust, float metresLeft, f
 
 	};
 	SlabModel Cube = {sizeof(CubeSlabs)/sizeof(Slab), CubeSlabs, Tex_None};
-    scene->World.Add(Ptr<Model>(*CreateModel(Vector3f(0,0,0),  &Cube,  *pfills)));
+	scene->World.Add(Ptr<Model>(*CreateModel(scene->pDynamicsWorld.get(), Vector3f(0, 0, 0), &Cube, 0, *pfills, BoundingComponents)));
     scene->SetAmbient(Vector4f(1.0f,1.0f,1.0f,1));
 
 	//Render object

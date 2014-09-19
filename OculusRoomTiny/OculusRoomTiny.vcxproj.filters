@@ -15,7 +15,7 @@
     <ClCompile Include="..\CommonSrc\Audio\AudioCaptureDevice.cpp">
       <Filter>CommonSrc\Audio</Filter>
     </ClCompile>
-    <ClCompile Include="..\CommonSrc\Audio\MicrophoneSimulateButton.cpp">
+    <ClCompile Include="..\CommonSrc\Audio\AudioButton.cpp">
       <Filter>CommonSrc\Audio</Filter>
     </ClCompile>
   </ItemGroup>
@@ -52,8 +52,11 @@
     <ClInclude Include="..\CommonSrc\Audio\DeviceState.h">
       <Filter>CommonSrc\Audio</Filter>
     </ClInclude>
-    <ClInclude Include="..\CommonSrc\Audio\MicrophoneSimulateButton.h">
+    <ClInclude Include="..\CommonSrc\Audio\AudioButton.h">
       <Filter>CommonSrc\Audio</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

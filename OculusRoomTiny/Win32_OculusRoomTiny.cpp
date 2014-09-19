@@ -40,7 +40,9 @@ const bool       FullScreen = true; //Should be true for correct timing.  Use fa
 #include "RenderTiny_D3D11_Device.h"
 #include <wrl\client.h>
 #include "..\CommonSrc\Audio\AudioCaptureDevice.h"
-#include "..\CommonSrc\Audio\MicrophoneSimulateButton.h"
+#include "..\CommonSrc\Audio\AudioButton.h"
+#include <btBulletCollisionCommon.h>
+#include <btBulletDynamicsCommon.h>
 
 HWND Util_InitWindowAndGraphics(Recti vp, int fullscreen, int multiSampleCount, bool UseAppWindowFrame, RenderDevice ** pDevice);
 void Util_ReleaseWindowAndGraphics(RenderDevice* pRender);
@@ -73,7 +75,7 @@ using namespace Audio;
 using namespace Microsoft::WRL;
 
 ComPtr<Audio::AudioCaptureDevice> pAudioCapturer = nullptr;
-ComPtr<Audio::MicrophoneSimulateButton> pMicrophoneButton = nullptr;
+ComPtr<Audio::AudioButton> pMicrophoneButton = nullptr;
 
 enum class NotifyType
 {
@@ -240,17 +242,75 @@ int Init()
 		ovrTrackingCap_Position, 0);
 
 	// Initialize the audio capture system
-	pMicrophoneButton = Make<MicrophoneSimulateButton>();
+	pMicrophoneButton = Make<AudioButton>();
 	pAudioCapturer = Make<AudioCaptureDevice>();
 
 	pAudioCapturer->DeviceStateChanged.connect(OnAudioCaptureDeviceStateChanged);
-	pAudioCapturer->InitializeAudioDeviceAsync(pMicrophoneButton.Get());
+	pAudioCapturer->SetAudioSink(pMicrophoneButton.Get());
+	pAudioCapturer->InitializeAudioDevice(5);
+	pMicrophoneButton->ButtonStateChanged.connect([](AudioButton* sender, const std::shared_ptr<Audio::ButtonStateChangedEventArgs>&e)
+	{
+		if (e->NewState == Pressed)
+		{
+			auto size = pRoomScene->World.Nodes.GetSize();
+			for (size_t i = 0; i < size; i++)
+			{
+				auto pModle = dynamic_cast<PNode*>(pRoomScene->World.Nodes[i].GetPtr());
+				//auto pos = pModle->GetPosition();
+				//auto dir = pos - HeadPos;
+				//dir.Normalize();
+				//dir *= 2;
+				if (pModle)
+				{
+					auto rigid = pModle->GetRigidBody();
+					auto shape = pModle->GetShape();
+
+					rigid->applyImpulse(btVector3(0,10,0), btVector3(0, 0, 0));
+				}
+			}
+		}
+	});
 	//auto handler = std::bind(, this, std::placeholders::_1, std::placeholders::_2);
 
 
 	// This creates lights and models.
 	pRoomScene = new Scene;
 	PopulateRoomScene(pRoomScene, pRender);
+
+	//// Build the broadphase
+	//btBroadphaseInterface* broadphase = new btDbvtBroadphase();
+
+	//// Set up the collision configuration and dispatcher
+	//btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
+	//btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
+
+	//// The actual physics solver
+	//btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
+
+	//// The world.
+	//btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
+	//dynamicsWorld->setGravity(btVector3(0, -10, 0));
+
+	//btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 1);
+
+	//btCollisionShape* fallShape = new btSphereShape(1);
+
+
+	//btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -1, 0)));
+	//btRigidBody::btRigidBodyConstructionInfo
+	//	groundRigidBodyCI(0, groundMotionState, groundShape, btVector3(0, 0, 0));
+	//btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
+	//dynamicsWorld->addRigidBody(groundRigidBody);
+
+
+	//btDefaultMotionState* fallMotionState =
+	//	new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 50, 0)));
+	//btScalar mass = 1;
+	//btVector3 fallInertia(0, 0, 0);
+	//fallShape->calculateLocalInertia(mass, fallInertia);
+	//btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass, fallMotionState, fallShape, fallInertia);
+	//btRigidBody* fallRigidBody = new btRigidBody(fallRigidBodyCI);
+	//dynamicsWorld->addRigidBody(fallRigidBody);
 
 	return (0);
 }
@@ -275,7 +335,7 @@ void ProcessAndRender()
 	static Vector3f HeadPos(0.0f, 1.6f, -5.0f);
 	HeadPos.y = ovrHmd_GetFloat(HMD, OVR_KEY_EYE_HEIGHT, HeadPos.y);
 	bool freezeEyeRender = Util_RespondToControls(BodyYaw, HeadPos, eyeRenderPose[1].Orientation);
-
+	pRoomScene->Run(160);
 	pRender->BeginScene();
 
 	// Render the two undistorted eye views into their render buffers.
@@ -299,15 +359,16 @@ void ProcessAndRender()
 			Vector3f shiftedEyePos = HeadPos + rollPitchYaw.Transform(eyeRenderPose[eye].Position);
 			Matrix4f view = Matrix4f::LookAtRH(shiftedEyePos, shiftedEyePos + finalForward, finalUp);
 			Matrix4f proj = ovrMatrix4f_Projection(EyeRenderDesc[eye].Fov, 0.01f, 10000.0f, true);
-			if (pMicrophoneButton->CurrentState() == ButtonState::Pressed)
-			{
-				ovrFovPort focusPort = EyeRenderDesc[eye].Fov;
-				focusPort.DownTan /= 2.0f;
-				focusPort.UpTan /= 2.0f;
-				focusPort.LeftTan /= 2.0f;
-				focusPort.RightTan /= 2.0f;
-				proj = ovrMatrix4f_Projection(focusPort, 0.01f, 10000.0f, true);
-			}
+
+			//if (pMicrophoneButton->CurrentState() == ButtonState::Pressed)
+			//{
+			//	ovrFovPort focusPort = EyeRenderDesc[eye].Fov;
+			//	focusPort.DownTan /= 2.0f;
+			//	focusPort.UpTan /= 2.0f;
+			//	focusPort.LeftTan /= 2.0f;
+			//	focusPort.RightTan /= 2.0f;
+			//	proj = ovrMatrix4f_Projection(focusPort, 0.01f, 10000.0f, true);
+			//}
 
 			pRender->SetViewport(Recti(EyeRenderViewport[eye]));
 			pRender->SetProjection(proj);

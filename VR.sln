@@ -5,6 +5,12 @@ VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OculusRoomTiny", "OculusRoomTiny\OculusRoomTiny.vcxproj", "{394FF596-A90B-4C95-888B-B743834ED15B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LinearMath", "..\Bullet3\bullet3\build3\vs2010\LinearMath.vcxproj", "{94240B48-9226-514F-B232-8D06AE1CD252}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BulletCollision", "..\Bullet3\bullet3\build3\vs2010\BulletCollision.vcxproj", "{8937C279-5097-EB49-B459-CE535897A306}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BulletDynamics", "..\Bullet3\bullet3\build3\vs2010\BulletDynamics.vcxproj", "{F3E7F78E-18AA-CB43-84BC-0B1C979F0993}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -21,6 +27,30 @@ Global
 		{394FF596-A90B-4C95-888B-B743834ED15B}.Release|Win32.Build.0 = Release|Win32
 		{394FF596-A90B-4C95-888B-B743834ED15B}.Release|x64.ActiveCfg = Release|x64
 		{394FF596-A90B-4C95-888B-B743834ED15B}.Release|x64.Build.0 = Release|x64
+		{94240B48-9226-514F-B232-8D06AE1CD252}.Debug|Win32.ActiveCfg = Debug|Win32
+		{94240B48-9226-514F-B232-8D06AE1CD252}.Debug|Win32.Build.0 = Debug|Win32
+		{94240B48-9226-514F-B232-8D06AE1CD252}.Debug|x64.ActiveCfg = Debug|x64
+		{94240B48-9226-514F-B232-8D06AE1CD252}.Debug|x64.Build.0 = Debug|x64
+		{94240B48-9226-514F-B232-8D06AE1CD252}.Release|Win32.ActiveCfg = Release|Win32
+		{94240B48-9226-514F-B232-8D06AE1CD252}.Release|Win32.Build.0 = Release|Win32
+		{94240B48-9226-514F-B232-8D06AE1CD252}.Release|x64.ActiveCfg = Release|x64
+		{94240B48-9226-514F-B232-8D06AE1CD252}.Release|x64.Build.0 = Release|x64
+		{8937C279-5097-EB49-B459-CE535897A306}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8937C279-5097-EB49-B459-CE535897A306}.Debug|Win32.Build.0 = Debug|Win32
+		{8937C279-5097-EB49-B459-CE535897A306}.Debug|x64.ActiveCfg = Debug|x64
+		{8937C279-5097-EB49-B459-CE535897A306}.Debug|x64.Build.0 = Debug|x64
+		{8937C279-5097-EB49-B459-CE535897A306}.Release|Win32.ActiveCfg = Release|Win32
+		{8937C279-5097-EB49-B459-CE535897A306}.Release|Win32.Build.0 = Release|Win32
+		{8937C279-5097-EB49-B459-CE535897A306}.Release|x64.ActiveCfg = Release|x64
+		{8937C279-5097-EB49-B459-CE535897A306}.Release|x64.Build.0 = Release|x64
+		{F3E7F78E-18AA-CB43-84BC-0B1C979F0993}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F3E7F78E-18AA-CB43-84BC-0B1C979F0993}.Debug|Win32.Build.0 = Debug|Win32
+		{F3E7F78E-18AA-CB43-84BC-0B1C979F0993}.Debug|x64.ActiveCfg = Debug|x64
+		{F3E7F78E-18AA-CB43-84BC-0B1C979F0993}.Debug|x64.Build.0 = Debug|x64
+		{F3E7F78E-18AA-CB43-84BC-0B1C979F0993}.Release|Win32.ActiveCfg = Release|Win32
+		{F3E7F78E-18AA-CB43-84BC-0B1C979F0993}.Release|Win32.Build.0 = Release|Win32
+		{F3E7F78E-18AA-CB43-84BC-0B1C979F0993}.Release|x64.ActiveCfg = Release|x64
+		{F3E7F78E-18AA-CB43-84BC-0B1C979F0993}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

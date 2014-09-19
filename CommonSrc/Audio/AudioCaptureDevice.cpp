@@ -19,6 +19,10 @@
 #include <ppl.h>
 #include <ppltasks.h>
 
+#define REFTIMES_PER_SEC  10000000
+#define REFTIMES_PER_MILLISEC  10000
+
+
 //#define ACTIVE_AUDIO_ASYNC
 
 const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
@@ -66,7 +70,11 @@ m_dwQueueID(0),
 m_SampleReadyAsyncResult(nullptr),
 m_pAudioSink(nullptr),
 m_AudioClient(nullptr),
-m_AudioCaptureClient(nullptr)
+m_AudioCaptureClient(nullptr),
+m_MixFormat(nullptr),
+cb_SampleReady(this),
+cb_StartCapture(this),
+cb_StopCapture(this)
 {
 	// Create events for sample ready or user stop
 	m_SampleReadyEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
@@ -97,7 +105,7 @@ m_AudioCaptureClient(nullptr)
 	}
 
 	// Set the capture event work queue to use the MMCSS queue
-	m_xSampleReady.SetQueueID(m_dwQueueID);
+	cb_SampleReady.SetQueueID(m_dwQueueID);
 }
 
 //
@@ -105,6 +113,9 @@ m_AudioCaptureClient(nullptr)
 //
 AudioCaptureDevice::~AudioCaptureDevice()
 {
+	if (m_MixFormat)
+		CoTaskMemFree(m_MixFormat);
+
 	if (INVALID_HANDLE_VALUE != m_SampleReadyEvent)
 	{
 		CloseHandle(m_SampleReadyEvent);
@@ -124,17 +135,16 @@ AudioCaptureDevice::~AudioCaptureDevice()
 //  Activates the default audio capture on a asynchronous callback thread.  This needs
 //  to be called from the main UI thread.
 //
-HRESULT AudioCaptureDevice::InitializeAudioDeviceAsync(IAudioSink* pAudioSink)
+HRESULT AudioCaptureDevice::InitializeAudioDevice(UINT reflexIntervalMilliSec)
 {
 	HRESULT hr = S_OK;
 	ComPtr<IActivateAudioInterfaceAsyncOperation> pAsyncOp = nullptr;
 	ComPtr<IMMDeviceEnumerator> pEnumerator = nullptr;
 	ComPtr<IMMDevice> pDevice = nullptr;
 
-	if (pAudioSink == nullptr)
-		return E_INVALIDARG;
+	REFERENCE_TIME bufferRefTime = reflexIntervalMilliSec * REFTIMES_PER_MILLISEC;
 
-	m_pAudioSink = pAudioSink;
+	//m_pAudioSink = pAudioSink;
 
 	// Get a string representing the Default Audio Capture Device
 
@@ -205,12 +215,13 @@ HRESULT AudioCaptureDevice::InitializeAudioDeviceAsync(IAudioSink* pAudioSink)
 	// Initialize the AudioClient in Shared Mode with the user specified buffer
 	hr = m_AudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED,
 		AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-		200000,
+		bufferRefTime,
 		0,
 		m_MixFormat,
 		nullptr);
 
-	hr = m_pAudioSink->OnFormatChange(m_MixFormat);
+	if (m_pAudioSink != nullptr)
+		hr = m_pAudioSink->OnFormatChange(m_MixFormat);
 
 	// Get the maximum size of the AudioClient Buffer
 	hr = m_AudioClient->GetBufferSize(&m_BufferFrames);
@@ -231,7 +242,7 @@ HRESULT AudioCaptureDevice::InitializeAudioDeviceAsync(IAudioSink* pAudioSink)
 	}
 
 	// Create Async callback for sample events
-	hr = MFCreateAsyncResult(nullptr, &m_xSampleReady, nullptr, &m_SampleReadyAsyncResult);
+	hr = MFCreateAsyncResult(nullptr, &cb_SampleReady, nullptr, &m_SampleReadyAsyncResult);
 
 	if (FAILED(hr))
 	{
@@ -326,7 +337,7 @@ HRESULT AudioCaptureDevice::ActivateCompleted(IActivateAudioInterfaceAsyncOperat
 		}
 
 		// Create Async callback for sample events
-		hr = MFCreateAsyncResult(nullptr, &m_xSampleReady, nullptr, &m_SampleReadyAsyncResult);
+		hr = MFCreateAsyncResult(nullptr, &cb_SampleReady, nullptr, &m_SampleReadyAsyncResult);
 		if (FAILED(hr))
 		{
 			goto exit;
@@ -375,7 +386,7 @@ HRESULT AudioCaptureDevice::StartCaptureAsync()
 	if (GetState() == DeviceState::DeviceStateInitialized)
 	{
 		SetState(DeviceState::DeviceStateStarting, S_OK, true);
-		return MFPutWorkItem2(MFASYNC_CALLBACK_QUEUE_MULTITHREADED, 0, &m_xStartCapture, nullptr);
+		return MFPutWorkItem2(MFASYNC_CALLBACK_QUEUE_MULTITHREADED, 0, &cb_StartCapture, nullptr);
 	}
 
 	// We are in the wrong state
@@ -425,7 +436,7 @@ HRESULT AudioCaptureDevice::StopCaptureAsync()
 
 	SetState(DeviceState::DeviceStateStopping, S_OK, true);
 
-	return MFPutWorkItem2(MFASYNC_CALLBACK_QUEUE_MULTITHREADED, 0, &m_xStopCapture, nullptr);
+	return MFPutWorkItem2(MFASYNC_CALLBACK_QUEUE_MULTITHREADED, 0, &cb_StopCapture, nullptr);
 }
 
 //
@@ -448,6 +459,7 @@ HRESULT AudioCaptureDevice::OnStopCapture(IMFAsyncResult* pResult)
 	m_SampleReadyAsyncResult.Reset();
 
 	m_pAudioSink->OnCaptureStopped();
+
 	// If this is set, it means we writing from the memory buffer to the actual file asynchronously
 	// Since a second call to StoreAsync() can cause an exception, don't queue this now, but rather
 	// let the async operation completion handle the call.
@@ -470,17 +482,17 @@ HRESULT AudioCaptureDevice::OnStopCapture(IMFAsyncResult* pResult)
 //
 //  Finalizes WAV file on a separate thread via MF Work Item
 //
-HRESULT AudioCaptureDevice::FinishCaptureAsync()
-{
-	// We should be flushing when this is called
-	if (GetState() == DeviceState::DeviceStateFlushing)
-	{
-		return MFPutWorkItem2(MFASYNC_CALLBACK_QUEUE_MULTITHREADED, 0, &m_xFinishCapture, nullptr);
-	}
-
-	// We are in the wrong state
-	return E_NOT_VALID_STATE;
-}
+//HRESULT AudioCaptureDevice::FinishCaptureAsync()
+//{
+//	// We should be flushing when this is called
+//	if (GetState() == DeviceState::DeviceStateFlushing)
+//	{
+//		return MFPutWorkItem2(MFASYNC_CALLBACK_QUEUE_MULTITHREADED, 0, &m_xFinishCapture, nullptr);
+//	}
+//
+//	// We are in the wrong state
+//	return E_NOT_VALID_STATE;
+//}
 
 //
 //  OnFinishCapture()
@@ -488,12 +500,12 @@ HRESULT AudioCaptureDevice::FinishCaptureAsync()
 //  Because of the asynchronous nature of the MF Work Queues and the DataWriter, there could still be
 //  a sample processing.  So this will get called to finalize the WAV header.
 //
-HRESULT AudioCaptureDevice::OnFinishCapture(IMFAsyncResult* pResult)
-{
-	// FixWAVHeader will set the DeviceStateStopped when all async tasks are complete
-	//return FixWAVHeader();
-	return S_OK;
-}
+//HRESULT AudioCaptureDevice::OnFinishCapture(IMFAsyncResult* pResult)
+//{
+//	// FixWAVHeader will set the DeviceStateStopped when all async tasks are complete
+//	//return FixWAVHeader();
+//	return S_OK;
+//}
 
 //
 //  OnSampleReady()
@@ -602,7 +614,12 @@ exit:
 
 HRESULT Audio::AudioCaptureDevice::SetAudioSink(IAudioSink* pAudioSink)
 {
-	if (GetState() == DeviceState::DeviceStateInitialized || GetState() == DeviceState::DeviceStateUnInitialized)
+	if (GetState() == DeviceState::DeviceStateUnInitialized)
+	{
+		m_pAudioSink = pAudioSink;
+		return S_OK;
+	}
+	else if (GetState() == DeviceState::DeviceStateInitialized)
 	{
 		m_pAudioSink = pAudioSink;
 		m_pAudioSink->OnFormatChange(m_MixFormat);
