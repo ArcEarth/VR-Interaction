@@ -67,7 +67,7 @@ namespace Audio
 	};
 
 	// DeviceStateChanged delegate
-	typedef void(DeviceStateChangedHandlerType)(void *sender,const std::shared_ptr<DeviceStateChangedEventArgs> &e);
+	typedef void(DeviceStateChangedHandlerType)(void *sender,const DeviceStateChangedEventArgs *e);
 	typedef std::function<DeviceStateChangedHandlerType> DeviceStateChangedEventHandler;
 	// DeviceStateChanged Event
 	class AudioDeviceStateChangedEvent
@@ -92,8 +92,8 @@ namespace Audio
 
 				if (FireEvent)
 				{
-					auto e = std::make_shared<DeviceStateChangedEventArgs>(m_DeviceState, hr);
-					DeviceStateChanged(this, e);
+					DeviceStateChangedEventArgs e(m_DeviceState, hr);
+					DeviceStateChanged(this, &e);
 				}
 			}
 		};

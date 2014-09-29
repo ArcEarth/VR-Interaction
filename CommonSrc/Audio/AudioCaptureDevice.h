@@ -12,16 +12,18 @@
 // WASAPICapture.h
 //
 #pragma once
-#include <Windows.h>
-#include <wrl\client.h>
-#include <mfapi.h>
-#include <AudioClient.h>
-#include <mmdeviceapi.h>
 #include <string>
 #include <memory>
 #include <vector>
 #include <thread>
 #include <atomic>
+
+
+#include <Windows.h>
+#include <mfapi.h>
+#include <AudioClient.h>
+#include <mmdeviceapi.h>
+#include <wrl\client.h>
 
 #include "DeviceState.h"
 #include "Common.h"
@@ -62,6 +64,7 @@ namespace Audio
 		HRESULT InitializeAudioDevice(UINT reflexIntervalMilliSec);
 		HRESULT StartCaptureAsync();
 		HRESULT StopCaptureAsync();
+		HRESULT StopCapture();
 		//HRESULT FinishCaptureAsync();
 
 		inline const IAudioSink* AudioSink() const

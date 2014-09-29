@@ -25,7 +25,7 @@ namespace Audio
 	class AudioButton :
 		public Audio::IAudioSink
 	{
-		typedef void(ButtonStateChangedHandlerType)(AudioButton* sender, const shared_ptr<ButtonStateChangedEventArgs> &e);
+		typedef void(ButtonStateChangedHandlerType)(AudioButton* sender, const ButtonStateChangedEventArgs *e);
 	private:
 		HRESULT OnSendScopeData(IMFAsyncResult* pResult);
 	public:
@@ -52,7 +52,7 @@ namespace Audio
 
 		ButtonState							 m_CurrentState;
 		WAVEFORMATEX						 m_MixFormat;
-		shared_ptr<vector<int>>	 m_pScopedWaveData;
+		vector<int>							 m_ScopedWaveData;
 		UINT32                               m_WaveDataMax;
 		UINT32                               m_WaveDataFilled;
 	};

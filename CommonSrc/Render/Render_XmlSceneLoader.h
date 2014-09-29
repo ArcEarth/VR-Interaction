@@ -29,7 +29,7 @@ limitations under the License.
 using namespace OVR;
 using namespace OVR::Render;
 
-#include "../../../3rdParty/TinyXml/tinyxml2.h"
+#include <../../3rdParty/TinyXml/tinyxml2.h>
 
 namespace OVR { namespace Render {
 

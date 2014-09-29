@@ -178,15 +178,15 @@ class CAsyncState :
 	public Microsoft::WRL::RuntimeClass < Microsoft::WRL::RuntimeClassFlags< Microsoft::WRL::ClassicCom>, IUnknown >
 {
 public:
-	CAsyncState(const std::shared_ptr<std::vector<int>> &pData, UINT32 size) :
+	CAsyncState(const std::vector<int> *pData, UINT32 size) :
 		Data(pData),
 		Size(size)
 	{
 	};
 
 public:
-	std::shared_ptr<std::vector<int>>		Data;
-	UINT32									Size;
+	const std::vector<int>*		Data;
+	UINT32						Size;
 
 private:
 	virtual ~CAsyncState() {};

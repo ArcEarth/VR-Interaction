@@ -22,8 +22,9 @@ limitations under the License.
 
 *************************************************************************************/
 
-#include "OculusWorldDemo.h"
 
+#include "pch.h"
+#include "OculusWorldDemo.h"
 
 //-------------------------------------------------------------------------------------
 // ***** OculusWorldDemoApp
@@ -100,6 +101,9 @@ OculusWorldDemoApp::OculusWorldDemoApp()
 
 OculusWorldDemoApp::~OculusWorldDemoApp()
 {
+	if (pAudioCapturer)
+		pAudioCapturer->StopCaptureAsync();
+
 	CleanupDrawTextFont();
 
 	if (Hmd)
@@ -112,6 +116,15 @@ OculusWorldDemoApp::~OculusWorldDemoApp()
 	GroundCollisionModels.ClearAndRelease();
 
 	ovr_Shutdown();
+
+	//pAudioCapturer->StopCapture();
+
+	if (pAudioCapturer)
+		pAudioCapturer.Reset();
+	if (pAudioSink)
+		pAudioSink.Reset();
+
+	TouchPad = nullptr;
 }
 
 int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
@@ -185,10 +198,20 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 	ThePlayer.bMotionRelativeToBody = false;  // Default to head-steering for DK1
 
 	// Initialize the audio capture system
-	//pAudioSink = Make<SimulateButtonAudioSink>();
-	//pAudioCapturer->InitializeAudioDeviceAsync(pAudioSink.Get());
-	//auto handler = std::bind(&OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged, this, std::placeholders::_1, std::placeholders::_2);
-	//pAudioCapturer->DeviceStateChanged.connect(handler);
+	pAudioSink = Make<AudioButton>();
+	pAudioCapturer = Make<AudioCaptureDevice>();
+
+	pAudioCapturer->DeviceStateChanged.connect(std::bind(&OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged, this, std::placeholders::_1, std::placeholders::_2));
+	pAudioCapturer->SetAudioSink(pAudioSink.Get());
+	pAudioCapturer->InitializeAudioDevice(50);
+
+	pAudioSink->ButtonStateChanged.connect([this](AudioButton* sender, const Audio::ButtonStateChangedEventArgs *e)
+	{
+		if (e->NewState == Pressed)
+		{
+			Menu.SetPopupMessage("Audio Click!");
+		}
+	});
 
 	if (UsingDebugHmd)
 		Menu.SetPopupMessage("NO HMD DETECTED");
@@ -199,17 +222,34 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 	else
 		Menu.SetPopupMessage("Please put on Rift");
 
-	//Microphone->Initialize()
-
 	// Give first message 10 sec timeout, add border lines.
 	Menu.SetPopupTimeout(10.0f, true);
 
 	PopulateOptionMenu();
 
+	// Get the devices ahead, it
+	PressurePad::GetDeviceList();
+
 	// *** Identify Scene File & Prepare for Loading
 
 	InitMainFilePath();
 	PopulatePreloadScene();
+
+	// Initialize touch pads
+	TouchPad = PressurePad::Create(0, PressurePad::Usage_TouchPoints | PressurePad::Usage_ForceMap);
+	//TouchPad->ForecFrameReady.connect([this](TactonicFrame* fram){
+	//	Menu.SetPopupMessage("Force frame ready");
+	//	Menu.SetPopupTimeout(1.0, false);
+	//});
+	TouchPad->TouchFrameReady.connect([this](TactonicTouchFrame* fram){
+		Menu.SetPopupMessage("Touch frame ready");
+		Menu.SetPopupTimeout(1.0, false);
+	});
+
+	if (!TouchPad)
+	{
+		Menu.SetPopupMessage("NO TOUCHPAD DETECTED");
+	}
 
 	LastUpdate = ovr_GetTimeInSeconds();
 
@@ -1467,7 +1507,7 @@ void OculusWorldDemoApp::GamepadStateChanged(const GamepadState& pad)
 	LastGamepadState = pad;
 }
 
-void OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged(void* sender, DeviceStateChangedEventArgs* e)
+void OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged(void* sender,const DeviceStateChangedEventArgs* e)
 {
 	// Event callback from WASAPI capture for changes in device state
 	String message;
@@ -1488,11 +1528,11 @@ void OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged(void* sender, DeviceSt
 		m_DiscontinuityCount++;
 
 		// Should always have a discontinuity when starting the capture, so will disregard it
-		if (m_DiscontinuityCount > 1)
-		{
-			message = "DISCONTINUITY DETECTED";
-			ShowStatusMessage(message, NotifyType::StatusMessage);
-		}
+		//if (m_DiscontinuityCount > 1)
+		//{
+		//	message = "DISCONTINUITY DETECTED";
+		//	ShowStatusMessage(message, NotifyType::StatusMessage);
+		//}
 	}
 		break;
 

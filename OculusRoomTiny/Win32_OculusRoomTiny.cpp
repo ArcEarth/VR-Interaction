@@ -83,7 +83,7 @@ enum class NotifyType
 	ErrorMessage
 };
 
-void OnAudioCaptureDeviceStateChanged(void* sender, const std::shared_ptr<DeviceStateChangedEventArgs> &e);
+void OnAudioCaptureDeviceStateChanged(void* sender, const DeviceStateChangedEventArgs *e);
 void ShowStatusMessage(String message, NotifyType notifyType);
 
 //-------------------------------------------------------------------------------------
@@ -248,7 +248,7 @@ int Init()
 	pAudioCapturer->DeviceStateChanged.connect(OnAudioCaptureDeviceStateChanged);
 	pAudioCapturer->SetAudioSink(pMicrophoneButton.Get());
 	pAudioCapturer->InitializeAudioDevice(5);
-	pMicrophoneButton->ButtonStateChanged.connect([](AudioButton* sender, const std::shared_ptr<Audio::ButtonStateChangedEventArgs>&e)
+	pMicrophoneButton->ButtonStateChanged.connect([](AudioButton* sender, const Audio::ButtonStateChangedEventArgs *e)
 	{
 		if (e->NewState == Pressed)
 		{
@@ -479,7 +479,7 @@ void Release(void)
 }
 UINT32 DiscontinuityCount;
 
-void OnAudioCaptureDeviceStateChanged(void* sender,const std::shared_ptr<DeviceStateChangedEventArgs> &e)
+void OnAudioCaptureDeviceStateChanged(void* sender,const DeviceStateChangedEventArgs *e)
 {
 	// Event callback from WASAPI capture for changes in device state
 	String message;

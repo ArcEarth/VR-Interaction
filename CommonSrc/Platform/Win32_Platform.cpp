@@ -20,6 +20,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 ************************************************************************************/
+#include <cstdlib>
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -642,6 +643,9 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prevInst, LPSTR inArgs, int show)
     using namespace OVR;
     using namespace OVR::OvrPlatform;
 
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
+
     OVR_UNUSED2(prevInst, show);
     
     // CreateApplication must be the first call since it does OVR::System::Initialize.
@@ -688,7 +692,9 @@ int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prevInst, LPSTR inArgs, int show)
     Application::DestroyApplication(g_app);
     g_app = 0;
 
+	auto p = new int[10];
+
     // If this assert fires, then look at the debug output to see what memory is leaking
-    OVR_ASSERT(!_CrtDumpMemoryLeaks());
+    //OVR_ASSERT(!_CrtDumpMemoryLeaks());
     return exitCode;
 }

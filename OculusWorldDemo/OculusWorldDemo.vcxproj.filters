@@ -13,8 +13,11 @@
     <Filter Include="CommonSrc\Util">
       <UniqueIdentifier>{7fda3cf5-3371-45bc-b3b6-3b0424b46d93}</UniqueIdentifier>
     </Filter>
-    <Filter Include="AudioSrc">
-      <UniqueIdentifier>{fac24bec-36d1-439d-abb6-932bfe3f84e7}</UniqueIdentifier>
+    <Filter Include="CommonSrc\Audio">
+      <UniqueIdentifier>{ea756177-6132-4115-a3dc-1871e8bd9db1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lib">
+      <UniqueIdentifier>{383765d6-231a-43ca-9428-ae85ad140de0}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -51,7 +54,6 @@
       <Filter>CommonSrc\Platform</Filter>
     </ClCompile>
     <ClCompile Include="OculusWorldDemo_Scene.cpp" />
-    <ClCompile Include="..\..\3rdParty\TinyXml\tinyxml2.cpp" />
     <ClCompile Include="..\CommonSrc\Render\Render_GL_Win32_Device.cpp">
       <Filter>CommonSrc\Render</Filter>
     </ClCompile>
@@ -65,12 +67,14 @@
       <Filter>CommonSrc\Util</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="..\Audio\AudioCaptureDevice.cpp">
-      <Filter>AudioSrc</Filter>
+    <ClCompile Include="..\CommonSrc\Audio\AudioButton.cpp">
+      <Filter>CommonSrc\Audio</Filter>
     </ClCompile>
-    <ClCompile Include="..\Audio\SimulateButtonAudioSink.cpp">
-      <Filter>AudioSrc</Filter>
+    <ClCompile Include="..\CommonSrc\Audio\AudioCaptureDevice.cpp">
+      <Filter>CommonSrc\Audio</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\..\..\Program Files (x86)\Oculus\OculusSDK\3rdParty\TinyXml\tinyxml2.cpp" />
+    <ClCompile Include="PressurePad.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\CommonSrc\Platform\Win32_Platform.h">
@@ -121,23 +125,30 @@
       <Filter>CommonSrc\Util</Filter>
     </ClInclude>
     <ClInclude Include="pch.h" />
-    <ClInclude Include="..\Audio\AudioCaptureDevice.h">
-      <Filter>AudioSrc</Filter>
+    <ClInclude Include="..\CommonSrc\Audio\AudioButton.h">
+      <Filter>CommonSrc\Audio</Filter>
     </ClInclude>
-    <ClInclude Include="..\Audio\Common.h">
-      <Filter>AudioSrc</Filter>
+    <ClInclude Include="..\CommonSrc\Audio\AudioCaptureDevice.h">
+      <Filter>CommonSrc\Audio</Filter>
     </ClInclude>
-    <ClInclude Include="..\Audio\DeviceState.h">
-      <Filter>AudioSrc</Filter>
+    <ClInclude Include="..\CommonSrc\Audio\Common.h">
+      <Filter>CommonSrc\Audio</Filter>
     </ClInclude>
-    <ClInclude Include="..\Audio\SimulateButtonAudioSink.h">
-      <Filter>AudioSrc</Filter>
+    <ClInclude Include="..\CommonSrc\Audio\DeviceState.h">
+      <Filter>CommonSrc\Audio</Filter>
     </ClInclude>
+    <ClInclude Include="TactonicPad.h" />
+    <ClInclude Include="PressurePad.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OculusWorldDemo.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
+    <None Include="tactonic.dll">
+      <Filter>Lib</Filter>
+    </None>
+    <None Include="tactonicTouch.dll">
+      <Filter>Lib</Filter>
+    </None>
   </ItemGroup>
 </Project>

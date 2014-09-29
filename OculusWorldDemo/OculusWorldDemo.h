@@ -37,8 +37,8 @@ limitations under the License.
 #include "../CommonSrc/Util/OptionMenu.h"
 #include "../CommonSrc/Util/RenderProfiler.h"
 
-#include "../Audio/AudioCaptureDevice.h"
-#include "../Audio/SimulateButtonAudioSink.h"
+#include "../CommonSrc/Audio/AudioCaptureDevice.h"
+#include "../CommonSrc/Audio/AudioButton.h"
 
 #include "Util/Util_Render_Stereo.h"
 using namespace OVR::Util::Render;
@@ -46,6 +46,8 @@ using namespace OVR::Util::Render;
 
 #include "Player.h"
 #include "Sensors/OVR_DeviceConstants.h"
+
+#include "PressurePad.h"
 
 
 // Filename to be loaded by default, searching specified paths.
@@ -117,7 +119,7 @@ public:
     virtual void OnKey(OVR::KeyCode key, int chr, bool down, int modifiers);
     virtual void OnResize(int width, int height);
 
-	void OnAudioCaptureDeviceStateChanged(void* sender, DeviceStateChangedEventArgs* args);
+	void OnAudioCaptureDeviceStateChanged(void* sender, const DeviceStateChangedEventArgs* args);
 
     bool         SetupWindowAndRendering(int argc, const char** argv);
     
@@ -193,9 +195,11 @@ protected:
     int                 FirstScreenInCycle;
     bool                SupportsSrgb;
 
+	ComPtr<AudioButton>				pAudioSink;
 	ComPtr<AudioCaptureDevice>		pAudioCapturer;
-	ComPtr<SimulateButtonAudioSink> pAudioSink;
-	UINT32				m_DiscontinuityCount;
+	UINT32							m_DiscontinuityCount = 0;
+
+	std::shared_ptr<PressurePad>	TouchPad;
 
     // Last vision processing statistics
     double              LastVisionProcessingTime;

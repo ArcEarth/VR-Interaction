@@ -109,7 +109,6 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>OVR_BUILD_DEBUG;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src</AdditionalIncludeDirectories>
-      <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -154,7 +153,6 @@
       <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalOptions>/d2Zi+ %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4996;4512</DisableSpecificWarnings>
@@ -198,6 +196,10 @@
     <ClCompile Include="..\CommonSrc\Audio\AudioButton.cpp" />
     <ClCompile Include="OculusRoomModel.cpp" />
     <ClCompile Include="..\CommonSrc\Platform\Win32_Gamepad.cpp" />
+    <ClCompile Include="Player.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="RenderTiny_D3D11_Device.cpp" />
     <ClCompile Include="Win32_OculusRoomTiny.cpp" />
     <ClCompile Include="Win32_OculusRoomTiny_Util.cpp" />
@@ -212,6 +214,10 @@
     <ClInclude Include="..\CommonSrc\Audio\AudioButton.h" />
     <ClInclude Include="..\CommonSrc\Platform\Win32_Gamepad.h" />
     <ClInclude Include="HSWDisplay_Util.h" />
+    <ClInclude Include="Player.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="RenderTiny_D3D11_Device.h" />
   </ItemGroup>
   <ItemGroup>

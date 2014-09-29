@@ -720,7 +720,7 @@ namespace OVR {
 
 			// The actual physics solver
 			std::unique_ptr<btSequentialImpulseConstraintSolver> pSolver = nullptr;
-			std::unique_ptr<btDynamicsWorld>                     pDynamicsWorld;
+			std::unique_ptr<btDynamicsWorld>                     pDynamicsWorld = nullptr;
 
 			Container			World;
 			Vector4f			LightPos[8];

@@ -76,36 +76,6 @@ cb_SampleReady(this),
 cb_StartCapture(this),
 cb_StopCapture(this)
 {
-	// Create events for sample ready or user stop
-	m_SampleReadyEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
-	if (nullptr == m_SampleReadyEvent)
-	{
-		ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-	}
-
-	if (!InitializeCriticalSectionEx(&m_CritSec, 0, 0))
-	{
-		ThrowIfFailed(HRESULT_FROM_WIN32(GetLastError()));
-	}
-
-	// Register MMCSS work queue
-	HRESULT hr = S_OK;
-	DWORD dwTaskID = 0;
-
-	hr = MFStartup(MF_VERSION);
-	if (FAILED(hr))
-	{
-		ThrowIfFailed(hr);
-	}
-
-	hr = MFLockSharedWorkQueue(L"Capture", 0, &dwTaskID, &m_dwQueueID);
-	if (FAILED(hr))
-	{
-		ThrowIfFailed(hr);
-	}
-
-	// Set the capture event work queue to use the MMCSS queue
-	cb_SampleReady.SetQueueID(m_dwQueueID);
 }
 
 //
@@ -113,6 +83,9 @@ cb_StopCapture(this)
 //
 AudioCaptureDevice::~AudioCaptureDevice()
 {
+	
+	StopCapture();
+
 	if (m_MixFormat)
 		CoTaskMemFree(m_MixFormat);
 
@@ -138,59 +111,74 @@ AudioCaptureDevice::~AudioCaptureDevice()
 HRESULT AudioCaptureDevice::InitializeAudioDevice(UINT reflexIntervalMilliSec)
 {
 	HRESULT hr = S_OK;
-	ComPtr<IActivateAudioInterfaceAsyncOperation> pAsyncOp = nullptr;
-	ComPtr<IMMDeviceEnumerator> pEnumerator = nullptr;
-	ComPtr<IMMDevice> pDevice = nullptr;
-
+	DWORD dwTaskID = 0;
 	REFERENCE_TIME bufferRefTime = reflexIntervalMilliSec * REFTIMES_PER_MILLISEC;
 
-	//m_pAudioSink = pAudioSink;
-
-	// Get a string representing the Default Audio Capture Device
-
-
-	hr = CoCreateInstance(
-		CLSID_MMDeviceEnumerator, NULL,
-		CLSCTX_ALL, IID_IMMDeviceEnumerator,
-		(void**) &pEnumerator);
-
+	hr = MFStartup(MF_VERSION);
 	if (FAILED(hr))
 	{
 		SetState(DeviceState::DeviceStateInError, hr, true);
 		return hr;
 	}
 
-	hr = pEnumerator->GetDefaultAudioEndpoint(
-		eCapture, eConsole, &pDevice);
-	
-	if (FAILED(hr))
+	// Initialize Critial Section
+	if (!InitializeCriticalSectionEx(&m_CritSec, 0, 0))
 	{
 		SetState(DeviceState::DeviceStateInError, hr, true);
-		return hr;
+		return HRESULT_FROM_WIN32(GetLastError());
 	}
+
+	// Find and Active the first audio recorder
+	{
+		ComPtr<IMMDeviceEnumerator> pEnumerator = nullptr;
+		ComPtr<IMMDevice> pDevice = nullptr;
+
+
+		hr = CoCreateInstance(
+			CLSID_MMDeviceEnumerator, NULL,
+			CLSCTX_ALL, IID_IMMDeviceEnumerator,
+			(void**) &pEnumerator);
+
+		if (FAILED(hr))
+		{
+			SetState(DeviceState::DeviceStateInError, hr, true);
+			return hr;
+		}
+
+		// Get a string representing the Default Audio Capture Device
+		hr = pEnumerator->GetDefaultAudioEndpoint(
+			eCapture, eConsole, &pDevice);
+
+		if (FAILED(hr))
+		{
+			SetState(DeviceState::DeviceStateInError, hr, true);
+			return hr;
+		}
 
 
 #ifdef ACTIVE_AUDIO_ASYNC
 
+		ComPtr<IActivateAudioInterfaceAsyncOperation> pAsyncOp = nullptr;
 
-	LPWSTR endPointId = L"\\?\SWD#MMDEVAPI#{0.0.1.00000000}.{963a2c89-65fe-46f1-850d-4eea82af65b2}#{2eef81be-33fa-4800-9670-1cd474972c3f}";
+		LPWSTR endPointId = L"\\?\SWD#MMDEVAPI#{0.0.1.00000000}.{963a2c89-65fe-46f1-850d-4eea82af65b2}#{2eef81be-33fa-4800-9670-1cd474972c3f}";
 
-	hr = pDevice->GetId(&endPointId);
+		hr = pDevice->GetId(&endPointId);
 
-	// This call must be made on the main UI thread.  Async operation will call back to 
-	// IActivateAudioInterfaceCompletionHandler::ActivateCompleted, which must be an agile interface implementation
-	hr = ActivateAudioInterfaceAsync(endPointId, __uuidof(IAudioClient), nullptr, this, &pAsyncOp);
-	if (FAILED(hr))
-	{
-		SetState(DeviceState::DeviceStateInError, hr, true);
-	}
+		// This call must be made on the main UI thread.  Async operation will call back to 
+		// IActivateAudioInterfaceCompletionHandler::ActivateCompleted, which must be an agile interface implementation
+		hr = ActivateAudioInterfaceAsync(endPointId, __uuidof(IAudioClient), nullptr, this, &pAsyncOp);
+		if (FAILED(hr))
+		{
+			SetState(DeviceState::DeviceStateInError, hr, true);
+		}
 #else // ACTIVE_AUDIO_ASYNC
-	hr = pDevice->Activate(IID_IAudioClient, CLSCTX_ALL, NULL, (void**) &m_AudioClient);
+		hr = pDevice->Activate(IID_IAudioClient, CLSCTX_ALL, NULL, (void**) &m_AudioClient);
 
-	if (FAILED(hr))
-	{
-		SetState(DeviceState::DeviceStateInError, hr, true);
-		return hr;
+		if (FAILED(hr))
+		{
+			SetState(DeviceState::DeviceStateInError, hr, true);
+			return hr;
+		}
 	}
 
 	hr = m_AudioClient->GetMixFormat(&m_MixFormat);
@@ -233,7 +221,7 @@ HRESULT AudioCaptureDevice::InitializeAudioDevice(UINT reflexIntervalMilliSec)
 	}
 
 	// Get the capture client
-	hr = m_AudioClient->GetService(__uuidof(IAudioCaptureClient), (void**) &m_AudioCaptureClient);
+	hr = m_AudioClient->GetService(__uuidof(IAudioCaptureClient), &m_AudioCaptureClient);
 
 	if (FAILED(hr))
 	{
@@ -241,15 +229,24 @@ HRESULT AudioCaptureDevice::InitializeAudioDevice(UINT reflexIntervalMilliSec)
 		return hr;
 	}
 
-	// Create Async callback for sample events
-	hr = MFCreateAsyncResult(nullptr, &cb_SampleReady, nullptr, &m_SampleReadyAsyncResult);
+	// Create events for sample ready or user stop
+	m_SampleReadyEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
+	if (nullptr == m_SampleReadyEvent)
+	{
+		SetState(DeviceState::DeviceStateInError, hr, true);
+		return HRESULT_FROM_WIN32(GetLastError());
+	}
 
+	// Register MMCSS work queue
+	hr = MFLockSharedWorkQueue(L"Capture", 0, &dwTaskID, &m_dwQueueID);
 	if (FAILED(hr))
 	{
 		SetState(DeviceState::DeviceStateInError, hr, true);
 		return hr;
 	}
 
+	// Set the capture event work queue to use the MMCSS queue
+	cb_SampleReady.SetQueueID(m_dwQueueID);
 	// Sets the event handle that the system signals when an audio buffer is ready to be processed by the client
 	hr = m_AudioClient->SetEventHandle(m_SampleReadyEvent);
 
@@ -261,7 +258,7 @@ HRESULT AudioCaptureDevice::InitializeAudioDevice(UINT reflexIntervalMilliSec)
 
 #endif // ACTIVE_AUDIO_ASYNC
 
-	SetState(DeviceState::DeviceStateInitialized,hr,true);
+	SetState(DeviceState::DeviceStateInitialized, hr, true);
 	return hr;
 }
 
@@ -315,7 +312,8 @@ HRESULT AudioCaptureDevice::ActivateCompleted(IActivateAudioInterfaceAsyncOperat
 			m_MixFormat,
 			nullptr);
 
-		m_pAudioSink->OnFormatChange(m_MixFormat);
+		if (m_pAudioSink)
+			m_pAudioSink->OnFormatChange(m_MixFormat);
 
 		if (FAILED(hr))
 		{
@@ -402,6 +400,19 @@ HRESULT AudioCaptureDevice::OnStartCapture(IMFAsyncResult* pResult)
 {
 	HRESULT hr = S_OK;
 
+	if (GetState() != DeviceState::DeviceStateStarting)
+	{
+		return E_NOT_VALID_STATE;
+	}
+
+	// Create Async callback for sample events
+	hr = MFCreateAsyncResult(nullptr, &cb_SampleReady, nullptr, &m_SampleReadyAsyncResult);
+	if (FAILED(hr))
+	{
+		SetState(DeviceState::DeviceStateInError, hr, true);
+		return hr;
+	}
+
 	// Start the capture
 	hr = m_AudioClient->Start();
 	if (SUCCEEDED(hr))
@@ -409,9 +420,10 @@ HRESULT AudioCaptureDevice::OnStartCapture(IMFAsyncResult* pResult)
 		SetState(DeviceState::DeviceStateCapturing, S_OK, true);
 		hr = MFPutWaitingWorkItem(m_SampleReadyEvent, 0, m_SampleReadyAsyncResult.Get(), &m_SampleReadyKey);
 		if (SUCCEEDED(hr))
-			m_pAudioSink->OnCaptureStarted();
-		else
-			SetState(DeviceState::DeviceStateCapturing, S_OK, true);
+			if (m_pAudioSink)
+				m_pAudioSink->OnCaptureStarted();
+			else
+				SetState(DeviceState::DeviceStateCapturing, S_OK, true);
 	}
 	else
 	{
@@ -446,33 +458,22 @@ HRESULT AudioCaptureDevice::StopCaptureAsync()
 //
 HRESULT AudioCaptureDevice::OnStopCapture(IMFAsyncResult* pResult)
 {
+	HRESULT hr = S_OK;
 	// Stop capture by canceling Work Item
 	// Cancel the queued work item (if any)
 	if (0 != m_SampleReadyKey)
 	{
-		MFCancelWorkItem(m_SampleReadyKey);
+		hr = MFCancelWorkItem(m_SampleReadyKey);
 		m_SampleReadyKey = 0;
 	}
+	m_SampleReadyAsyncResult.Reset();
 
 	m_AudioClient->Stop();
 
-	m_SampleReadyAsyncResult.Reset();
+	SetState(DeviceState::DeviceStateStopped, S_OK, true);
 
-	m_pAudioSink->OnCaptureStopped();
-
-	// If this is set, it means we writing from the memory buffer to the actual file asynchronously
-	// Since a second call to StoreAsync() can cause an exception, don't queue this now, but rather
-	// let the async operation completion handle the call.
-	//if (!m_fWriting)
-	//{
-	//	m_DeviceStateChanged->SetState( DeviceState::DeviceStateFlushing, S_OK, true );
-
-	//	concurrency::task<unsigned int>( m_WAVDataWriter->StoreAsync()).then(
-	//		[this]( unsigned int BytesWritten )
-	//	{
-	//		FinishCaptureAsync();
-	//	});
-	//}
+	if (m_pAudioSink)
+		m_pAudioSink->OnCaptureStopped();
 
 	return S_OK;
 }
@@ -592,13 +593,14 @@ HRESULT AudioCaptureDevice::OnAudioSampleRequested(bool IsSilence)
 		}
 
 		// Store data in array
-		std::vector<byte> dataByte(Data, Data+cbBytesToCapture);
+		std::vector<byte> dataByte(Data, Data + cbBytesToCapture);
 
 		// Release buffer back
 		m_AudioCaptureClient->ReleaseBuffer(FramesAvailable);
 
 		// Update plotter data
-		m_pAudioSink->OnSamples(dataByte.data(), cbBytesToCapture);
+		if (m_pAudioSink)
+			m_pAudioSink->OnSamples(dataByte.data(), cbBytesToCapture);
 		//ProcessScopeData(dataByte.data(), cbBytesToCapture);
 
 		// Write File and async store
@@ -626,6 +628,19 @@ HRESULT Audio::AudioCaptureDevice::SetAudioSink(IAudioSink* pAudioSink)
 		return S_OK;
 	}
 	return E_NOT_VALID_STATE;
+}
+
+HRESULT Audio::AudioCaptureDevice::StopCapture()
+{
+	if (GetState() == DeviceState::DeviceStateCapturing)
+		OnStopCapture(nullptr);
+	else if (GetState() == DeviceState::DeviceStateStopping)
+		while (GetState() != DeviceState::DeviceStateStopped)
+			Sleep(50);
+	if (GetState() == DeviceState::DeviceStateStopped)
+		return S_OK;
+	else
+		return E_NOT_VALID_STATE;
 }
 
 #pragma region SynchronizeCaptureDevice
