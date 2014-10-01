@@ -73,8 +73,11 @@
     <ClCompile Include="..\CommonSrc\Audio\AudioCaptureDevice.cpp">
       <Filter>CommonSrc\Audio</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\..\..\Program Files (x86)\Oculus\OculusSDK\3rdParty\TinyXml\tinyxml2.cpp" />
     <ClCompile Include="PressurePad.cpp" />
+    <ClCompile Include="..\..\..\..\..\..\Program Files (x86)\Oculus\OculusSDK\3rdParty\TinyXml\tinyxml2.cpp">
+      <Filter>CommonSrc\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="HUD.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\CommonSrc\Platform\Win32_Platform.h">
@@ -139,6 +142,7 @@
     </ClInclude>
     <ClInclude Include="TactonicPad.h" />
     <ClInclude Include="PressurePad.h" />
+    <ClInclude Include="HUD.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OculusWorldDemo.rc" />

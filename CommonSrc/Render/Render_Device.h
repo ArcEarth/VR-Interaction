@@ -33,6 +33,10 @@ limitations under the License.
 
 #include "OVR_Stereo.h"
 
+#include <memory>
+#include <btBulletDynamicsCommon.h>
+#include <btBulletCollisionCommon.h>
+
 namespace OVR { namespace Render {
 
 class RenderDevice;
@@ -392,7 +396,136 @@ public:
 	bool TestRay(const Vector3f& origin, const Vector3f& norm, float& len, Planef* ph = NULL) const;
 };
 
-class Node : public RefCountBase<Node>
+class NodeBase : public RefCountBase < NodeBase >
+{
+public:
+	enum NodeType
+	{
+		Node_NonDisplay,
+		Node_Container,
+		Node_Model
+	};
+	virtual NodeType GetType() const { return Node_NonDisplay; }
+
+	virtual void ClearRenderer() = 0;
+
+	virtual const Vector3f&  GetPosition() const = 0;
+	virtual const Quatf&     GetOrientation() const = 0;
+	virtual void             SetPosition(Vector3f p) = 0;
+	virtual void             SetOrientation(Quatf q) = 0;
+
+	void             Move(Vector3f p)         { SetPosition(GetPosition() + p);}
+	void             Rotate(Quatf q)          { SetOrientation(q * GetOrientation()); }
+
+};
+
+// A Node providing position and orientation data from Physics engine embed
+class RigidNode : public NodeBase
+{
+public:
+	inline static const btQuaternion& Ovr2Bt(const Quatf &q)
+	{
+		return reinterpret_cast<const btQuaternion&>(q);
+	}
+	inline static const btVector3& Ovr2Bt(const Vector3f &v)
+	{
+		return reinterpret_cast<const btVector3&>(v);
+	}
+	inline static const Quatf& Bt2Ovr(const btQuaternion &q)
+	{
+		return reinterpret_cast<const Quatf&>(q);
+	}
+	inline static const Vector3f& Bt2Ovr(const btVector3 &v)
+	{
+		return reinterpret_cast<const Vector3f&>(v);
+	}
+
+	RigidNode()
+	{ }
+
+	~RigidNode()
+	{
+		if (m_pWorld && m_pRigidBody)
+		{
+			m_pWorld->removeRigidBody(m_pRigidBody.get());
+			auto state = m_pRigidBody->getMotionState();
+			if (state)
+				delete state;
+		}
+	}
+
+	void Initialize(btDynamicsWorld *pWorld,const std::shared_ptr<btCollisionShape>& pShape, float mass, Vector3f Pos, Quatf Rot)
+	{
+		m_pWorld = pWorld;
+		m_pShape = pShape;
+		btDefaultMotionState* fallMotionState =
+			new btDefaultMotionState(btTransform(Ovr2Bt(Rot), Ovr2Bt(Pos)));
+		btVector3 inertia(0, 0, 0);
+		m_pShape->calculateLocalInertia(mass, inertia);
+		btRigidBody::btRigidBodyConstructionInfo rigidBodyCI(mass, fallMotionState, m_pShape.get(), inertia);
+		m_pRigidBody = std::make_unique<btRigidBody>(rigidBodyCI);
+		if (m_pWorld != nullptr)
+			m_pWorld->addRigidBody(m_pRigidBody.get());
+		
+		auto pos = GetPosition();
+		auto rot = GetOrientation();
+	}
+
+	virtual const Vector3f&  GetPosition() const
+	{
+		m_pRigidBody->getMotionState()->getWorldTransform(m_Transform);
+		return Bt2Ovr(m_Transform.getOrigin());
+	}
+
+	virtual const Quatf& GetOrientation() const
+	{
+		m_pRigidBody->getMotionState()->getWorldTransform(m_Transform);
+		return Bt2Ovr(m_Transform.getRotation());
+	}
+
+	virtual void SetPosition(Vector3f p)
+	{
+		m_pRigidBody->getMotionState()->getWorldTransform(m_Transform);
+		m_Transform.setOrigin(Ovr2Bt(p));
+		m_pRigidBody->getMotionState()->setWorldTransform(m_Transform);
+		//m_pRigidBody->getWorldTransform().setOrigin(Ovr2Bt(p));
+	}
+
+	virtual void SetOrientation(Quatf q) {
+		m_pRigidBody->getMotionState()->getWorldTransform(m_Transform);
+		m_Transform.setRotation(Ovr2Bt(q));
+		m_pRigidBody->getMotionState()->setWorldTransform(m_Transform);
+	}
+
+	virtual const Matrix4f&  GetMatrix() const
+	{
+		m_TransformMatrix = Matrix4f(GetOrientation());
+		m_TransformMatrix = Matrix4f::Translation(GetPosition()) * m_TransformMatrix;
+		Matrix4f glMatrix;
+		m_pRigidBody->getWorldTransform().getOpenGLMatrix((float*) &glMatrix);
+		return m_TransformMatrix;
+	}
+
+	btRigidBody* GetRigidBody()
+	{
+		return m_pRigidBody.get();
+	}
+
+	btCollisionShape *GetShape()
+	{
+		return m_pShape.get();
+	}
+
+private:
+
+	std::shared_ptr<btCollisionShape> m_pShape;
+	std::unique_ptr<btRigidBody>      m_pRigidBody;
+	mutable btTransform				  m_Transform;
+	btDynamicsWorld *                 m_pWorld;
+	mutable Matrix4f		          m_TransformMatrix;
+};
+
+class Node : public NodeBase
 {
     Vector3f     Pos;
     Quatf        Rot;
@@ -404,12 +537,6 @@ public:
     Node() : Pos(Vector3f(0)), MatCurrent(1) { }
     virtual ~Node() { }
 
-    enum NodeType
-    {
-        Node_NonDisplay,
-        Node_Container,
-        Node_Model
-    };
     virtual NodeType GetType() const { return Node_NonDisplay; }
 
     virtual void ClearRenderer() { }

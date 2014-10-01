@@ -47,6 +47,7 @@ using namespace OVR::Util::Render;
 #include "Player.h"
 #include "Sensors/OVR_DeviceConstants.h"
 
+#include "HUD.h"
 #include "PressurePad.h"
 
 
@@ -377,6 +378,8 @@ protected:
     // User configurable options, brought up by 'Tab' key.
     // Also handles shortcuts and pop-up overlay messages.
     OptionSelectionMenu Menu;
+
+	HUD					Hud;
 
     // Profiler for rendering - displays timing stats.
     RenderProfiler      Profiler;

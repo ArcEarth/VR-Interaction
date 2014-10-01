@@ -72,6 +72,7 @@ m_pAudioSink(nullptr),
 m_AudioClient(nullptr),
 m_AudioCaptureClient(nullptr),
 m_MixFormat(nullptr),
+m_SampleReadyEvent(INVALID_HANDLE_VALUE),
 cb_SampleReady(this),
 cb_StartCapture(this),
 cb_StopCapture(this)

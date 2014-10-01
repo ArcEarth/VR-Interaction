@@ -524,7 +524,8 @@ namespace OVR { namespace Render {
 	{
 		ShaderSet* shaders = CreateShaderSet();
 		shaders->SetShader(LoadBuiltinShader(Shader_Vertex, VShader_MVP));
-		shaders->SetShader(LoadBuiltinShader(Shader_Fragment, useAlpha ? FShader_AlphaTexture : FShader_Texture));
+		shaders->SetShader(LoadBuiltinShader(Shader_Fragment, useAlpha ? FShader_AlphaBlendedTexture : FShader_Texture));
+		//shaders->SetShader(LoadBuiltinShader(Shader_Fragment, useAlpha ? FShader_AlphaTexture : FShader_Texture));
 		Fill* f = new ShaderFill(*shaders);
 		f->SetTexture(0, t);
 		return f;

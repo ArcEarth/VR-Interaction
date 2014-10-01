@@ -188,12 +188,15 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 
 	CalculateHmdValues();
 
+	Hud.Initialize(pRender, EyeRenderSize[0]);
+	Hud.Begin();
+	Hud.End();
+
 	// Query eye height.
 	ThePlayer.UserEyeHeight = ovrHmd_GetFloat(Hmd, OVR_KEY_EYE_HEIGHT, ThePlayer.UserEyeHeight);
 	ThePlayer.BodyPos.y = ThePlayer.UserEyeHeight;
 	// Center pupil for customization; real game shouldn't need to adjust this.
 	CenterPupilDepthMeters = ovrHmd_GetFloat(Hmd, "CenterPupilDepth", 0.0f);
-
 
 	ThePlayer.bMotionRelativeToBody = false;  // Default to head-steering for DK1
 
@@ -203,15 +206,24 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 
 	pAudioCapturer->DeviceStateChanged.connect(std::bind(&OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged, this, std::placeholders::_1, std::placeholders::_2));
 	pAudioCapturer->SetAudioSink(pAudioSink.Get());
-	pAudioCapturer->InitializeAudioDevice(50);
+	HRESULT hr = pAudioCapturer->InitializeAudioDevice(50);
 
-	pAudioSink->ButtonStateChanged.connect([this](AudioButton* sender, const Audio::ButtonStateChangedEventArgs *e)
+	// If we can't intialize the Audio Capture Device
+	if (pAudioCapturer && SUCCEEDED(hr))
 	{
-		if (e->NewState == Pressed)
+		pAudioSink->ButtonStateChanged.connect([this](AudioButton* sender, const Audio::ButtonStateChangedEventArgs *e)
 		{
-			Menu.SetPopupMessage("Audio Click!");
-		}
-	});
+			if (e->NewState == Pressed)
+			{
+				Menu.SetPopupMessage("Audio Click!");
+			}
+		});
+	}
+	else
+	{
+		pAudioSink.Reset();
+		Menu.SetPopupMessage("NO AUDIO CAPTURE DEVICE DETECTED");
+	}
 
 	if (UsingDebugHmd)
 		Menu.SetPopupMessage("NO HMD DETECTED");
@@ -236,17 +248,17 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 	PopulatePreloadScene();
 
 	// Initialize touch pads
-	TouchPad = PressurePad::Create(0, PressurePad::Usage_TouchPoints | PressurePad::Usage_ForceMap);
-	//TouchPad->ForecFrameReady.connect([this](TactonicFrame* fram){
-	//	Menu.SetPopupMessage("Force frame ready");
-	//	Menu.SetPopupTimeout(1.0, false);
-	//});
-	TouchPad->TouchFrameReady.connect([this](TactonicTouchFrame* fram){
-		Menu.SetPopupMessage("Touch frame ready");
-		Menu.SetPopupTimeout(1.0, false);
-	});
-
-	if (!TouchPad)
+	TouchPad = PressurePad::Create(0, PressurePad::Usage_TouchPoints);
+	if (TouchPad)
+		//TouchPad->ForecFrameReady.connect([this](TactonicFrame* fram){
+		//	Menu.SetPopupMessage("Force frame ready");
+		//	Menu.SetPopupTimeout(1.0, false);
+		//});
+		TouchPad->TouchFrameReady.connect([this](TactonicTouchFrame* fram){
+			Menu.SetPopupMessage("Touch frame ready");
+			Menu.SetPopupTimeout(1.0, false);
+		});
+	else
 	{
 		Menu.SetPopupMessage("NO TOUCHPAD DETECTED");
 	}
@@ -274,7 +286,8 @@ bool OculusWorldDemoApp::SetupWindowAndRendering(int argc, const char** argv)
 	// *** Initialize Rendering
 
 #if defined(OVR_OS_WIN32)
-	const char* graphics = "d3d11";
+	//const char* graphics = "GL";
+	const char* graphics = "D3D11";
 #else
 	const char* graphics = "GL";
 #endif
@@ -726,7 +739,7 @@ void OculusWorldDemoApp::OnKey(OVR::KeyCode key, int chr, bool down, int modifie
 
 #ifdef OVR_OS_MAC
 		// F11 is reserved on Mac, F10 doesn't work on Windows
-	case Key_F10:  
+	case Key_F10:
 #else
 	case Key_F11:
 #endif
@@ -1185,6 +1198,7 @@ void OculusWorldDemoApp::RenderEyeView(ovrEyeType eye)
 	RenderTextInfoHud(textHeight);
 
 	// Menu brought up by 
+	Hud.Render();
 	Menu.Render(pRender);
 }
 
@@ -1507,7 +1521,7 @@ void OculusWorldDemoApp::GamepadStateChanged(const GamepadState& pad)
 	LastGamepadState = pad;
 }
 
-void OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged(void* sender,const DeviceStateChangedEventArgs* e)
+void OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged(void* sender, const DeviceStateChangedEventArgs* e)
 {
 	// Event callback from WASAPI capture for changes in device state
 	String message;
