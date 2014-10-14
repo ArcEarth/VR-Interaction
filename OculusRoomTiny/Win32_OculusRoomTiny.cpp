@@ -71,7 +71,7 @@ ovrVector2f         UVScaleOffset[2][2];
 #endif
 
 using namespace OVR;
-using namespace Audio;
+using namespace Platform::Audio;
 using namespace Microsoft::WRL;
 
 ComPtr<Audio::AudioCaptureDevice> pAudioCapturer = nullptr;

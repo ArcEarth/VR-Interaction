@@ -1,8 +1,8 @@
 #include "AudioButton.h"
+#define _USE_MATH_DEFINES
+#include <cmath>
 
-#include <DirectXMath.h>
-
-using namespace Audio;
+using namespace Platform::Audio;
 using namespace Microsoft::WRL;
 
 const IID IID_IMFAsyncCallback = __uuidof(IMFAsyncCallback);
@@ -87,10 +87,12 @@ HRESULT AudioButton::OnSamples(BYTE* pData, UINT32 cbBytes)
 	return hr;
 }
 
+
 HRESULT AudioButton::OnSendScopeData(IMFAsyncResult* pResult)
 {
 	HRESULT hr = S_OK;
 	ComPtr<CAsyncState> pState = nullptr;
+	const float PI = 3.14159265358979f;
 
 	hr = pResult->GetState(&pState);
 	if (SUCCEEDED(hr))
@@ -106,7 +108,7 @@ HRESULT AudioButton::OnSendScopeData(IMFAsyncResult* pResult)
 			A += (double) std::abs(frame);
 		}
 
-		A /= (double) pState->Size * DirectX::XM_PIDIV2; // Convert the integral to amplitude
+		A /= (double) pState->Size * (PI/2); // Convert the integral to amplitude
 
 		pState.Reset();
 
@@ -117,7 +119,7 @@ HRESULT AudioButton::OnSendScopeData(IMFAsyncResult* pResult)
 			e.NewState = state;
 			e.OldState = m_CurrentState;
 			m_CurrentState = state;
-			ButtonStateChanged(this, &e);
+			ButtonStateChanged(&e);
 		}
 	}
 

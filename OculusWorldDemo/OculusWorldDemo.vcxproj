@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -29,31 +29,30 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionSettings" />
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -67,12 +66,12 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros">
-    <NuGetPackageImportStamp>cf357da7</NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>6d5977aa</NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IntDir>$(ProjectDir)Obj/Win/VS2013/$(Configuration)/$(PlatformName)/</IntDir>
-    <OutDir>$(ProjectDir)Bin/Win/VS2013/$(Configuration)/$(PlatformName)/</OutDir>
+    <IntDir>$(ProjectDir)Obj/Win/$(PlatformToolsetVersion)/$(Configuration)/$(PlatformName)/</IntDir>
+    <OutDir>$(ProjectDir)Bin/Win/$(PlatformToolsetVersion)/$(Configuration)/$(PlatformName)/</OutDir>
     <TargetName>OculusWorldDemo</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -98,20 +97,18 @@
     <ClCompile>
       <PrecompiledHeader>
       </PrecompiledHeader>
-      <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>OVR_BUILD_DEBUG;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <MinimalRebuild>false</MinimalRebuild>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <ShowIncludes>false</ShowIncludes>
-      <DisableSpecificWarnings>4512;4996</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4100;4091;4996;4512;5028;4217;4838</DisableSpecificWarnings>
+      <WarningLevel>Level3</WarningLevel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/VS2013/;$(TactonicLib_Root)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(TactonicLib_Root)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovrd.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;Mfplat.lib;Mmdevapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -122,12 +119,11 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>OVR_BUILD_DEBUG;_WIN64;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <MinimalRebuild>false</MinimalRebuild>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <ShowIncludes>false</ShowIncludes>
+      <DisableSpecificWarnings>4100;4091;4996;4512;5028;4217;4838</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -145,12 +141,11 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/d2Zi+ %(AdditionalOptions)</AdditionalOptions>
       <ShowIncludes>false</ShowIncludes>
-      <DisableSpecificWarnings>4512;4996</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4100;4091;4996;4512;5028;4217;4838</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -170,12 +165,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WIN64;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)/Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/d2Zi+ %(AdditionalOptions)</AdditionalOptions>
       <ShowIncludes>false</ShowIncludes>
+      <DisableSpecificWarnings>4100;4091;4996;4512;5028;4217;4838</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -187,7 +182,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\..\Program Files (x86)\Oculus\OculusSDK\3rdParty\TinyXml\tinyxml2.cpp" />
     <ClCompile Include="..\CommonSrc\Audio\AudioButton.cpp" />
     <ClCompile Include="..\CommonSrc\Audio\AudioCaptureDevice.cpp" />
     <ClCompile Include="..\CommonSrc\Platform\Platform.cpp" />
@@ -198,17 +192,18 @@
     <ClCompile Include="..\CommonSrc\Render\Render_LoadTextureDDS.cpp" />
     <ClCompile Include="..\CommonSrc\Render\Render_LoadTextureTGA.cpp" />
     <ClCompile Include="..\CommonSrc\Render\Render_Device.cpp" />
-    <ClCompile Include="..\CommonSrc\Render\Render_D3D10_Device.cpp" />
-    <ClCompile Include="..\CommonSrc\Render\Render_D3D11_Device.cpp" />
-    <ClCompile Include="..\CommonSrc\Render\Render_D3D1X_Device.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="..\CommonSrc\Render\Render_D3D1X_Device.cpp" />
     <ClCompile Include="..\CommonSrc\Render\Render_XmlSceneLoader.cpp" />
+    <ClCompile Include="..\CommonSrc\Util\Filter.cpp" />
     <ClCompile Include="..\CommonSrc\Util\OptionMenu.cpp" />
     <ClCompile Include="..\CommonSrc\Util\RenderProfiler.cpp" />
+    <ClCompile Include="DebugVisualizer.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="DXGIFormatHelper.cpp" />
     <ClCompile Include="HUD.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -241,13 +236,16 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Use</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Player.cpp" />
-    <ClCompile Include="PressurePad.cpp" />
+    <ClCompile Include="Textures.cpp" />
+    <ClCompile Include="TinyXml\tinyxml2.cpp" />
+    <ClCompile Include="TouchPad.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\CommonSrc\Audio\AudioButton.h" />
     <ClInclude Include="..\CommonSrc\Audio\AudioCaptureDevice.h" />
-    <ClInclude Include="..\CommonSrc\Audio\Common.h" />
+    <ClInclude Include="..\CommonSrc\Audio\AudioCommon.h" />
     <ClInclude Include="..\CommonSrc\Audio\DeviceState.h" />
+    <ClInclude Include="..\CommonSrc\Common.hpp" />
     <ClInclude Include="..\CommonSrc\Platform\Gamepad.h" />
     <ClInclude Include="..\CommonSrc\Platform\Platform.h" />
     <ClInclude Include="..\CommonSrc\Platform\Platform_Default.h" />
@@ -255,25 +253,41 @@
     <ClInclude Include="..\CommonSrc\Platform\Win32_Platform.h" />
     <ClInclude Include="..\CommonSrc\Render\Render_Font.h" />
     <ClInclude Include="..\CommonSrc\Render\Render_Device.h" />
-    <ClInclude Include="..\CommonSrc\Render\Render_D3D10_Device.h" />
     <ClInclude Include="..\CommonSrc\Render\Render_D3D11_Device.h" />
     <ClInclude Include="..\CommonSrc\Render\Render_D3D1X_Device.h" />
     <ClInclude Include="..\CommonSrc\Render\Render_GL_Device.h" />
     <ClInclude Include="..\CommonSrc\Render\Render_GL_Win32_Device.h" />
+    <ClInclude Include="..\CommonSrc\Util\Filter.h" />
     <ClInclude Include="..\CommonSrc\Util\OptionMenu.h" />
     <ClInclude Include="..\CommonSrc\Util\RenderProfiler.h" />
     <ClInclude Include="..\CommonSrc\Render\Render_XmlSceneLoader.h" />
+    <ClInclude Include="cpplinq.hpp" />
+    <ClInclude Include="DebugVisualizer.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="DirectXHelper.h" />
+    <ClInclude Include="DXGIFormatHelper.h" />
     <ClInclude Include="HUD.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="OculusWorldDemo.h" />
     <ClInclude Include="Player.h" />
-    <ClInclude Include="PressurePad.h" />
-    <ClInclude Include="TactonicPad.h" />
+    <ClInclude Include="TouchPad.h" />
+    <ClInclude Include="Textures.h" />
+    <ClInclude Include="TinyXml\tinyxml2.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OculusWorldDemo.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\..\OculusSDK\LibOVR\Projects\Win32\VS2013\LibOVR.vcxproj">
+      <Project>{ea50e705-5113-49e5-b105-2512edc8ddc6}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\Visual Studio 2013\Libraries\DirectXTK\DirectXTK_Desktop_2014.vcxproj">
+      <Project>{e0b52ae7-e160-4d32-bf3f-910b785e5a8e}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\BulletCollision.vcxproj">
       <Project>{8937c279-5097-eb49-b459-ce535897a306}</Project>
     </ProjectReference>

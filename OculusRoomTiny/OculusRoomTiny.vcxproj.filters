@@ -58,7 +58,4 @@
     </ClInclude>
     <ClInclude Include="Player.h" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
 </Project>

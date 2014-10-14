@@ -83,19 +83,21 @@ void Player::HandleMovement(double dt, Array<Ptr<CollisionModel> >* collisionMod
         {
             controllerMove -= RightVector;
         }
-    }
+		// Normalize vector so we don't move faster diagonally.
+		if (controllerMove.LengthSq() > 0)
+			controllerMove.Normalize();
+	}
     else if (GamepadMove.LengthSq() > 0)
     {
         controllerMove = GamepadMove;
-    }
+	}
+	else if (TouchpadMove.LengthSq() > 0)
+	{
+		controllerMove = TouchpadMove;
+	}
     controllerMove = GetOrientation(bMotionRelativeToBody).Rotate(controllerMove);    
     controllerMove.y = 0; // Project to the horizontal plane
-    if (controllerMove.LengthSq() > 0)
-    {
-        // Normalize vector so we don't move faster diagonally.
-        controllerMove.Normalize();
-        controllerMove *= OVR::Alg::Min<float>(MoveSpeed * (float)dt * (shiftDown ? 3.0f : 1.0f), 1.0f);
-    }
+    controllerMove *= OVR::Alg::Min<float>(MoveSpeed * (float)dt * (shiftDown ? 3.0f : 1.0f), 1.0f);
 
     // Compute total move direction vector and move length
     Vector3f orientationVector = controllerMove;

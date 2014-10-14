@@ -79,6 +79,7 @@ public:
     uint8_t             MoveLeft;
     uint8_t             MoveRight;
     Vector3f            GamepadMove, GamepadRotate;
+	Vector3f			TouchpadMove, TouchpadRotate;
     bool                bMotionRelativeToBody;
 
 	Player();

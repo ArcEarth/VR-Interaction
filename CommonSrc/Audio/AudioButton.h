@@ -1,60 +1,62 @@
 #pragma once
 #include "AudioCaptureDevice.h"
 
-namespace Audio
+namespace Platform
 {
-	using boost::signals2::signal;
-	using std::shared_ptr;
-	using std::vector;
-	using std::function;
-
-	enum ButtonState
+	namespace Audio
 	{
-		Unknown,
-		Released,
-		Pressed,
-	};
+		using std::shared_ptr;
+		using std::vector;
+		using std::function;
 
-	struct ButtonStateChangedEventArgs
-	{
-	public:
-		ButtonState OldState;
-		ButtonState NewState;
-	};
+		enum ButtonState
+		{
+			Unknown,
+			Released,
+			Pressed,
+		};
 
-	class AudioButton :
-		public Audio::IAudioSink
-	{
-		typedef void(ButtonStateChangedHandlerType)(AudioButton* sender, const ButtonStateChangedEventArgs *e);
-	private:
-		HRESULT OnSendScopeData(IMFAsyncResult* pResult);
-	public:
-		AudioButton();
-		~AudioButton();
+		struct ButtonStateChangedEventArgs
+		{
+		public:
+			ButtonState OldState;
+			ButtonState NewState;
+		};
 
-		virtual HRESULT OnFormatChange(LPCWAVEFORMATEX pwfx);
+		class AudioButton :
+			public IAudioSink
+		{
+			typedef void(ButtonStateChangedHandlerType)(AudioButton* sender, const ButtonStateChangedEventArgs *e);
+		private:
+			HRESULT OnSendScopeData(IMFAsyncResult* pResult);
+		public:
+			AudioButton();
+			~AudioButton();
 
-		virtual HRESULT OnSamples(BYTE* pData, UINT32 numFramesAvailable);
+			virtual HRESULT OnFormatChange(LPCWAVEFORMATEX pwfx);
 
-		MFAsyncCallback<AudioButton, &OnSendScopeData> cb_SendScopeData;
+			virtual HRESULT OnSamples(BYTE* pData, UINT32 numFramesAvailable);
 
-		typedef function<ButtonStateChangedHandlerType> ButtonStateChangedEventHandler;
+			MFAsyncCallback<AudioButton, &OnSendScopeData> cb_SendScopeData;
 
-		signal<ButtonStateChangedHandlerType> ButtonStateChanged;
+			typedef function<ButtonStateChangedHandlerType> ButtonStateChangedEventHandler;
 
-		inline ButtonState CurrentState() const{
-			return m_CurrentState;
-		}
-	private:
+			Platform::Event<const ButtonStateChangedEventArgs *> ButtonStateChanged;
+
+			inline ButtonState CurrentState() const{
+				return m_CurrentState;
+			}
+		private:
 
 
-		RenderSampleType sampleType;
+			RenderSampleType sampleType;
 
-		ButtonState							 m_CurrentState;
-		WAVEFORMATEX						 m_MixFormat;
-		vector<int>							 m_ScopedWaveData;
-		UINT32                               m_WaveDataMax;
-		UINT32                               m_WaveDataFilled;
-	};
+			ButtonState							 m_CurrentState;
+			WAVEFORMATEX						 m_MixFormat;
+			vector<int>							 m_ScopedWaveData;
+			UINT32                               m_WaveDataMax;
+			UINT32                               m_WaveDataFilled;
+		};
 
+	}
 }

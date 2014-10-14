@@ -34,10 +34,21 @@ limitations under the License.
 #include "OVR_Stereo.h"
 
 #include <memory>
+#include <stack>
+#include <vector>
+
+//#include <DirectXMath.h>
+//#include <DirectXCollision.h>
+
 #include <btBulletDynamicsCommon.h>
 #include <btBulletCollisionCommon.h>
 
+//#include <SimpleMath.h>
+#include "..\Common.hpp"
+
 namespace OVR { namespace Render {
+
+	using namespace Platform;
 
 class RenderDevice;
 struct Font;
@@ -379,6 +390,45 @@ struct RenderTarget
 
 //-----------------------------------------------------------------------------------
 
+struct Ray
+{
+	Vector3f Origin;
+	Vector3f Direction;
+};
+
+class ICollsionModel
+{
+public:
+	virtual bool Contains(const Vector3f& p) const = 0;
+	virtual bool Intersects(const Ray& ray, _Outptr_opt_ float *pDist) const = 0;
+	virtual ~ICollsionModel() = 0;
+};
+
+//inline const DirectX::XMFLOAT3& ToXM(const Vector3f& v)
+//{
+//	return reinterpret_cast<const DirectX::XMFLOAT3 &>(v);
+//}
+
+class BoundingBox : public ICollsionModel
+{
+public:
+	Vector3f Center;
+	Vector3f Extents;
+
+	BoundingBox(){}
+	BoundingBox(_In_ const Vector3f& center, _In_ const Vector3f& extents)
+		: Center(center), Extents(extents) 
+	{}
+	BoundingBox(_In_ const BoundingBox& box)
+		: Center(box.Center), Extents(box.Extents)
+	{}
+
+	// Inherited via ICollsionModel
+
+	virtual bool Contains(const Vector3f & p);
+	virtual bool Intersects(const Ray & ray, float * dist);
+};
+
 class CollisionModel : public RefCountBase<CollisionModel>
 {
 public:
@@ -396,7 +446,7 @@ public:
 	bool TestRay(const Vector3f& origin, const Vector3f& norm, float& len, Planef* ph = NULL) const;
 };
 
-class NodeBase : public RefCountBase < NodeBase >
+class Node : public RefCountBase < Node >
 {
 public:
 	enum NodeType
@@ -405,9 +455,11 @@ public:
 		Node_Container,
 		Node_Model
 	};
+	virtual ~Node() {}
 	virtual NodeType GetType() const { return Node_NonDisplay; }
 
-	virtual void ClearRenderer() = 0;
+	virtual void Render(const Matrix4f& ltw, RenderDevice* ren) = 0;
+	virtual void ClearRenderer() {}
 
 	virtual const Vector3f&  GetPosition() const = 0;
 	virtual const Quatf&     GetOrientation() const = 0;
@@ -420,7 +472,7 @@ public:
 };
 
 // A Node providing position and orientation data from Physics engine embed
-class RigidNode : public NodeBase
+class RigidNode : public Node
 {
 public:
 	inline static const btQuaternion& Ovr2Bt(const Quatf &q)
@@ -454,7 +506,7 @@ public:
 		}
 	}
 
-	void Initialize(btDynamicsWorld *pWorld,const std::shared_ptr<btCollisionShape>& pShape, float mass, Vector3f Pos, Quatf Rot)
+	void Initialize(btDynamicsWorld *pWorld,const sptr<btCollisionShape>& pShape, float mass, Vector3f Pos, Quatf Rot)
 	{
 		m_pWorld = pWorld;
 		m_pShape = pShape;
@@ -525,7 +577,7 @@ private:
 	mutable Matrix4f		          m_TransformMatrix;
 };
 
-class Node : public NodeBase
+class StaticNode : public Node
 {
     Vector3f     Pos;
     Quatf        Rot;
@@ -534,8 +586,8 @@ class Node : public NodeBase
 	mutable bool      MatCurrent;
 
 public:
-    Node() : Pos(Vector3f(0)), MatCurrent(1) { }
-    virtual ~Node() { }
+    StaticNode() : Pos(Vector3f(0)), MatCurrent(1) { }
+    virtual ~StaticNode() { }
 
     virtual NodeType GetType() const { return Node_NonDisplay; }
 
@@ -629,15 +681,28 @@ struct LightingParams
 
 //-----------------------------------------------------------------------------------
 
-class Model : public Node
+template <class _TVertex,class _TIndex = uint16_t>
+class Mesh
 {
 public:
-    Array<Vertex>     Vertices;
+	Array<_TVertex>     Vertices;
+	Array<_TIndex>		Indices;
+	PrimitiveType       Type;
+};
+
+class Model : public StaticNode
+{
+public:
+    Array<Vertex>       Vertices;
     Array<uint16_t>     Indices;
-    PrimitiveType     Type;
-    Ptr<class Fill>   Fill;
-    bool              Visible;
-	bool			  IsCollisionModel;
+    PrimitiveType       Type;
+    Ptr<Fill>			Fill;
+	uptr<ICollsionModel>Boundry;
+    bool                Visible;
+	double			    Opticity;
+	bool			    isHightlighted;
+	Color			    Hightlight;
+	bool			    IsCollisionModel;
 
     // Some renderers will create these if they didn't exist before rendering.
     // Currently they are not updated, so vertex data should not be changed after rendering.
@@ -647,9 +712,14 @@ public:
     Model(PrimitiveType t = Prim_Triangles) : Type(t), Fill(NULL), Visible(true) { }
     ~Model() { }
 
+	void SetHightlight(Color color);
+
+
     virtual NodeType GetType() const { return Node_Model; }
 
-    virtual void Render(const Matrix4f& ltw, RenderDevice* ren);
+	void CreateBoundingBox();
+
+	virtual void Render(const Matrix4f& ltw, RenderDevice* ren);
 
     PrimitiveType GetPrimType() const { return Type; }
 
@@ -744,7 +814,7 @@ public:
 							 Color minor = Color(64,64,64,192), Color major = Color(128,128,128,192));
 };
 
-class Container : public Node
+class Container : public StaticNode
 {
 public:
     Array<Ptr<Node> > Nodes;
@@ -764,7 +834,7 @@ public:
 
     virtual void Render(const Matrix4f& ltw, RenderDevice* ren);
 
-    void Add(Node *n) { Nodes.PushBack(n); }
+	void Add(Node *n) { Nodes.PushBack(n); }
 	void Add(Model *n, class Fill *f) { n->Fill = f; Nodes.PushBack(n); }
     void RemoveLast() { Nodes.PopBack(); }
 	void Clear() { Nodes.Clear(); }
@@ -774,6 +844,46 @@ public:
 	Container() : CollideChildren(1) {}
 };
 
+class PhysicalScene
+{
+	Container	Root;
+
+private:
+	std::unique_ptr<btBroadphaseInterface>    pBroadphase = nullptr;
+
+	// Set up the collision configuration and dispatcher
+	uptr<btDefaultCollisionConfiguration>     pCollisionConfiguration = nullptr;
+	uptr<btCollisionDispatcher>               pDispatcher = nullptr;
+
+	// The actual physics solver
+	uptr<btSequentialImpulseConstraintSolver> pSolver = nullptr;
+	uptr<btDynamicsWorld>                     pDynamicsWorld = nullptr;
+
+public:
+
+	PhysicalScene()
+	{
+		pBroadphase = newuni<btDbvtBroadphase>();
+
+		// Set up the collision configuration and dispatcher
+		pCollisionConfiguration = newuni<btDefaultCollisionConfiguration>();
+		pDispatcher = newuni<btCollisionDispatcher>(pCollisionConfiguration.get());
+
+		// The actual physics solver
+		pSolver = newuni<btSequentialImpulseConstraintSolver>();
+
+		// The world.
+		pDynamicsWorld = newuni<btDiscreteDynamicsWorld>(pDispatcher.get(), pBroadphase.get(), pSolver.get(), pCollisionConfiguration.get());
+		pDynamicsWorld->setGravity(btVector3(0, -10, 0));
+	}
+
+	inline btDynamicsWorld* DynamicsWorld()
+	{
+		return pDynamicsWorld.get();
+	}
+
+};
+
 class Scene
 {
 public:
@@ -781,8 +891,6 @@ public:
     Vector3f			LightPos[8];
     LightingParams		Lighting;
 	Array<Ptr<Model> >	Models;
-
-public:
     void Render(RenderDevice* ren, const Matrix4f& view);
 
     void SetAmbient(Color4f color)
@@ -812,7 +920,7 @@ public:
     }
 };
 
-class SceneView : public Node
+class SceneView : public StaticNode
 {
 public:
     Matrix4f GetViewMatrix() const;
@@ -899,6 +1007,74 @@ struct RendererParams
 //-----------------------------------------------------------------------------------
 // ***** RenderDevice
 
+struct MatrixStack
+{
+	void Push()
+	{
+		_stack.push(_top);
+	}
+	void Pop()
+	{
+		_top = _stack.top();
+		_stack.pop();
+	}
+
+	Matrix4f& Top()
+	{
+		return _top;
+	}
+
+	const Matrix4f& Top() const
+	{
+		return _top;
+	}
+
+	void LoadIdentity()
+	{
+		_top.SetIdentity();
+	}
+	void LoadMatrix(const Matrix4f& rhs)
+	{
+		_top = rhs;
+	}
+	void Multipy(const Matrix4f& rhs)
+	{
+		_top *= rhs;
+	}
+	void MultipyLocal(const Matrix4f& lhs)
+	{
+		_top = lhs * _top;
+	}
+	void Translate(const Vector3f& v)
+	{
+		auto mt = Matrix4f::Translation(v);
+		_top *= mt;
+	}
+	void Rotate(const Quatf &q)
+	{
+		OVR_ASSERT(FALSE);
+	}
+	void Scale(const Vector3f &v)
+	{
+		auto ms = Matrix4f::Scaling(v);
+		_top *= ms;
+	}
+	void TranslateLocal(const Vector3f& v)
+	{
+		auto mt = Matrix4f::Translation(v);
+		MultipyLocal(mt);
+	}
+	void RotateLocal(const Quatf &q);
+	void ScaleLocal(const Vector3f &v)
+	{
+		auto ms = Matrix4f::Scaling(v);
+		MultipyLocal(ms);
+	}
+protected:
+	std::stack < Matrix4f > _stack;
+	Matrix4f _top;
+};
+
 class RenderDevice : public RefCountBase<RenderDevice>
 {
     friend class StereoGeomShaders;
@@ -944,6 +1120,7 @@ public:
     RenderDevice();
     virtual ~RenderDevice() { Shutdown(); }
 
+	MatrixStack WorldMatrixStack;
     // This static function is implemented in each derived class
     // to support a specific renderer type.
     //static RenderDevice* CreateDevice(const RendererParams& rp, void* oswnd);

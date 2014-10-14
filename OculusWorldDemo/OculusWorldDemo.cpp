@@ -24,7 +24,10 @@ limitations under the License.
 
 
 #include "pch.h"
+#include "cpplinq.hpp"
 #include "OculusWorldDemo.h"
+#include "Util\Filter.h"
+using namespace Platform;
 
 //-------------------------------------------------------------------------------------
 // ***** OculusWorldDemoApp
@@ -101,6 +104,10 @@ OculusWorldDemoApp::OculusWorldDemoApp()
 
 OculusWorldDemoApp::~OculusWorldDemoApp()
 {
+	if (m_TouchPad)
+	{
+		m_TouchPad = nullptr;
+	}
 	if (pAudioCapturer)
 		pAudioCapturer->StopCaptureAsync();
 
@@ -124,7 +131,6 @@ OculusWorldDemoApp::~OculusWorldDemoApp()
 	if (pAudioSink)
 		pAudioSink.Reset();
 
-	TouchPad = nullptr;
 }
 
 int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
@@ -204,20 +210,20 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 	pAudioSink = Make<AudioButton>();
 	pAudioCapturer = Make<AudioCaptureDevice>();
 
-	pAudioCapturer->DeviceStateChanged.connect(std::bind(&OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged, this, std::placeholders::_1, std::placeholders::_2));
+	pAudioCapturer->DeviceStateChanged += std::bind(&OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged, this, std::placeholders::_1);
 	pAudioCapturer->SetAudioSink(pAudioSink.Get());
 	HRESULT hr = pAudioCapturer->InitializeAudioDevice(50);
 
 	// If we can't intialize the Audio Capture Device
 	if (pAudioCapturer && SUCCEEDED(hr))
 	{
-		pAudioSink->ButtonStateChanged.connect([this](AudioButton* sender, const Audio::ButtonStateChangedEventArgs *e)
+		pAudioSink->ButtonStateChanged += [this](const ButtonStateChangedEventArgs *e)
 		{
 			if (e->NewState == Pressed)
 			{
 				Menu.SetPopupMessage("Audio Click!");
 			}
-		});
+		};
 	}
 	else
 	{
@@ -240,7 +246,7 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 	PopulateOptionMenu();
 
 	// Get the devices ahead, it
-	PressurePad::GetDeviceList();
+	TouchPad::Initialize();
 
 	// *** Identify Scene File & Prepare for Loading
 
@@ -248,16 +254,9 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 	PopulatePreloadScene();
 
 	// Initialize touch pads
-	TouchPad = PressurePad::Create(0, PressurePad::Usage_TouchPoints);
-	if (TouchPad)
-		//TouchPad->ForecFrameReady.connect([this](TactonicFrame* fram){
-		//	Menu.SetPopupMessage("Force frame ready");
-		//	Menu.SetPopupTimeout(1.0, false);
-		//});
-		TouchPad->TouchFrameReady.connect([this](TactonicTouchFrame* fram){
-			Menu.SetPopupMessage("Touch frame ready");
-			Menu.SetPopupTimeout(1.0, false);
-		});
+	m_TouchPad = TouchPad(0, TouchPad::Usage_TouchPoints);
+	if (m_TouchPad)
+		m_TouchPad.TouchFrameReady() += std::bind(&OculusWorldDemoApp::TouchpadStateChanged, this, std::placeholders::_1);
 	else
 	{
 		Menu.SetPopupMessage("NO TOUCHPAD DETECTED");
@@ -324,7 +323,9 @@ bool OculusWorldDemoApp::SetupWindowAndRendering(int argc, const char** argv)
 		SupportsSrgb = false;
 
 	//RenderParams.Fullscreen = true;
-	pRender = pPlatform->SetupGraphics(OVR_DEFAULT_RENDER_DEVICE_SET,
+	auto dx11DeviceSet = SetupGraphicsDeviceSet("D3D11", &OVR::Render::D3D11::RenderDevice::CreateDevice);
+	//OVR_DEFAULT_RENDER_DEVICE_SET
+	pRender = pPlatform->SetupGraphics(dx11DeviceSet,
 		graphics, RenderParams);
 
 	if (!pRender)
@@ -822,6 +823,30 @@ Matrix4f OculusWorldDemoApp::CalculateViewFromPose(const Posef& pose)
 
 	Matrix4f view = Matrix4f::LookAtRH(viewPos, viewPos + forward, up);
 	return view;
+}
+
+void HighLightModel(Node* node, const OVR::Vector3f &origin, const OVR::Vector3f &dir)
+{
+	switch (node->GetType())
+	{
+	case	Node::Node_Container:
+	{
+		auto contianer = dynamic_cast<Container*>(node);
+		for (size_t i = 0; i < contianer->Nodes.GetSize(); i++)
+		{
+			HighLightModel(contianer->Nodes[i], origin, dir);
+		}
+		break;
+	}
+	case	Node::Node_Model:
+	{
+		auto model = dynamic_cast<Model*>(node);
+		break;
+	}
+	case StaticNode::Node_NonDisplay:
+	default:
+		break;
+	}
 }
 
 
@@ -1402,7 +1427,6 @@ void OculusWorldDemoApp::ProcessDeviceNotificationQueue()
 	// TBD: Process device plug & Unplug     
 }
 
-
 //-----------------------------------------------------------------------------
 void OculusWorldDemoApp::ChangeDisplay(bool bBackToWindowed, bool bNextFullscreen,
 	bool bFullWindowDebugging)
@@ -1521,13 +1545,65 @@ void OculusWorldDemoApp::GamepadStateChanged(const GamepadState& pad)
 	LastGamepadState = pad;
 }
 
-void OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged(void* sender, const DeviceStateChangedEventArgs* e)
+void OculusWorldDemoApp::TouchpadStateChanged(Platform::Input::TouchPointsFrame * frame)
+{
+	using namespace cpplinq;
+	static Vector3f preAxis(0, 0, 0);
+	static double Freq = 60.0f;
+	static Platform::Input::LowPassFilter<float> YawFilter(&Freq,1.0);
+
+	std::lock_guard<std::mutex> guard(Hud.m_Mutext);
+	Hud.Touches = from_iterators(frame->touches, frame->touches + frame->numTouches)
+		>> select([this](TouchPoint const &t){
+		return OVR::Vector3f(t.x / (m_TouchPad.Cols() - 1.0f), 1.0f - t.y / (m_TouchPad.Rows() - 1.0f), t.force / 50.0f * 255);
+	}) >> to_vector();
+
+	const float TranslationFactor = 15.0f;
+	const float RotationFactor = 2.0f;
+
+	if (frame->numTouches == 1)
+	{
+		auto touch = frame->touches[0];
+		ThePlayer.TouchpadMove = Vector3f(-touch.dx, 0, touch.dy) * TranslationFactor;
+	}
+	else
+	{
+		ThePlayer.TouchpadMove *= 0.985f;
+	}
+
+	if (frame->numTouches == 2)
+	{
+		auto& t1 = frame->touches[0];
+		auto& t2 = frame->touches[1];
+		Vector3f axis(t2.x - t1.x, 0 , t2.y - t1.y);
+		Vector3f dc(-t2.dx - t1.dx, 0, t1.dy + t2.dy);
+		dc *= 0.5f * TranslationFactor;
+		ThePlayer.TouchpadMove = dc;
+
+		axis.Normalize();
+		if (preAxis.LengthSq() > 0.001f)
+		{
+			auto yaw = asinf(preAxis.Cross(axis).y);
+			YawFilter.Apply(yaw);
+			if (yaw < 0.1f) // If Yaw is too big, it's most likely a noise
+				ThePlayer.BodyYaw -= RotationFactor * YawFilter.Value(); // scale the rotation
+		}
+		preAxis = axis;
+	}
+	else
+	{
+		preAxis = Vector3f::ZERO;
+		YawFilter.Clear();
+	}
+}
+
+void OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged(const DeviceStateChangedEventArgs* e)
 {
 	// Event callback from WASAPI capture for changes in device state
 	String message;
 
 	// Handle state specific messages
-	switch (e->State())
+	switch (e->State)
 	{
 	case DeviceState::DeviceStateInitialized:
 		pAudioCapturer->StartCaptureAsync();
@@ -1561,7 +1637,7 @@ void OculusWorldDemoApp::OnAudioCaptureDeviceStateChanged(void* sender, const De
 		break;
 
 	case DeviceState::DeviceStateInError:
-		HRESULT hr = e->hr();
+		HRESULT hr = e->Hr;
 
 		pAudioCapturer->DeviceStateChanged.disconnect_all_slots();
 		pAudioCapturer.Reset();

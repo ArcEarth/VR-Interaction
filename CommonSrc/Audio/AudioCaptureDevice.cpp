@@ -13,12 +13,16 @@
 //
 
 //#include "pch.h"
-#include "Common.h"
 #include "AudioCaptureDevice.h"
 //#include <windows.media.devices.h>
 #include <ppl.h>
 #include <ppltasks.h>
 
+using namespace Platform;
+using namespace Platform::Audio;
+using namespace Microsoft::WRL;
+using namespace std;
+//
 #define REFTIMES_PER_SEC  10000000
 #define REFTIMES_PER_MILLISEC  10000
 
@@ -30,38 +34,16 @@ const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
 const IID IID_IAudioClient = __uuidof(IAudioClient);
 const IID IID_IAudioCaptureClient = __uuidof(IAudioCaptureClient);
 
-HRESULT Audio::IAudioSink::OnCaptureStarted()
+HRESULT IAudioSink::OnCaptureStarted()
 {
 	return S_OK;
 }
 
-HRESULT Audio::IAudioSink::OnCaptureStopped()
+HRESULT IAudioSink::OnCaptureStopped()
 {
 	return S_OK;
 }
 
-using namespace Microsoft::WRL;
-using namespace Audio;
-using namespace std;
-
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
-
-//
-// WASAPICapture.h
-//
-
-//#include "pch.h"
-#include "AudioCaptureDevice.h"
-
-//
 //  WASAPICapture()
 //
 AudioCaptureDevice::AudioCaptureDevice() :
@@ -273,24 +255,33 @@ HRESULT AudioCaptureDevice::ActivateCompleted(IActivateAudioInterfaceAsyncOperat
 {
 	HRESULT hr = S_OK;
 	HRESULT hrActivateResult = S_OK;
-	IUnknown *punkAudioInterface = nullptr;
+	scope_exit guard([this,&hr](){
+		if (FAILED(hr))
+		{
+			SetState(DeviceState::DeviceStateInError, hr, true);
+			m_AudioClient.Reset();
+			m_AudioCaptureClient.Reset();
+			m_SampleReadyAsyncResult.Reset();
+		}
+	});
+	ComPtr<IUnknown> punkAudioInterface = nullptr;
 
 	// Check for a successful activation result
 	hr = operation->GetActivateResult(&hrActivateResult, &punkAudioInterface);
 	if (SUCCEEDED(hr) && SUCCEEDED(hrActivateResult))
 	{
 		// Get the pointer for the Audio Client
-		punkAudioInterface->QueryInterface(IID_PPV_ARGS(&m_AudioClient));
+		//punkAudioInterface->QueryInterface(IID_PPV_ARGS(&m_AudioClient));
+		punkAudioInterface.As<IAudioClient>(&m_AudioClient);
 		if (nullptr == m_AudioClient)
 		{
-			hr = E_FAIL;
-			goto exit;
+			return hr = E_FAIL;
 		}
 
 		hr = m_AudioClient->GetMixFormat(&m_MixFormat);
 		if (FAILED(hr))
 		{
-			goto exit;
+			return hr;
 		}
 
 		// convert from Float to PCM and from WAVEFORMATEXTENSIBLE to WAVEFORMATEX
@@ -318,35 +309,35 @@ HRESULT AudioCaptureDevice::ActivateCompleted(IActivateAudioInterfaceAsyncOperat
 
 		if (FAILED(hr))
 		{
-			goto exit;
+			return hr;
 		}
 
 		// Get the maximum size of the AudioClient Buffer
 		hr = m_AudioClient->GetBufferSize(&m_BufferFrames);
 		if (FAILED(hr))
 		{
-			goto exit;
+			return hr;
 		}
 
 		// Get the capture client
 		hr = m_AudioClient->GetService(__uuidof(IAudioCaptureClient), (void**) &m_AudioCaptureClient);
 		if (FAILED(hr))
 		{
-			goto exit;
+			return hr;
 		}
 
 		// Create Async callback for sample events
 		hr = MFCreateAsyncResult(nullptr, &cb_SampleReady, nullptr, &m_SampleReadyAsyncResult);
 		if (FAILED(hr))
 		{
-			goto exit;
+			return hr;
 		}
 
 		// Sets the event handle that the system signals when an audio buffer is ready to be processed by the client
 		hr = m_AudioClient->SetEventHandle(m_SampleReadyEvent);
 		if (FAILED(hr))
 		{
-			goto exit;
+			return hr;
 		}
 
 		SetState(DeviceState::DeviceStateInitialized, hr, true);
@@ -355,23 +346,11 @@ HRESULT AudioCaptureDevice::ActivateCompleted(IActivateAudioInterfaceAsyncOperat
 		//hr = CreateWAVFile();
 		//if (FAILED( hr ))
 		//{
-		//	goto exit;
+		//	return hr;
 		//}
 	}
-
-exit:
-	SAFE_RELEASE(punkAudioInterface);
-
-	if (FAILED(hr))
-	{
-		SetState(DeviceState::DeviceStateInError, hr, true);
-		m_AudioClient.Reset();
-		m_AudioCaptureClient.Reset();
-		m_SampleReadyAsyncResult.Reset();
-	}
-
 	// Need to return S_OK
-	return S_OK;
+	return hr;
 }
 
 //
@@ -551,22 +530,25 @@ HRESULT AudioCaptureDevice::OnAudioSampleRequested(bool IsSilence)
 	UINT64 u64DevicePosition = 0;
 	UINT64 u64QPCPosition = 0;
 	DWORD cbBytesToCapture = 0;
-
+	scope_exit guard([this](){
+		LeaveCriticalSection(&m_CritSec); 
+	});
 	EnterCriticalSection(&m_CritSec);
+
 
 	// If this flag is set, we have already queued up the async call to finalize the WAV header
 	// So we don't want to grab or write any more data that would possibly give us an invalid size
 	if ((GetState() == DeviceState::DeviceStateStopping) ||
 		(GetState() == DeviceState::DeviceStateFlushing))
 	{
-		goto exit;
+		return hr;
 	}
 
 	// This should equal the buffer size when GetBuffer() is called
 	hr = m_AudioCaptureClient->GetNextPacketSize(&FramesAvailable);
 	if (FAILED(hr))
 	{
-		goto exit;
+		return hr;
 	}
 
 	if (FramesAvailable > 0)
@@ -577,7 +559,7 @@ HRESULT AudioCaptureDevice::OnAudioSampleRequested(bool IsSilence)
 		hr = m_AudioCaptureClient->GetBuffer(&Data, &FramesAvailable, &dwCaptureFlags, &u64DevicePosition, &u64QPCPosition);
 		if (FAILED(hr))
 		{
-			goto exit;
+			return hr;
 		}
 
 		if (dwCaptureFlags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY)
@@ -609,13 +591,10 @@ HRESULT AudioCaptureDevice::OnAudioSampleRequested(bool IsSilence)
 
 	}
 
-exit:
-	LeaveCriticalSection(&m_CritSec);
-
 	return hr;
 }
 
-HRESULT Audio::AudioCaptureDevice::SetAudioSink(IAudioSink* pAudioSink)
+HRESULT AudioCaptureDevice::SetAudioSink(IAudioSink* pAudioSink)
 {
 	if (GetState() == DeviceState::DeviceStateUnInitialized)
 	{
@@ -631,7 +610,7 @@ HRESULT Audio::AudioCaptureDevice::SetAudioSink(IAudioSink* pAudioSink)
 	return E_NOT_VALID_STATE;
 }
 
-HRESULT Audio::AudioCaptureDevice::StopCapture()
+HRESULT AudioCaptureDevice::StopCapture()
 {
 	if (GetState() == DeviceState::DeviceStateCapturing)
 		OnStopCapture(nullptr);

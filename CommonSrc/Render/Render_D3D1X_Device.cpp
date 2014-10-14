@@ -21,6 +21,8 @@ limitations under the License.
 
 ************************************************************************************/
 
+#define OVR_D3D_VERSION 11
+
 #define GPU_PROFILING 0
 
 #include "Kernel/OVR_Log.h"
@@ -2639,3 +2641,4 @@ void RenderDevice::EndGpuEvent()
 
 }}}
 
+#undef OVR_D3D_VERSION

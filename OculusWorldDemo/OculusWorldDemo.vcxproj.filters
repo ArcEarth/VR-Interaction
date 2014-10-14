@@ -13,11 +13,20 @@
     <Filter Include="CommonSrc\Util">
       <UniqueIdentifier>{7fda3cf5-3371-45bc-b3b6-3b0424b46d93}</UniqueIdentifier>
     </Filter>
-    <Filter Include="CommonSrc\Audio">
-      <UniqueIdentifier>{ea756177-6132-4115-a3dc-1871e8bd9db1}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Lib">
       <UniqueIdentifier>{383765d6-231a-43ca-9428-ae85ad140de0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX">
+      <UniqueIdentifier>{c2f87f65-a6e5-441f-9deb-cc380e166015}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CommonSrc\Util\TinyXML2">
+      <UniqueIdentifier>{ea109931-0b59-40db-9a2f-8f0b18802004}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CommonSrc\Render\Scene">
+      <UniqueIdentifier>{f49c1d59-8c18-4919-971b-044a6036647b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CommonSrc\Platform\Audio">
+      <UniqueIdentifier>{ea756177-6132-4115-a3dc-1871e8bd9db1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -33,21 +42,11 @@
     <ClCompile Include="..\CommonSrc\Render\Render_D3D1X_Device.cpp">
       <Filter>CommonSrc\Render</Filter>
     </ClCompile>
-    <ClCompile Include="..\CommonSrc\Render\Render_D3D10_Device.cpp">
-      <Filter>CommonSrc\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="OculusWorldDemo.cpp" />
-    <ClCompile Include="..\CommonSrc\Render\Render_D3D11_Device.cpp">
-      <Filter>CommonSrc\Render</Filter>
-    </ClCompile>
     <ClCompile Include="..\CommonSrc\Render\Render_LoadTextureTGA.cpp">
       <Filter>CommonSrc\Render</Filter>
     </ClCompile>
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="..\CommonSrc\Render\Render_LoadTextureDDS.cpp">
-      <Filter>CommonSrc\Render</Filter>
-    </ClCompile>
-    <ClCompile Include="..\CommonSrc\Render\Render_XmlSceneLoader.cpp">
       <Filter>CommonSrc\Render</Filter>
     </ClCompile>
     <ClCompile Include="..\CommonSrc\Platform\Win32_Gamepad.cpp">
@@ -68,16 +67,34 @@
     </ClCompile>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="..\CommonSrc\Audio\AudioButton.cpp">
-      <Filter>CommonSrc\Audio</Filter>
+      <Filter>CommonSrc\Platform\Audio</Filter>
     </ClCompile>
     <ClCompile Include="..\CommonSrc\Audio\AudioCaptureDevice.cpp">
-      <Filter>CommonSrc\Audio</Filter>
-    </ClCompile>
-    <ClCompile Include="PressurePad.cpp" />
-    <ClCompile Include="..\..\..\..\..\..\Program Files (x86)\Oculus\OculusSDK\3rdParty\TinyXml\tinyxml2.cpp">
-      <Filter>CommonSrc\Util</Filter>
+      <Filter>CommonSrc\Platform\Audio</Filter>
     </ClCompile>
     <ClCompile Include="HUD.cpp" />
+    <ClCompile Include="Textures.cpp">
+      <Filter>DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugVisualizer.cpp">
+      <Filter>DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="DXGIFormatHelper.cpp">
+      <Filter>DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="TinyXml\tinyxml2.cpp">
+      <Filter>CommonSrc\Util\TinyXML2</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CommonSrc\Render\Render_XmlSceneLoader.cpp">
+      <Filter>CommonSrc\Render\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="OculusWorldDemo.cpp" />
+    <ClCompile Include="TouchPad.cpp">
+      <Filter>CommonSrc\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="..\CommonSrc\Util\Filter.cpp">
+      <Filter>CommonSrc\Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\CommonSrc\Platform\Win32_Platform.h">
@@ -98,13 +115,7 @@
     <ClInclude Include="..\CommonSrc\Render\Render_D3D1X_Device.h">
       <Filter>CommonSrc\Render</Filter>
     </ClInclude>
-    <ClInclude Include="..\CommonSrc\Render\Render_D3D10_Device.h">
-      <Filter>CommonSrc\Render</Filter>
-    </ClInclude>
     <ClInclude Include="..\CommonSrc\Render\Render_D3D11_Device.h">
-      <Filter>CommonSrc\Render</Filter>
-    </ClInclude>
-    <ClInclude Include="..\CommonSrc\Render\Render_XmlSceneLoader.h">
       <Filter>CommonSrc\Render</Filter>
     </ClInclude>
     <ClInclude Include="..\CommonSrc\Platform\Gamepad.h">
@@ -129,20 +140,46 @@
     </ClInclude>
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\CommonSrc\Audio\AudioButton.h">
-      <Filter>CommonSrc\Audio</Filter>
+      <Filter>CommonSrc\Platform\Audio</Filter>
     </ClInclude>
     <ClInclude Include="..\CommonSrc\Audio\AudioCaptureDevice.h">
-      <Filter>CommonSrc\Audio</Filter>
-    </ClInclude>
-    <ClInclude Include="..\CommonSrc\Audio\Common.h">
-      <Filter>CommonSrc\Audio</Filter>
+      <Filter>CommonSrc\Platform\Audio</Filter>
     </ClInclude>
     <ClInclude Include="..\CommonSrc\Audio\DeviceState.h">
-      <Filter>CommonSrc\Audio</Filter>
+      <Filter>CommonSrc\Platform\Audio</Filter>
     </ClInclude>
-    <ClInclude Include="TactonicPad.h" />
-    <ClInclude Include="PressurePad.h" />
     <ClInclude Include="HUD.h" />
+    <ClInclude Include="Textures.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugVisualizer.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXHelper.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="DXGIFormatHelper.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="cpplinq.hpp" />
+    <ClInclude Include="TinyXml\tinyxml2.h">
+      <Filter>CommonSrc\Util\TinyXML2</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CommonSrc\Render\Render_XmlSceneLoader.h">
+      <Filter>CommonSrc\Render\Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="TouchPad.h">
+      <Filter>CommonSrc\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CommonSrc\Common.hpp">
+      <Filter>CommonSrc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CommonSrc\Audio\AudioCommon.h">
+      <Filter>CommonSrc\Platform\Audio</Filter>
+    </ClInclude>
+    <ClInclude Include="..\CommonSrc\Util\Filter.h">
+      <Filter>CommonSrc\Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OculusWorldDemo.rc" />

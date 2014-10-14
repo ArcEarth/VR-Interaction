@@ -48,7 +48,7 @@ using namespace OVR::Util::Render;
 #include "Sensors/OVR_DeviceConstants.h"
 
 #include "HUD.h"
-#include "PressurePad.h"
+#include "TouchPad.h"
 
 
 // Filename to be loaded by default, searching specified paths.
@@ -65,7 +65,8 @@ using namespace OVR::OvrPlatform;
 using namespace OVR::Render;
 
 using namespace Microsoft::WRL;
-using namespace Audio;
+using namespace Platform::Audio;
+using namespace Platform::Input;
 
 
 //-------------------------------------------------------------------------------------
@@ -120,7 +121,7 @@ public:
     virtual void OnKey(OVR::KeyCode key, int chr, bool down, int modifiers);
     virtual void OnResize(int width, int height);
 
-	void OnAudioCaptureDeviceStateChanged(void* sender, const DeviceStateChangedEventArgs* args);
+	void OnAudioCaptureDeviceStateChanged(const DeviceStateChangedEventArgs* args);
 
     bool         SetupWindowAndRendering(int argc, const char** argv);
     
@@ -158,7 +159,7 @@ public:
     Model*      CreateBoundingModel(CollisionModel &cm);
     void        ChangeDisplay ( bool bBackToWindowed, bool bNextFullscreen, bool bFullWindowDebugging );
     void        GamepadStateChanged(const GamepadState& pad);    
-
+	void		TouchpadStateChanged(Platform::Input::TouchPointsFrame* frame);
     // Processes DeviceNotificationStatus queue to handles plug/unplug.
     void         ProcessDeviceNotificationQueue();
 
@@ -200,7 +201,7 @@ protected:
 	ComPtr<AudioCaptureDevice>		pAudioCapturer;
 	UINT32							m_DiscontinuityCount = 0;
 
-	std::shared_ptr<PressurePad>	TouchPad;
+	Platform::Input::TouchPad		m_TouchPad;
 
     // Last vision processing statistics
     double              LastVisionProcessingTime;
