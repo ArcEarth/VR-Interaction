@@ -29,27 +29,27 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings" />
@@ -108,7 +108,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(TactonicLib_Root)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(TactonicLib_Root)\lib;$(BOOST_ROOT)\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovrd.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;Mfplat.lib;Mmdevapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -152,7 +152,7 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/VS2013/;$(TactonicLib_Root)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/VS2013/;$(TactonicLib_Root)\lib;$(BOOST_ROOT)\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovr.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;Mfplat.lib;Mmdevapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -205,6 +205,7 @@
     </ClCompile>
     <ClCompile Include="DXGIFormatHelper.cpp" />
     <ClCompile Include="HUD.cpp" />
+    <ClCompile Include="OrientedTouchPad.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>
@@ -238,6 +239,7 @@
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Textures.cpp" />
     <ClCompile Include="TinyXml\tinyxml2.cpp" />
+    <ClCompile Include="TouchManipulationHandler.cpp" />
     <ClCompile Include="TouchPad.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -246,6 +248,7 @@
     <ClInclude Include="..\CommonSrc\Audio\AudioCommon.h" />
     <ClInclude Include="..\CommonSrc\Audio\DeviceState.h" />
     <ClInclude Include="..\CommonSrc\Common.hpp" />
+    <ClInclude Include="..\CommonSrc\Math.hpp" />
     <ClInclude Include="..\CommonSrc\Platform\Gamepad.h" />
     <ClInclude Include="..\CommonSrc\Platform\Platform.h" />
     <ClInclude Include="..\CommonSrc\Platform\Platform_Default.h" />
@@ -271,9 +274,11 @@
     <ClInclude Include="DirectXHelper.h" />
     <ClInclude Include="DXGIFormatHelper.h" />
     <ClInclude Include="HUD.h" />
+    <ClInclude Include="OrientedTouchPad.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="OculusWorldDemo.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="TouchManipulationHandler.h" />
     <ClInclude Include="TouchPad.h" />
     <ClInclude Include="Textures.h" />
     <ClInclude Include="TinyXml\tinyxml2.h" />

@@ -49,6 +49,7 @@ using namespace OVR::Util::Render;
 
 #include "HUD.h"
 #include "TouchPad.h"
+#include "OrientedTouchPad.h"
 
 
 // Filename to be loaded by default, searching specified paths.
@@ -158,8 +159,9 @@ public:
     Model*      CreateModel(Vector3f pos, struct SlabModel* sm);
     Model*      CreateBoundingModel(CollisionModel &cm);
     void        ChangeDisplay ( bool bBackToWindowed, bool bNextFullscreen, bool bFullWindowDebugging );
-    void        GamepadStateChanged(const GamepadState& pad);    
+    void        GamepadStateChanged(const GamepadState& pad);
 	void		TouchpadStateChanged(Platform::Input::TouchPointsFrame* frame);
+	//void		TouchpadStateChanged(Platform::Input::TouchPointsFrame* frame);
     // Processes DeviceNotificationStatus queue to handles plug/unplug.
     void         ProcessDeviceNotificationQueue();
 
@@ -201,7 +203,8 @@ protected:
 	ComPtr<AudioCaptureDevice>		pAudioCapturer;
 	UINT32							m_DiscontinuityCount = 0;
 
-	Platform::Input::TouchPad		m_TouchPad;
+	Platform::Input::TouchPad			m_TouchPad;
+	Platform::Input::OrientedTouchPad	m_OrientedTouchPad;
 
     // Last vision processing statistics
     double              LastVisionProcessingTime;

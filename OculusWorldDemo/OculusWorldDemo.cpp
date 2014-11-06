@@ -27,6 +27,7 @@ limitations under the License.
 #include "cpplinq.hpp"
 #include "OculusWorldDemo.h"
 #include "Util\Filter.h"
+#include <boost\operators.hpp>
 using namespace Platform;
 
 //-------------------------------------------------------------------------------------
@@ -204,7 +205,7 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 	// Center pupil for customization; real game shouldn't need to adjust this.
 	CenterPupilDepthMeters = ovrHmd_GetFloat(Hmd, "CenterPupilDepth", 0.0f);
 
-	ThePlayer.bMotionRelativeToBody = false;  // Default to head-steering for DK1
+	ThePlayer.bMotionRelativeToBody = true;  // Default to head-steering for DK1
 
 	// Initialize the audio capture system
 	pAudioSink = Make<AudioButton>();
@@ -261,6 +262,8 @@ int OculusWorldDemoApp::OnStartup(int argc, const char** argv)
 	{
 		Menu.SetPopupMessage("NO TOUCHPAD DETECTED");
 	}
+
+	m_OrientedTouchPad.Start();
 
 	LastUpdate = ovr_GetTimeInSeconds();
 
@@ -702,7 +705,7 @@ void OculusWorldDemoApp::OnMouseMove(int x, int y, int modifiers)
 
 		// Apply to rotation. Subtract for right body frame rotation,
 		// since yaw rotation is positive CCW when looking down on XZ plane.
-		ThePlayer.BodyYaw -= (Sensitivity * dx) / 360.0f;
+		ThePlayer.AdditionalYaw -= (Sensitivity * dx) / 360.0f;
 	}
 }
 
@@ -765,6 +768,13 @@ void OculusWorldDemoApp::OnKey(OVR::KeyCode key, int chr, bool down, int modifie
 		CtrlDown = down;
 		break;
 
+	case Key_P:
+	case Key_E:
+	{
+		ThePlayer.SyncBodyYawToHeadYaw();
+	}
+		break;
+
 		// Reset the camera position in case we get stuck
 	case Key_T:
 		if (down)
@@ -786,6 +796,7 @@ void OculusWorldDemoApp::OnKey(OVR::KeyCode key, int chr, bool down, int modifie
 			ThePlayer.BodyPos = Vector3f(Positions[nextPosition].x,
 				ThePlayer.UserEyeHeight, Positions[nextPosition].z);
 			ThePlayer.BodyYaw = DegreeToRad(Positions[nextPosition].YawDegrees);
+			ThePlayer.AdditionalYaw = 0;
 		}
 		break;
 
@@ -793,6 +804,7 @@ void OculusWorldDemoApp::OnKey(OVR::KeyCode key, int chr, bool down, int modifie
 		ThePlayer.BodyPos = Vector3f(-1.85f, 6.0f, -0.52f);
 		ThePlayer.BodyPos.y += ThePlayer.UserEyeHeight;
 		ThePlayer.BodyYaw = 3.1415f / 2;
+		ThePlayer.AdditionalYaw = 0;
 		ThePlayer.HandleMovement(0, &CollisionModels, &GroundCollisionModels, ShiftDown);
 		break;
 
@@ -806,7 +818,7 @@ void OculusWorldDemoApp::OnKey(OVR::KeyCode key, int chr, bool down, int modifie
 
 Matrix4f OculusWorldDemoApp::CalculateViewFromPose(const Posef& pose)
 {
-	Posef worldPose = ThePlayer.VirtualWorldTransformfromRealPose(pose);
+	Posef worldPose = ThePlayer.EyePoseFromRealWorldEyePose(pose);
 
 	// Rotate and position View Camera
 	Vector3f up = worldPose.Rotation.Rotate(UpVector);
@@ -850,7 +862,6 @@ void HighLightModel(Node* node, const OVR::Vector3f &origin, const OVR::Vector3f
 }
 
 
-
 void OculusWorldDemoApp::OnIdle()
 {
 	double curtime = ovr_GetTimeInSeconds();
@@ -865,6 +876,7 @@ void OculusWorldDemoApp::OnIdle()
 	{
 		PopulateScene(MainFilePath.ToCStr());
 		LoadingState = LoadingState_Finished;
+		//ThePlayer.SyncBodyYawToHeadYaw();
 		return;
 	}
 
@@ -895,6 +907,12 @@ void OculusWorldDemoApp::OnIdle()
 		GamepadStateChanged(gamepadState);
 	}
 
+	// Update Body Orientation Sensor
+	m_OrientedTouchPad.Update();
+	Quatf q = m_OrientedTouchPad.GetCurrentOrientation();
+	ThePlayer.HandleBodyOrientationSensorChanged(q);
+
+	// Update Track state
 	ovrTrackingState trackState = ovrHmd_GetTrackingState(Hmd, HmdFrameTiming.ScanoutMidpointSeconds);
 	HmdStatus = trackState.StatusFlags;
 
@@ -929,11 +947,10 @@ void OculusWorldDemoApp::OnIdle()
 	// FPS count and timing.
 	UpdateFrameRateCounter(curtime);
 
-
 	// Update pose based on frame!
 	ThePlayer.HeadPose = trackState.HeadPose.ThePose;
 	// Movement/rotation with the gamepad.
-	ThePlayer.BodyYaw -= ThePlayer.GamepadRotate.x * dt;
+	//ThePlayer.BodyYaw -= ThePlayer.GamepadRotate.x * dt;
 	ThePlayer.HandleMovement(dt, &CollisionModels, &GroundCollisionModels, ShiftDown);
 
 
@@ -1167,7 +1184,7 @@ void OculusWorldDemoApp::RenderEyeView(ovrEyeType eye)
 	pRender->SetDepthMode(true, true);
 
 	Matrix4f baseTranslate = Matrix4f::Translation(ThePlayer.BodyPos);
-	Matrix4f baseYaw = Matrix4f::RotationY(ThePlayer.BodyYaw.Get());
+	Matrix4f baseYaw = Matrix4f::RotationY((ThePlayer.BodyYaw+ThePlayer.AdditionalYaw).Get());
 
 
 	if (GridDisplayMode != GridDisplay_GridOnly)
@@ -1548,9 +1565,14 @@ void OculusWorldDemoApp::GamepadStateChanged(const GamepadState& pad)
 void OculusWorldDemoApp::TouchpadStateChanged(Platform::Input::TouchPointsFrame * frame)
 {
 	using namespace cpplinq;
+	static float initialScale;
+	static float initialHeight;
+	static float initialGround;
+
 	static Vector3f preAxis(0, 0, 0);
-	static double Freq = 60.0f;
-	static Platform::Input::LowPassFilter<float> YawFilter(&Freq,1.0);
+	static float Freq = 60.0f;
+	static Platform::Input::LowPassFilter<float,float> YawFilter(&Freq, 1.0);
+	static Platform::Input::LowPassFilter<float,float> ScaleFilter(&Freq, .5);
 
 	std::lock_guard<std::mutex> guard(Hud.m_Mutext);
 	Hud.Touches = from_iterators(frame->touches, frame->touches + frame->numTouches)
@@ -1575,18 +1597,35 @@ void OculusWorldDemoApp::TouchpadStateChanged(Platform::Input::TouchPointsFrame 
 	{
 		auto& t1 = frame->touches[0];
 		auto& t2 = frame->touches[1];
-		Vector3f axis(t2.x - t1.x, 0 , t2.y - t1.y);
+		Vector3f axis(t2.x - t1.x, 0, t2.y - t1.y);
 		Vector3f dc(-t2.dx - t1.dx, 0, t1.dy + t2.dy);
 		dc *= 0.5f * TranslationFactor;
 		ThePlayer.TouchpadMove = dc;
 
-		axis.Normalize();
 		if (preAxis.LengthSq() > 0.001f)
 		{
-			auto yaw = asinf(preAxis.Cross(axis).y);
-			YawFilter.Apply(yaw);
-			if (yaw < 0.1f) // If Yaw is too big, it's most likely a noise
-				ThePlayer.BodyYaw -= RotationFactor * YawFilter.Value(); // scale the rotation
+			auto scale = axis.Length() / initialScale;
+			scale = max(min(scale, 5), 0.3);
+			scale = ScaleFilter.Apply(scale);
+			ThePlayer.BodyPos.y = (initialHeight) / scale + initialGround; // assume the height is always greater than 0
+
+			if (axis.Length() > 6)
+			{
+				axis.Normalize();
+				auto yaw = asinf(preAxis.Cross(axis).y);
+				if (std::abs(yaw) < 0.1f) // If Yaw is too big, it's most likely a noise
+				{
+					YawFilter.Apply(yaw);
+					ThePlayer.AdditionalYaw -= RotationFactor * YawFilter.Value(); // scale the rotation
+				}
+			}
+		}
+		else
+		{
+			initialHeight = ThePlayer.DistanceToGround(&GroundCollisionModels);
+			initialGround = ThePlayer.BodyPos.y - initialHeight;
+			ScaleFilter.Clear();
+			initialScale = axis.Length();
 		}
 		preAxis = axis;
 	}

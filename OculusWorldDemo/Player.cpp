@@ -26,7 +26,9 @@ limitations under the License.
 Player::Player()
     : UserEyeHeight(1.76f - 0.15f),        // 1.76 meters height (ave US male, Wikipedia), less 15 centimeters (TomF's top-of-head-to-eye distance).
     BodyPos(7.7f, 1.76f - 0.15f, -1.0f),
-    BodyYaw(YawInitial)
+    BodyYaw(YawInitial),
+	AdditionalYaw(0),
+	BodyYawFilter(&FrameRate,10)
 {
 	MoveForward = MoveBack = MoveLeft = MoveRight = 0;
     GamepadMove = Vector3f(0);
@@ -37,22 +39,37 @@ Player::~Player()
 {
 }
 
-Vector3f Player::GetPosition()
+Vector3f Player::GetHeadPosistion()
 {
-    return BodyPos + Quatf(Vector3f(0,1,0), BodyYaw.Get()).Rotate(HeadPose.Translation);
+	return BodyPos + Quatf(Vector3f(0, 1, 0), AdditionalYaw.Get()).Rotate(HeadPose.Translation);
 }
 
-Quatf Player::GetOrientation(bool baseOnly)
+Quatf Player::GetBodyOrientation(bool baseOnly)
 {
-    Quatf baseQ = Quatf(Vector3f(0,1,0), BodyYaw.Get());
-    return baseOnly ? baseQ : baseQ * HeadPose.Rotation;
+	Quatf baseQ = Quatf(Vector3f(0, 1, 0), (AdditionalYaw + BodyYaw).Get());
+    return baseQ;
 }
 
-Posef Player::VirtualWorldTransformfromRealPose(const Posef &sensorHeadPose)
+void Player::SyncBodyYawToHeadYaw()
 {
-    Quatf baseQ = Quatf(Vector3f(0,1,0), BodyYaw.Get());
+	float a,c,yaw;
+	HeadPose.Rotation.GetEulerAngles<Axis_X, Axis_Z, Axis_Y>(&a, &c, &yaw);
+	BodyYaw.Set(yaw);//yaw
+}
 
-    return Posef(baseQ * sensorHeadPose.Rotation,
+void Player::HandleBodyOrientationSensorChanged(const Quatf & q)
+{
+	Vector3f v;
+	q.GetEulerAngles<Axis_X, Axis_Z, Axis_Y>(&v.x, &v.z, &v.y);
+	BodyYawFilter.Apply(VectorMath::Angle<float>(v.y));
+	BodyYaw += BodyYawFilter.Delta();
+}
+
+Posef Player::EyePoseFromRealWorldEyePose(const Posef &sensorHeadPose)
+{
+    Quatf baseQ = Quatf(Vector3f(0,1,0), AdditionalYaw.Get());
+
+	return Posef(baseQ * sensorHeadPose.Rotation,
                  BodyPos + baseQ.Rotate(sensorHeadPose.Translation));
 }
 
@@ -95,7 +112,8 @@ void Player::HandleMovement(double dt, Array<Ptr<CollisionModel> >* collisionMod
 	{
 		controllerMove = TouchpadMove;
 	}
-    controllerMove = GetOrientation(bMotionRelativeToBody).Rotate(controllerMove);    
+
+	controllerMove = GetBodyOrientation(bMotionRelativeToBody).Rotate(controllerMove);
     controllerMove.y = 0; // Project to the horizontal plane
     controllerMove *= OVR::Alg::Min<float>(MoveSpeed * (float)dt * (shiftDown ? 3.0f : 1.0f), 1.0f);
 
@@ -149,27 +167,51 @@ void Player::HandleMovement(double dt, Array<Ptr<CollisionModel> >* collisionMod
     Planef collisionPlaneDown;
     float finalDistanceDown = 10;
 
-    // Only apply down if there is collision model (otherwise we get jitter).
-    if (groundCollisionModels->GetSize())
-    {
-        for(unsigned int i = 0; i < groundCollisionModels->GetSize(); ++i)
-        {
-            float checkLengthDown = 10;
-            if (groundCollisionModels->At(i)->TestRay(BodyPos, Vector3f(0.0f, -1.0f, 0.0f),
-                checkLengthDown, &collisionPlaneDown))
-            {
-                finalDistanceDown = Alg::Min(finalDistanceDown, checkLengthDown);
-            }
-        }
+    //// Only apply down if there is collision model (otherwise we get jitter).
+    //if (groundCollisionModels->GetSize())
+    //{
+    //    for(unsigned int i = 0; i < groundCollisionModels->GetSize(); ++i)
+    //    {
+    //        float checkLengthDown = 10;
+    //        if (groundCollisionModels->At(i)->TestRay(BodyPos, Vector3f(0.0f, -1.0f, 0.0f),
+    //            checkLengthDown, &collisionPlaneDown))
+    //        {
+    //            finalDistanceDown = Alg::Min(finalDistanceDown, checkLengthDown);
+    //        }
+    //    }
 
-        // Maintain the minimum camera height
-        if (UserEyeHeight - finalDistanceDown < 1.0f)
-        {
-            BodyPos.y += UserEyeHeight - finalDistanceDown;
-        }
-    }
+    //    // Maintain the minimum camera height
+    //    if (UserEyeHeight - finalDistanceDown < 1.0f)
+    //    {
+    //        BodyPos.y += UserEyeHeight - finalDistanceDown;
+    //    }
+    //}
 
 }
+
+float Player::DistanceToGround(Array<Ptr<CollisionModel> >* groundCollisionModels)
+{
+	Planef collisionPlaneDown;
+	float finalDistanceDown = 10;
+
+	// Only apply down if there is collision model (otherwise we get jitter).
+	if (groundCollisionModels->GetSize())
+	{
+	    for(unsigned int i = 0; i < groundCollisionModels->GetSize(); ++i)
+	    {
+	        float checkLengthDown = 10;
+	        if (groundCollisionModels->At(i)->TestRay(BodyPos, Vector3f(0.0f, -1.0f, 0.0f),
+	            checkLengthDown, &collisionPlaneDown))
+	        {
+	            finalDistanceDown = Alg::Min(finalDistanceDown, checkLengthDown);
+	        }
+	    }
+
+		return finalDistanceDown;
+	}
+	return NAN;
+}
+
 
 
 

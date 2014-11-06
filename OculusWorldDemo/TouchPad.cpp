@@ -17,7 +17,7 @@ struct VectorNormalizer : public unary_function<Vector2,double>
 	}
 };
 
-typedef LowPassDynamicFilter<Vector2, VectorNormalizer> TraceFilter;
+typedef LowPassDynamicFilter<Vector2,double , VectorNormalizer> TraceFilter;
 
 class TouchPad::Impl
 {

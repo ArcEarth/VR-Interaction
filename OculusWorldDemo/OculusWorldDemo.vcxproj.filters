@@ -95,6 +95,8 @@
     <ClCompile Include="..\CommonSrc\Util\Filter.cpp">
       <Filter>CommonSrc\Util</Filter>
     </ClCompile>
+    <ClCompile Include="OrientedTouchPad.cpp" />
+    <ClCompile Include="TouchManipulationHandler.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\CommonSrc\Platform\Win32_Platform.h">
@@ -180,6 +182,11 @@
     <ClInclude Include="..\CommonSrc\Util\Filter.h">
       <Filter>CommonSrc\Util</Filter>
     </ClInclude>
+    <ClInclude Include="OrientedTouchPad.h" />
+    <ClInclude Include="..\CommonSrc\Math.hpp">
+      <Filter>CommonSrc</Filter>
+    </ClInclude>
+    <ClInclude Include="TouchManipulationHandler.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="OculusWorldDemo.rc" />
