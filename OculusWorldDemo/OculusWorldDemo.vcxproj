@@ -99,18 +99,24 @@
       </PrecompiledHeader>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>OVR_BUILD_DEBUG;WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;$(LeapSDK_Root)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ShowIncludes>false</ShowIncludes>
       <DisableSpecificWarnings>4100;4091;4996;4512;5028;4217;4838</DisableSpecificWarnings>
       <WarningLevel>Level3</WarningLevel>
+      <CompileAsWinRT>false</CompileAsWinRT>
+      <MinimalRebuild>false</MinimalRebuild>
+      <AdditionalUsingDirectories>C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1\ExtensionSDKs\Microsoft.VCLibs\12.0\References\CommonConfiguration\neutral\;C:\Program Files (x86)\Windows Kits\8.1\References\CommonConfiguration\Neutral;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(TactonicLib_Root)\lib;$(BOOST_ROOT)\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovrd.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;Mfplat.lib;Mmdevapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(TactonicLib_Root)\lib;$(BOOST_ROOT)\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>leapd.lib;ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovrd.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;Mfplat.lib;Mmdevapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -119,18 +125,24 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>OVR_BUILD_DEBUG;_WIN64;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;$(LeapSDK_Root)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ShowIncludes>false</ShowIncludes>
       <DisableSpecificWarnings>4100;4091;4996;4512;5028;4217;4838</DisableSpecificWarnings>
+      <CompileAsWinRT>true</CompileAsWinRT>
+      <MinimalRebuild>false</MinimalRebuild>
+      <AdditionalUsingDirectories>C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1\ExtensionSDKs\Microsoft.VCLibs\12.0\References\CommonConfiguration\neutral\;C:\Program Files (x86)\Windows Kits\8.1\References\CommonConfiguration\Neutral;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/VS2013/;$(TactonicLib_Root)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovr64d.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/VS2013/;$(TactonicLib_Root)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>leapd.lib;ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovr64d.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -141,20 +153,25 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;$(LeapSDK_Root)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/d2Zi+ %(AdditionalOptions)</AdditionalOptions>
       <ShowIncludes>false</ShowIncludes>
       <DisableSpecificWarnings>4100;4091;4996;4512;5028;4217;4838</DisableSpecificWarnings>
+      <AdditionalUsingDirectories>C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1\ExtensionSDKs\Microsoft.VCLibs\12.0\References\CommonConfiguration\neutral\;C:\Program Files (x86)\Windows Kits\8.1\References\CommonConfiguration\Neutral;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
+      <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/VS2013/;$(TactonicLib_Root)\lib;$(BOOST_ROOT)\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovr.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;Mfplat.lib;Mmdevapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/VS2013/;$(TactonicLib_Root)\lib;$(BOOST_ROOT)\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>leap.lib;ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovr.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;Mfplat.lib;Mmdevapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -165,21 +182,26 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WIN64;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(LibOvr_Root)\Include;$(LibOvr_Root)/Src;$(LibOvr_Root)/../3rdParty/glext;$(BOOST_ROOT);C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(TactonicLib_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\DirectXTK\Inc;..\CommonSrc\;$(LeapSDK_Root)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/d2Zi+ %(AdditionalOptions)</AdditionalOptions>
       <ShowIncludes>false</ShowIncludes>
       <DisableSpecificWarnings>4100;4091;4996;4512;5028;4217;4838</DisableSpecificWarnings>
+      <CompileAsWinRT>true</CompileAsWinRT>
+      <AdditionalUsingDirectories>C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1\ExtensionSDKs\Microsoft.VCLibs\12.0\References\CommonConfiguration\neutral\;C:\Program Files (x86)\Windows Kits\8.1\References\CommonConfiguration\Neutral;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(LibOvr_Root)/Lib/$(Platform)/VS2013/;$(TactonicLib_Root)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovr64.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/VS2013/;$(TactonicLib_Root)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>leap.lib;ws2_32.lib;opengl32.lib;Dbghelp.lib;tactonic.lib;tactonicTouch.lib;libovr64.lib;dxgi.lib;d3d10_1.lib;d3d11.lib;d3dcompiler.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\CommonSrc\Audio\AudioButton.cpp" />

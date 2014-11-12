@@ -637,7 +637,7 @@ void NotificationOverlay::UpdateOnWindowSize()
 
 OVR::OvrPlatform::Application*     g_app;
 
-
+//[Platform::MTAThread]
 int WINAPI WinMain(HINSTANCE hinst, HINSTANCE prevInst, LPSTR inArgs, int show)
 {
     using namespace OVR;

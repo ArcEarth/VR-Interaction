@@ -20,6 +20,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LibOVR", "..\..\..\..\..\Oc
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectXTK_Desktop_2014", "..\..\Visual Studio 2013\Libraries\DirectXTK\DirectXTK_Desktop_2014.vcxproj", "{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OculusRoomTiny", "OculusRoomTiny\OculusRoomTiny.vcxproj", "{394FF596-A90B-4C95-888B-B743834ED15B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -76,6 +78,14 @@ Global
 		{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}.Release|Win32.Build.0 = Release|Win32
 		{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}.Release|x64.ActiveCfg = Release|x64
 		{E0B52AE7-E160-4D32-BF3F-910B785E5A8E}.Release|x64.Build.0 = Release|x64
+		{394FF596-A90B-4C95-888B-B743834ED15B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{394FF596-A90B-4C95-888B-B743834ED15B}.Debug|Win32.Build.0 = Debug|Win32
+		{394FF596-A90B-4C95-888B-B743834ED15B}.Debug|x64.ActiveCfg = Debug|x64
+		{394FF596-A90B-4C95-888B-B743834ED15B}.Debug|x64.Build.0 = Debug|x64
+		{394FF596-A90B-4C95-888B-B743834ED15B}.Release|Win32.ActiveCfg = Release|Win32
+		{394FF596-A90B-4C95-888B-B743834ED15B}.Release|Win32.Build.0 = Release|Win32
+		{394FF596-A90B-4C95-888B-B743834ED15B}.Release|x64.ActiveCfg = Release|x64
+		{394FF596-A90B-4C95-888B-B743834ED15B}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

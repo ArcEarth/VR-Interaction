@@ -1,0 +1,144 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Platform">
+      <UniqueIdentifier>{b64aebbb-698d-4d0a-9fd0-86c726d4be67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX">
+      <UniqueIdentifier>{f24f9c7e-0490-4734-93ea-9aa8f494d0af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Platform.Fundation">
+      <UniqueIdentifier>{8c285820-7e0b-4424-8e37-813bda8f91e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Platform.Devices">
+      <UniqueIdentifier>{6ffe4126-f094-4295-adf6-79684fe63ecb}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Common\DeviceResources.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DXAppMain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Content\SampleFpsTextRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Carmera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Textures.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\DXGIFormatHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Player.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="NativeWindow.cpp">
+      <Filter>Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="OculusRift.cpp">
+      <Filter>Platform.Devices</Filter>
+    </ClCompile>
+    <ClCompile Include="Content\CubeScene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DXAppMain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Content\SampleFpsTextRenderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\CompositeFlag.h">
+      <Filter>Platform.Fundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\BasicClass.h">
+      <Filter>Platform.Fundation</Filter>
+    </ClInclude>
+    <ClInclude Include="NativeWindow.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Textures.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\StepTimer.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Renderable.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\DXGIFormatHelper.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\DirectXHelper.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\DeviceResources.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\ConstantBuffer.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Carmera.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Content\ShaderStructures.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Locatable.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="OculusRift.h">
+      <Filter>Platform.Devices</Filter>
+    </ClInclude>
+    <ClInclude Include="Content\OculusDisortionRenderer.h">
+      <Filter>Platform.Devices</Filter>
+    </ClInclude>
+    <ClInclude Include="Content\CubeScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\ShaderEffect.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Model.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Content\OculusDisortionPixelShader.hlsl" />
+    <FxCompile Include="Content\OculusDisortionVertexShader.hlsl" />
+    <FxCompile Include="Content\SamplePixelShader.hlsl" />
+    <FxCompile Include="Content\SampleVertexShader.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+</Project>
