@@ -2,8 +2,7 @@
 
 //#include <Eigen/Dense>
 //#include <Eigen/StdVector> //This is not nessecary in c++11 according to stack overflow.
-#include <DirectXMath.h>
-#include <SimpleMath.h>
+#include "DirectXMathExtend.h"
 #include <map>
 #include <set>
 
@@ -11,13 +10,17 @@ namespace Platform
 {
 	// Namespace for basic types like Vectors , Matrices...
 	namespace Fundation {
-		typedef DirectX::SimpleMath::Vector2 Vector2;
-		typedef DirectX::SimpleMath::Vector3 Vector3;
-		typedef DirectX::SimpleMath::Vector4 Vector4;
-		typedef DirectX::SimpleMath::Matrix Matrix4x4;
-		typedef DirectX::SimpleMath::Quaternion Quaternion;
-		typedef DirectX::SimpleMath::Plane Plane;
-		typedef DirectX::SimpleMath::Ray Ray;
+		using DirectX::Vector2;
+		using DirectX::Vector3;
+		using DirectX::Vector4;
+		using DirectX::Quaternion;
+		using DirectX::Plane;
+		using DirectX::Ray;
+		using DirectX::Matrix4x4;
+		using DirectX::BoundingBox;
+		using DirectX::BoundingOrientedBox;
+		using DirectX::BoundingFrustum;
+		using DirectX::BoundingSphere;
 
 		struct Rect
 		{
@@ -35,13 +38,13 @@ namespace Platform
 		struct StaticPose
 		{
 		public:
-			Platform::Fundation::Quaternion Orientation;
-			Platform::Fundation::Vector3	  Position;
+			Platform::Fundation::Quaternion		Orientation;
+			Platform::Fundation::Vector3		Position;
 		};
 
 		struct DynamicPose
 		{
-			Platform::Fundation::Quaternion	Orientation;
+			Platform::Fundation::Quaternion		Orientation;
 			Platform::Fundation::Vector3		Position;
 			Platform::Fundation::Vector3		AngularVelocity;
 			Platform::Fundation::Vector3		Velocity;

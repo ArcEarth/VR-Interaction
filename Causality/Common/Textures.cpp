@@ -1,4 +1,3 @@
-#include "pch.h"
 #include "Textures.h"
 #include "DirectXHelper.h"
 #include "DXGIFormatHelper.h"
@@ -608,4 +607,13 @@ std::unique_ptr<uint8_t> StagingTexture2D::GetData(ID3D11DeviceContext *pContext
 StagingTexture2D::StagingTexture2D(ID3D11Texture2D* pTexture)
 	: Texture2D(pTexture)
 {
+}
+
+void DirectX::CubeTexture::Initialize(ID3D11Device * pDevice, const std::wstring(&TextureFiles)[6])
+{
+	HRESULT hr;
+	for (int i = 0; i < 6; i++)
+	{
+		ThrowIfFailed(DirectX::CreateDDSTextureFromFile(pDevice, TextureFiles[i].c_str(), &(m_pTextures[i]), &(m_pTextureView[i])));
+	}
 }

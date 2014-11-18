@@ -23,6 +23,8 @@
 #include <stdint.h>
 #pragma warning(pop)
 
+#include <DirectXMath.h>
+
 namespace DirectX
 {
 	inline Platform::String^ ErrorDescription(HRESULT hr)

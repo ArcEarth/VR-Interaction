@@ -1,0 +1,69 @@
+#pragma once
+#include "Renderable.h"
+#include <VertexTypes.h>
+#include <wrl\client.h>
+#include <string>
+#include <Effects.h>
+#include "DirectXHelper.h"
+#include "Textures.h"
+#include "Model.h"
+
+namespace DirectX
+{
+	//class CubeTexture;
+
+	namespace Scene
+	{
+		class SkyBox : public IRenderable , public IViewable
+		{
+			typedef VertexPositionTexture VertexType;
+			typedef uint16_t IndexType;
+			const static unsigned int VerticesCount = 24;
+			const static unsigned int IndicesCount = 36;
+			const static VertexType CubeVertices[VerticesCount];
+			const static IndexType CubeIndices[IndicesCount];
+		public:
+			SkyBox(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6]);
+
+			virtual void Render(ID3D11DeviceContext* pDeviceContext) override;
+			// Inherited via IViewable
+			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) override;
+			virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override;
+
+			~SkyBox(void);
+
+		protected:
+			std::shared_ptr<Mesh>			m_pMesh;
+			std::shared_ptr<BasicEffect>	m_pEffect;
+			std::shared_ptr<CubeTexture>	m_pCubeTexture;
+
+		};
+
+		//class FloorPlane
+		//	: public TypedMesh<VertexPositionNormalTexture, uint16_t, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST>
+		//{
+		//public:
+		//	const static unsigned int VerticesCount = 4;
+		//	const static unsigned int IndicesCount = 6;
+		//	const static VertexType Vertices[VerticesCount];
+		//	const static IndexType Indices[IndicesCount];
+
+		//	FloorPlane(ID3D11Device* pDevice, const ICamera* pCamera, const std::wstring &TextureFile);
+		//	~FloorPlane(void);
+
+		//	void SetFloorTexture(ID3D11ShaderResourceView* pTextureSRV);
+		//	void SetFloorPlaneEquation(DirectX::FXMVECTOR PlaneEquation);
+
+		//	virtual void Render(ID3D11DeviceContext* pDeviceContext);
+
+		//protected:
+		//	const ICamera*										m_pCamera;
+		//	std::unique_ptr<BasicEffect>						m_pEffect;
+		//	Microsoft::WRL::ComPtr<ID3D11Resource>				m_pTexture;
+		//	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>	m_pTextureView;
+		//	Microsoft::WRL::ComPtr<ID3D11SamplerState>			m_pSamplerState;
+		//	Microsoft::WRL::ComPtr<ID3D11InputLayout>			m_pInputLayout;
+		//};
+	}
+}
+

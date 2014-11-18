@@ -12,18 +12,18 @@ namespace Platform
 	public:
 		virtual void Initialize();
 		virtual void SetWindow(const std::shared_ptr<NativeWindow>& window);
-		virtual void Load(Platform::String^ entryPoint);
-		virtual void Run();
 		virtual void Uninitialize();
 
+		virtual void OnRenderLoop() = 0;
+
 		// Application lifecycle event handlers.
-		virtual void OnActivated(Windows::ApplicationModel::Activation::IActivatedEventArgs^ args);
-		virtual void OnSuspending(Platform::Object^ sender, Windows::ApplicationModel::SuspendingEventArgs^ args);
-		virtual void OnResuming(Platform::Object^ sender, Platform::Object^ args);
+		virtual void OnActivated(Windows::ApplicationModel::Activation::IActivatedEventArgs^ args) = 0;
+		virtual void OnSuspending(Platform::Object^ sender, Windows::ApplicationModel::SuspendingEventArgs^ args) = 0;
+		virtual void OnResuming(Platform::Object^ sender, Platform::Object^ args) = 0;
 
 	public:
 		static std::weak_ptr<Application> Current;
-		static HINSTANCE	Instance();
+		static HINSTANCE Instance();
 		static std::map<HWND, std::weak_ptr<NativeWindow>> WindowsLookup;
 		static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 	protected:
@@ -45,13 +45,13 @@ namespace Platform
 		virtual void EnterFullScreen() = 0;
 		virtual void ExitFullScreen() = 0;
 		virtual void OnMouseMove() = 0;
-		virtual void OnKeyDown() = 0;
-		virtual void OnKeyUp() = 0;
+		virtual void OnKeyDown(unsigned char key) = 0;
+		virtual void OnKeyUp(unsigned char key) = 0;
 		virtual void OnMouseButtonDown() = 0;
 		virtual void OnMouseButtonUp() = 0;
 	};
 
-	class NativeWindow : IWindow
+	class NativeWindow : public IWindow
 	{
 	public:
 		NativeWindow();
@@ -72,8 +72,8 @@ namespace Platform
 		void EnterFullScreen();
 		void ExitFullScreen();
 		void OnMouseMove() {}
-		void OnKeyDown() {}
-		void OnKeyUp() {}
+		virtual void OnKeyDown(unsigned char key) override {}
+		virtual void OnKeyUp(unsigned char key) override {}
 		void OnMouseButtonDown(){}
 		void OnMouseButtonUp(){}
 

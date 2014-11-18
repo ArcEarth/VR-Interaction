@@ -25,6 +25,14 @@ namespace DirectX
 		Composition,
 	};
 
+	class IDeviceResouces abstract
+	{
+		virtual ID3D11Device2*			GetD3DDevice() const = 0;
+		virtual ID3D11DeviceContext2*	GetD3DDeviceContext() const = 0;
+		virtual ID2D1Device1*			GetD2DDevice() const = 0;
+		virtual ID2D1DeviceContext1*	GetD2DDeviceContext() const = 0;
+	};
+
 	// Controls all the DirectX device resources.
 	class DeviceResources
 	{
@@ -119,7 +127,7 @@ namespace DirectX
 		float											m_dpi;
 		float											m_compositionScaleX;
 		float											m_compositionScaleY;
-
+		unsigned										m_multiSampleLevel = 1;
 		// Transforms used for display orientation.
 		D2D1::Matrix3x2F	m_orientationTransform2D;
 		DirectX::XMFLOAT4X4	m_orientationTransform3D;

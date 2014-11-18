@@ -46,13 +46,13 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\eigen-3.2.2;$(ProjectDir);$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;C:\Users\Yupeng\Documents\Visual Studio 2013\Libraries\eigen-3.2.2;$(ProjectDir);$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -107,6 +107,9 @@
     <ClCompile Include="Common\Carmera.cpp" />
     <ClCompile Include="Common\DeviceResources.cpp" />
     <ClCompile Include="Common\DXGIFormatHelper.cpp" />
+    <ClCompile Include="Common\Model.cpp" />
+    <ClCompile Include="Common\Renderable.cpp" />
+    <ClCompile Include="Common\SkyBox.cpp" />
     <ClCompile Include="Common\Textures.cpp" />
     <ClCompile Include="Content\CubeScene.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
@@ -116,9 +119,9 @@
     </ClCompile>
     <ClCompile Include="Content\SampleFpsTextRenderer.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../pch.h</PrecompiledHeaderFile>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
-      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../pch.h</PrecompiledHeaderFile>
     </ClCompile>
     <ClCompile Include="DXAppMain.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
@@ -152,13 +155,16 @@
     <ClInclude Include="Common\Carmera.h" />
     <ClInclude Include="Common\CompositeFlag.h" />
     <ClInclude Include="Common\ConstantBuffer.h" />
+    <ClInclude Include="Common\DeviceBuffers.h" />
     <ClInclude Include="Common\DeviceResources.h" />
     <ClInclude Include="Common\DirectXHelper.h" />
+    <ClInclude Include="Common\DirectXMathExtend.h" />
     <ClInclude Include="Common\DXGIFormatHelper.h" />
     <ClInclude Include="Common\Locatable.h" />
     <ClInclude Include="Common\Model.h" />
     <ClInclude Include="Common\Renderable.h" />
     <ClInclude Include="Common\ShaderEffect.h" />
+    <ClInclude Include="Common\SkyBox.h" />
     <ClInclude Include="Common\StepTimer.h" />
     <ClInclude Include="Common\Textures.h" />
     <ClInclude Include="Content\OculusDisortionRenderer.h" />
@@ -193,6 +199,26 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\Back.dds">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\Bottom.dds">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\front.dds">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\Left.dds">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\Right.dds">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\top.dds">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+    </Image>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

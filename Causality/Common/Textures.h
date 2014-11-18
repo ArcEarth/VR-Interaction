@@ -5,6 +5,7 @@
 #include <DirectXMath.h>
 #include <memory>
 #include <wrl\client.h>
+#include <string>
 
 namespace DirectX{
 
@@ -378,6 +379,56 @@ namespace DirectX{
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView>			m_pDepthStencilView;
 	};
 
+	class CubeTexture
+	{
+	public:
+		enum Faces
+		{
+			Positive_X = 0,
+			Negitive_X = 1,
+			Positive_Y = 2,
+			Negitive_Y = 3,
+			Positive_Z = 4,
+			Negitive_Z = 5,
+			Front = 5,
+			Back = 4,
+			Left = 0,
+			Right = 1,
+			Top = 2,
+			Bottom = 3,
+		};
+
+		void Initialize(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6]);
+
+		CubeTexture(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6])
+		{
+			Initialize(pDevice, TextureFiles);
+		}
+
+		CubeTexture()
+		{}
+
+		~CubeTexture()
+		{}
+
+		ID3D11ShaderResourceView* operator[] (unsigned int face)
+		{
+			return m_pTextureView[face];
+		}
+
+		ID3D11ShaderResourceView* at(unsigned int face)
+		{
+			return m_pTextureView[face];
+		}
+		ID3D11ShaderResourceView* const* ResourcesView()
+		{
+			return m_pTextureView;
+		}
+
+
+		ID3D11Resource* m_pTextures[6];
+		ID3D11ShaderResourceView* m_pTextureView[6];
+	};
 
 }
 

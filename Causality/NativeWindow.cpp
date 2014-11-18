@@ -174,7 +174,10 @@ namespace Platform
 	LRESULT CALLBACK Application::WndProc(HWND hwnd, UINT umessage, WPARAM wparam, LPARAM lparam)
 	{
 		//return Application::CoreWindow->MessageHandler(umessage, wparam, lparam);
-
+		std::shared_ptr<IWindow> window = nullptr;
+		auto itr = WindowsLookup.find(hwnd);
+		if (itr != WindowsLookup.end())
+			window = itr->second.lock();
 		switch (umessage)
 		{
 			// Check if the window is being destroyed.
@@ -190,8 +193,32 @@ namespace Platform
 			PostQuitMessage(0);
 			return 0;
 		}
+		//Check if a key has been pressed on the keyboard.
+		case WM_KEYDOWN:
+		{
+			// If a key is pressed send it to the input object so it can record that state.
+			if (window) window->OnKeyDown((unsigned char) wparam);
+			//m_pInput->KeyDown((unsigned int) wparam);
+			return 0;
+		}
 
-			// All other messages pass to the message handler in the system class.
+		// Check if a key has been released on the keyboard.
+		case WM_KEYUP:
+		{
+			// If a key is released then send it to the input object so it can unset the state for that key.
+			if (window) window->OnKeyUp((unsigned char) wparam);
+			//m_pInput->KeyUp((unsigned int) wparam);
+			return 0;
+		}
+
+		//Handel the mouse(hand gesture glove) input
+		case WM_MOUSEMOVE:
+		{
+			if (window) window->OnMouseMove();
+			return 0;
+		}
+		//Any other messages send to the default message handler as our application won't make use of them.
+		// All other messages pass to the message handler in the system class.
 		default:
 		{
 			return DefWindowProc(hwnd, umessage, wparam, lparam);

@@ -19,11 +19,11 @@ namespace Causality
 		// ITimeAnimatable
 		void UpdateAnimation(DirectX::StepTimer const& timer) override;
 		// IRenderable
-		void Render(DirectX::DeviceResources *pDeviceResources) override;
+		void Render(ID3D11DeviceContext *pContext) override;
 
 		// IViewable
-		void UpdateViewMatrix(DirectX::CXMMATRIX view) override;
-		void UpdateProjectionMatrix(DirectX::CXMMATRIX projection) override;
+		void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) override;
+		void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override;
 
 
 		void StartTracking();

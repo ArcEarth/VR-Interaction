@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "DeviceResources.h"
+﻿#include "DeviceResources.h"
 #include "DirectXHelper.h"
 #include <windows.ui.xaml.media.dxinterop.h>
 
@@ -333,7 +332,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		swapChainDesc.Height = lround(m_d3dRenderTargetSize.Height);
 		swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // This is the most common swap chain format.
 		swapChainDesc.Stereo = false;
-		swapChainDesc.SampleDesc.Count = 1; // Don't use multi-sampling.
+		swapChainDesc.SampleDesc.Count = m_multiSampleLevel; // Don't use multi-sampling.
 		swapChainDesc.SampleDesc.Quality = 0;
 		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		swapChainDesc.BufferCount = 2; // Use double-buffering to minimize latency.
@@ -481,7 +480,10 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		lround(m_d3dRenderTargetSize.Height),
 		1, // This depth stencil view has only one texture.
 		1, // Use a single mipmap level.
-		D3D11_BIND_DEPTH_STENCIL
+		D3D11_BIND_DEPTH_STENCIL,
+		D3D11_USAGE_DEFAULT,
+		0U,
+		m_multiSampleLevel
 		);
 
 	ComPtr<ID3D11Texture2D> depthStencil;

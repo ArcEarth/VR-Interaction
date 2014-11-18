@@ -1,8 +1,9 @@
 #pragma once
 #include "DeviceResources.h"
 #include "StepTimer.h"
-#include "BasicClass.h"
+#include "DirectXMathExtend.h"
 #include "Locatable.h"
+#include <DirectXCollision.h>
 
 namespace DirectX{
 	namespace Scene
@@ -11,7 +12,7 @@ namespace DirectX{
 		class IRenderable abstract
 		{
 		public:
-			virtual void Render(DeviceResources *pDeviceResources) = 0;
+			virtual void Render(ID3D11DeviceContext *pDeviceResources) = 0;
 		};
 
 		// Interface for setting View/Projection Matrix
@@ -19,8 +20,8 @@ namespace DirectX{
 		class IViewable abstract
 		{
 		public:
-			virtual void UpdateViewMatrix(DirectX::CXMMATRIX view) = 0;
-			virtual void UpdateProjectionMatrix(DirectX::CXMMATRIX projection) = 0;
+			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) = 0;
+			virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) = 0;
 		};
 
 		// Interface for Time-dependent Animation
@@ -31,42 +32,47 @@ namespace DirectX{
 		};
 
 		// Interface for object with local coordinate
-		class ILocalCoordinate abstract
+		class ILocalMatrix abstract
 		{
 		public:
-			virtual void SetModelMatrix(DirectX::CXMMATRIX model) = 0;
+			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) = 0;
 			virtual XMMATRIX GetModelMatrix() const = 0;
 
-			virtual void TransformLocal(DirectX::CXMMATRIX trans)
+			virtual void XM_CALLCONV TransformLocal(DirectX::FXMMATRIX trans)
 			{
 				SetModelMatrix(trans * GetModelMatrix());
 			}
 
-			virtual void TransformGlobal(DirectX::CXMMATRIX trans)
+			virtual void XM_CALLCONV TransformGlobal(DirectX::FXMMATRIX trans)
 			{
 				SetModelMatrix(GetModelMatrix() * trans);
 			}
 		};
 
-		class IRigidCoordinate abstract : public ILocalCoordinate, public IRigid
+		class ILocalCoordinate abstract : public ILocalMatrix, public IRigid
 		{
 		public:
-			void Move(FXMVECTOR p)         { SetPosition((XMVECTOR)Position() + p); }
-			void Rotate(FXMVECTOR q)    { SetOrientation(XMQuaternionMultiply(q,Orientation())); }
+			void XM_CALLCONV Move(FXMVECTOR p)         { SetPosition((XMVECTOR)Position() + p); }
+			void XM_CALLCONV Rotate(FXMVECTOR q)    { SetOrientation(XMQuaternionMultiply(q,Orientation())); }
 
 			virtual XMMATRIX GetModelMatrix() const override
 			{
-				return XMMatrixAffineTransformation(XMVectorReplicate(Scale()), XMVectorZero(), Orientation(), Position());
+				return XMMatrixAffineTransformation(Scale(), XMVectorZero(), Orientation(), Position());
 			}
 		protected:
-			virtual void SetModelMatrix(DirectX::CXMMATRIX model) override
+			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override
 			{
 				XMVECTOR scale, rotation, translation;
 				XMMatrixDecompose(&scale, &rotation, &translation, model);
-				SetScale(XMVectorGetX(scale));
+				SetScale((Vector3)scale);
 				SetOrientation(rotation);
 				SetPosition(translation);
 			}
+		};
+
+		class LocalCoordinate : public Rigid , virtual public ILocalCoordinate
+		{
+		public:
 		};
 	}
 

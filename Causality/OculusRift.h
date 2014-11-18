@@ -4,11 +4,17 @@
 #include "Common\Textures.h"
 #include "Common\DeviceResources.h"
 #include "Common\Carmera.h"
+#include <exception>
 
 namespace Platform
 {
 	namespace Devices
 	{
+
+		class device_not_exist : public std::runtime_error
+		{
+
+		};
 
 		class OculusRift //: public IHeadMountedDisplay
 		{

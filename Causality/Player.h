@@ -1,67 +1,53 @@
 #pragma once
 #include "OculusRift.h"
 
-class Player : public DirectX::Scene::IStereoCamera
+class Player : public DirectX::Scene::IStereoCamera ,virtual public DirectX::Scene::ICamera
 {
 public:
-	Player(const std::shared_ptr<Platform::Devices::OculusRift> &pRift)
-		:m_pRift(pRift)
+	Player()
 	{
-		std::shared_ptr<int> pI;
-		std::shared_ptr<const int> pCI;
-		pCI = pI;
 	}
 
 	~Player()
 	{
 	}
 
-	virtual DirectX::XMMATRIX GetViewMatrix(DirectX::Scene::EyesEnum eye) const
+	void EnableStereo(const std::shared_ptr<Platform::Devices::OculusRift>& pRift)
 	{
-		using namespace DirectX;
-		auto pose = m_pRift->EyePoses((DirectX::Scene::EyesEnum) eye);
-
-		XMVECTOR loc = (XMVECTOR)Position() + DirectX::XMVector3Rotate((XMVECTOR) pose.Position, pose.Orientation);
-		XMVECTOR rot = Orientation() * pose.Orientation;
-		XMVECTOR foward = XMVector3Rotate(Foward, rot);
-		XMVECTOR up = XMVector3Rotate(Up, (XMVECTOR) pose.Orientation);
-		return XMMatrixLookToRH(loc, foward, up);
+		m_pRift = pRift;
 	}
 
-	virtual DirectX::XMMATRIX GetProjectionMatrix(DirectX::Scene::EyesEnum eye) const
+	void DisableStoreo()
 	{
-		return m_pRift->EyeProjection(eye);
+		m_pRift = nullptr;
 	}
+
+	bool IsStereoEnabled()
+	{
+		return m_pRift != nullptr;
+	}
+
+	virtual DirectX::XMMATRIX GetViewMatrix(DirectX::Scene::EyesEnum eye) const;
+
+	virtual DirectX::XMMATRIX GetProjectionMatrix(DirectX::Scene::EyesEnum eye) const;
 
 	// This ignore the effect of Oculus
-	virtual void FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir)
-	{
-		using namespace DirectX;
-		Foward = focusPoint - (XMVECTOR)Position();
-		Up = upDir;
-		SetOrientation(XMQuaternionIdentity());
-	}
+	virtual void FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir);
 
-	virtual const Platform::Fundation::Vector3&    Position() const
-	{
-		return m_BodyPose.Position;
-	}
-	virtual void  SetPosition(Platform::Fundation::Vector3 p)
-	{
-		m_BodyPose.Position = p;
-	}
-	virtual const Platform::Fundation::Quaternion& Orientation() const
-	{
-		return m_BodyPose.Orientation;
-	}
-	virtual void  SetOrientation(Platform::Fundation::Quaternion q)
-	{
-		m_BodyPose.Orientation = q;
-	}
-
+	virtual const Platform::Fundation::Vector3&    Position() const;
+	virtual void  SetPosition(Platform::Fundation::Vector3 p);
+	virtual const Platform::Fundation::Quaternion& Orientation() const;
+	virtual void  SetOrientation(Platform::Fundation::Quaternion q);
+	// Inherited via ICamera
+	virtual DirectX::XMMATRIX GetViewMatrix() const override;
+	virtual DirectX::XMMATRIX GetProjectionMatrix() const override;
+	virtual void SetFov(float fovRadius, float aspectRatioHbyW) override;
 private:
 	Platform::Fundation::Vector3 Foward = { 0, 0, -1.0f }, Up = { 0, 1.0f, 0 };
 	Platform::Fundation::StaticPose m_BodyPose;
+	float Fov, AspectRatio;
 	std::shared_ptr<Platform::Devices::OculusRift> m_pRift;
+
+
 };
 

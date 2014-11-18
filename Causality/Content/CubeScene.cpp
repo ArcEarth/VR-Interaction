@@ -65,14 +65,14 @@ void CubeScene::CreateWindowSizeDependentResources()
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixLookAtRH(eye, at, up)));
 }
 
-void CubeScene::UpdateViewMatrix(DirectX::CXMMATRIX view)
+void XM_CALLCONV CubeScene::UpdateViewMatrix(DirectX::FXMMATRIX view)
 {
-	XMStoreFloat4x4(&m_constantBufferData.view, view);
+	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(view));
 }
 
-void CubeScene::UpdateProjectionMatrix(DirectX::CXMMATRIX projection)
+void XM_CALLCONV CubeScene::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
 {
-	XMStoreFloat4x4(&m_constantBufferData.projection, projection);
+	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(projection));
 }
 
 // Called once per frame, rotates the cube and calculates the model and view matrices.
@@ -117,7 +117,7 @@ void CubeScene::StopTracking()
 }
 
 // Renders one frame using the vertex and pixel shaders.
-void CubeScene::Render(DeviceResources *pDeviceResources)
+void CubeScene::Render(ID3D11DeviceContext *pContext)
 {
 	// Loading is asynchronous. Only draw geometry after it's loaded.
 	if (!m_loadingComplete)
@@ -125,10 +125,8 @@ void CubeScene::Render(DeviceResources *pDeviceResources)
 		return;
 	}
 
-	auto context = pDeviceResources->GetD3DDeviceContext();
-
 	// Prepare the constant buffer to send it to the graphics device.
-	context->UpdateSubresource(
+	pContext->UpdateSubresource(
 		m_constantBuffer.Get(),
 		0,
 		NULL,
@@ -140,7 +138,7 @@ void CubeScene::Render(DeviceResources *pDeviceResources)
 	// Each vertex is one instance of the VertexPositionColor struct.
 	UINT stride = sizeof(VertexPositionColor);
 	UINT offset = 0;
-	context->IASetVertexBuffers(
+	pContext->IASetVertexBuffers(
 		0,
 		1,
 		m_vertexBuffer.GetAddressOf(),
@@ -148,39 +146,39 @@ void CubeScene::Render(DeviceResources *pDeviceResources)
 		&offset
 		);
 
-	context->IASetIndexBuffer(
+	pContext->IASetIndexBuffer(
 		m_indexBuffer.Get(),
 		DXGI_FORMAT_R16_UINT, // Each index is one 16-bit unsigned integer (short).
 		0
 		);
 
-	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	context->IASetInputLayout(m_inputLayout.Get());
+	pContext->IASetInputLayout(m_inputLayout.Get());
 
 	// Attach our vertex shader.
-	context->VSSetShader(
+	pContext->VSSetShader(
 		m_vertexShader.Get(),
 		nullptr,
 		0
 		);
 
 	// Send the constant buffer to the graphics device.
-	context->VSSetConstantBuffers(
+	pContext->VSSetConstantBuffers(
 		0,
 		1,
 		m_constantBuffer.GetAddressOf()
 		);
 
 	// Attach our pixel shader.
-	context->PSSetShader(
+	pContext->PSSetShader(
 		m_pixelShader.Get(),
 		nullptr,
 		0
 		);
 
 	// Draw the objects.
-	context->DrawIndexed(
+	pContext->DrawIndexed(
 		m_indexCount,
 		0,
 		0

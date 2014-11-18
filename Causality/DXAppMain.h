@@ -2,8 +2,9 @@
 
 #include "Common\StepTimer.h"
 #include "Common\DeviceResources.h"
-#include "Content\Sample3DSceneRenderer.h"
+#include "Content\CubeScene.h"
 #include "Content\SampleFpsTextRenderer.h"
+#include "Common\SkyBox.h"
 
 // Renders Direct2D and 3D content on the screen.
 namespace Causality
@@ -32,6 +33,7 @@ namespace Causality
 		// TODO: Replace with your own content renderers.
 		std::unique_ptr<CubeScene> m_sceneRenderer;
 		std::unique_ptr<FpsTextScene> m_fpsTextRenderer;
+		std::unique_ptr<DirectX::Scene::SkyBox> m_pSkyBox;
 
 		// Rendering loop timer.
 		DirectX::StepTimer m_timer;

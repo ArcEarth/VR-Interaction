@@ -42,6 +42,7 @@ namespace DirectX
 			virtual DirectX::XMMATRIX GetViewMatrix() const = 0;
 			virtual DirectX::XMMATRIX GetProjectionMatrix() const = 0;
 			virtual void FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir) = 0;
+			virtual void SetFov(float fovRadius, float aspectRatioHbyW) = 0;
 		};
 
 		class IStereoCamera abstract : public ILocatable, public IOriented

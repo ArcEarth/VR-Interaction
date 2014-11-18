@@ -8,6 +8,7 @@
 #include "NativeWindow.h"
 #include "OculusRift.h"
 #include "Player.h"
+//#include <fbxsdk.h>
 
 using namespace std;
 using namespace Leap;
@@ -28,6 +29,7 @@ using namespace DirectX;
 std::shared_ptr<NativeWindow> window;
 std::shared_ptr<DirectX::DeviceResources> deviceResources;
 std::unique_ptr<Causality::DXAppMain> m_main;
+//std::unique_ptr<FbxManager> g_pManager(FbxManager::Create());
 
 class SampleListener : public Listener {
 public:
@@ -76,16 +78,29 @@ int main(Platform::Array<Platform::String^>^ args)
 	deviceResources = make_shared<DirectX::DeviceResources>();
 	deviceResources->SetNativeWindow(window->Handle());
 	auto pRift = std::make_shared<Platform::Devices::OculusRift>();
-	pRift->Initialize(window->Handle(), deviceResources.get());
+	auto pPlayer = std::make_unique<Player>();
 
-	auto pPlayer = std::make_unique<Player>(pRift);
-	pRift->DissmisHealthWarnning();
+	try
+	{
+		pRift->Initialize(window->Handle(), deviceResources.get());
+		pRift->DissmisHealthWarnning();
+	}
+	catch (std::runtime_error exception)
+	{
+		pRift = nullptr;
+	}
+
+	if (pRift)
+	{
+		pPlayer->EnableStereo(pRift);
+	}
 
 	m_main = make_unique<Causality::DXAppMain>(deviceResources);
 
 	pPlayer->SetPosition(Fundation::Vector3(0.0f, 0.7f, 1.5f));
 	pPlayer->FocusAt(Fundation::Vector3(0, 0, 0), Fundation::Vector3(0.0f, 1.0f, 0));
-
+	auto size = deviceResources->GetOutputSize();
+	pPlayer->SetFov(75.f*XM_PI / 180.f, size.Width / size.Height);
 	MSG msg;
 	bool done = false;
 	while (!done)
@@ -105,23 +120,49 @@ int main(Platform::Array<Platform::String^>^ args)
 		else
 		{
 			m_main->Update();
-			deviceResources->SetCurrentOrientation(pRift->HeadPose().Orientation);
 
-			pRift->BeginFrame();
-			// Otherwise do the frame processing.
-			for (int eye = 0; eye < 2; eye++)
+			if (pRift)
 			{
-				pRift->EyeTexture((DirectX::Scene::EyesEnum) eye).SetAsRenderTarget(deviceResources->GetD3DDeviceContext(), pRift->DepthStencilBuffer());
+				pRift->BeginFrame();
+				// Otherwise do the frame processing.
+				for (int eye = 0; eye < 2; eye++)
+				{
+					pRift->EyeTexture((DirectX::Scene::EyesEnum) eye).SetAsRenderTarget(deviceResources->GetD3DDeviceContext(), pRift->DepthStencilBuffer());
 
-				auto view = XMMatrixTranspose(pPlayer->GetViewMatrix((DirectX::Scene::EyesEnum) eye));
-				auto projection = XMMatrixTranspose(pPlayer->GetProjectionMatrix((DirectX::Scene::EyesEnum) eye));
+					auto view = pPlayer->GetViewMatrix((DirectX::Scene::EyesEnum) eye);
+					auto projection = pPlayer->GetProjectionMatrix((DirectX::Scene::EyesEnum) eye);
+
+					m_main->m_sceneRenderer->UpdateViewMatrix(view);
+					m_main->m_sceneRenderer->UpdateProjectionMatrix(projection);
+					m_main->m_pSkyBox->UpdateViewMatrix(view);
+					m_main->m_sceneRenderer->UpdateProjectionMatrix(projection);
+					m_main->Render();
+				}
+				pRift->EndFrame();
+			}
+			else
+			{
+				auto context = deviceResources->GetD3DDeviceContext();
+
+				// Reset the viewport to target the whole screen.
+				auto viewport = deviceResources->GetScreenViewport();
+				context->RSSetViewports(1, &viewport);
+				ID3D11RenderTargetView *const targets[1] = { deviceResources->GetBackBufferRenderTargetView() };
+				context->OMSetRenderTargets(1, targets, deviceResources->GetDepthStencilView());
+				context->ClearRenderTargetView(deviceResources->GetBackBufferRenderTargetView(), DirectX::Colors::White);
+				context->ClearDepthStencilView(deviceResources->GetDepthStencilView(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		
+				auto view = pPlayer->GetViewMatrix();
+				auto projection = pPlayer->GetProjectionMatrix();
 				m_main->m_sceneRenderer->UpdateViewMatrix(view);
 				m_main->m_sceneRenderer->UpdateProjectionMatrix(projection);
-				m_main->Render();
+				m_main->m_sceneRenderer->Render(context);
+				m_main->m_pSkyBox->UpdateViewMatrix(view);
+				m_main->m_pSkyBox->UpdateProjectionMatrix(projection);
+				m_main->m_pSkyBox->Render(context);
+				//m_main->Render();
+				deviceResources->Present();
 			}
-
-
-			pRift->EndFrame();
 		}
 	}
 

@@ -25,6 +25,9 @@
     <Filter Include="Platform.Devices">
       <UniqueIdentifier>{6ffe4126-f094-4295-adf6-79684fe63ecb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\SkyBox">
+      <UniqueIdentifier>{2a691754-e34e-4273-8bc7-b5354528fb65}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -61,6 +64,15 @@
       <Filter>Platform.Devices</Filter>
     </ClCompile>
     <ClCompile Include="Content\CubeScene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\SkyBox.cpp">
+      <Filter>DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Renderable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -131,6 +143,15 @@
     <ClInclude Include="Common\Model.h">
       <Filter>DirectX</Filter>
     </ClInclude>
+    <ClInclude Include="Common\DeviceBuffers.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\SkyBox.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\DirectXMathExtend.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\OculusDisortionPixelShader.hlsl" />
@@ -140,5 +161,25 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\Back.dds">
+      <Filter>Resource Files\SkyBox</Filter>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\Bottom.dds">
+      <Filter>Resource Files\SkyBox</Filter>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\front.dds">
+      <Filter>Resource Files\SkyBox</Filter>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\Left.dds">
+      <Filter>Resource Files\SkyBox</Filter>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\Right.dds">
+      <Filter>Resource Files\SkyBox</Filter>
+    </Image>
+    <Image Include="Resources\Textures\SkyBox\GrimmNight\top.dds">
+      <Filter>Resource Files\SkyBox</Filter>
+    </Image>
   </ItemGroup>
 </Project>

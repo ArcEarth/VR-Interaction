@@ -37,6 +37,7 @@ public:
 	ovrPosef		   OvrEyePose[2];
 	ovrEyeRenderDesc   EyeRenderDesc[2];
 	ovrFrameTiming	   OvrFrameTiming;
+	ovrVector3f		   HmdToEyeViewOffset[2];
 
 	Impl(int index = 0)
 		: HMDIndex(index)
@@ -71,13 +72,16 @@ public:
 			return(E_FAIL);
 		}
 		if (HMD->ProductName[0] == '\0')
+		{
 			MessageBoxA(NULL, "Rift detected, display not enabled.", "", MB_OK);
-
+			return(E_FAIL);
+		}
 		//Setup Window and Graphics - use window frame if relying on Oculus driver
 		const int backBufferMultisample = 1;
 
-		ovrHmd_AttachToWindow(HMD, hWnd, NULL, NULL);
-
+		Result = ovrHmd_AttachToWindow(HMD, hWnd, NULL, NULL);
+		if (!Result)
+			return (E_FAIL);
 		//Configure Stereo settings.
 		auto recommenedTex0Size = ovrHmd_GetFovTextureSize(HMD, ovrEye_Left, HMD->DefaultEyeFov[0], 1.0f);
 		auto recommenedTex1Size = ovrHmd_GetFovTextureSize(HMD, ovrEye_Right, HMD->DefaultEyeFov[1], 1.0f);
@@ -133,6 +137,9 @@ public:
 			ovrDistortionCap_Chromatic | ovrDistortionCap_TimeWarp | 
 			ovrDistortionCap_Vignette | ovrDistortionCap_Overdrive | ovrDistortionCap_HqDistortion,
 			eyeFov, EyeRenderDesc);
+
+		HmdToEyeViewOffset[0] = EyeRenderDesc[0].HmdToEyeViewOffset;
+		HmdToEyeViewOffset[1] = EyeRenderDesc[1].HmdToEyeViewOffset;
 
 		if (!Result)
 		{
@@ -196,7 +203,12 @@ void OculusRift::EndFrame()
 }
 void OculusRift::Initialize(HWND hWnd, DirectX::DeviceResources* pDeviceResource)
 {
-	pImpl->Initialize(hWnd, pDeviceResource);
+	HRESULT hr = pImpl->Initialize(hWnd, pDeviceResource);
+	if (FAILED(hr))
+	{
+		pImpl = nullptr;
+		throw std::runtime_error("Failed to initialize Oculus Rift");
+	}
 }
 
 DirectX::RenderTargetTexture2D& OculusRift::EyeTexture(EyesEnum eye)
@@ -212,7 +224,7 @@ DirectX::DepthStencilBuffer& OculusRift::DepthStencilBuffer()
 const StaticPose& OculusRift::EyePoses(EyesEnum eye) const
 {
 	auto& pose = pImpl->OvrEyePose[eye];
-	pose = ovrHmd_GetEyePose(pImpl->HMD, (ovrEyeType) eye);
+	ovrHmd_GetEyePoses(pImpl->HMD,0, pImpl->HmdToEyeViewOffset,&pImpl->OvrEyePose[eye], &pImpl->OvrTrackingState);
 	return reinterpret_cast<StaticPose&>(pose);
 }
 

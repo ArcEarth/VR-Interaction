@@ -1,13 +1,27 @@
 ﻿#include "pch.h"
 #include "DXAppMain.h"
 #include "Common\DirectXHelper.h"
-
+#include <string>
+#include <filesystem>
+using namespace std;
+using namespace std::tr2::sys;
 using namespace Causality;
 using namespace Windows::Foundation;
 using namespace Windows::System::Threading;
 using namespace Concurrency;
 
-// Loads and initializes application assets when the application is loaded.
+wstring ResourcesDirectory(L"C:\\Users\\Yupeng\\Documents\\GitHub\\VR\\Causality\\Resources\\");
+
+const static wstring SkyBoxTextures[6] = {
+	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Right.dds"),
+	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Left.dds"),
+	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Top.dds"),
+	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Bottom.dds"),
+	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Front.dds"),
+	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Back.dds"),
+};
+
+	// Loads and initializes application assets when the application is loaded.
 DXAppMain::DXAppMain(const std::shared_ptr<DirectX::DeviceResources>& deviceResources) :
 	m_deviceResources(deviceResources)
 {
@@ -18,6 +32,8 @@ DXAppMain::DXAppMain(const std::shared_ptr<DirectX::DeviceResources>& deviceReso
 	m_sceneRenderer = std::unique_ptr<CubeScene>(new CubeScene(m_deviceResources));
 
 	m_fpsTextRenderer = std::unique_ptr<FpsTextScene>(new FpsTextScene(m_deviceResources));
+
+	m_pSkyBox = std::make_unique<DirectX::Scene::SkyBox>(m_deviceResources->GetD3DDevice(), SkyBoxTextures);
 
 	// TODO: Change the timer settings if you want something other than the default variable timestep mode.
 	// e.g. for 60 FPS fixed timestep update logic, call:
@@ -80,7 +96,8 @@ bool DXAppMain::Render()
 
 	// Render the scene objects.
 	// TODO: Replace this with your app's content rendering functions.
-	m_sceneRenderer->Render(m_deviceResources.get());
+	m_pSkyBox->Render(context);
+	m_sceneRenderer->Render(context);
 	//m_fpsTextRenderer->Render();
 
 	return true;
