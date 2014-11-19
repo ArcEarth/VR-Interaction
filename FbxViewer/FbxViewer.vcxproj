@@ -1,0 +1,131 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{36878044-846A-4239-95AB-7C7D4FEE59A0}</ProjectGuid>
+    <RootNamespace>FbxViewer</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>$(FBX_SDK_ROOT)\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <IncludePath>$(FBX_SDK_ROOT)\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="Common\AnimationUtility.cxx" />
+    <ClCompile Include="Common\Common.cxx" />
+    <ClCompile Include="Common\GeometryUtility.cxx" />
+    <ClCompile Include="ImportScene\DisplayAnimation.cxx" />
+    <ClCompile Include="ImportScene\DisplayCache.cxx" />
+    <ClCompile Include="ImportScene\DisplayCamera.cxx" />
+    <ClCompile Include="ImportScene\DisplayCommon.cxx" />
+    <ClCompile Include="ImportScene\DisplayGenericInfo.cxx" />
+    <ClCompile Include="ImportScene\DisplayGlobalSettings.cxx" />
+    <ClCompile Include="ImportScene\DisplayHierarchy.cxx" />
+    <ClCompile Include="ImportScene\DisplayLight.cxx" />
+    <ClCompile Include="ImportScene\DisplayLink.cxx" />
+    <ClCompile Include="ImportScene\DisplayLodGroup.cxx" />
+    <ClCompile Include="ImportScene\DisplayMarker.cxx" />
+    <ClCompile Include="ImportScene\DisplayMaterial.cxx" />
+    <ClCompile Include="ImportScene\DisplayMesh.cxx" />
+    <ClCompile Include="ImportScene\DisplayNurb.cxx" />
+    <ClCompile Include="ImportScene\DisplayPatch.cxx" />
+    <ClCompile Include="ImportScene\DisplayPivotsAndLimits.cxx" />
+    <ClCompile Include="ImportScene\DisplayPose.cxx" />
+    <ClCompile Include="ImportScene\DisplayShape.cxx" />
+    <ClCompile Include="ImportScene\DisplaySkeleton.cxx" />
+    <ClCompile Include="ImportScene\DisplayTexture.cxx" />
+    <ClCompile Include="ImportScene\DisplayUserProperties.cxx" />
+    <ClCompile Include="ImportScene\main.cxx" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Common\AnimationUtility.h" />
+    <ClInclude Include="Common\Common.h" />
+    <ClInclude Include="Common\GeometryUtility.h" />
+    <ClInclude Include="ImportScene\DisplayAnimation.h" />
+    <ClInclude Include="ImportScene\DisplayCache.h" />
+    <ClInclude Include="ImportScene\DisplayCamera.h" />
+    <ClInclude Include="ImportScene\DisplayCommon.h" />
+    <ClInclude Include="ImportScene\DisplayGenericInfo.h" />
+    <ClInclude Include="ImportScene\DisplayGlobalSettings.h" />
+    <ClInclude Include="ImportScene\DisplayHierarchy.h" />
+    <ClInclude Include="ImportScene\DisplayLight.h" />
+    <ClInclude Include="ImportScene\DisplayLink.h" />
+    <ClInclude Include="ImportScene\DisplayLodGroup.h" />
+    <ClInclude Include="ImportScene\DisplayMarker.h" />
+    <ClInclude Include="ImportScene\DisplayMaterial.h" />
+    <ClInclude Include="ImportScene\DisplayMesh.h" />
+    <ClInclude Include="ImportScene\DisplayNurb.h" />
+    <ClInclude Include="ImportScene\DisplayPatch.h" />
+    <ClInclude Include="ImportScene\DisplayPivotsAndLimits.h" />
+    <ClInclude Include="ImportScene\DisplayPose.h" />
+    <ClInclude Include="ImportScene\DisplayShape.h" />
+    <ClInclude Include="ImportScene\DisplaySkeleton.h" />
+    <ClInclude Include="ImportScene\DisplayTexture.h" />
+    <ClInclude Include="ImportScene\DisplayUserProperties.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
