@@ -7,6 +7,7 @@
 #include <dwrite_2.h>
 #include <wincodec.h>
 #include <DirectXMath.h>
+#include <Effects.h>
 
 namespace DirectX
 {
@@ -79,6 +80,8 @@ namespace DirectX
 		IWICImagingFactory2*	GetWicImagingFactory() const			{ return m_wicFactory.Get(); }
 		D2D1::Matrix3x2F		GetOrientationTransform2D() const		{ return m_orientationTransform2D; }
 
+		const std::shared_ptr<DirectX::BasicEffect>& GetBasicEffect() const	{ return m_pBasicEffect; }
+
 	private:
 		void CreateDeviceIndependentResources();
 		void CreateDeviceResources();
@@ -108,7 +111,8 @@ namespace DirectX
 		Microsoft::WRL::ComPtr<IDWriteFactory2>		m_dwriteFactory;
 		Microsoft::WRL::ComPtr<IWICImagingFactory2>	m_wicFactory;
 
-
+		//std::unique_ptr<DirectX::EffectFactory>		   m_EffectFactory;
+		std::shared_ptr<BasicEffect>				   m_pBasicEffect;
 		DeviceHostType								   m_deviceHostType;
 		// Cached reference to the XAML panel.
 		Windows::UI::Xaml::Controls::SwapChainPanel^   m_swapChainPanel;

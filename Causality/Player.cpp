@@ -32,7 +32,7 @@ const Platform::Fundation::Vector3 & Player::Position() const
 	return m_BodyPose.Position;
 }
 
-void Player::SetPosition(Platform::Fundation::Vector3 p)
+void Player::SetPosition(const Platform::Fundation::Vector3 &p)
 {
 	m_BodyPose.Position = p;
 }
@@ -42,7 +42,7 @@ const Platform::Fundation::Quaternion & Player::Orientation() const
 	return m_BodyPose.Orientation;
 }
 
-void Player::SetOrientation(Platform::Fundation::Quaternion q)
+void Player::SetOrientation(const Platform::Fundation::Quaternion &q)
 {
 	m_BodyPose.Orientation = q;
 }

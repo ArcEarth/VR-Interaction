@@ -1,6 +1,7 @@
 #include "SkyBox.h"
 #include <DDSTextureLoader.h>
 
+using namespace std;
 namespace DirectX
 {
 
@@ -160,15 +161,14 @@ namespace DirectX
 
 		SkyBox::SkyBox(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6])
 			: m_pCubeTexture(new CubeTexture(pDevice, TextureFiles))
+			, m_pEffect(std::make_shared<BasicEffect>(pDevice))
 		{
-			m_pEffect = std::make_shared<BasicEffect>(pDevice);
-
 			m_pEffect->SetLightingEnabled(false);
+			m_pEffect->SetTextureEnabled(true);
 			m_pEffect->SetVertexColorEnabled(false);
 			m_pEffect->SetFogEnabled(false);
-			m_pEffect->SetTextureEnabled(true);
 
-			m_pMesh = Mesh::Create<VertexType,IndexType>(pDevice, CubeVertices, VerticesCount, CubeIndices, IndicesCount, m_pEffect);
+			Mesh::Update<VertexType,IndexType>(pDevice, CubeVertices, VerticesCount, CubeIndices, IndicesCount);
 		}
 
 		//template <class VertexType , class IndexType>
@@ -182,14 +182,14 @@ namespace DirectX
 		{
 			m_pEffect->SetWorld(XMMatrixScaling(20.0f, 20.0f, 20.0f));
 
-			pDeviceContext->IASetInputLayout(m_pMesh->pInputLayout.Get());
+			pDeviceContext->IASetInputLayout(pInputLayout.Get());
 
 			unsigned int stride = sizeof(VertexType);
 			unsigned int offset = 0;
-			auto pBuffer = m_pMesh->pVertexBuffer.Get();
+			auto pBuffer = pVertexBuffer.Get();
 			pDeviceContext->IASetVertexBuffers(0, 1, &pBuffer, &stride, &offset);
-			pDeviceContext->IASetIndexBuffer(m_pMesh->pIndexBuffer.Get(), m_pMesh->IndexFormat, 0);
-			pDeviceContext->IASetPrimitiveTopology(m_pMesh->PrimitiveType);
+			pDeviceContext->IASetIndexBuffer(pIndexBuffer.Get(), IndexFormat, 0);
+			pDeviceContext->IASetPrimitiveTopology(PrimitiveType);
 
 			for (int i = 0; i < 6; i++)
 			{

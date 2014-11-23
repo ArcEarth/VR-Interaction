@@ -3,7 +3,7 @@
 #include <ppltasks.h>	// For create_task
 #include <fstream>
 #include <filesystem>
-
+#include <VertexTypes.h>
 
 #if defined(_XBOX_ONE) && defined(_TITLE)
 #include <d3d11_x.h>
@@ -25,8 +25,48 @@
 
 #include <DirectXMath.h>
 
+#ifndef HAS_MEMBER_FUNCTION
+#define HAS_MEMBER_FUNCTION(member_name, name)                                   \
+    template<typename T, typename Signature>                            \
+    struct name {                                                       \
+        typedef char yes[1];                                            \
+        typedef char no [2];                                            \
+        template <typename U, U> struct type_check;                     \
+        template <typename _1> static yes &chk(type_check<Signature, &_1::member_name > *); \
+        template <typename   > static no  &chk(...);                    \
+        static bool const value = sizeof(chk<T>(0)) == sizeof(yes);     \
+    }
+#endif // !HAS_MEM_FUNC
+
+#ifndef HAS_MEMBER
+#define HAS_MEMBER(member_name, name)                                   \
+    template<typename T>												\
+    struct name {                                                       \
+        typedef char yes[1];                                            \
+        typedef char no [2];                                            \
+        template <typename> static yes &chk(decltype(T::member_name)*);			\
+        template <typename> static no  &chk(...);                    \
+        static bool const value = sizeof(chk<T>(0)) == sizeof(yes);     \
+    }
+#endif // !HAS_MEM_FUNC
+
+
+
+
 namespace DirectX
 {
+	using Microsoft::WRL::ComPtr;
+
+	namespace VertexTraits
+	{
+		HAS_MEMBER(position, has_position);
+		HAS_MEMBER(normal, has_normal);
+		HAS_MEMBER(textureCoordinate, has_tex);
+		HAS_MEMBER(color, has_color);
+		HAS_MEMBER(tanget, has_tanget);
+		HAS_MEMBER(weights, has_weights);
+
+	}
 	inline Platform::String^ ErrorDescription(HRESULT hr)
 	{
 		if (FACILITY_WINDOWS == HRESULT_FACILITY(hr))
@@ -38,7 +78,7 @@ namespace DirectX
 			NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 			(LPTSTR) &szErrMsg, 0, NULL);
 
-		if (!size){
+		if (!size) {
 			Platform::String^ msg = ref new Platform::String(szErrMsg);
 			LocalFree(szErrMsg);
 			return msg;
@@ -87,16 +127,16 @@ namespace DirectX
 		}
 		uint8_t* get(size_t slice) const
 		{
-			return reinterpret_cast<uint8_t*>(pData) +(slice * DepthPitch);
+			return reinterpret_cast<uint8_t*>(pData) + (slice * DepthPitch);
 		}
 
 		uint8_t* scanline(size_t row) const
 		{
-			return reinterpret_cast<uint8_t*>(pData) +(row * RowPitch);
+			return reinterpret_cast<uint8_t*>(pData) + (row * RowPitch);
 		}
 		uint8_t* scanline(size_t slice, size_t row) const
 		{
-			return reinterpret_cast<uint8_t*>(pData) +(slice * DepthPitch) + (row * RowPitch);
+			return reinterpret_cast<uint8_t*>(pData) + (slice * DepthPitch) + (row * RowPitch);
 		}
 
 	private:
@@ -231,7 +271,7 @@ namespace DirectX
 	{
 		CD3D11_BUFFER_DESC VertexBufferDesc(sizeof(VertexType)*Capablity, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DEFAULT, CPUAccessFlag);
 		ID3D11Buffer* pBuffer = nullptr;
-		if (pInitialData){
+		if (pInitialData) {
 			D3D11_SUBRESOURCE_DATA InitialSubresource;
 			InitialSubresource.pSysMem = pInitialData;
 			InitialSubresource.SysMemPitch = 0;
@@ -244,7 +284,7 @@ namespace DirectX
 				)
 				);
 		}
-		else	{
+		else {
 			ThrowIfFailed(
 				pDevice->CreateBuffer(
 				&VertexBufferDesc,
@@ -256,12 +296,27 @@ namespace DirectX
 		return pBuffer;
 	}
 
+	template <class VertexType>
+	inline ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device *pDevice, const void* vertexShaderBytecode, size_t bytecodeLength)
+	{
+		static_assert(VertexType::InputElementCount, "Valiad Vertex Type should have static InputElements/InputElementCount member");
+		ComPtr<ID3D11InputLayout> pLayout;
+		DirectX::ThrowIfFailed(
+			pDevice->CreateInputLayout(
+			VertexType::InputElements,
+			VertexType::InputElementCount,
+			vertexShaderBytecode,
+			bytecodeLength,
+			&pLayout));
+		return pLayout;
+	}
+
 	template <class IndexType>
 	inline ID3D11Buffer* CreateIndexBuffer(ID3D11Device *pDevice, int Capablity, const IndexType* pInitialData, UINT CPUAccessFlag = 0)
 	{
 		CD3D11_BUFFER_DESC IndexBufferDesc(sizeof(IndexType)*Capablity, D3D11_BIND_INDEX_BUFFER);
 		std::unique_ptr<D3D11_SUBRESOURCE_DATA> pInitialSubresource;
-		if (pInitialData){
+		if (pInitialData) {
 			pInitialSubresource.reset(new D3D11_SUBRESOURCE_DATA);
 			pInitialSubresource->pSysMem = pInitialData;
 			pInitialSubresource->SysMemPitch = 0;

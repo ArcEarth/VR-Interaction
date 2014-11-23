@@ -129,6 +129,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="Foregrounds.cpp" />
     <ClCompile Include="NativeWindow.cpp" />
     <ClCompile Include="OculusRift.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
@@ -160,18 +161,21 @@
     <ClInclude Include="Common\DirectXHelper.h" />
     <ClInclude Include="Common\DirectXMathExtend.h" />
     <ClInclude Include="Common\DXGIFormatHelper.h" />
+    <ClInclude Include="Common\Lights.h" />
     <ClInclude Include="Common\Locatable.h" />
     <ClInclude Include="Common\Model.h" />
     <ClInclude Include="Common\Renderable.h" />
     <ClInclude Include="Common\ShaderEffect.h" />
     <ClInclude Include="Common\SkyBox.h" />
     <ClInclude Include="Common\StepTimer.h" />
+    <ClInclude Include="Common\stride_iterator.h" />
     <ClInclude Include="Common\Textures.h" />
     <ClInclude Include="Content\OculusDisortionRenderer.h" />
     <ClInclude Include="Content\CubeScene.h" />
     <ClInclude Include="Content\SampleFpsTextRenderer.h" />
     <ClInclude Include="Content\ShaderStructures.h" />
     <ClInclude Include="DXAppMain.h" />
+    <ClInclude Include="Foregrounds.h" />
     <ClInclude Include="NativeWindow.h" />
     <ClInclude Include="OculusRift.h" />
     <ClInclude Include="pch.h" />
@@ -191,10 +195,18 @@
     <FxCompile Include="Content\SamplePixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(Filename)Bytecode</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)Shaders\%(Filename).inl</HeaderFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(Filename)Bytecode</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)Shaders\%(Filename).inl</HeaderFileOutput>
     </FxCompile>
     <FxCompile Include="Content\SampleVertexShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(Filename)Bytecode</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectDir)Shaders\%(Filename).inl</HeaderFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(Filename)Bytecode</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectDir)Shaders\%(Filename).inl</HeaderFileOutput>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

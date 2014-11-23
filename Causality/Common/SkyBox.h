@@ -14,8 +14,9 @@ namespace DirectX
 
 	namespace Scene
 	{
-		class SkyBox : public IRenderable , public IViewable
+		class SkyBox : public IRenderable , public IViewable , protected TypedMesh<VertexPositionTexture, uint16_t>
 		{
+			typedef TypedMesh<VertexPositionTexture, uint16_t> BaseType;
 			typedef VertexPositionTexture VertexType;
 			typedef uint16_t IndexType;
 			const static unsigned int VerticesCount = 24;
@@ -33,10 +34,21 @@ namespace DirectX
 			~SkyBox(void);
 
 		protected:
-			std::shared_ptr<Mesh>			m_pMesh;
+			//std::shared_ptr<Mesh>			m_pMesh;
 			std::shared_ptr<BasicEffect>	m_pEffect;
 			std::shared_ptr<CubeTexture>	m_pCubeTexture;
 
+		};
+
+		class ITerrain abstract
+		{
+			virtual Vector2 TerrainBoundary() const = 0;
+			virtual float HeightAt(const Vector2& Position) const = 0;
+			//virtual float HeightAt(const Vector3& Position) const = 0;
+		};
+
+		class TerrainModel : public ITerrain
+		{
 		};
 
 		//class FloorPlane

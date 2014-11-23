@@ -34,10 +34,10 @@ public:
 	// This ignore the effect of Oculus
 	virtual void FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir);
 
-	virtual const Platform::Fundation::Vector3&    Position() const;
-	virtual void  SetPosition(Platform::Fundation::Vector3 p);
-	virtual const Platform::Fundation::Quaternion& Orientation() const;
-	virtual void  SetOrientation(Platform::Fundation::Quaternion q);
+	virtual const Platform::Fundation::Vector3&    Position() const override;
+	virtual void  SetPosition(const Platform::Fundation::Vector3& p) override;
+	virtual const Platform::Fundation::Quaternion& Orientation() const override;
+	virtual void  SetOrientation(const Platform::Fundation::Quaternion &q) override;
 	// Inherited via ICamera
 	virtual DirectX::XMMATRIX GetViewMatrix() const override;
 	virtual DirectX::XMMATRIX GetProjectionMatrix() const override;

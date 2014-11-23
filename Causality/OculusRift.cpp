@@ -68,12 +68,12 @@ public:
 
 		if (!HMD)
 		{
-			MessageBoxA(NULL, "Oculus Rift not detected.", "", MB_OK);
+			//MessageBoxA(NULL, "Oculus Rift not detected.", "", MB_OK);
 			return(E_FAIL);
 		}
 		if (HMD->ProductName[0] == '\0')
 		{
-			MessageBoxA(NULL, "Rift detected, display not enabled.", "", MB_OK);
+			//MessageBoxA(NULL, "Rift detected, display not enabled.", "", MB_OK);
 			return(E_FAIL);
 		}
 		//Setup Window and Graphics - use window frame if relying on Oculus driver
@@ -143,7 +143,7 @@ public:
 
 		if (!Result)
 		{
-			MessageBoxA(NULL, "Oculus Rift Rendering failed to config.", "", MB_OK);
+			//MessageBoxA(NULL, "Oculus Rift Rendering failed to config.", "", MB_OK);
 			return(E_FAIL);
 		}
 
@@ -156,7 +156,7 @@ public:
 
 		if (!Result)
 		{
-			MessageBoxA(NULL, "Oculus Rift Tracking failed to config.", "", MB_OK);
+			//MessageBoxA(NULL, "Oculus Rift Tracking failed to config.", "", MB_OK);
 			return(E_FAIL);
 		}
 

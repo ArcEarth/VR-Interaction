@@ -75,6 +75,9 @@
     <ClCompile Include="Common\Renderable.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Foregrounds.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -150,6 +153,15 @@
       <Filter>DirectX</Filter>
     </ClInclude>
     <ClInclude Include="Common\DirectXMathExtend.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\stride_iterator.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Foregrounds.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Lights.h">
       <Filter>DirectX</Filter>
     </ClInclude>
   </ItemGroup>

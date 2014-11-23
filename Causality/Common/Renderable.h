@@ -12,7 +12,7 @@ namespace DirectX{
 		class IRenderable abstract
 		{
 		public:
-			virtual void Render(ID3D11DeviceContext *pDeviceResources) = 0;
+			virtual void Render(ID3D11DeviceContext *pContext) = 0;
 		};
 
 		// Interface for setting View/Projection Matrix

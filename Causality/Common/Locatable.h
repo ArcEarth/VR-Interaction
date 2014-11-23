@@ -40,6 +40,13 @@ namespace DirectX
 	struct Rigid : public IRigid
 	{
 	public:
+		Rigid()
+		{
+			Bound.Center = Vector3();
+			Bound.Orientation = Quaternion();
+			Bound.Extents = Vector3(1.f, 1.f, 1.f);
+		}
+
 		// Inherited via IRigid
 		virtual const Vector3 & Position() const
 		{
