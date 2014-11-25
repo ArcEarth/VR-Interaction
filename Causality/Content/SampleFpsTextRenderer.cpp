@@ -98,6 +98,11 @@ void FpsTextScene::Render(DirectX::DeviceResources *pDeviceResources)
 	context->RestoreDrawingState(m_stateBlock.Get());
 }
 
+void Causality::FpsTextScene::Render(ID3D11DeviceContext * pContext)
+{
+	Render(m_deviceResources.get());
+}
+
 void FpsTextScene::CreateDeviceDependentResources()
 {
 	DirectX::ThrowIfFailed(

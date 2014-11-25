@@ -1,39 +1,89 @@
 #pragma once
 #include <Windows.h>
 #include "pch.h"
+#include "Interactive.h"
+#include "Common\BasicClass.h"
 
 namespace Platform
 {
-	ref class Window;
+	//ref class Window;
 	class NativeWindow;
+
+	class IWindow;
 
 	class Application
 	{
 	public:
-		virtual void Initialize();
-		virtual void SetWindow(const std::shared_ptr<NativeWindow>& window);
-		virtual void Uninitialize();
-
-		virtual void OnRenderLoop() = 0;
-
-		// Application lifecycle event handlers.
-		virtual void OnActivated(Windows::ApplicationModel::Activation::IActivatedEventArgs^ args) = 0;
-		virtual void OnSuspending(Platform::Object^ sender, Windows::ApplicationModel::SuspendingEventArgs^ args) = 0;
-		virtual void OnResuming(Platform::Object^ sender, Platform::Object^ args) = 0;
+		template <class TDerived>
+		static int Invoke(Platform::Array<Platform::String^>^ args)
+		{
+			Current = std::make_unique<TDerived>();
+			return Current->Run(args);
+		}
 
 	public:
-		static std::weak_ptr<Application> Current;
-		static HINSTANCE Instance();
-		static std::map<HWND, std::weak_ptr<NativeWindow>> WindowsLookup;
+		Application()
+		{
+			hInstance = GetModuleHandle(NULL);
+		}
+
+
+
+		virtual ~Application()
+		{
+		}
+
+		int Run(Platform::Array<Platform::String^>^ args)
+		{
+			OnStartup(args);
+			while (!exitProposal)
+			{
+				MSG msg;
+				if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+				{
+					TranslateMessage(&msg);
+					DispatchMessage(&msg);
+				}
+				else
+				{
+					OnIdle();
+				}
+			}
+			OnExit();
+			return S_OK;
+		}
+
+		void Exit()
+		{
+			PostQuitMessage(0);
+		}
+
+		virtual void OnStartup(Platform::Array<Platform::String^>^ args) = 0;
+		virtual void OnExit() = 0;
+		virtual void OnIdle() = 0;
+
+		HINSTANCE Instance()
+		{
+			return hInstance;
+		}
+
+	public:
+		static std::unique_ptr<Application> Current;
+	public:
+		static std::map<HWND, std::weak_ptr<IWindow>> WindowsLookup;
 		static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 	protected:
-		static HINSTANCE	s_hInstance;
+		HINSTANCE	hInstance;
+		bool		exitProposal = false;
 
 	};
 
 	class IWindow abstract
 	{
 	public:
+		~IWindow() {}
+
+		virtual HWND Handle() const = 0;
 		virtual void Initialize(Platform::String^ title, unsigned int width, unsigned int height, bool fullScreen = false) = 0;
 		virtual void Show() = 0;
 		virtual void Hide() = 0;
@@ -44,14 +94,48 @@ namespace Platform
 		virtual bool IsFullScreen() const = 0;
 		virtual void EnterFullScreen() = 0;
 		virtual void ExitFullScreen() = 0;
-		virtual void OnMouseMove() = 0;
+
+		virtual void OnMouseMove(int x, int y) = 0;
 		virtual void OnKeyDown(unsigned char key) = 0;
 		virtual void OnKeyUp(unsigned char key) = 0;
-		virtual void OnMouseButtonDown() = 0;
-		virtual void OnMouseButtonUp() = 0;
 	};
 
-	class NativeWindow : public IWindow
+	struct CursorHandler : public ICursorController
+	{
+	public:
+		// Event Interface
+		Fundation::Event<const CursorButtonEvent&> CursorButtonDown;
+		Fundation::Event<const CursorButtonEvent&> CursorButtonUp;
+		Fundation::Event<const CursorMoveEventArgs&> CursorMove;
+
+		Fundation::Vector2 CursorPostiton;
+		Fundation::Vector2 CursorPositionDelta;
+		float	WheelValue;
+		float	WheelDelta;
+		bool	ButtonStates[3];
+
+		// Inherited via ICursorController
+		virtual DirectX::Vector2 CurrentPosition() const override;
+		virtual DirectX::Vector2 DeltaPosition() const override;
+		virtual bool IsButtonDown(CursorButtonEnum button) const override;
+		virtual void SetCursorPosition(const DirectX::Vector2 & pos) override;
+	};
+
+	struct KeyboardHandler
+	{
+	public:
+		unsigned GetCurrentModifiers() const
+		{
+			return (Keys[VK_CONTROL] & Mod_Control) | (Keys[VK_SHIFT] & Mod_Shift) | (Keys[VK_MENU] & Mod_Alt) | ((Keys[VK_LWIN] | Keys[VK_RWIN])& Mod_Meta);
+		}
+
+		Fundation::Event<const KeyboardEventArgs&> KeyDown;
+		Fundation::Event<const KeyboardEventArgs&> KeyUp;
+		BOOL	Keys[255];
+	};
+
+	// Design to work with std::shared_ptr<NativeWindow>
+	class NativeWindow :public std::enable_shared_from_this<NativeWindow>,  public IWindow, public CursorHandler, public KeyboardHandler
 	{
 	public:
 		NativeWindow();
@@ -71,11 +155,10 @@ namespace Platform
 
 		void EnterFullScreen();
 		void ExitFullScreen();
-		void OnMouseMove() {}
-		virtual void OnKeyDown(unsigned char key) override {}
-		virtual void OnKeyUp(unsigned char key) override {}
-		void OnMouseButtonDown(){}
-		void OnMouseButtonUp(){}
+
+		virtual void OnMouseMove(int x, int y) override;
+		virtual void OnKeyDown(unsigned char key) override;
+		virtual void OnKeyUp(unsigned char key) override;
 
 		HWND Handle() const
 		{
@@ -87,51 +170,38 @@ namespace Platform
 			return m_hInstance;
 		}
 
-		RECT Bound() const
+		Fundation::Rect Boundary() const
 		{
-			RECT bound;
-			GetWindowRect(m_hWnd, &bound);
-			return bound;
+			return m_Boundary;
 		}
-
-		void SetWindow(Window^);
-
-		virtual LPARAM CALLBACK MessageHandler(UINT umsg, WPARAM wparam, LPARAM lparam);
-		//virtual void OnActive();
-		//virtual void OnClosed();
-		//virtual void OnResize();
-		//virtual void OnDeactive();
-		//virtual void OnKeyDown(Windows::System::VirtualKey key);
-		//virtual void OnKeyUp(Windows::System::VirtualKey key);
-		//virtual void OnMouseMove();
 
 	private:
 		Platform::String^	m_Title;
 		HWND				m_hWnd;
 		HINSTANCE			m_hInstance;
 		bool				m_FullScreen;
-
+		Fundation::Rect		m_Boundary;
 	};
 
-	ref class Window sealed
-	{
-	public:
-		Window();
-		//Window(std::unique_ptr<NativeWindow> &&native);
-		virtual ~Window();
-		void Initialize(Platform::String^ title, unsigned int screenWidth, unsigned int screenHeight, bool fullScreen = false);
-		void Show();
-		void Focus();
-		void Close();
+	//ref class Window sealed
+	//{
+	//public:
+	//	Window();
+	//	//Window(std::unique_ptr<NativeWindow> &&native);
+	//	virtual ~Window();
+	//	void Initialize(Platform::String^ title, unsigned int screenWidth, unsigned int screenHeight, bool fullScreen = false);
+	//	void Show();
+	//	void Focus();
+	//	void Close();
 
-		event Windows::Foundation::TypedEventHandler<Window^, Windows::UI::Core::WindowActivatedEventArgs^> ^Activated{
-			Windows::Foundation::EventRegistrationToken add(Windows::Foundation::TypedEventHandler<Window^, Windows::UI::Core::WindowActivatedEventArgs^>^ value);
-			void remove(Windows::Foundation::EventRegistrationToken token);
-			void raise(Window^, Windows::UI::Core::WindowActivatedEventArgs^);
-		}
+	//	event Windows::Foundation::TypedEventHandler<Window^, Windows::UI::Core::WindowActivatedEventArgs^> ^Activated{
+	//		Windows::Foundation::EventRegistrationToken add(Windows::Foundation::TypedEventHandler<Window^, Windows::UI::Core::WindowActivatedEventArgs^>^ value);
+	//		void remove(Windows::Foundation::EventRegistrationToken token);
+	//		void raise(Window^, Windows::UI::Core::WindowActivatedEventArgs^);
+	//	}
 
-	private:
-		std::unique_ptr<NativeWindow>	m_Native;
-	};
+	//private:
+	//	std::unique_ptr<NativeWindow>	m_Native;
+	//};
 
 }

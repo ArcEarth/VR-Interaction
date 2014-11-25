@@ -10,16 +10,16 @@ using namespace Windows::Foundation;
 using namespace Windows::System::Threading;
 using namespace Concurrency;
 
-wstring ResourcesDirectory(L"C:\\Users\\Yupeng\\Documents\\GitHub\\VR\\Causality\\Resources\\");
-
-const static wstring SkyBoxTextures[6] = {
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Right.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Left.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Top.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Bottom.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Front.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Back.dds"),
-};
+//wstring ResourcesDirectory(L"C:\\Users\\Yupeng\\Documents\\GitHub\\VR\\Causality\\Resources\\");
+//
+//const static wstring SkyBoxTextures[6] = {
+//	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Right.dds"),
+//	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Left.dds"),
+//	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Top.dds"),
+//	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Bottom.dds"),
+//	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Front.dds"),
+//	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Back.dds"),
+//};
 
 	// Loads and initializes application assets when the application is loaded.
 DXAppMain::DXAppMain(const std::shared_ptr<DirectX::DeviceResources>& deviceResources) :
@@ -29,11 +29,11 @@ DXAppMain::DXAppMain(const std::shared_ptr<DirectX::DeviceResources>& deviceReso
 	m_deviceResources->RegisterDeviceNotify(this);
 
 	// TODO: Replace this with your app's content initialization.
-	m_sceneRenderer = std::unique_ptr<CubeScene>(new CubeScene(m_deviceResources));
+	//m_sceneRenderer = std::unique_ptr<CubeScene>(new CubeScene(m_deviceResources));
 
-	m_fpsTextRenderer = std::unique_ptr<FpsTextScene>(new FpsTextScene(m_deviceResources));
+	//m_fpsTextRenderer = std::unique_ptr<FpsTextScene>(new FpsTextScene(m_deviceResources));
 
-	m_pSkyBox = std::make_unique<DirectX::Scene::SkyBox>(m_deviceResources->GetD3DDevice(), SkyBoxTextures);
+	//m_pSkyBox = std::make_unique<DirectX::Scene::SkyBox>(m_deviceResources->GetD3DDevice(), SkyBoxTextures);
 
 	// TODO: Change the timer settings if you want something other than the default variable timestep mode.
 	// e.g. for 60 FPS fixed timestep update logic, call:

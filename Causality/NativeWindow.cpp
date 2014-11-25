@@ -2,16 +2,16 @@
 
 namespace Platform
 {
-	
-	std::map<HWND, std::weak_ptr<NativeWindow>> Application::WindowsLookup;
 
-	Window::Window()
-	{
-	}
+	std::map<HWND, std::weak_ptr<IWindow>> Application::WindowsLookup;
+	std::unique_ptr<Application> Application::Current;
+	//Window::Window()
+	//{
+	//}
 
-	Window::~Window()
-	{
-	}
+	//Window::~Window()
+	//{
+	//}
 
 	NativeWindow::NativeWindow()
 	{
@@ -20,53 +20,77 @@ namespace Platform
 	void NativeWindow::Hide()
 	{}
 
-	void NativeWindow::Minimize()	{}
-	void NativeWindow::Maximize()	{}
+	void NativeWindow::Minimize() {}
+	void NativeWindow::Maximize() {}
 
-	bool NativeWindow::IsFullScreen() const	{
+	bool NativeWindow::IsFullScreen() const {
 		return m_FullScreen;
 	}
 
 	void NativeWindow::EnterFullScreen() {}
-	void NativeWindow::ExitFullScreen()	{}
+	void NativeWindow::ExitFullScreen() {}
+
+	void NativeWindow::OnMouseMove(int x, int y)
+	{
+		auto current = Fundation::Vector2((float)x, (float)y);
+		CursorPositionDelta = current - CursorPostiton;
+		CursorPostiton = current;
+		CursorMoveEventArgs e{
+			CursorPostiton,
+			CursorPositionDelta,
+			WheelDelta, };
+		CursorMove(e);
+	}
+
+	inline void NativeWindow::OnKeyDown(unsigned char key)
+	{
+		switch (key)
+		{
+		case VK_LBUTTON:
+			ButtonStates[LButton] = true;
+			CursorButtonDown(CursorButtonEvent(LButton));
+			break;
+		case VK_RBUTTON:
+			ButtonStates[RButton] = true;
+			CursorButtonDown(CursorButtonEvent(RButton));
+			break;
+		case VK_MBUTTON:
+			ButtonStates[MButton] = true;
+			CursorButtonDown(CursorButtonEvent(MButton));
+			break;
+		default:
+			Keys[key] = true;
+			KeyDown(KeyboardEventArgs{ GetCurrentModifiers(),key });
+			break;
+		}
+	}
+
+	inline void NativeWindow::OnKeyUp(unsigned char key) {
+		switch (key)
+		{
+		case VK_LBUTTON:
+			ButtonStates[LButton] = false;
+			CursorButtonUp(CursorButtonEvent(LButton));
+			break;
+		case VK_RBUTTON:
+			ButtonStates[RButton] = false;
+			CursorButtonUp(CursorButtonEvent(RButton));
+			break;
+		case VK_MBUTTON:
+			ButtonStates[MButton] = false;
+			CursorButtonUp(CursorButtonEvent(MButton));
+			break;
+		default:
+			Keys[key] = false;
+			KeyUp(KeyboardEventArgs{ GetCurrentModifiers(),key });
+			break;
+		}
+	}
 
 	NativeWindow::~NativeWindow()
 	{
 		Close();
 	}
-
-	// Methods for Initialize APP Window
-	LPARAM CALLBACK NativeWindow::MessageHandler(UINT umsg, WPARAM wparam, LPARAM lparam)
-	{
-		switch (umsg)
-		{
-			// Check if a key has been pressed on the keyboard.
-			//case WM_KEYDOWN:
-			//{
-			//	// If a key is pressed send it to the input object so it can record that state.
-			//	m_pInput->KeyDown((unsigned int) wparam);
-			//	return 0;
-			//}
-
-			//	// Check if a key has been released on the keyboard.
-			//case WM_KEYUP:
-			//{
-			//	// If a key is released then send it to the input object so it can unset the state for that key.
-			//	m_pInput->KeyUp((unsigned int) wparam);
-			//	return 0;
-			//}
-
-			//	//Handel the mouse(hand gesture glove) input
-			//case WM_INPUT:
-			//{
-			//	m_pInput->ReadMouse(hwnd, (HRAWINPUT) lparam);
-			//	return 0;
-			//}
-			// Any other messages send to the default message handler as our application won't make use of them.
-		}
-		return 0;
-	}
-
 
 	void NativeWindow::Initialize(Platform::String^ title, unsigned int screenWidth, unsigned int screenHeight, bool fullScreen)
 	{
@@ -129,10 +153,19 @@ namespace Platform
 			WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP,
 			posX, posY, screenWidth, screenHeight, NULL, NULL, m_hInstance, NULL);
 
+		Application::WindowsLookup[m_hWnd] = this->shared_from_this();
+
 		// Bring the window up on the screen and set it as main focus.
 		ShowWindow(m_hWnd, SW_SHOW);
 		SetForegroundWindow(m_hWnd);
 		SetFocus(m_hWnd);
+
+		RECT bound;
+		GetWindowRect(m_hWnd, &bound);
+		m_Boundary.Position.x = (float)bound.left;
+		m_Boundary.Position.y = (float) bound.top;
+		m_Boundary.Size.x = (float) (bound.right - bound.left);
+		m_Boundary.Size.y = (float) (bound.bottom - bound.top);
 
 		return;
 	}
@@ -161,6 +194,7 @@ namespace Platform
 
 		// Remove the window.
 		DestroyWindow(m_hWnd);
+
 		m_hWnd = NULL;
 
 		// Remove the application instance.
@@ -176,7 +210,7 @@ namespace Platform
 		//return Application::CoreWindow->MessageHandler(umessage, wparam, lparam);
 		std::shared_ptr<IWindow> window = nullptr;
 		auto itr = WindowsLookup.find(hwnd);
-		if (itr != WindowsLookup.end())
+		if (itr != WindowsLookup.end() && !itr->second.expired())
 			window = itr->second.lock();
 		switch (umessage)
 		{
@@ -184,14 +218,41 @@ namespace Platform
 		case WM_DESTROY:
 		{
 			PostQuitMessage(0);
-			return 0;
+			Current->exitProposal = true;
+			return S_OK;
 		}
 
-			// Check if the window is being closed.
+		// Check if the window is being closed.
 		case WM_CLOSE:
 		{
-			PostQuitMessage(0);
-			return 0;
+			if (window)
+			{
+				window->Close();
+				PostQuitMessage(0);
+			}
+			return S_OK;
+		}
+		case WM_LBUTTONDOWN:
+		case WM_RBUTTONDOWN:
+		case WM_MBUTTONDOWN:
+		{
+			if (window)
+			{
+				auto key = (umessage - WM_LBUTTONDOWN) / 3U + 1U;
+				if (key == 3) key++;
+				window->OnKeyDown(key);
+			}
+		}
+		case WM_LBUTTONUP:
+		case WM_RBUTTONUP:
+		case WM_MBUTTONUP:
+		{
+			if (window)
+			{
+				auto key = (umessage - WM_LBUTTONUP) / 3U + 1U;
+				if (key == 3) key++;
+				window->OnKeyUp(key);
+			}
 		}
 		//Check if a key has been pressed on the keyboard.
 		case WM_KEYDOWN:
@@ -199,7 +260,7 @@ namespace Platform
 			// If a key is pressed send it to the input object so it can record that state.
 			if (window) window->OnKeyDown((unsigned char) wparam);
 			//m_pInput->KeyDown((unsigned int) wparam);
-			return 0;
+			return S_OK;
 		}
 
 		// Check if a key has been released on the keyboard.
@@ -208,14 +269,14 @@ namespace Platform
 			// If a key is released then send it to the input object so it can unset the state for that key.
 			if (window) window->OnKeyUp((unsigned char) wparam);
 			//m_pInput->KeyUp((unsigned int) wparam);
-			return 0;
+			return S_OK;
 		}
 
 		//Handel the mouse(hand gesture glove) input
 		case WM_MOUSEMOVE:
 		{
-			if (window) window->OnMouseMove();
-			return 0;
+			if (window) window->OnMouseMove(LOWORD(lparam), HIWORD(lparam));
+			return S_OK;
 		}
 		//Any other messages send to the default message handler as our application won't make use of them.
 		// All other messages pass to the message handler in the system class.
@@ -226,4 +287,20 @@ namespace Platform
 
 		}
 	}
+DirectX::Vector2 CursorHandler::CurrentPosition() const
+{
+	return CursorPostiton;
+}
+DirectX::Vector2 CursorHandler::DeltaPosition() const
+{
+	return CursorPositionDelta;
+}
+bool CursorHandler::IsButtonDown(CursorButtonEnum button) const
+{
+	return ButtonStates[button];
+}
+void CursorHandler::SetCursorPosition(const DirectX::Vector2 & pos)
+{
+}
+
 }

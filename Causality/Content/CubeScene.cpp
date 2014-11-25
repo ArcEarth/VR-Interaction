@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+﻿#include "..\pch.h"
 #include "CubeScene.h"
 #include <SimpleMath.h>
 #include "..\Common\DirectXHelper.h"
@@ -8,6 +8,7 @@ using namespace Causality;
 using namespace DirectX;
 using namespace DirectX::SimpleMath;
 using namespace Windows::Foundation;
+using namespace Platform;
 
 // Loads vertex and pixel shaders from files and instantiates the cube geometry.
 CubeScene::CubeScene(const std::shared_ptr<DirectX::DeviceResources>& deviceResources) :
@@ -94,6 +95,37 @@ void CubeScene::Rotate(float radians)
 	// Prepare to pass the updated model matrix to the shader
 	auto rotation = XMMatrixRotationY(radians);
 	XMStoreFloat4x4(&m_constantBufferData.model, XMMatrixTranspose(rotation));
+}
+
+void Causality::CubeScene::OnHandsTracked(const UserHandsEventArgs & e)
+{
+	StartTracking();
+}
+
+void Causality::CubeScene::OnHandsTrackLost(const UserHandsEventArgs & e)
+{
+	StopTracking();
+}
+
+void Causality::CubeScene::OnHandsMove(const UserHandsEventArgs & e)
+{
+	auto frame = e.sender.frame();
+	TrackingUpdate(frame.hands().frontmost().palmPosition().toVector3<Vector3>().x);
+}
+
+void Causality::CubeScene::OnMouseButtonDown(const CursorButtonEvent & e)
+{
+	StartTracking();
+}
+
+void Causality::CubeScene::OnMouseButtonUp(const CursorButtonEvent & e)
+{
+	StopTracking();
+}
+
+void Causality::CubeScene::OnMouseMove(const CursorMoveEventArgs & e)
+{
+	TrackingUpdate(e.Position.x);
 }
 
 void CubeScene::StartTracking()

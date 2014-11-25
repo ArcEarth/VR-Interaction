@@ -9,7 +9,7 @@ Ks 0.186441 0.186441 0.186441
 Ni 1.000000
 d 1.000000
 illum 2
-map_Kd drevo palka.jpg
+map_Kd drevo_palka.jpg
 
 newmtl Pasek.001
 Ns 96.078431

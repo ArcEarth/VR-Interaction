@@ -237,6 +237,8 @@ void DirectX::DeviceResources::CreateDeviceResources()
 			&m_d2dContext
 			)
 		);
+
+	m_pBasicEffect = std::make_shared<DirectX::BasicEffect>(device.Get());
 }
 
 

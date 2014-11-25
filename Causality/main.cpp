@@ -1,13 +1,7 @@
 // Source.cpp : Defines the entry point for the console application.
 //
 #include "pch.h"
-#include <iostream>
-#include <Leap.h>
-#include "Common\DeviceResources.h"
-#include "DXAppMain.h"
-#include "NativeWindow.h"
-#include "OculusRift.h"
-#include "Player.h"
+#include "CausalityApplication.h"
 //#include <fbxsdk.h>
 
 using namespace std;
@@ -26,155 +20,122 @@ using namespace Windows::Graphics::Display;
 using namespace Causality;
 using namespace DirectX;
 
-std::shared_ptr<NativeWindow> window;
-std::shared_ptr<DirectX::DeviceResources> deviceResources;
-std::unique_ptr<Causality::DXAppMain> m_main;
-//std::unique_ptr<FbxManager> g_pManager(FbxManager::Create());
+//std::shared_ptr<NativeWindow> window;
+//std::shared_ptr<DirectX::DeviceResources> deviceResources;
+//std::unique_ptr<Causality::DXAppMain> m_main;
 
-class SampleListener : public Listener {
-public:
-	virtual void onConnect(const Controller&);
-	virtual void onFrame(const Controller&);
-
-	bool isPrevTracked = false;
-};
-
-void SampleListener::onConnect(const Controller& controller) {
-	std::cout << "Connected" << std::endl;
-}
-
-void SampleListener::onFrame(const Controller& controller) {
-	auto frame = controller.frame();
-	if (frame.hands().count() > 0)
-	{
-		if (!isPrevTracked)
-		{
-			m_main->StartTracking();
-			isPrevTracked = true;
-		}
-		auto hand = frame.hands().frontmost();
-		m_main->TrackingUpdate(hand.palmPosition().x);
-	}
-	else
-	{
-		if (isPrevTracked)
-		{
-			m_main->StopTracking();
-			isPrevTracked = false;
-		}
-	}
-	//std::cout << "Frame available" << std::endl;
-}
 
 [Platform::MTAThread]
 int main(Platform::Array<Platform::String^>^ args)
 {
-	Leap::Controller controller;
-	SampleListener listener;
-	controller.addListener(listener);
+	return Application::Invoke<Causality::App>(args);
 
-	window = make_shared<Platform::NativeWindow>();
-	window->Initialize(ref new String(L"Causality"), 1280U, 720,false);
-	deviceResources = make_shared<DirectX::DeviceResources>();
-	deviceResources->SetNativeWindow(window->Handle());
-	auto pRift = std::make_shared<Platform::Devices::OculusRift>();
-	auto pPlayer = std::make_unique<Player>();
+	//Leap::Controller controller;
+	//SampleListener listener;
+	//controller.addListener(listener);
 
-	try
-	{
-		pRift->Initialize(window->Handle(), deviceResources.get());
-		pRift->DissmisHealthWarnning();
-	}
-	catch (std::runtime_error exception)
-	{
-		pRift = nullptr;
-	}
+	//window = make_shared<Platform::NativeWindow>();
+	//window->Initialize(ref new String(L"Causality"), 1280U, 720,false);
+	//deviceResources = make_shared<DirectX::DeviceResources>();
+	//deviceResources->SetNativeWindow(window->Handle());
+	//auto pRift = std::make_shared<Platform::Devices::OculusRift>();
+	//auto pPlayer = std::make_unique<Player>();
 
-	if (pRift)
-	{
-		pPlayer->EnableStereo(pRift);
-	}
+	//try
+	//{
+	//	pRift->Initialize(window->Handle(), deviceResources.get());
+	//	pRift->DissmisHealthWarnning();
+	//}
+	//catch (std::runtime_error exception)
+	//{
+	//	pRift = nullptr;
+	//}
 
-	m_main = make_unique<Causality::DXAppMain>(deviceResources);
+	//if (pRift)
+	//{
+	//	pPlayer->EnableStereo(pRift);
+	//}
 
-	pPlayer->SetPosition(Fundation::Vector3(0.0f, 0.7f, 1.5f));
-	pPlayer->FocusAt(Fundation::Vector3(0, 0, 0), Fundation::Vector3(0.0f, 1.0f, 0));
-	auto size = deviceResources->GetOutputSize();
-	pPlayer->SetFov(75.f*XM_PI / 180.f, size.Width / size.Height);
-	MSG msg;
-	bool done = false;
-	while (!done)
-	{
-		// Handle the windows messages.
-		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
-		}
+	//m_main = make_unique<Causality::DXAppMain>(deviceResources);
 
-		// If windows signals to end the application then exit out.
-		if (msg.message == WM_QUIT)
-		{
-			done = true;
-		}
-		else
-		{
-			m_main->Update();
+	//pPlayer->SetPosition(Fundation::Vector3(0.0f, 0.7f, 1.5f));
+	//pPlayer->FocusAt(Fundation::Vector3(0, 0, 0), Fundation::Vector3(0.0f, 1.0f, 0));
+	//auto size = deviceResources->GetOutputSize();
+	//pPlayer->SetFov(75.f*XM_PI / 180.f, size.Width / size.Height);
+	//MSG msg;
+	//bool done = false;
+	//while (!done)
+	//{
+	//	// Handle the windows messages.
+	//	if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+	//	{
+	//		TranslateMessage(&msg);
+	//		DispatchMessage(&msg);
+	//	}
 
-			if (pRift)
-			{
-				pRift->BeginFrame();
-				// Otherwise do the frame processing.
-				for (int eye = 0; eye < 2; eye++)
-				{
-					pRift->EyeTexture((DirectX::Scene::EyesEnum) eye).SetAsRenderTarget(deviceResources->GetD3DDeviceContext(), pRift->DepthStencilBuffer());
+	//	// If windows signals to end the application then exit out.
+	//	if (msg.message == WM_QUIT)
+	//	{
+	//		done = true;
+	//	}
+	//	else
+	//	{
+	//		m_main->Update();
 
-					auto view = pPlayer->GetViewMatrix((DirectX::Scene::EyesEnum) eye);
-					auto projection = pPlayer->GetProjectionMatrix((DirectX::Scene::EyesEnum) eye);
+	//		if (pRift)
+	//		{
+	//			pRift->BeginFrame();
+	//			// Otherwise do the frame processing.
+	//			for (int eye = 0; eye < 2; eye++)
+	//			{
+	//				pRift->EyeTexture((DirectX::Scene::EyesEnum) eye).SetAsRenderTarget(deviceResources->GetD3DDeviceContext(), pRift->DepthStencilBuffer());
 
-					m_main->m_sceneRenderer->UpdateViewMatrix(view);
-					m_main->m_sceneRenderer->UpdateProjectionMatrix(projection);
-					m_main->m_pSkyBox->UpdateViewMatrix(view);
-					m_main->m_sceneRenderer->UpdateProjectionMatrix(projection);
-					m_main->Render();
-				}
-				pRift->EndFrame();
-			}
-			else
-			{
-				auto context = deviceResources->GetD3DDeviceContext();
+	//				auto view = pPlayer->GetViewMatrix((DirectX::Scene::EyesEnum) eye);
+	//				auto projection = pPlayer->GetProjectionMatrix((DirectX::Scene::EyesEnum) eye);
 
-				// Reset the viewport to target the whole screen.
-				auto viewport = deviceResources->GetScreenViewport();
-				context->RSSetViewports(1, &viewport);
-				ID3D11RenderTargetView *const targets[1] = { deviceResources->GetBackBufferRenderTargetView() };
-				context->OMSetRenderTargets(1, targets, deviceResources->GetDepthStencilView());
-				context->ClearRenderTargetView(deviceResources->GetBackBufferRenderTargetView(), DirectX::Colors::White);
-				context->ClearDepthStencilView(deviceResources->GetDepthStencilView(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-		
-				auto view = pPlayer->GetViewMatrix();
-				auto projection = pPlayer->GetProjectionMatrix();
-				m_main->m_sceneRenderer->UpdateViewMatrix(view);
-				m_main->m_sceneRenderer->UpdateProjectionMatrix(projection);
-				m_main->m_sceneRenderer->Render(context);
-				m_main->m_pSkyBox->UpdateViewMatrix(view);
-				m_main->m_pSkyBox->UpdateProjectionMatrix(projection);
-				m_main->m_pSkyBox->Render(context);
-				//m_main->Render();
-				deviceResources->Present();
-			}
-		}
-	}
+	//				m_main->m_sceneRenderer->UpdateViewMatrix(view);
+	//				m_main->m_sceneRenderer->UpdateProjectionMatrix(projection);
+	//				m_main->m_pSkyBox->UpdateViewMatrix(view);
+	//				m_main->m_sceneRenderer->UpdateProjectionMatrix(projection);
+	//				m_main->Render();
+	//			}
+	//			pRift->EndFrame();
+	//		}
+	//		else
+	//		{
+	//			auto context = deviceResources->GetD3DDeviceContext();
 
-	//std::cin.get();
-	//auto calendar = ref new Calendar;
-	//calendar->SetToNow();
-	//wcout << "It's now " << calendar->HourAsPaddedString(2)->Data() << L":" <<
-	//	calendar->MinuteAsPaddedString(2)->Data() << L":" <<
-	//	calendar->SecondAsPaddedString(2)->Data() << endl;
-	//Platform::Details::Console::WriteLine("Hello World");
+	//			// Reset the viewport to target the whole screen.
+	//			auto viewport = deviceResources->GetScreenViewport();
+	//			context->RSSetViewports(1, &viewport);
+	//			ID3D11RenderTargetView *const targets[1] = { deviceResources->GetBackBufferRenderTargetView() };
+	//			context->OMSetRenderTargets(1, targets, deviceResources->GetDepthStencilView());
+	//			context->ClearRenderTargetView(deviceResources->GetBackBufferRenderTargetView(), DirectX::Colors::White);
+	//			context->ClearDepthStencilView(deviceResources->GetDepthStencilView(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	//	
+	//			auto view = pPlayer->GetViewMatrix();
+	//			auto projection = pPlayer->GetProjectionMatrix();
+	//			m_main->m_sceneRenderer->UpdateViewMatrix(view);
+	//			m_main->m_sceneRenderer->UpdateProjectionMatrix(projection);
+	//			m_main->m_sceneRenderer->Render(context);
+	//			m_main->m_pSkyBox->UpdateViewMatrix(view);
+	//			m_main->m_pSkyBox->UpdateProjectionMatrix(projection);
+	//			m_main->m_pSkyBox->Render(context);
+	//			//m_main->Render();
+	//			deviceResources->Present();
+	//		}
+	//	}
+	//}
 
-	controller.removeListener(listener);
+	////std::cin.get();
+	////auto calendar = ref new Calendar;
+	////calendar->SetToNow();
+	////wcout << "It's now " << calendar->HourAsPaddedString(2)->Data() << L":" <<
+	////	calendar->MinuteAsPaddedString(2)->Data() << L":" <<
+	////	calendar->SecondAsPaddedString(2)->Data() << endl;
+	////Platform::Details::Console::WriteLine("Hello World");
+
+	//controller.removeListener(listener);
 	//system("Pause");
 	return 0;
 }

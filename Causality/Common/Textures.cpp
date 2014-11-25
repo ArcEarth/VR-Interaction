@@ -611,7 +611,6 @@ StagingTexture2D::StagingTexture2D(ID3D11Texture2D* pTexture)
 
 void DirectX::CubeTexture::Initialize(ID3D11Device * pDevice, const std::wstring(&TextureFiles)[6])
 {
-	HRESULT hr;
 	for (int i = 0; i < 6; i++)
 	{
 		ThrowIfFailed(DirectX::CreateDDSTextureFromFile(pDevice, TextureFiles[i].c_str(), &(m_pTextures[i]), &(m_pTextureView[i])));

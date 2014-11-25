@@ -8,7 +8,7 @@
 namespace Causality
 {
 	// Renders the current FPS value in the bottom right corner of the screen using Direct2D and DirectWrite.
-	class FpsTextScene : public DirectX::Scene::ITimeAnimatable
+	class FpsTextScene : public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable
 	{
 	public:
 		FpsTextScene(const std::shared_ptr<DirectX::DeviceResources>& deviceResources);
@@ -16,9 +16,11 @@ namespace Causality
 		void ReleaseDeviceDependentResources();
 		// ITimeAnimatable
 		void UpdateAnimation(DirectX::StepTimer const& timer) override;
-		// IRenderable
-		void Render(DirectX::DeviceResources *pDeviceResources);// override;
 
+
+		// Inherited via IRenderable
+		virtual void Render(ID3D11DeviceContext * pContext) override;
+		void Render(DirectX::DeviceResources *pDeviceResources);
 
 	private:
 		// Cached pointer to device resources.
@@ -31,5 +33,7 @@ namespace Causality
 		Microsoft::WRL::ComPtr<ID2D1DrawingStateBlock>  m_stateBlock;
 		Microsoft::WRL::ComPtr<IDWriteTextLayout>       m_textLayout;
 		Microsoft::WRL::ComPtr<IDWriteTextFormat>		m_textFormat;
+
+
 	};
 }

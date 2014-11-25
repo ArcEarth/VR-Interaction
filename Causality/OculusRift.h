@@ -16,7 +16,7 @@ namespace Platform
 
 		};
 
-		class OculusRift //: public IHeadMountedDisplay
+		class OculusRift
 		{
 		public:
 
@@ -29,7 +29,7 @@ namespace Platform
 			void DissmisHealthWarnning();
 			void BeginFrame();
 			void EndFrame();
-			void SetEyeRenderTarget(DirectX::Scene::EyesEnum eye);
+			void SetView(DirectX::Scene::EyesEnum eye);
 
 			DirectX::RenderTargetTexture2D& EyeTexture(DirectX::Scene::EyesEnum eye);
 			DirectX::DepthStencilBuffer& DepthStencilBuffer();
@@ -39,7 +39,7 @@ namespace Platform
 			// Tracking States
 			const Platform::Fundation::StaticPose& EyePoses(DirectX::Scene::EyesEnum eye) const;
 			float UserEyeHeight() const;
-			const  Platform::Fundation::DynamicPose& HeadPose() const;
+			const Platform::Fundation::DynamicPose& HeadPose() const;
 
 		private:
 			class Impl;

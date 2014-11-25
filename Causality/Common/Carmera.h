@@ -36,21 +36,49 @@ namespace DirectX
 			DirectX::XMFLOAT4X4 ProjectionMatrix;
 		};
 
-		class ICamera abstract : public ILocatable, public IOriented
+		// Manually adjust advance camera paprameters
+		class ICameraParameters
 		{
-		public:
-			virtual DirectX::XMMATRIX GetViewMatrix() const = 0;
-			virtual DirectX::XMMATRIX GetProjectionMatrix() const = 0;
-			virtual void FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir) = 0;
 			virtual void SetFov(float fovRadius, float aspectRatioHbyW) = 0;
 		};
 
-		class IStereoCamera abstract : public ILocatable, public IOriented
+		// The basic functions for camera, to provide View/Projection Matrix, Setup Position and focus
+		class ICameraBase abstract : public ILocatable, public IOriented
 		{
 		public:
-			virtual DirectX::XMMATRIX GetViewMatrix(EyesEnum eye) const = 0;
-			virtual DirectX::XMMATRIX GetProjectionMatrix(EyesEnum eye) const = 0;
+			virtual ~ICameraBase()
+			{}
+			virtual size_t ViewCount() const = 0;
+			virtual DirectX::XMMATRIX GetViewMatrix(size_t view) const = 0;
+			virtual DirectX::XMMATRIX GetProjectionMatrix(size_t view) const = 0;
 			virtual void FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir) = 0;
+
+			virtual bool XM_CALLCONV IsInView(FXMVECTOR pos) const { return true; }
+		};
+
+		// Control the logic of render target setup and post-processing needed for current camera
+		class ICameraRenderControl
+		{
+		public:
+			// Called in the beginning of per-frame
+			virtual void BeginFrame() = 0;
+			// Called in in the end of per frame, should call Prenset inside
+			virtual void EndFrame() = 0;
+			// Called in advance of per-view rendering
+			virtual void SetView(size_t view) = 0;
+		};
+
+		class IMonolithCamera abstract : public ICameraBase , public ICameraParameters
+		{
+		public:
+			virtual size_t ViewCount() const { return 1U; }
+		};
+
+		// StereoCamera usually need to setup different view ports for differnt view, and it should implement the ICameraRenderControlInterface
+		class IStereoCamera abstract : public ICameraBase , public ICameraRenderControl
+		{
+		public:
+			virtual size_t ViewCount() const { return 2U; }
 		};
 	}
 }

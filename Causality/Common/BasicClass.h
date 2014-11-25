@@ -5,6 +5,11 @@
 #include "DirectXMathExtend.h"
 #include <map>
 #include <set>
+#include <vector>
+#include <boost\signals2.hpp>
+#include <wrl\client.h>
+#include <memory>
+#include <functional>
 
 namespace Platform
 {
@@ -22,6 +27,15 @@ namespace Platform
 		using DirectX::BoundingFrustum;
 		using DirectX::BoundingSphere;
 
+		template <class T>
+		using sptr = std::shared_ptr<T>;
+
+		template <class T>
+		using uptr = std::unique_ptr<T>;
+
+		template <class T>
+		using cptr = Microsoft::WRL::ComPtr<T>;
+
 		struct Rect
 		{
 			Vector2 Position;
@@ -38,19 +52,19 @@ namespace Platform
 		struct StaticPose
 		{
 		public:
-			Platform::Fundation::Quaternion		Orientation;
-			Platform::Fundation::Vector3		Position;
+			Quaternion	Orientation;
+			Vector3		Position;
 		};
 
 		struct DynamicPose
 		{
-			Platform::Fundation::Quaternion		Orientation;
-			Platform::Fundation::Vector3		Position;
-			Platform::Fundation::Vector3		AngularVelocity;
-			Platform::Fundation::Vector3		Velocity;
-			Platform::Fundation::Vector3		AngularAcceleration;
-			Platform::Fundation::Vector3		Acceleration;
-			double					TimeInSeconds;         // Absolute time of this state sample.
+			Quaternion	Orientation;
+			Vector3		Position;
+			Vector3		AngularVelocity;
+			Vector3		Velocity;
+			Vector3		AngularAcceleration;
+			Vector3		Acceleration;
+			double		TimeInSeconds;         // Absolute time of this state sample.
 		};
 
 		// Binary operators
@@ -58,6 +72,30 @@ namespace Platform
 		using DirectX::operator-;
 		using DirectX::operator/;
 		using DirectX::operator*;
+
+		template <class... TArgs>
+		using Event = boost::signals2::signal<void(TArgs...)>;
+
+		template <class TSender,class... TArgs>
+		using TypedEvent = boost::signals2::signal<void(TSender*,TArgs...)>;
+
+		template <class TSender,class TCallback>
+		auto MakeEventHandler(TCallback memberFuncPointer, TSender sender) -> decltype(std::bind(memberFuncPointer, sender, std::placeholders::_1))
+		{
+			return std::bind(memberFuncPointer, sender, std::placeholders::_1);
+		}
+
+		template <class TArg, class TCallback>
+		inline auto operator+=(Event<TArg>& signal, TCallback callback) -> decltype(signal.connect(callback))
+		{
+			return signal.connect(callback);
+		}
+
+		template <class TArg, class TCallback>
+		inline void operator-=(Event<TArg>& signal, TCallback callback)
+		{
+			signal.disconnect(callback);
+		}
 
 		//Vector2 operator* (const Vector2& V1, const Vector2& V2);
 		//Vector2 operator* (const Vector2& V, float S);

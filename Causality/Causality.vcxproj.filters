@@ -78,6 +78,15 @@
     <ClCompile Include="Foregrounds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CausalityApplication.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LeapMotion.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -164,6 +173,21 @@
     <ClInclude Include="Common\Lights.h">
       <Filter>DirectX</Filter>
     </ClInclude>
+    <ClInclude Include="Interactive.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CausalityApplication.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LeapMotion.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\OculusDisortionPixelShader.hlsl" />
@@ -193,5 +217,10 @@
     <Image Include="Resources\Textures\SkyBox\GrimmNight\top.dds">
       <Filter>Resource Files\SkyBox</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Causality.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

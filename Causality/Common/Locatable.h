@@ -29,18 +29,30 @@ namespace DirectX
 		virtual void SetScale(const Vector3& s) = 0;
 	};
 
-	// Interface for object with the ability to Move / Rotate / Isotropic-Scale / Boundarize
-	class IRigid abstract : public ILocatable, public IOriented, public IScalable
+	// Interface for collisition detection (Bouding Geometries)
+	// Why reference? It's good to also keep the bounding geometries up to date!
+	class IBoundable abstract
 	{
 	public:
-		virtual const BoundingOrientedBox& GetOrientedBoundingBox() = 0;
-		virtual BoundingBox GetBoundingBox() = 0;
+		virtual BoundingOrientedBox GetOrientedBoundingBox() const = 0;
+		virtual BoundingBox			GetBoundingBox() const = 0;
+		virtual BoundingSphere		GetBoundingSphere() const = 0;
 	};
 
-	struct Rigid : public IRigid
+	// Interface for object with the ability to Move / Rotate / Isotropic-Scale / Boundarize
+	class IRigid abstract : public ILocatable, public IOriented, public IScalable, public IBoundable
 	{
 	public:
-		Rigid()
+		//virtual ~IRigid(){}
+		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition((XMVECTOR) Position() + p); }
+		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(q, Orientation())); }
+	};
+
+	// Helper struct to implement IRigid Interface
+	struct RigidBase : public IRigid
+	{
+	public:
+		RigidBase()
 		{
 			Bound.Center = Vector3();
 			Bound.Orientation = Quaternion();
@@ -72,20 +84,30 @@ namespace DirectX
 		{
 			Bound.Extents = s;
 		}
-		virtual const BoundingOrientedBox & GetOrientedBoundingBox() override
+		virtual BoundingOrientedBox GetOrientedBoundingBox() const override
 		{
 			return Bound;
 		}
-		virtual BoundingBox GetBoundingBox() override {
+		virtual BoundingBox GetBoundingBox() const override {
 			BoundingBox box;
 			Vector3 corners[BoundingOrientedBox::CORNER_COUNT];
 			Bound.GetCorners(corners);
 			BoundingBox::CreateFromPoints(box, BoundingOrientedBox::CORNER_COUNT, corners, sizeof(Vector3));
 			return box;
 		}
+		virtual BoundingSphere GetBoundingSphere() const override
+		{
+			BoundingSphere sphere;
+			Vector3 corners[BoundingOrientedBox::CORNER_COUNT];
+			Bound.GetCorners(corners);
+			BoundingSphere::CreateFromPoints(sphere, BoundingOrientedBox::CORNER_COUNT, corners, sizeof(Vector3));
+			return sphere;
+		}
 
 	public:
 		BoundingOrientedBox Bound;
+		//BoundingBox			BoundBox;
+		//BoundingSphere		BoundSphere;
 	};
 
 }

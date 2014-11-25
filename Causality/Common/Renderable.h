@@ -12,6 +12,8 @@ namespace DirectX{
 		class IRenderable abstract
 		{
 		public:
+			~IRenderable()
+			{}
 			virtual void Render(ID3D11DeviceContext *pContext) = 0;
 		};
 
@@ -49,12 +51,10 @@ namespace DirectX{
 			}
 		};
 
-		class ILocalCoordinate abstract : public ILocalMatrix, public IRigid
+		// The object Using rigid information to genreate ILocalMatrix interface
+		class RigidObject : public RigidBase , public ILocalMatrix
 		{
 		public:
-			void XM_CALLCONV Move(FXMVECTOR p)         { SetPosition((XMVECTOR)Position() + p); }
-			void XM_CALLCONV Rotate(FXMVECTOR q)    { SetOrientation(XMQuaternionMultiply(q,Orientation())); }
-
 			virtual XMMATRIX GetModelMatrix() const override
 			{
 				return XMMatrixAffineTransformation(Scale(), XMVectorZero(), Orientation(), Position());
@@ -68,11 +68,6 @@ namespace DirectX{
 				SetOrientation(rotation);
 				SetPosition(translation);
 			}
-		};
-
-		class LocalCoordinate : public Rigid , virtual public ILocalCoordinate
-		{
-		public:
 		};
 	}
 

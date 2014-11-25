@@ -9,7 +9,7 @@ using namespace DirectX::Scene;
 using namespace DirectX;
 using namespace std;
 
-void DirectX::Scene::Mesh::Draw(ID3D11DeviceContext *pContext) const
+void DirectX::Scene::MeshPart::Draw(ID3D11DeviceContext *pContext) const
 {
 	if (pInputLayout)
 		pContext->IASetInputLayout(pInputLayout.Get());
@@ -59,35 +59,49 @@ DirectX::Scene::ObjMesh::ObjMesh(const std::wstring &file)
 	std::vector<Vector3> positions;
 	std::vector<Vector3> normals;
 	std::vector<Vector2> texcoords;
-
+	string line;
 	color.w = 1.0f;
 	while (!stream.eof())
 	{
-		stream >> tag;
+		std::getline(stream, line);
+		stringstream lss(line);
 
-		if (tag == "v") // (x,y,z[,w]) coordinates, w is optional and defaults to 1.0.
+		lss >> tag;
+		if (tag == "mtllib")
+		{ 
+		}
+		else if (tag == "usemtl")
 		{
-			stream >> vec3.x >> vec3.y >> vec3.z;
+		}
+		else if (tag == "o")
+		{
+		}
+		else if (tag == "g")
+		{
+		}
+		else if (tag == "v") // (x,y,z[,w]) coordinates, w is optional and defaults to 1.0.
+		{
+			lss >> vec3.x >> vec3.y >> vec3.z;
 			positions.push_back(vec3);
 		}
 		else if (tag == "vt") // in (u, v [,w]), these will vary between 0 and 1, w is optional and defaults to 0.
 		{
-			stream >> vec2.x >> vec2.y;
+			lss >> vec2.x >> vec2.y;
 			texcoords.push_back(vec2);
 		}
 		else if (tag == "vn") // (u, v [,w]) normals might not be unit. 
 		{
-			stream >> vec3.x >> vec3.y >> vec3.z;
+			lss >> vec3.x >> vec3.y >> vec3.z;
 			normals.push_back(vec3);
 		}
 		else if (tag == "vp") // ( u [,v] [,w] ) free form geometry statement
 		{
-			stream >> vec3.x >> vec3.y >> vec3.z; //Ignore the unknow parameter data
+			lss >> vec3.x >> vec3.y >> vec3.z; //Ignore the unknow parameter data
 												  //VertexParameters.push_back(vec3);
 		}
 		else if (tag == "f")
 		{
-			stream >> tri.V0 >> tri.V1 >> tri.V2; // f v1 v2 v3 ...
+			lss >> tri.V0 >> tri.V1 >> tri.V2; // f v1 v2 v3 ...
 												  // f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3 ...
 												  // f v1//vn1 v2//vn2 v3//vn3 ...
 			tri.V0--, tri.V1--, tri.V2--; // The obj file format starts the indices from 1, but as usual, it should starts from 0
@@ -156,7 +170,7 @@ inline void DirectX::Scene::ObjMesh::GenerateNormal()
 DirectX::Scene::ObjMaterial::ObjMaterial()
 {}
 
-void DirectX::Scene::ObjMaterial::LoadFromFile(ID3D11Device* pDevice, const std::wstring &file)
+void DirectX::Scene::ObjMaterial::LoadFromFile(ID3D11Device* pDevice, const std::wstring &file, const std::wstring &dir)
 {
 	std::ifstream stream;
 	stream.open(file);
@@ -169,6 +183,8 @@ void DirectX::Scene::ObjMaterial::LoadFromFile(ID3D11Device* pDevice, const std:
 	ComPtr<ID3D11DeviceContext> pContext;
 	ComPtr<ID3D11Resource> pResource;
 
+	boost::filesystem::path lookup(dir);
+
 	pDevice->GetImmediateContext(&pContext);
 
 	while (!stream.eof())
@@ -176,7 +192,10 @@ void DirectX::Scene::ObjMaterial::LoadFromFile(ID3D11Device* pDevice, const std:
 		std::getline(stream, line);
 		stringstream lss(line);
 		lss >> tag;
-		if (tag == "Ka")
+		if (tag == "#")
+		{
+		}
+		else if (tag == "Ka")
 		{ 
 			lss >> AmbientColor.x >> AmbientColor.y >> AmbientColor.z;// >> AmbientColor.w;
 		}
@@ -205,7 +224,7 @@ void DirectX::Scene::ObjMaterial::LoadFromFile(ID3D11Device* pDevice, const std:
 			lss >> tag;
 			wstring fileName(tag.begin(), tag.end());
 			ThrowIfFailed(
-				CreateWICTextureFromFile(pDevice, pContext.Get(), fileName.data(), &pResource, &ColorMap));
+				CreateWICTextureFromFile(pDevice, pContext.Get(), fileName.data(), &pResource, &DiffuseMap));
 		}
 		else if (tag == "map_Ks")
 		{
@@ -222,14 +241,14 @@ void DirectX::Scene::ObjMaterial::LoadFromFile(ID3D11Device* pDevice, const std:
 		else if (tag == "map_bump" || tag == "bump")
 		{
 			lss >> tag;
-			wstring fileName(tag.begin(), tag.end());
+			auto fileName = (lookup / tag).wstring();
 			ThrowIfFailed(
 				CreateWICTextureFromFile(pDevice, pContext.Get(), fileName.data(), &pResource, &BumpMap));
 		}
 		else if (tag == "map_disp" || tag == "disp")
 		{
 			lss >> tag;
-			wstring fileName(tag.begin(), tag.end());
+			auto fileName = (lookup / tag).wstring();
 			ThrowIfFailed(
 				CreateWICTextureFromFile(pDevice, pContext.Get(), fileName.data(), &pResource, &DisplaceMap));
 		}
@@ -240,12 +259,47 @@ void DirectX::Scene::ObjMaterial::LoadFromFile(ID3D11Device* pDevice, const std:
 	}
 }
 
+Color DirectX::Scene::ObjMaterial::GetAmbientColor() const
+{
+	return AmbientColor;
+}
+
+Color DirectX::Scene::ObjMaterial::GetDiffuseColor() const
+{
+	return DiffuseColor;
+}
+
+Color DirectX::Scene::ObjMaterial::GetSpecularColor() const
+{
+	return SpecularColor;
+}
+
+float DirectX::Scene::ObjMaterial::GetAlpha() const
+{
+	return Alpha;
+}
+
+ID3D11ShaderResourceView * DirectX::Scene::ObjMaterial::GetDiffuseMap() const
+{
+	return DiffuseMap.Get();
+}
+
+ID3D11ShaderResourceView * DirectX::Scene::ObjMaterial::GetBumpMap() const
+{
+	return BumpMap.Get();
+}
+
+ID3D11ShaderResourceView * DirectX::Scene::ObjMaterial::GetDisplaceMap() const
+{
+	return DisplaceMap.Get();
+}
+
 using namespace std::tr2;
-DirectX::Scene::ObjModel::ObjModel(ID3D11Device * pDevice, const std::wstring & file, const std::shared_ptr<IEffect>& pEffect)
+DirectX::Scene::ObjModel::ObjModel(ID3D11Device * pDevice, const std::wstring & file, const std::wstring &textureDirectory, const std::shared_ptr<IEffect>& pEffect)
 	: ObjMesh(file)
 {
 	auto path = boost::filesystem::path(file);
 	path.replace_extension(".mtl");
-	ObjMaterial::LoadFromFile(pDevice,path.wstring());
+	ObjMaterial::LoadFromFile(pDevice,path.wstring(),textureDirectory);
 	ObjMesh::Update(pDevice);
 }

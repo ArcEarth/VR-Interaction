@@ -4,11 +4,12 @@
 #include "ShaderStructures.h"
 #include "..\Common\StepTimer.h"
 #include "..\Common\Renderable.h"
+#include "..\Interactive.h"
 
 namespace Causality
 {
 	// This sample renderer instantiates a basic rendering pipeline.
-	class CubeScene : public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable, public DirectX::Scene::IViewable
+	class CubeScene : public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable, public DirectX::Scene::IViewable, public Platform::ICursorInteractive, public Platform::IUserHandsInteractive
 	{
 	public:
 		CubeScene(const std::shared_ptr<DirectX::DeviceResources>& deviceResources);
@@ -31,6 +32,15 @@ namespace Causality
 		void StopTracking();
 		bool IsTracking() { return m_tracking; }
 
+		// Inherited via ICursorInteractive
+		virtual void OnMouseButtonDown(const Platform::CursorButtonEvent & e) override;
+		virtual void OnMouseButtonUp(const Platform::CursorButtonEvent & e) override;
+		virtual void OnMouseMove(const Platform::CursorMoveEventArgs & e) override;
+
+		// Inherited via IUserHandsInteractive
+		virtual void OnHandsTracked(const Platform::UserHandsEventArgs & e) override;
+		virtual void OnHandsTrackLost(const Platform::UserHandsEventArgs & e) override;
+		virtual void OnHandsMove(const Platform::UserHandsEventArgs & e) override;
 
 	private:
 		void Rotate(float radians);
@@ -55,6 +65,7 @@ namespace Causality
 		bool	m_loadingComplete;
 		float	m_degreesPerSecond;
 		bool	m_tracking;
+
 	};
 }
 

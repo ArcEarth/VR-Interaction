@@ -8,9 +8,11 @@
 #include <wincodec.h>
 #include <DirectXMath.h>
 #include <Effects.h>
+#include <string>
 
 namespace DirectX
 {
+	class DeviceResources;
     // Provides an interface for an application that owns DeviceResources to be notified of the device being lost or created.
 	interface IDeviceNotify
 	{
