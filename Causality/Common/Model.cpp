@@ -9,7 +9,7 @@ using namespace DirectX::Scene;
 using namespace DirectX;
 using namespace std;
 
-void DirectX::Scene::MeshPart::Draw(ID3D11DeviceContext *pContext) const
+void DirectX::Scene::Mesh::Draw(ID3D11DeviceContext *pContext) const
 {
 	if (pInputLayout)
 		pContext->IASetInputLayout(pInputLayout.Get());

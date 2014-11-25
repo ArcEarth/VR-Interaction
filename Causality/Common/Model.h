@@ -209,7 +209,6 @@ namespace DirectX
 		class Model : public RigidObject
 		{
 		public:
-			~ModelMesh() {}
 
 			std::vector<std::unique_ptr<Mesh>>	Meshs;
 			std::vector<std::unique_ptr<IMaterial>> Materias;
