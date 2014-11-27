@@ -57,7 +57,7 @@ namespace DirectX{
 		public:
 			virtual XMMATRIX GetModelMatrix() const override
 			{
-				return XMMatrixAffineTransformation(Scale(), XMVectorZero(), Orientation(), Position());
+				return XMMatrixAffineTransformation(GetScale(), XMVectorZero(), GetOrientation(), GetPosition());
 			}
 		protected:
 			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override

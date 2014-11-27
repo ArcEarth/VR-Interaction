@@ -46,9 +46,9 @@ public:
 	// Inherited via ICameraParameters
 	virtual void SetFov(float fovRadius, float aspectRatioHbyW) override;
 
-	virtual const Platform::Fundation::Vector3&    Position() const override;
+	virtual const Platform::Fundation::Vector3&    GetPosition() const override;
 	virtual void  SetPosition(const Platform::Fundation::Vector3& p) override;
-	virtual const Platform::Fundation::Quaternion& Orientation() const override;
+	virtual const Platform::Fundation::Quaternion& GetOrientation() const override;
 	virtual void  SetOrientation(const Platform::Fundation::Quaternion &q) override;
 private:
 	Platform::Fundation::Vector3 Foward = { 0, 0, -1.0f }, Up = { 0, 1.0f, 0 };

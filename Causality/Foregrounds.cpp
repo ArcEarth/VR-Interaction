@@ -25,37 +25,36 @@ Foregrounds::~Foregrounds()
 
 void Causality::Foregrounds::LoadAsync(ID3D11Device* pDevice)
 {
-	auto Directory = App::Current()->GetResourcesDirectory();
-	auto ModelDirectory = Directory / "Models";
-	auto TextureDirectory = Directory / "Textures";
-	auto texDir = TextureDirectory.wstring();
 
 	m_loadingComplete = false;
-	concurrency::task<void> load_models([this,pDevice,texDir]() {
-		pEffect = std::make_shared<BasicEffect>();
+	concurrency::task<void> load_models([this, pDevice]() {
+		auto Directory = App::Current()->GetResourcesDirectory();
+		auto ModelDirectory = Directory / "Models";
+		auto TextureDirectory = Directory / "Textures";
+		auto texDir = TextureDirectory.wstring();
+		pEffect = std::make_shared<BasicEffect>(pDevice);
 		pEffect->SetVertexColorEnabled(false);
 		pEffect->SetTextureEnabled(true);
 		pEffect->SetLightingEnabled(true);
-		Objects.push_back(make_shared<ObjModel>(pDevice, models[0], texDir));
-		Objects.push_back(make_shared<ObjModel>(pDevice, models[1], texDir));
-		Objects.push_back(make_shared<ObjModel>(pDevice, models[2], texDir));
+		{
+			void const* shaderByteCode;
+			size_t byteCodeLength;
+			pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
+			pInputLayout = CreateInputLayout<VertexPositionNormalTexture>(pDevice, shaderByteCode, byteCodeLength);
+		}
+		this->Position = { 0,0,-5 };
+		this->Scale = { 0.1f,0.1f,0.1f };
+		AddModel(GeometryModel::CreateFromObjFile(pDevice, (ModelDirectory / models[0]).wstring(), texDir));
+		AddModel(GeometryModel::CreateFromObjFile(pDevice, (ModelDirectory / models[1]).wstring(), texDir));
+		AddModel(GeometryModel::CreateFromObjFile(pDevice, (ModelDirectory / models[2]).wstring(), texDir));
 		m_loadingComplete = true;
 	});
 }
 
 void Causality::Foregrounds::Render(ID3D11DeviceContext * pContext)
 {
-	for (auto&& pObj : Objects)
-	{
-		pEffect->SetWorld(pObj->GetModelMatrix());
-		pEffect->SetTexture(pObj->DisplaceMap.Get());
-		pEffect->SetDiffuseColor(pObj->DiffuseColor);
-		pEffect->SetSpecularColor(pObj->SpecularColor);
-		pEffect->SetAlpha(pObj->Alpha);
-		pEffect->Apply(pContext);
-		pObj->Draw(pContext);
-	}
-
+	pContext->IASetInputLayout(pInputLayout.Get());
+	ModelCollection::Render(pContext, pEffect.get());
 }
 
 void XM_CALLCONV Causality::Foregrounds::UpdateViewMatrix(DirectX::FXMMATRIX view)

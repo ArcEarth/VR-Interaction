@@ -168,7 +168,7 @@ namespace DirectX
 			m_pEffect->SetVertexColorEnabled(false);
 			m_pEffect->SetFogEnabled(false);
 
-			Mesh::Update<VertexType,IndexType>(pDevice, CubeVertices, VerticesCount, CubeIndices, IndicesCount);
+			Mesh::CreateDeviceResources<VertexType,IndexType>(pDevice, CubeVertices, VerticesCount, CubeIndices, IndicesCount);
 		}
 
 		//template <class VertexType , class IndexType>

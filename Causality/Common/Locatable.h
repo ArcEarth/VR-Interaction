@@ -8,7 +8,7 @@ namespace DirectX
 	class ILocatable abstract
 	{
 	public:
-		virtual const Vector3&    Position() const = 0;
+		virtual const Vector3& GetPosition() const = 0;
 		virtual void  SetPosition(const Vector3 &p) = 0;
 	};
 
@@ -16,7 +16,7 @@ namespace DirectX
 	class IOriented abstract
 	{
 	public:
-		virtual const Quaternion& Orientation() const = 0;
+		virtual const Quaternion& GetOrientation() const = 0;
 		virtual void  SetOrientation(const Quaternion &q) = 0;
 	};
 
@@ -25,7 +25,7 @@ namespace DirectX
 	class IScalable abstract
 	{
 	public:
-		virtual const Vector3& Scale() const = 0;
+		virtual const Vector3& GetScale() const = 0;
 		virtual void SetScale(const Vector3& s) = 0;
 	};
 
@@ -39,13 +39,13 @@ namespace DirectX
 		virtual BoundingSphere		GetBoundingSphere() const = 0;
 	};
 
-	// Interface for object with the ability to Move / Rotate / Isotropic-Scale / Boundarize
-	class IRigid abstract : public ILocatable, public IOriented, public IScalable, public IBoundable
+	// Interface for object with the ability to Move / Rotate / Isotropic-Scale
+	class IRigid abstract : public ILocatable, public IOriented, public IScalable
 	{
 	public:
 		//virtual ~IRigid(){}
-		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition((XMVECTOR) Position() + p); }
-		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(q, Orientation())); }
+		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition((XMVECTOR) GetPosition() + p); }
+		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(q, GetOrientation())); }
 	};
 
 	// Helper struct to implement IRigid Interface
@@ -53,61 +53,40 @@ namespace DirectX
 	{
 	public:
 		RigidBase()
+			: Position(),Orientation(),Scale(1.f, 1.f, 1.f)
 		{
-			Bound.Center = Vector3();
-			Bound.Orientation = Quaternion();
-			Bound.Extents = Vector3(1.f, 1.f, 1.f);
 		}
 
 		// Inherited via IRigid
-		virtual const Vector3 & Position() const
+		virtual const Vector3 & GetPosition() const
 		{
-			return static_cast<const Vector3&>(Bound.Center);
+			return Position;
 		}
 		virtual void SetPosition(const Vector3 &p) override
 		{
-			Bound.Center = p;
+			Position = p;
 		}
-		virtual const Quaternion & Orientation() const override
+		virtual const Quaternion & GetOrientation() const override
 		{
-			return static_cast<const Quaternion&>(Bound.Orientation);
+			return Orientation;
 		}
 		virtual void SetOrientation(const Quaternion &q) override
 		{
-			Bound.Orientation = q;
+			Orientation = q;
 		}
-		virtual const Vector3 & Scale() const override
+		virtual const Vector3 & GetScale() const override
 		{
-			return static_cast<const Vector3&>(Bound.Extents);
+			return static_cast<const Vector3&>(Scale);
 		}
 		virtual void SetScale(const Vector3 & s) override
 		{
-			Bound.Extents = s;
-		}
-		virtual BoundingOrientedBox GetOrientedBoundingBox() const override
-		{
-			return Bound;
-		}
-		virtual BoundingBox GetBoundingBox() const override {
-			BoundingBox box;
-			Vector3 corners[BoundingOrientedBox::CORNER_COUNT];
-			Bound.GetCorners(corners);
-			BoundingBox::CreateFromPoints(box, BoundingOrientedBox::CORNER_COUNT, corners, sizeof(Vector3));
-			return box;
-		}
-		virtual BoundingSphere GetBoundingSphere() const override
-		{
-			BoundingSphere sphere;
-			Vector3 corners[BoundingOrientedBox::CORNER_COUNT];
-			Bound.GetCorners(corners);
-			BoundingSphere::CreateFromPoints(sphere, BoundingOrientedBox::CORNER_COUNT, corners, sizeof(Vector3));
-			return sphere;
+			Scale = s;
 		}
 
 	public:
-		BoundingOrientedBox Bound;
-		//BoundingBox			BoundBox;
-		//BoundingSphere		BoundSphere;
+		Vector3		Position;
+		Quaternion	Orientation;
+		Vector3		Scale;
 	};
 
 }

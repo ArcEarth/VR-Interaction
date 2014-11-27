@@ -114,6 +114,7 @@ template <class _Ty>
 class stride_range
 {
 public:
+	typedef	std::random_access_iterator_tag	iterator_category;
 	//typedef stride_range<T>							_SelfType;
 	typedef std::remove_reference_t<_Ty>					value_type;
 	typedef ptrdiff_t										difference_type;
@@ -138,7 +139,7 @@ public:
 
 	size_t size()
 	{
-		return ((char*) data - (char*) stop) / stride;;
+		return ((char*) stop - (char*) data) / stride;;
 	}
 
 	iterator_type begin()

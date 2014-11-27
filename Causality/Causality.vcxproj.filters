@@ -87,6 +87,12 @@
     <ClCompile Include="LeapMotion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Extern\tiny_obj_loader.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Material.cpp">
+      <Filter>DirectX</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -187,6 +193,12 @@
     </ClInclude>
     <ClInclude Include="LeapMotion.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Extern\tiny_obj_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Material.h">
+      <Filter>DirectX</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

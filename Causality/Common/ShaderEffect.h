@@ -20,6 +20,21 @@ namespace DirectX
 		}
 	};
 
+	class IEffectMaterial
+	{
+		virtual void SetDiffuseTexture(ID3D11ShaderResourceView* pTexture) = 0;
+		virtual void SetNormalTexture(ID3D11ShaderResourceView* pTexture) = 0;
+		virtual void SetSpecularTexture(ID3D11ShaderResourceView* pTexture) = 0;
+	};
+
+	//ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device* pDevice, IEffect* pEffect)
+	//{
+	//	void const* shaderByteCode;
+	//	size_t byteCodeLength;
+	//	pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
+	//	return DirectX::CreateInputLayout(pDevice, shaderByteCode, byteCodeLength);
+	//}
+
 	// An base class for customized shader effect, will handel the loading of shaders
 	class IShaderEffect
 	{

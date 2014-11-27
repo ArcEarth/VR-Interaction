@@ -110,6 +110,7 @@
     <ClCompile Include="Common\Carmera.cpp" />
     <ClCompile Include="Common\DeviceResources.cpp" />
     <ClCompile Include="Common\DXGIFormatHelper.cpp" />
+    <ClCompile Include="Common\Material.cpp" />
     <ClCompile Include="Common\Model.cpp" />
     <ClCompile Include="Common\Renderable.cpp" />
     <ClCompile Include="Common\SkyBox.cpp" />
@@ -170,6 +171,7 @@
     <ClInclude Include="Common\DXGIFormatHelper.h" />
     <ClInclude Include="Common\Lights.h" />
     <ClInclude Include="Common\Locatable.h" />
+    <ClInclude Include="Common\Material.h" />
     <ClInclude Include="Common\Model.h" />
     <ClInclude Include="Common\Renderable.h" />
     <ClInclude Include="Common\ShaderEffect.h" />

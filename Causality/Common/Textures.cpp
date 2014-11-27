@@ -135,7 +135,7 @@ DynamicTexture2D::DynamicTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int
 
 RenderTargetTexture2D::RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
 	_In_opt_ DXGI_FORMAT Format, _In_opt_ bool Shared)
-	: Texture2D(pDevice, Width, Height, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE, 0, Shared ? D3D11_RESOURCE_MISC_SHARED : 0)
+	: Texture2D(pDevice, Width, Height, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE, 0, Shared ? D3D11_RESOURCE_MISC_SHARED : 0,4,1)
 {
 	D3D11_RENDER_TARGET_VIEW_DESC	RenderTargetViewDesc;
 	// Setup the description of the render target view.

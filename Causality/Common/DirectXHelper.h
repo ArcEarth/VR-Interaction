@@ -267,10 +267,10 @@ namespace DirectX
 
 
 	template <class VertexType>
-	inline ID3D11Buffer* CreateVertexBuffer(ID3D11Device *pDevice, int Capablity, const VertexType* pInitialData, UINT CPUAccessFlag = 0)
+	inline ComPtr<ID3D11Buffer> CreateVertexBuffer(ID3D11Device *pDevice, int Capablity, const VertexType* pInitialData, UINT CPUAccessFlag = 0)
 	{
+		ComPtr<ID3D11Buffer> pBuffer(nullptr);
 		CD3D11_BUFFER_DESC VertexBufferDesc(sizeof(VertexType)*Capablity, D3D11_BIND_VERTEX_BUFFER, D3D11_USAGE_DEFAULT, CPUAccessFlag);
-		ID3D11Buffer* pBuffer = nullptr;
 		if (pInitialData) {
 			D3D11_SUBRESOURCE_DATA InitialSubresource;
 			InitialSubresource.pSysMem = pInitialData;
@@ -296,6 +296,22 @@ namespace DirectX
 		return pBuffer;
 	}
 
+
+	typedef std::shared_ptr<std::vector<D3D11_INPUT_ELEMENT_DESC>> InputDescription;
+
+	inline ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device *pDevice,const InputDescription& pInputDescription, const void* vertexShaderBytecode, size_t bytecodeLength)
+	{
+		ComPtr<ID3D11InputLayout> pLayout;
+		DirectX::ThrowIfFailed(
+			pDevice->CreateInputLayout(
+			&pInputDescription->at(0),
+			pInputDescription->size(),
+			vertexShaderBytecode,
+			bytecodeLength,
+			&pLayout));
+		return pLayout;
+	}
+
 	template <class VertexType>
 	inline ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device *pDevice, const void* vertexShaderBytecode, size_t bytecodeLength)
 	{
@@ -312,8 +328,9 @@ namespace DirectX
 	}
 
 	template <class IndexType>
-	inline ID3D11Buffer* CreateIndexBuffer(ID3D11Device *pDevice, int Capablity, const IndexType* pInitialData, UINT CPUAccessFlag = 0)
+	inline ComPtr<ID3D11Buffer> CreateIndexBuffer(ID3D11Device *pDevice, int Capablity, const IndexType* pInitialData, UINT CPUAccessFlag = 0)
 	{
+		ComPtr<ID3D11Buffer> pBuffer(nullptr);
 		CD3D11_BUFFER_DESC IndexBufferDesc(sizeof(IndexType)*Capablity, D3D11_BIND_INDEX_BUFFER);
 		std::unique_ptr<D3D11_SUBRESOURCE_DATA> pInitialSubresource;
 		if (pInitialData) {
@@ -322,7 +339,6 @@ namespace DirectX
 			pInitialSubresource->SysMemPitch = 0;
 			pInitialSubresource->SysMemSlicePitch = 0;
 		}
-		ID3D11Buffer* pBuffer = nullptr;
 		ThrowIfFailed(
 			pDevice->CreateBuffer(
 			&IndexBufferDesc,

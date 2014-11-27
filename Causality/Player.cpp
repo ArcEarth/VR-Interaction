@@ -14,16 +14,16 @@ DirectX::XMMATRIX PlayerCamera::GetViewMatrix(size_t view) const
 	{
 		auto eye = (DirectX::Scene::EyesEnum) view;
 		auto pose = m_pRift->EyePoses(eye);
-		XMVECTOR loc = (XMVECTOR) Position() + DirectX::XMVector3Rotate((XMVECTOR) pose.Position, pose.Orientation);
-		XMVECTOR rot = Orientation() * pose.Orientation;
+		XMVECTOR loc = (XMVECTOR) GetPosition() + DirectX::XMVector3Rotate((XMVECTOR) pose.Position, pose.Orientation);
+		XMVECTOR rot = GetOrientation() * pose.Orientation;
 		XMVECTOR foward = XMVector3Rotate(Foward, rot);
 		XMVECTOR up = XMVector3Rotate(Up, rot);
 		return XMMatrixLookToRH(loc, foward, up);
 	}
 	else
 	{
-		XMVECTOR loc = (XMVECTOR) Position();
-		XMVECTOR rot = Orientation();
+		XMVECTOR loc = (XMVECTOR) GetPosition();
+		XMVECTOR rot = GetOrientation();
 		XMVECTOR foward = XMVector3Rotate(Foward, rot);
 		XMVECTOR up = XMVector3Rotate(Up, rot);
 		return XMMatrixLookToRH(loc, foward, up);
@@ -49,12 +49,12 @@ DirectX::XMMATRIX PlayerCamera::GetProjectionMatrix(size_t view) const
 void PlayerCamera::FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir)
 {
 	using namespace DirectX;
-	Foward = XMVector3Normalize(focusPoint - (XMVECTOR) Position());
+	Foward = XMVector3Normalize(focusPoint - (XMVECTOR) GetPosition());
 	Up = upDir;
 	SetOrientation(XMQuaternionIdentity());
 }
 
-const Platform::Fundation::Vector3 & PlayerCamera::Position() const
+const Platform::Fundation::Vector3 & PlayerCamera::GetPosition() const
 {
 	return m_BodyPose.Position;
 }
@@ -64,7 +64,7 @@ void PlayerCamera::SetPosition(const Platform::Fundation::Vector3 &p)
 	m_BodyPose.Position = p;
 }
 
-const Platform::Fundation::Quaternion & PlayerCamera::Orientation() const
+const Platform::Fundation::Quaternion & PlayerCamera::GetOrientation() const
 {
 	return m_BodyPose.Orientation;
 }

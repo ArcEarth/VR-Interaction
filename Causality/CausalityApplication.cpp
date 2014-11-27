@@ -75,9 +75,9 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 
 	// Scenes
 	Scenes.push_back(std::make_unique<CubeScene>(pDeviceResources));
-	Scenes.push_back(std::make_unique<FpsTextScene>(pDeviceResources));
 	Scenes.push_back(std::make_unique<SkyBox>(pDeviceResources->GetD3DDevice(), SkyBoxTextures));
 	Scenes.push_back(std::make_unique<Foregrounds>(pDeviceResources));
+	Scenes.push_back(std::make_unique<FpsTextScene>(pDeviceResources));
 
 	// Register Interactive Ecents
 	for (auto& pScene : Scenes)

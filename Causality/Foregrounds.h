@@ -3,10 +3,11 @@
 #include "Common\DeviceResources.h"
 #include <Effects.h>
 #include "Interactive.h"
+#include <wrl\client.h>
 
 namespace Causality
 {
-	class Foregrounds : public DirectX::Scene::IRenderable , public DirectX::Scene::IViewable , public DirectX::Scene::ITimeAnimatable
+	class Foregrounds : public DirectX::Scene::IRenderable, public DirectX::Scene::ModelCollection, public DirectX::Scene::IViewable , public DirectX::Scene::ITimeAnimatable
 	{
 	public:
 		Foregrounds(const std::shared_ptr<DirectX::DeviceResources> &pResouce);
@@ -15,8 +16,8 @@ namespace Causality
 		void LoadAsync(ID3D11Device* pDevice);
 
 		std::shared_ptr<DirectX::BasicEffect> pEffect;
-		std::vector<std::shared_ptr<DirectX::Scene::ObjModel>> Objects;
 
+		//virtual DirectX::XMMATRIX GetModelMatrix() const override;
 		// Inherited via IRenderable
 		virtual void Render(ID3D11DeviceContext * pContext) override;
 
@@ -28,6 +29,7 @@ namespace Causality
 		virtual void UpdateAnimation(DirectX::StepTimer const & timer) override;
 
 	private:
+		Microsoft::WRL::ComPtr<ID3D11InputLayout>	pInputLayout;
 		bool m_loadingComplete;
 	};
 }
