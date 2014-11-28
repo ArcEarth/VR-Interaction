@@ -4,7 +4,7 @@
 #include <Effects.h>
 #include "Interactive.h"
 #include <wrl\client.h>
-
+#include <CommonStates.h>
 namespace Causality
 {
 	class Foregrounds : public DirectX::Scene::IRenderable, public DirectX::Scene::ModelCollection, public DirectX::Scene::IViewable , public DirectX::Scene::ITimeAnimatable
@@ -30,6 +30,7 @@ namespace Causality
 
 	private:
 		Microsoft::WRL::ComPtr<ID3D11InputLayout>	pInputLayout;
+		DirectX::CommonStates						States;
 		bool m_loadingComplete;
 	};
 }

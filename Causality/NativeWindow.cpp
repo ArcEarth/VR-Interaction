@@ -35,11 +35,14 @@ namespace Platform
 		auto current = Fundation::Vector2((float)x, (float)y);
 		CursorPositionDelta = current - CursorPostiton;
 		CursorPostiton = current;
-		CursorMoveEventArgs e{
-			CursorPostiton,
-			CursorPositionDelta,
-			WheelDelta, };
-		CursorMove(e);
+		if (!CursorMove.empty())
+		{
+			CursorMoveEventArgs e{
+				CursorPostiton,
+				CursorPositionDelta,
+				WheelDelta, };
+			CursorMove(e);
+		}
 	}
 
 	inline void NativeWindow::OnKeyDown(unsigned char key)
@@ -47,18 +50,22 @@ namespace Platform
 		switch (key)
 		{
 		case VK_LBUTTON:
+			if (ButtonStates[LButton]) return;
 			ButtonStates[LButton] = true;
 			CursorButtonDown(CursorButtonEvent(LButton));
 			break;
 		case VK_RBUTTON:
+			if (ButtonStates[RButton]) return;
 			ButtonStates[RButton] = true;
 			CursorButtonDown(CursorButtonEvent(RButton));
 			break;
 		case VK_MBUTTON:
+			if (ButtonStates[MButton]) return;
 			ButtonStates[MButton] = true;
 			CursorButtonDown(CursorButtonEvent(MButton));
 			break;
 		default:
+			if (Keys[key]) return;
 			Keys[key] = true;
 			KeyDown(KeyboardEventArgs{ GetCurrentModifiers(),key });
 			break;
@@ -69,18 +76,22 @@ namespace Platform
 		switch (key)
 		{
 		case VK_LBUTTON:
+			if (!ButtonStates[LButton]) return;
 			ButtonStates[LButton] = false;
 			CursorButtonUp(CursorButtonEvent(LButton));
 			break;
 		case VK_RBUTTON:
+			if (!ButtonStates[RButton]) return;
 			ButtonStates[RButton] = false;
 			CursorButtonUp(CursorButtonEvent(RButton));
 			break;
 		case VK_MBUTTON:
+			if (!ButtonStates[MButton]) return;
 			ButtonStates[MButton] = false;
 			CursorButtonUp(CursorButtonEvent(MButton));
 			break;
 		default:
+			if (!Keys[key]) return;
 			Keys[key] = false;
 			KeyUp(KeyboardEventArgs{ GetCurrentModifiers(),key });
 			break;
@@ -221,6 +232,7 @@ namespace Platform
 			Current->exitProposal = true;
 			return S_OK;
 		}
+		break;
 
 		// Check if the window is being closed.
 		case WM_CLOSE:
@@ -232,6 +244,7 @@ namespace Platform
 			}
 			return S_OK;
 		}
+		break;
 		case WM_LBUTTONDOWN:
 		case WM_RBUTTONDOWN:
 		case WM_MBUTTONDOWN:
@@ -243,6 +256,7 @@ namespace Platform
 				window->OnKeyDown(key);
 			}
 		}
+		break;
 		case WM_LBUTTONUP:
 		case WM_RBUTTONUP:
 		case WM_MBUTTONUP:
@@ -254,6 +268,7 @@ namespace Platform
 				window->OnKeyUp(key);
 			}
 		}
+		break;
 		//Check if a key has been pressed on the keyboard.
 		case WM_KEYDOWN:
 		{
@@ -262,6 +277,7 @@ namespace Platform
 			//m_pInput->KeyDown((unsigned int) wparam);
 			return S_OK;
 		}
+		break;
 
 		// Check if a key has been released on the keyboard.
 		case WM_KEYUP:
@@ -271,6 +287,7 @@ namespace Platform
 			//m_pInput->KeyUp((unsigned int) wparam);
 			return S_OK;
 		}
+		break;
 
 		//Handel the mouse(hand gesture glove) input
 		case WM_MOUSEMOVE:
@@ -278,6 +295,7 @@ namespace Platform
 			if (window) window->OnMouseMove(LOWORD(lparam), HIWORD(lparam));
 			return S_OK;
 		}
+		break;
 		//Any other messages send to the default message handler as our application won't make use of them.
 		// All other messages pass to the message handler in the system class.
 		default:
@@ -286,6 +304,7 @@ namespace Platform
 		}
 
 		}
+		return S_OK;
 	}
 DirectX::Vector2 CursorHandler::CurrentPosition() const
 {
@@ -300,6 +319,78 @@ bool CursorHandler::IsButtonDown(CursorButtonEnum button) const
 	return ButtonStates[button];
 }
 void CursorHandler::SetCursorPosition(const DirectX::Vector2 & pos)
+{
+}
+
+void DebugConsole::Initialize(Platform::String ^ title, unsigned int width, unsigned int height, bool fullScreen)
+{
+	if (!AllocConsole())
+		return;
+	HWND hWnd = GetConsoleWindow();
+	MoveWindow(hWnd, 1920, 600, width, height, 1);
+
+#pragma warning( push )
+#pragma warning( disable: 4996 )
+	// Reopen file handles for stdin,stdout and sterr to point to
+	// the newly created console
+	freopen("CONIN$", "r", stdin);
+	freopen("CONOUT$", "w", stdout);
+	freopen("CONOUT$", "w", stderr);
+
+#pragma warning( pop )
+
+	std::cout << "DEBUG console has been created" << std::endl;
+
+	Application::WindowsLookup[hWnd] = shared_from_this();
+	return;
+}
+
+void DebugConsole::Show()
+{
+}
+
+void DebugConsole::Hide()
+{
+}
+
+void DebugConsole::Focus()
+{
+}
+
+void DebugConsole::Close()
+{
+}
+
+void DebugConsole::Minimize()
+{
+}
+
+void DebugConsole::Maximize()
+{
+}
+
+bool DebugConsole::IsFullScreen() const
+{
+	return false;
+}
+
+void DebugConsole::EnterFullScreen()
+{
+}
+
+void DebugConsole::ExitFullScreen()
+{
+}
+
+void DebugConsole::OnMouseMove(int x, int y)
+{
+}
+
+void DebugConsole::OnKeyDown(unsigned char key)
+{
+}
+
+void DebugConsole::OnKeyUp(unsigned char key)
 {
 }
 

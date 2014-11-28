@@ -35,6 +35,6 @@ Ns 50.781250
 illum 2
 Kd 0.655914 0.655914 0.655914
 Ks 1.000000 1.000000 1.000000
-map_Kd wod no6_1.jpg
-map_Ks wod no6_1bampmap.jpg
-bump wod no6_1bampmap.jpg
+map_Kd wod_no6_1.jpg
+map_Ks wod_no6_1bampmap.jpg
+bump wod_no6_1bampmap.jpg

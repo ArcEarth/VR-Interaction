@@ -79,6 +79,8 @@ namespace Platform
 		template <class TSender,class... TArgs>
 		using TypedEvent = boost::signals2::signal<void(TSender*,TArgs...)>;
 
+		using EventConnection = boost::signals2::connection;
+
 		template <class TSender,class TCallback>
 		auto MakeEventHandler(TCallback memberFuncPointer, TSender sender) -> decltype(std::bind(memberFuncPointer, sender, std::placeholders::_1))
 		{
@@ -86,15 +88,15 @@ namespace Platform
 		}
 
 		template <class TArg, class TCallback>
-		inline auto operator+=(Event<TArg>& signal, TCallback callback) -> decltype(signal.connect(callback))
+		inline auto operator+=(Event<TArg>& signal, TCallback &&callback) -> decltype(signal.connect(callback))
 		{
-			return signal.connect(callback);
+			return signal.connect(std::move(callback));
 		}
 
 		template <class TArg, class TCallback>
-		inline void operator-=(Event<TArg>& signal, TCallback callback)
+		inline void operator-=(Event<TArg>& signal, TCallback &&callback)
 		{
-			signal.disconnect(callback);
+			signal.disconnect(std::move(callback));
 		}
 
 		//Vector2 operator* (const Vector2& V1, const Vector2& V2);

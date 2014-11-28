@@ -1,6 +1,6 @@
 #include "SkyBox.h"
 #include <DDSTextureLoader.h>
-
+#include <CommonStates.h>
 using namespace std;
 namespace DirectX
 {
@@ -41,10 +41,11 @@ namespace DirectX
 			VertexPositionTexture(XMFLOAT3(1.0f, -1.0f,  1.0f) , XMFLOAT2(1.0f, 1.0f)),
 
 			// negative z
-			VertexPositionTexture(XMFLOAT3(1.0f, -1.0f, -1.0f) , XMFLOAT2(0.0f, 1.0f)),
-			VertexPositionTexture(XMFLOAT3(1.0f,  1.0f, -1.0f) , XMFLOAT2(0.0f, 0.0f)),
-			VertexPositionTexture(XMFLOAT3(-1.0f,  1.0f, -1.0f) , XMFLOAT2(1.0f, 0.0f)),
-			VertexPositionTexture(XMFLOAT3(-1.0f, -1.0f, -1.0f) , XMFLOAT2(1.0f, 1.0f)),
+			VertexPositionTexture(XMFLOAT3(1.0f, -1.0f, -1.0f) , XMFLOAT2(0.0f, 1.0f)), //20
+			VertexPositionTexture(XMFLOAT3(1.0f,  1.0f, -1.0f) , XMFLOAT2(0.0f, 0.0f)), //21
+			VertexPositionTexture(XMFLOAT3(-1.0f,  1.0f, -1.0f) , XMFLOAT2(1.0f, 0.0f)),//22
+			VertexPositionTexture(XMFLOAT3(-1.0f, -1.0f, -1.0f) , XMFLOAT2(1.0f, 1.0f)),//23
+			//VertexPositionTexture(XMFLOAT3(-1.0f, -1.0f, -1.0f) , XMFLOAT2(1.0f, 1.0f)),//23
 		};
 
 		const SkyBox::IndexType SkyBox::CubeIndices[SkyBox::IndicesCount] =
@@ -148,16 +149,18 @@ namespace DirectX
 
 		void XM_CALLCONV SkyBox::UpdateViewMatrix(DirectX::FXMMATRIX view)
 		{
-			XMMATRIX View = XMMatrixTranspose(view);
+			XMMATRIX View = view;
 			// Last column of View Inverse is camera's position
 			View.r[3] = g_XMIdentityR3;
-			m_pEffect->SetView(XMMatrixTranspose(View));
+			m_pEffect->SetView(View);
 		}
 
 		void XM_CALLCONV SkyBox::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
 		{
 			m_pEffect->SetProjection(projection);
 		}
+
+		std::unique_ptr<CommonStates> pStates;
 
 		SkyBox::SkyBox(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6])
 			: m_pCubeTexture(new CubeTexture(pDevice, TextureFiles))
@@ -167,8 +170,13 @@ namespace DirectX
 			m_pEffect->SetTextureEnabled(true);
 			m_pEffect->SetVertexColorEnabled(false);
 			m_pEffect->SetFogEnabled(false);
-
-			Mesh::CreateDeviceResources<VertexType,IndexType>(pDevice, CubeVertices, VerticesCount, CubeIndices, IndicesCount);
+			pStates = make_unique<CommonStates>(pDevice);
+			//CD3D11_DEPTH_STENCIL_DESC dpsDesc;
+			//dpsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+			//ThrowIfFailed(
+			//	pDevice->CreateDepthStencilState(&dpsDesc, &m_pDepthStenticlState)
+			//	);
+			Mesh::CreateDeviceResources<VertexType,IndexType>(pDevice, CubeVertices, VerticesCount+1, CubeIndices, IndicesCount);
 		}
 
 		//template <class VertexType , class IndexType>
@@ -180,7 +188,9 @@ namespace DirectX
 
 		void SkyBox::Render(ID3D11DeviceContext* pDeviceContext)
 		{
-			m_pEffect->SetWorld(XMMatrixScaling(20.0f, 20.0f, 20.0f));
+			ComPtr<ID3D11DepthStencilState> pFomerState;
+			UINT sRef;
+			m_pEffect->SetWorld(XMMatrixScaling(5.0f, 5.0f, 5.0f));
 
 			pDeviceContext->IASetInputLayout(pInputLayout.Get());
 
@@ -190,14 +200,16 @@ namespace DirectX
 			pDeviceContext->IASetVertexBuffers(0, 1, &pBuffer, &stride, &offset);
 			pDeviceContext->IASetIndexBuffer(pIndexBuffer.Get(), IndexFormat, 0);
 			pDeviceContext->IASetPrimitiveTopology(PrimitiveType);
-
+			pDeviceContext->OMGetDepthStencilState(&pFomerState, &sRef);
+			pDeviceContext->OMSetDepthStencilState(pStates->DepthRead(), sRef);
+			//pDeviceContext->OMSetDepthStencilState(m_pDepthStenticlState.Get(), sRef);
 			for (int i = 0; i < 6; i++)
 			{
 				m_pEffect->SetTexture(m_pCubeTexture->at(i));
 				m_pEffect->Apply(pDeviceContext);
 				pDeviceContext->DrawIndexed(6, 6 * i, 0);
 			}
-
+			pDeviceContext->OMSetDepthStencilState(pFomerState.Get(), sRef);
 		}
 	}
 

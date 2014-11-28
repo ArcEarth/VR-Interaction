@@ -9,6 +9,7 @@
 #include <DirectXMath.h>
 #include <Effects.h>
 #include <string>
+#include <mutex>
 
 namespace DirectX
 {
@@ -66,6 +67,7 @@ namespace DirectX
 		// D3D Accessors.
 		ID3D11Device2*			GetD3DDevice() const					{ return m_d3dDevice.Get(); }
 		ID3D11DeviceContext2*	GetD3DDeviceContext() const				{ return m_d3dContext.Get(); }
+		std::mutex&				GetD3DContextMutext() const				{ return m_d3dMutex; }
 		IDXGISwapChain1*		GetSwapChain() const					{ return m_swapChain.Get(); }
 		D3D_FEATURE_LEVEL		GetDeviceFeatureLevel() const			{ return m_d3dFeatureLevel; }
 		ID3D11RenderTargetView*	GetBackBufferRenderTargetView() const	{ return m_d3dRenderTargetView.Get(); }
@@ -84,6 +86,7 @@ namespace DirectX
 
 		const std::shared_ptr<DirectX::BasicEffect>& GetBasicEffect() const	{ return m_pBasicEffect; }
 
+
 	private:
 		void CreateDeviceIndependentResources();
 		void CreateDeviceResources();
@@ -97,6 +100,8 @@ namespace DirectX
 		Microsoft::WRL::ComPtr<ID3D11Device2>			m_d3dDevice;
 		Microsoft::WRL::ComPtr<ID3D11DeviceContext2>	m_d3dContext;
 		Microsoft::WRL::ComPtr<IDXGISwapChain1>			m_swapChain;
+		// Lockes when Device or Immediente context is busy
+		mutable std::mutex								m_d3dMutex;
 
 		// Direct3D rendering objects. Required for 3D.
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView>	m_d3dRenderTargetView;

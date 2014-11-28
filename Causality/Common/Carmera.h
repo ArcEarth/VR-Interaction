@@ -53,6 +53,8 @@ namespace DirectX
 			virtual DirectX::XMMATRIX GetProjectionMatrix(size_t view) const = 0;
 			virtual void FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir) = 0;
 
+			void XM_CALLCONV Move(FXMVECTOR p) { SetPosition((XMVECTOR) GetPosition() + XMVector3Rotate(p, GetOrientation())); }
+			void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(q, GetOrientation())); }
 			virtual bool XM_CALLCONV IsInView(FXMVECTOR pos) const { return true; }
 		};
 

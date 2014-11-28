@@ -29,6 +29,11 @@ namespace Causality
 		virtual void OnExit() override;
 		virtual void OnIdle() override;
 
+		DirectX::Scene::ICameraBase *GetPrimaryCamera()
+		{
+			return m_pPrimaryCamera.get();
+		}
+
 		// Inherited via IDeviceNotify
 		virtual void OnDeviceLost() override;
 		virtual void OnDeviceRestored() override;
@@ -39,13 +44,18 @@ namespace Causality
 		void RegisterScene(DirectX::Scene::IRenderable* pScene);
 
 		void XM_CALLCONV RenderToView(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection);
-
+		void OnCursorMove_RotateCamera(const Platform::CursorMoveEventArgs&e);
 		Platform::Fundation::Event<const DirectX::StepTimer&> TimeElapsed;
 		//void NotifyChildrenCursorButtonDown(const CursorButtonEvent&e);
 	protected:
 		// Devices & Resources
 		boost::filesystem::path							ResourceDirectory;
+		float											Speed = 0.05f;
+		DirectX::Vector3								CameraVeclocity;
+		DirectX::Vector3								CameraAngularVeclocity;
+		Platform::Fundation::EventConnection			CursorMoveEventConnection;
 
+		std::shared_ptr<Platform::DebugConsole>			pConsole;
 		std::shared_ptr<Platform::NativeWindow>			pWindow;
 		std::shared_ptr<DirectX::DeviceResources>		pDeviceResources;
 		std::shared_ptr<Platform::Devices::OculusRift>	pRift;

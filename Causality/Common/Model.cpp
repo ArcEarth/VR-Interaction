@@ -3,9 +3,12 @@
 #include "stride_iterator.h"
 #include <sstream>
 #include <WICTextureLoader.h>
+#include <DDSTextureLoader.h>
 #include <boost\filesystem.hpp>
 #include "..\Extern\tiny_obj_loader.h"
 #include <boost\filesystem.hpp>
+#include <CommonStates.h>
+
 using namespace DirectX::Scene;
 using namespace DirectX;
 using namespace std;
@@ -56,44 +59,19 @@ DirectX::Scene::GeometryModel::GeometryModel(ID3D11Device *pDevice, const std::w
 	vector<shape_t> shapes;
 	vector<material_t> materis;
 	path file(fileName);
-	auto result = tinyobj::LoadObj(shapes, materis, file.string().c_str());
+	auto dir = file.parent_path();
+	auto result = tinyobj::LoadObj(shapes, materis, file.string().c_str(), (dir.string() + "\\").c_str());
 
 	std::vector<std::shared_ptr<Mesh>> Meshs;
 	std::vector<std::shared_ptr<PhongMaterial>> Materials;
 
-	ComPtr<ID3D11DeviceContext> pContext;
-	ComPtr<ID3D11Resource> pResource;
+	//ComPtr<ID3D11DeviceContext> pContext;
 
 	boost::filesystem::path lookup(textureDir);
 
-	pDevice->GetImmediateContext(&pContext);
+	//pDevice->GetImmediateContext(&pContext);
 
 	int vOffset = 0, iOffset = 0;
-	for (auto& mat : materis)
-	{
-		auto pMaterial = make_shared<PhongMaterial>();
-		pMaterial->Name = mat.name;
-		pMaterial->Alpha = mat.dissolve;
-		pMaterial->DiffuseColor = Color(mat.diffuse);
-		pMaterial->AmbientColor = Color(mat.ambient);
-		pMaterial->SpecularColor = Color(mat.specular);
-		if (!mat.diffuse_texname.empty())
-		{
-			auto fileName = lookup / mat.diffuse_texname;
-			CreateWICTextureFromFile(pDevice, pContext.Get(), fileName.wstring().data(), &pResource, &pMaterial->DiffuseMap);
-		}
-		if (!mat.specular_texname.empty())
-		{
-			auto fileName = lookup / mat.specular_texname;
-			CreateWICTextureFromFile(pDevice, pContext.Get(), fileName.wstring().data(), &pResource, &pMaterial->SpecularMap);
-		}
-		if (!mat.normal_texname.empty())
-		{
-			auto fileName = lookup / mat.normal_texname;
-			CreateWICTextureFromFile(pDevice, pContext.Get(), fileName.wstring().data(), &pResource, &pMaterial->NormalMap);
-		}		
-		Materials.push_back(pMaterial);
-	}
 
 	for (auto& shape : shapes)
 	{
@@ -102,7 +80,8 @@ DirectX::Scene::GeometryModel::GeometryModel(ID3D11Device *pDevice, const std::w
 		for (size_t i = 0; i < shape.mesh.indices.size() / 3; i++)
 		{
 			const auto& idcs = shape.mesh.indices;
-			FacetPrimitives::Triangle<uint16_t> tri{ idcs[i * 3],idcs[i * 3 + 1],idcs[i * 3 + 2] };
+			//FacetPrimitives::Triangle<uint16_t> tri{ idcs[i * 3 + 0],idcs[i * 3 + 1],idcs[i * 3 + 2] };
+			FacetPrimitives::Triangle<uint16_t> tri{ idcs[i * 3+2],idcs[i * 3 + 1],idcs[i * 3 + 0] };
 			Facets.push_back(tri);
 		}
 
@@ -124,8 +103,9 @@ DirectX::Scene::GeometryModel::GeometryModel(ID3D11Device *pDevice, const std::w
 				v2 -= v0;
 				n = XMVector3Cross(v1, v2);
 				n = XMVector3Normalize(n);
-				if (XMVectorGetY(n) < 0.0f)
-					n = XMVectorNegate(n);
+				n = XMVectorNegate(n);
+				//if (XMVectorGetY(n) < 0.0f)
+				//	n = XMVectorNegate(n);
 				//facetNormals.emplace_back(n);
 				normals[face.V0] += n;
 				normals[face.V1] += n;
@@ -159,14 +139,7 @@ DirectX::Scene::GeometryModel::GeometryModel(ID3D11Device *pDevice, const std::w
 		Parts.emplace_back();
 		Parts.back().Name = shape.name;
 		Parts.back().pMesh = mesh;
-		if (shape.mesh.material_ids[0] >= 0)
-		{
-			Parts.back().pMaterial = Materials[shape.mesh.material_ids[0]];
-		}
-		else
-		{
-			Parts.back().pMaterial = nullptr;
-		}
+
 		mesh->VertexCount = N;
 		mesh->IndexCount = shape.mesh.indices.size();
 		mesh->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -177,15 +150,6 @@ DirectX::Scene::GeometryModel::GeometryModel(ID3D11Device *pDevice, const std::w
 		vOffset += mesh->VertexCount;
 		iOffset += mesh->IndexCount;
 	}
-	auto pVertexBuffer = DirectX::CreateVertexBuffer(pDevice, Vertices.size(), &Vertices[0]);
-	auto pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, Facets.size() * 3, &Facets[0].V0);
-
-	for (auto& part : Parts)
-	{
-		part.pMesh->pVertexBuffer = pVertexBuffer;
-		part.pMesh->pIndexBuffer = pIndexBuffer;
-		//part.pEffect = ;
-	}
 
 	Positions = stride_range<Vector3>((Vector3*) &Vertices[0].position, sizeof(VertexType), Vertices.size());
 	Normals = stride_range<Vector3>((Vector3*) &Vertices[0].normal, sizeof(VertexType), Vertices.size());
@@ -194,6 +158,52 @@ DirectX::Scene::GeometryModel::GeometryModel(ID3D11Device *pDevice, const std::w
 	BoundingBox::CreateFromPoints(BoundBox, Positions.size(), &Positions[0], sizeof(VertexType));
 	BoundingOrientedBox::CreateFromPoints(BoundOrientedBox, Positions.size(), &Positions[0], sizeof(VertexType));
 	BoundingSphere::CreateFromPoints(BoundSphere, Positions.size(), &Positions[0], sizeof(VertexType));
+
+	// Device Dependent Resources Creation
+	auto pVertexBuffer = DirectX::CreateVertexBuffer(pDevice, Vertices.size(), &Vertices[0]);
+	auto pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, Facets.size() * 3, &Facets[0].V0);
+
+	for (auto& mat : materis)
+	{
+		HRESULT hr = S_OK;
+		ComPtr<ID3D11Resource> pResource;
+		auto pMaterial = make_shared<PhongMaterial>();
+		pMaterial->Name = mat.name;
+		pMaterial->Alpha = mat.dissolve;
+		pMaterial->DiffuseColor = Color(mat.diffuse);
+		pMaterial->AmbientColor = Color(mat.ambient);
+		pMaterial->SpecularColor = Color(mat.specular);
+		if (!mat.diffuse_texname.empty())
+		{
+			auto fileName = lookup / mat.diffuse_texname;
+			if (fileName.extension() != "dds")
+			hr = CreateWICTextureFromFile(pDevice, fileName.wstring().data(), &pResource, &pMaterial->DiffuseMap);
+		}
+		if (!mat.specular_texname.empty())
+		{
+			auto fileName = lookup / mat.specular_texname;
+			hr = CreateWICTextureFromFile(pDevice, fileName.wstring().data(), &pResource, &pMaterial->SpecularMap);
+
+		}
+		if (!mat.normal_texname.empty())
+		{
+			auto fileName = lookup / mat.normal_texname;
+			hr = CreateWICTextureFromFile(pDevice, fileName.wstring().data(), &pResource, &pMaterial->NormalMap);
+		}
+		Materials.push_back(pMaterial);
+	}
+
+	for (size_t i = 0; i < shapes.size(); i++)
+	{
+		const auto& shape = shapes[i];
+		auto &part = Parts[i];
+		if (shape.mesh.material_ids[0] >= 0)
+			part.pMaterial = Materials[shape.mesh.material_ids[0]];
+		else
+			part.pMaterial = nullptr;
+		part.pMesh->pVertexBuffer = pVertexBuffer;
+		part.pMesh->pIndexBuffer = pIndexBuffer;
+	}
 
 	//std::ifstream stream;
 	//stream.open(file);
@@ -426,8 +436,10 @@ void DirectX::Scene::ModelCollection::AddModel(const std::shared_ptr<ModelNode>&
 
 void DirectX::Scene::ModelCollection::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
 {
-	for (auto& model : Children)
+	int count = Children.size();
+	for (size_t i = 0; i < count; i++)
 	{
+		auto& model = Children[i];
 		model->Render(pContext, pEffect);
 	}
 }
@@ -478,9 +490,18 @@ void DirectX::Scene::ModelPart::Render(ID3D11DeviceContext * pContext, IEffect *
 		if (pMEffect && pMaterial)
 		{
 			pMEffect->SetAlpha(pMaterial->GetAlpha());
-			pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
+			if (pMaterial->GetDiffuseMap())
+			{
+				pMEffect->SetTextureEnabled(true);
+				pMEffect->SetTexture(pMaterial->GetDiffuseMap());
+				pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
+			}
+			else
+			{
+				pMEffect->SetTextureEnabled(false);
+				pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
+			}
 			pMEffect->SetSpecularColor(pMaterial->GetSpecularColor());
-			pMEffect->SetTexture(pMaterial->GetDiffuseMap());
 		}
 		pEffect->Apply(pContext);
 		pMesh->Draw(pContext);

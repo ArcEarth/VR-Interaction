@@ -1,5 +1,11 @@
 #pragma once
-#include <Windows.h>
+#ifdef NOMINMAX
+#include <windows.h>
+#else
+#define NOMINMAX
+#include <windows.h>
+#undef NOMINMAX
+#endif
 #include "pch.h"
 #include "Interactive.h"
 #include "Common\BasicClass.h"
@@ -103,6 +109,12 @@ namespace Platform
 	struct CursorHandler : public ICursorController
 	{
 	public:
+		CursorHandler()
+		{
+			std::fill_n(ButtonStates, 3, false);
+			WheelValue = 0;
+			WheelDelta = 0;
+		}
 		// Event Interface
 		Fundation::Event<const CursorButtonEvent&> CursorButtonDown;
 		Fundation::Event<const CursorButtonEvent&> CursorButtonUp;
@@ -124,6 +136,10 @@ namespace Platform
 	struct KeyboardHandler
 	{
 	public:
+		KeyboardHandler()
+		{
+			memset(Keys, 0, 255 * sizeof(BOOL));
+		}
 		unsigned GetCurrentModifiers() const
 		{
 			return (Keys[VK_CONTROL] & Mod_Control) | (Keys[VK_SHIFT] & Mod_Shift) | (Keys[VK_MENU] & Mod_Alt) | ((Keys[VK_LWIN] | Keys[VK_RWIN])& Mod_Meta);
@@ -132,6 +148,34 @@ namespace Platform
 		Fundation::Event<const KeyboardEventArgs&> KeyDown;
 		Fundation::Event<const KeyboardEventArgs&> KeyUp;
 		BOOL	Keys[255];
+	};
+
+	class DebugConsole : public std::enable_shared_from_this<DebugConsole>, public IWindow
+	{
+	public:
+		HWND Handle() const { return hWnd; }
+
+		DebugConsole()
+			: hWnd(NULL)
+		{}
+		// Inherited via IWindow
+		virtual void Initialize(Platform::String ^ title, unsigned int width, unsigned int height, bool fullScreen = false) override;
+		virtual void Show() override;
+		virtual void Hide() override;
+		virtual void Focus() override;
+		virtual void Close() override;
+		virtual void Minimize() override;
+		virtual void Maximize() override;
+		virtual bool IsFullScreen() const override;
+		virtual void EnterFullScreen() override;
+		virtual void ExitFullScreen() override;
+		virtual void OnMouseMove(int x, int y) override;
+		virtual void OnKeyDown(unsigned char key) override;
+		virtual void OnKeyUp(unsigned char key) override;
+
+	private:
+		HWND hWnd;
+
 	};
 
 	// Design to work with std::shared_ptr<NativeWindow>

@@ -620,7 +620,16 @@ std::string LoadObj(
       token += 7;
       sscanf(token, "%s", namebuf);
 
-      faceGroup.clear();
+	  // *Added by Yupeng
+	  bool ret = exportFaceGroupToShape(shape, vertexCache, v, vn, vt, faceGroup, material, name, true);
+	  if (ret) {
+		  shapes.push_back(shape);
+	  }
+
+	  shape = shape_t();
+	  // End modifify
+
+	  faceGroup.clear();
 
       if (material_map.find(namebuf) != material_map.end()) {
         material = material_map[namebuf];

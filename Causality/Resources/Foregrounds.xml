@@ -1,0 +1,8 @@
+<scene>
+	<camera position="0,0,1.5" focus="0,0,0" up="0,1,0"></camera>
+	<skydome background="SkyBox\GrimmNight"/>
+	<obj src="baseball_bat.obj" position="-3.0,0.0,0.0" scale="2.0"></obj>
+	<obj src="ConfederatePistolf.obj" position="3.0,0.0,0.0"></obj>
+ 	<obj src="NBA_BASKETBALL.obj" position="0.0,0.0,0.0" scale="0.2"></obj>
+ 	<obj src="sibenik_n.obj" position="0,13,42" scale="10.0"></obj>
+</scene>

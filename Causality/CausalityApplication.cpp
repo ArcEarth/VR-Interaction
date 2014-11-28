@@ -3,6 +3,7 @@
 #include "Content\SampleFpsTextRenderer.h"
 #include "Common\SkyBox.h"
 #include "Foregrounds.h"
+#include <CommonStates.h>
 
 using namespace Causality;
 using namespace std;
@@ -37,6 +38,9 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 {
 	ResourceDirectory = filesystem::current_path().parent_path() / "Resources";
 
+	pConsole = make_shared<DebugConsole>();
+	pConsole->Initialize(ref new String(L"CausalityDebug"), 800, 600, false);
+
 	pWindow = make_shared<Platform::NativeWindow>();
 	pWindow->Initialize(ref new String(L"Causality"), 1280U, 720, false);
 
@@ -58,7 +62,7 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	}
 
 	pLeap = std::make_shared<Platform::Devices::LeapMotion>(false);
-	
+
 	// Primary Camera setup
 	auto pPlayer = std::make_unique<PlayerCamera>(pDeviceResources);
 	if (pRift)
@@ -68,14 +72,14 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 		auto size = pDeviceResources->GetOutputSize();
 		pPlayer->SetFov(75.f*XM_PI / 180.f, size.Width / size.Height);
 	}
-	pPlayer->SetPosition(Fundation::Vector3(0.0f, 0.7f, 1.5f));
+	pPlayer->SetPosition(Fundation::Vector3(0.0f, 0.0f, 1.5f));
 	pPlayer->FocusAt(Fundation::Vector3(0, 0, 0), Fundation::Vector3(0.0f, 1.0f, 0));
 
 	m_pPrimaryCamera = std::move(pPlayer);
 
 	// Scenes
-	Scenes.push_back(std::make_unique<CubeScene>(pDeviceResources));
-	Scenes.push_back(std::make_unique<SkyBox>(pDeviceResources->GetD3DDevice(), SkyBoxTextures));
+	//Scenes.push_back(std::make_unique<CubeScene>(pDeviceResources));
+	//Scenes.push_back(std::make_unique<SkyBox>(pDeviceResources->GetD3DDevice(), SkyBoxTextures));
 	Scenes.push_back(std::make_unique<Foregrounds>(pDeviceResources));
 	Scenes.push_back(std::make_unique<FpsTextScene>(pDeviceResources));
 
@@ -84,6 +88,47 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	{
 		RegisterScene(pScene.get());
 	}
+
+
+	pWindow->KeyDown += [this](const KeyboardEventArgs&e)
+	{
+		if (e.Key == 'W')
+			CameraVeclocity += Vector3{ 0,0,-1 };
+		if (e.Key == 'S')
+			CameraVeclocity += Vector3{ 0,0,1 };
+		if (e.Key == 'A')
+			CameraVeclocity += Vector3{ -1,0,0 };
+		if (e.Key == 'D')
+			CameraVeclocity += Vector3{ 1,0,0 };
+		//std::cout << "Key '" << (char) e.Key << "' is Down!" << endl;
+	};
+	pWindow->KeyUp += [this](const KeyboardEventArgs&e)
+	{
+		if (e.Key == 'W')
+			CameraVeclocity -= Vector3{ 0,0,-1 };
+		if (e.Key == 'S')
+			CameraVeclocity -= Vector3{ 0,0,1 };
+		if (e.Key == 'A')
+			CameraVeclocity -= Vector3{ -1,0,0 };
+		if (e.Key == 'D')
+			CameraVeclocity -= Vector3{ 1,0,0 };
+		//std::cout << "Key '" << (char) e.Key << "' is Up!" << endl;
+	};
+	pWindow->CursorButtonDown += [this](const CursorButtonEvent& e)
+	{
+		if (e.Button == CursorButtonEnum::RButton)
+		{
+			CursorMoveEventConnection = pWindow->CursorMove += MakeEventHandler(&App::OnCursorMove_RotateCamera, this);
+		}
+	};
+	pWindow->CursorButtonUp += [this](const CursorButtonEvent& e)
+	{
+		if (e.Button == CursorButtonEnum::RButton)
+		{
+			CursorMoveEventConnection.disconnect();
+			//pWindow->CursorMove -= CursorMoveEventConnection;
+		}
+	};
 }
 
 void Causality::App::RegisterScene(IRenderable* pScene)
@@ -131,6 +176,7 @@ void Causality::App::OnIdle()
 		//}
 	});
 
+	m_pPrimaryCamera->Move(CameraVeclocity * Speed);
 	// Rendering
 	auto pRenderControl = dynamic_cast<ICameraRenderControl*>(m_pPrimaryCamera.get());
 
@@ -144,39 +190,6 @@ void Causality::App::OnIdle()
 	}
 	pRenderControl->EndFrame();
 
-	//if (pRift)
-	//{
-	//	pRift->BeginFrame();
-	//	// Otherwise do the frame processing.
-	//	for (int eye = 0; eye < 2; eye++)
-	//	{
-	//		pRift->EyeTexture((DirectX::Scene::EyesEnum) eye).SetAsRenderTarget(pDeviceResources->GetD3DDeviceContext(), pRift->DepthStencilBuffer());
-
-	//		auto view = pPlayer->GetViewMatrix((DirectX::Scene::EyesEnum) eye);
-	//		auto projection = pPlayer->GetProjectionMatrix((DirectX::Scene::EyesEnum) eye);
-
-	//		RenderToView(view, projection);
-	//	}
-	//	pRift->EndFrame();
-	//}
-	//else
-	//{
-	//	auto context = pDeviceResources->GetD3DDeviceContext();
-
-	//	// Reset the viewport to target the whole screen.
-	//	auto viewport = pDeviceResources->GetScreenViewport();
-	//	context->RSSetViewports(1, &viewport);
-	//	ID3D11RenderTargetView *const targets[1] = { pDeviceResources->GetBackBufferRenderTargetView() };
-	//	context->OMSetRenderTargets(1, targets, pDeviceResources->GetDepthStencilView());
-	//	context->ClearRenderTargetView(pDeviceResources->GetBackBufferRenderTargetView(), DirectX::Colors::White);
-	//	context->ClearDepthStencilView(pDeviceResources->GetDepthStencilView(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-	//	auto view = pPlayer->GetViewMatrix(0);
-	//	auto projection = pPlayer->GetProjectionMatrix(0);
-	//	RenderToView(view, projection);
-
-	//	pDeviceResources->Present();
-	//}
 }
 
 void Causality::App::OnDeviceLost()
@@ -211,6 +224,12 @@ void XM_CALLCONV Causality::App::RenderToView(DirectX::FXMMATRIX view, DirectX::
 
 		pScene->Render(pContext);
 	}
+}
+
+void Causality::App::OnCursorMove_RotateCamera(const Platform::CursorMoveEventArgs & e)
+{
+	auto yaw = e.PositionDelta.x/1000.0 * XM_PI;
+	m_pPrimaryCamera->Rotate(XMQuaternionRotationRollPitchYaw(0, yaw, 0));
 }
 
 //inline void SampleListener::onConnect(const Leap::Controller & controller) {

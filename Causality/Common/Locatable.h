@@ -45,7 +45,7 @@ namespace DirectX
 	public:
 		//virtual ~IRigid(){}
 		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition((XMVECTOR) GetPosition() + p); }
-		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(q, GetOrientation())); }
+		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(GetOrientation(),q)); }
 	};
 
 	// Helper struct to implement IRigid Interface

@@ -8,6 +8,7 @@
 #include "Textures.h"
 #include "Model.h"
 
+
 namespace DirectX
 {
 	//class CubeTexture;
@@ -37,6 +38,7 @@ namespace DirectX
 			//std::shared_ptr<Mesh>			m_pMesh;
 			std::shared_ptr<BasicEffect>	m_pEffect;
 			std::shared_ptr<CubeTexture>	m_pCubeTexture;
+			Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStenticlState;
 
 		};
 
