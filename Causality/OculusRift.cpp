@@ -110,7 +110,7 @@ public:
 			OvrEyeTextures[0].D3D11.Header.API = ovrRenderAPI_D3D11;
 			OvrEyeTextures[0].D3D11.Header.TextureSize = RenderTargetSize;
 			OvrEyeTextures[0].D3D11.Header.RenderViewport = OVR::Recti(0, 0, w / 2, h);
-			OvrEyeTextures[0].D3D11.pTexture = EyeTextures[0].Resource();
+			OvrEyeTextures[0].D3D11.pTexture = EyeTextures[0].Texture();
 			OvrEyeTextures[0].D3D11.pSRView = EyeTextures[0];
 
 			// Right eye uses the same texture, but different rendering viewport.

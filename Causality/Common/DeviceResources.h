@@ -29,6 +29,8 @@ namespace DirectX
 		Composition,
 	};
 
+	class GraphicsResource;
+
 	class IDeviceResouces abstract
 	{
 		virtual ID3D11Device2*			GetD3DDevice() const = 0;
@@ -57,6 +59,9 @@ namespace DirectX
 		void RegisterDeviceNotify(IDeviceNotify* deviceNotify);
 		void Trim();
 		void Present();
+
+		UINT GetMultiSampleCount() const { return m_multiSampleLevel; }
+		UINT GetMultiSampleQuality() const { return m_multiSampleQuality; }
 
 		DeviceHostType		   GetDeviceHostType() const				{ return m_deviceHostType; }
 
@@ -138,12 +143,23 @@ namespace DirectX
 		float											m_dpi;
 		float											m_compositionScaleX;
 		float											m_compositionScaleY;
-		unsigned										m_multiSampleLevel = 1;
+		UINT											m_multiSampleLevel = 1;
+		UINT											m_multiSampleQuality = 0;
 		// Transforms used for display orientation.
 		D2D1::Matrix3x2F	m_orientationTransform2D;
 		DirectX::XMFLOAT4X4	m_orientationTransform3D;
 
 		// The IDeviceNotify can be held directly as it owns the DeviceResources.
 		IDeviceNotify* m_deviceNotify;
+	};
+
+	class GraphicsResource
+	{
+	public:
+		virtual ~GraphicsResource() {}
+		virtual void CreateGraphicsResources(const std::shared_ptr<DeviceResources>& pResources) = 0;
+		virtual void ReleaseGraphicsResources() = 0;
+	protected:
+		std::shared_ptr<DeviceResources> m_pDeviceResources;
 	};
 }

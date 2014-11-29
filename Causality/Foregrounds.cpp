@@ -30,6 +30,10 @@ void Causality::Foregrounds::LoadAsync(ID3D11Device* pDevice)
 {
 
 	m_loadingComplete = false;
+	//CD3D11_DEFAULT d;
+	//CD3D11_RASTERIZER_DESC Desc(d);
+	//Desc.MultisampleEnable = TRUE;
+	//ThrowIfFailed(pDevice->CreateRasterizerState(&Desc, &pRSState));
 
 	concurrency::task<void> load_models([this, pDevice]() {
 		auto Directory = App::Current()->GetResourcesDirectory();
@@ -102,7 +106,7 @@ void Causality::Foregrounds::Render(ID3D11DeviceContext * pContext)
 	pContext->IASetInputLayout(pInputLayout.Get());
 	auto pAWrap = States.AnisotropicWrap();
 	pContext->PSSetSamplers(0, 1, &pAWrap);
-	//pContext->RSSetState(States.CullNone());
+	pContext->RSSetState(pRSState.Get());
 	ModelCollection::Render(pContext, pEffect.get());
 }
 

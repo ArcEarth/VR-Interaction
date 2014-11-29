@@ -62,6 +62,10 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	}
 
 	pLeap = std::make_shared<Platform::Devices::LeapMotion>(false);
+	if (pLeap->Controller().isConnected)
+	{
+
+	}
 
 	// Primary Camera setup
 	auto pPlayer = std::make_unique<PlayerCamera>(pDeviceResources);
@@ -72,88 +76,42 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 		auto size = pDeviceResources->GetOutputSize();
 		pPlayer->SetFov(75.f*XM_PI / 180.f, size.Width / size.Height);
 	}
-	pPlayer->SetPosition(Fundation::Vector3(0.0f, 0.0f, 1.5f));
+	pPlayer->SetPosition(Fundation::Vector3(-1.5f, 0.0f, .0f));
 	pPlayer->FocusAt(Fundation::Vector3(0, 0, 0), Fundation::Vector3(0.0f, 1.0f, 0));
 
 	m_pPrimaryCamera = std::move(pPlayer);
 
 	// Scenes
-	//Scenes.push_back(std::make_unique<CubeScene>(pDeviceResources));
-	//Scenes.push_back(std::make_unique<SkyBox>(pDeviceResources->GetD3DDevice(), SkyBoxTextures));
-	Scenes.push_back(std::make_unique<Foregrounds>(pDeviceResources));
-	Scenes.push_back(std::make_unique<FpsTextScene>(pDeviceResources));
-
-	// Register Interactive Ecents
-	for (auto& pScene : Scenes)
-	{
-		RegisterScene(pScene.get());
-	}
-
-
-	pWindow->KeyDown += [this](const KeyboardEventArgs&e)
-	{
-		if (e.Key == 'W')
-			CameraVeclocity += Vector3{ 0,0,-1 };
-		if (e.Key == 'S')
-			CameraVeclocity += Vector3{ 0,0,1 };
-		if (e.Key == 'A')
-			CameraVeclocity += Vector3{ -1,0,0 };
-		if (e.Key == 'D')
-			CameraVeclocity += Vector3{ 1,0,0 };
-		//std::cout << "Key '" << (char) e.Key << "' is Down!" << endl;
-	};
-	pWindow->KeyUp += [this](const KeyboardEventArgs&e)
-	{
-		if (e.Key == 'W')
-			CameraVeclocity -= Vector3{ 0,0,-1 };
-		if (e.Key == 'S')
-			CameraVeclocity -= Vector3{ 0,0,1 };
-		if (e.Key == 'A')
-			CameraVeclocity -= Vector3{ -1,0,0 };
-		if (e.Key == 'D')
-			CameraVeclocity -= Vector3{ 1,0,0 };
-		//std::cout << "Key '" << (char) e.Key << "' is Up!" << endl;
-	};
-	pWindow->CursorButtonDown += [this](const CursorButtonEvent& e)
-	{
-		if (e.Button == CursorButtonEnum::RButton)
-		{
-			CursorMoveEventConnection = pWindow->CursorMove += MakeEventHandler(&App::OnCursorMove_RotateCamera, this);
-		}
-	};
-	pWindow->CursorButtonUp += [this](const CursorButtonEvent& e)
-	{
-		if (e.Button == CursorButtonEnum::RButton)
-		{
-			CursorMoveEventConnection.disconnect();
-			//pWindow->CursorMove -= CursorMoveEventConnection;
-		}
-	};
+	RegisterComponent(std::make_unique<CubeScene>(pDeviceResources));
+	//Componentsents.push_back(std::make_unique<SkyBox>(pDeviceResources->GetD3DDevice(), SkyBoxTextures));
+	RegisterComponent(std::make_unique<Foregrounds>(pDeviceResources));
+	RegisterComponent(std::make_unique<FpsTextScene>(pDeviceResources));
+	RegisterComponent(std::make_unique<CameraControlLogic>(m_pPrimaryCamera.get()));
 }
 
-void Causality::App::RegisterScene(IRenderable* pScene)
+void Causality::App::RegisterComponent(std::unique_ptr<Platform::IAppComponent> &&pComponent)
 {
-	auto pCursorInteractive = dynamic_cast<ICursorInteractive*>(pScene);
+	auto pCursorInteractive = pComponent->As<ICursorInteractive>();
 	if (pCursorInteractive)
 	{
 		pWindow->CursorButtonDown += MakeEventHandler(&ICursorInteractive::OnMouseButtonDown, pCursorInteractive);
 		pWindow->CursorButtonUp += MakeEventHandler(&ICursorInteractive::OnMouseButtonUp, pCursorInteractive);
 		pWindow->CursorMove += MakeEventHandler(&ICursorInteractive::OnMouseMove, pCursorInteractive);
 	}
-	auto pKeyInteractive = dynamic_cast<IKeybordInteractive*>(pScene);
+	auto pKeyInteractive = pComponent->As<IKeybordInteractive>();
 	if (pKeyInteractive)
 	{
 		pWindow->KeyDown += MakeEventHandler(&IKeybordInteractive::OnKeyDown, pKeyInteractive);
 		pWindow->KeyUp += MakeEventHandler(&IKeybordInteractive::OnKeyUp, pKeyInteractive);
 	}
-	auto pAnimatable = dynamic_cast<ITimeAnimatable*>(pScene);
+	auto pAnimatable = pComponent->As<ITimeAnimatable>();
 	if (pAnimatable)
 		TimeElapsed += MakeEventHandler(&ITimeAnimatable::UpdateAnimation, pAnimatable);
-	auto pHands = dynamic_cast<IUserHandsInteractive*>(pScene);
+	auto pHands = pComponent->As<IUserHandsInteractive>();
 	if (pHands)
 	{
 	}
-
+	Components.push_back(std::move(pComponent));
 }
 
 
@@ -167,16 +125,11 @@ void Causality::App::OnIdle()
 	m_timer.Tick([&]()
 	{
 		TimeElapsed(m_timer);
-		//// TODO: Replace this with your app's content update functions.
-		//for (auto& pScene : Scenes)
-		//{
-		//	auto pAnimatable = dynamic_cast<ITimeAnimatable*>(pScene.get());
-		//	if (pAnimatable)
-		//		pAnimatable->UpdateAnimation(m_timer);
-		//}
 	});
 
-	m_pPrimaryCamera->Move(CameraVeclocity * Speed);
+	// Processing & Distribute Extra Input
+
+
 	// Rendering
 	auto pRenderControl = dynamic_cast<ICameraRenderControl*>(m_pPrimaryCamera.get());
 
@@ -213,7 +166,7 @@ void Causality::App::SetResourcesDirectory(const std::wstring & dir)
 void XM_CALLCONV Causality::App::RenderToView(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 	auto pContext = pDeviceResources->GetD3DDeviceContext();
-	for (auto& pScene : Scenes)
+	for (auto& pScene : Components)
 	{
 		auto pViewable = dynamic_cast<IViewable*>(pScene.get());
 		if (pViewable)
@@ -221,15 +174,14 @@ void XM_CALLCONV Causality::App::RenderToView(DirectX::FXMMATRIX view, DirectX::
 			pViewable->UpdateViewMatrix(view);
 			pViewable->UpdateProjectionMatrix(projection);
 		}
-
-		pScene->Render(pContext);
+		auto pRenderable = pScene->As<IRenderable>();
+		if (pRenderable)
+			pRenderable->Render(pContext);
 	}
 }
 
 void Causality::App::OnCursorMove_RotateCamera(const Platform::CursorMoveEventArgs & e)
 {
-	auto yaw = e.PositionDelta.x/1000.0 * XM_PI;
-	m_pPrimaryCamera->Rotate(XMQuaternionRotationRollPitchYaw(0, yaw, 0));
 }
 
 //inline void SampleListener::onConnect(const Leap::Controller & controller) {
@@ -248,3 +200,59 @@ void Causality::App::OnCursorMove_RotateCamera(const Platform::CursorMoveEventAr
 //	}
 //	//std::cout << "Frame available" << std::endl;
 //}
+
+void Causality::CameraControlLogic::UpdateAnimation(StepTimer const & timer)
+{
+	m_pCamera->Move(XMVector3Normalize(CameraVeclocity) * (Speed * timer.GetElapsedSeconds()));
+}
+
+void Causality::CameraControlLogic::OnKeyDown(const KeyboardEventArgs & e)
+{
+	if (e.Key == 'W')
+		CameraVeclocity += Vector3{ 0,0,-1 };
+	if (e.Key == 'S')
+		CameraVeclocity += Vector3{ 0,0,1 };
+	if (e.Key == 'A')
+		CameraVeclocity += Vector3{ -1,0,0 };
+	if (e.Key == 'D')
+		CameraVeclocity += Vector3{ 1,0,0 };
+}
+
+void Causality::CameraControlLogic::OnKeyUp(const KeyboardEventArgs & e)
+{
+	if (e.Key == 'W')
+		CameraVeclocity -= Vector3{ 0,0,-1 };
+	if (e.Key == 'S')
+		CameraVeclocity -= Vector3{ 0,0,1 };
+	if (e.Key == 'A')
+		CameraVeclocity -= Vector3{ -1,0,0 };
+	if (e.Key == 'D')
+		CameraVeclocity -= Vector3{ 1,0,0 };
+
+}
+
+void Causality::CameraControlLogic::OnMouseButtonDown(const CursorButtonEvent & e)
+{
+	if (e.Button == CursorButtonEnum::RButton)
+	{
+		IsTrackingCursor = true;
+		//CursorMoveEventConnection = pWindow->CursorMove += MakeEventHandler(&App::OnCursorMove_RotateCamera, this);
+	}
+}
+
+void Causality::CameraControlLogic::OnMouseButtonUp(const CursorButtonEvent & e)
+{
+	if (e.Button == CursorButtonEnum::RButton)
+	{
+		IsTrackingCursor = false;
+		//CursorMoveEventConnection.disconnect();
+		//pWindow->CursorMove -= CursorMoveEventConnection;
+	}
+}
+
+void Causality::CameraControlLogic::OnMouseMove(const CursorMoveEventArgs & e)
+{
+	if (!IsTrackingCursor) return;
+	auto yaw = e.PositionDelta.x / 1000.0 * XM_PI;
+	m_pCamera->Rotate(XMQuaternionRotationRollPitchYaw(0, yaw, 0));
+}

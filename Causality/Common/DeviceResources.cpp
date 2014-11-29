@@ -328,21 +328,6 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 	else
 	{
 		// Otherwise, create a new one using the same adapter as the existing Direct3D device.
-		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {0};
-
-		swapChainDesc.Width = lround(m_d3dRenderTargetSize.Width); // Match the size of the window.
-		swapChainDesc.Height = lround(m_d3dRenderTargetSize.Height);
-		swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // This is the most common swap chain format.
-		swapChainDesc.Stereo = false;
-		swapChainDesc.SampleDesc.Count = m_multiSampleLevel; // Don't use multi-sampling.
-		swapChainDesc.SampleDesc.Quality = 0;
-		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapChainDesc.BufferCount = 2; // Use double-buffering to minimize latency.
-		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL; // All Windows Store apps must use this SwapEffect.
-		swapChainDesc.Flags = 0;
-		swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
-		swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-
 		// This sequence obtains the DXGI factory that was used to create the Direct3D device above.
 		ComPtr<IDXGIDevice3> dxgiDevice;
 		DirectX::ThrowIfFailed(
@@ -358,6 +343,39 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		DirectX::ThrowIfFailed(
 			dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory))
 			);
+
+		DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {0};
+
+		if (m_deviceHostType != DirectX::DeviceHostType::NativeWindow)
+		{
+			m_multiSampleLevel = 1;
+			m_multiSampleQuality = 0;
+		}
+
+		if (m_multiSampleLevel > 1)
+		{
+			HRESULT hr = m_d3dDevice->CheckMultisampleQualityLevels(DXGI_FORMAT_B8G8R8A8_UNORM, m_multiSampleLevel, &m_multiSampleQuality);
+			m_multiSampleQuality = min(max(m_multiSampleQuality - 1, 0),4);
+			swapChainDesc.SampleDesc.Count = m_multiSampleLevel;
+			swapChainDesc.SampleDesc.Quality = m_multiSampleQuality;
+			swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+		}
+		else
+		{
+			swapChainDesc.SampleDesc.Count = 1; // Don't use multi-sampling.
+			swapChainDesc.SampleDesc.Quality = 0;
+			swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL; // All Windows Store apps must use this SwapEffect.
+		}
+
+		swapChainDesc.Width = lround(m_d3dRenderTargetSize.Width); // Match the size of the window.
+		swapChainDesc.Height = lround(m_d3dRenderTargetSize.Height);
+		swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // This is the most common swap chain format.
+		swapChainDesc.Stereo = false;
+		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swapChainDesc.BufferCount = 2; // Use double-buffering to minimize latency.
+		swapChainDesc.Flags = 0;
+		swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+		swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
 
 		switch (m_deviceHostType)
 		{
@@ -484,8 +502,9 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		1, // Use a single mipmap level.
 		D3D11_BIND_DEPTH_STENCIL,
 		D3D11_USAGE_DEFAULT,
-		0U,
-		m_multiSampleLevel
+		0U
+		//m_multiSampleLevel,
+		//m_multiSampleQuality
 		);
 
 	ComPtr<ID3D11Texture2D> depthStencil;
@@ -497,7 +516,8 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 			)
 		);
 
-	CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(D3D11_DSV_DIMENSION_TEXTURE2D);
+	CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(depthStencil.Get(),D3D11_DSV_DIMENSION_TEXTURE2D);
+
 	DirectX::ThrowIfFailed(
 		m_d3dDevice->CreateDepthStencilView(
 			depthStencil.Get(),

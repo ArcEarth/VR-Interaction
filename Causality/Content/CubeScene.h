@@ -9,7 +9,7 @@
 namespace Causality
 {
 	// This sample renderer instantiates a basic rendering pipeline.
-	class CubeScene : public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable, public DirectX::Scene::IViewable, public Platform::ICursorInteractive, public Platform::IUserHandsInteractive
+	class CubeScene : public Platform::IAppComponent, public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable, public DirectX::Scene::IViewable, public Platform::ICursorInteractive, public Platform::IUserHandsInteractive
 	{
 	public:
 		CubeScene(const std::shared_ptr<DirectX::DeviceResources>& deviceResources);

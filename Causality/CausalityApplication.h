@@ -14,6 +14,34 @@
 
 namespace Causality
 {
+	class CameraControlLogic : public Platform::IAppComponent , public DirectX::Scene::ITimeAnimatable, public Platform::IKeybordInteractive, public Platform::ICursorInteractive
+	{
+	public:
+		CameraControlLogic(ICameraBase* pCamera)
+		{
+			m_pCamera = pCamera;
+		}
+		// Inherited via ITimeAnimatable
+		virtual void UpdateAnimation(StepTimer const & timer) override;
+
+		// Inherited via IKeybordInteractive
+		virtual void OnKeyDown(const KeyboardEventArgs & e) override;
+		virtual void OnKeyUp(const KeyboardEventArgs & e) override;
+
+		// Inherited via ICursorInteractive
+		virtual void OnMouseButtonDown(const CursorButtonEvent & e) override;
+		virtual void OnMouseButtonUp(const CursorButtonEvent & e) override;
+		virtual void OnMouseMove(const CursorMoveEventArgs & e) override;
+	public:
+		float											Speed = 0.8f;
+
+	private:
+		ICameraBase*									m_pCamera= nullptr;
+		bool											IsTrackingCursor = false;
+		DirectX::Vector3								CameraVeclocity;
+		DirectX::Vector3								CameraAngularVeclocity;
+	};
+
 	class App : public Platform::Application, public DirectX::IDeviceNotify
 	{
 	public:
@@ -41,7 +69,7 @@ namespace Causality
 		boost::filesystem::path	GetResourcesDirectory() const;
 		void SetResourcesDirectory(const std::wstring& dir);
 
-		void RegisterScene(DirectX::Scene::IRenderable* pScene);
+		void RegisterComponent(std::unique_ptr<Platform::IAppComponent> &&pComponent);
 
 		void XM_CALLCONV RenderToView(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection);
 		void OnCursorMove_RotateCamera(const Platform::CursorMoveEventArgs&e);
@@ -50,10 +78,6 @@ namespace Causality
 	protected:
 		// Devices & Resources
 		boost::filesystem::path							ResourceDirectory;
-		float											Speed = 0.05f;
-		DirectX::Vector3								CameraVeclocity;
-		DirectX::Vector3								CameraAngularVeclocity;
-		Platform::Fundation::EventConnection			CursorMoveEventConnection;
 
 		std::shared_ptr<Platform::DebugConsole>			pConsole;
 		std::shared_ptr<Platform::NativeWindow>			pWindow;
@@ -62,7 +86,7 @@ namespace Causality
 		std::shared_ptr<Platform::Devices::LeapMotion>	pLeap;
 
 		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pPrimaryCamera;
-		std::vector<std::unique_ptr<DirectX::Scene::IRenderable>> Scenes;
+		std::vector<std::unique_ptr<Platform::IAppComponent>> Components;
 
 		// Rendering loop timer.
 		DirectX::StepTimer m_timer;

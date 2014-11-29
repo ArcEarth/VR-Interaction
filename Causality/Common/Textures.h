@@ -79,13 +79,13 @@ namespace DirectX{
 		D3D11_RESOURCE_DIMENSION Dimension() const
 		{
 			D3D11_RESOURCE_DIMENSION Demension;
-			m_pTexture->GetType(&Demension);
+			m_pResource->GetType(&Demension);
 			return Demension;
 		}
 
-		ID3D11Resource*	Resource() const
+		virtual ID3D11Resource*	Resource() const
 		{
-			return m_pTexture.Get();
+			return m_pResource.Get();
 		}
 
 
@@ -101,7 +101,7 @@ namespace DirectX{
 
 	protected:
 
-		Microsoft::WRL::ComPtr<ID3D11Resource>				m_pTexture;
+		Microsoft::WRL::ComPtr<ID3D11Resource>				m_pResource;
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>	m_pShaderResourceView;
 
 	protected:
@@ -174,10 +174,10 @@ namespace DirectX{
 		}
 
 		// Warning! This one is not safe?
-		ID3D11Texture2D *Resource() const
+		ID3D11Texture2D *Texture() const
 		{
 			Microsoft::WRL::ComPtr<ID3D11Texture2D> pTex;
-			m_pTexture.As(&pTex);
+			m_pResource.As(&pTex);
 			return pTex.Get();
 		}
 
@@ -190,7 +190,7 @@ namespace DirectX{
 
 		void CopyFrom(ID3D11DeviceContext *pContext,const Texture2D* pSource);
 
-	protected:
+	public:
 		Texture2D( _In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
 			_In_opt_ unsigned int MipMapLevel = 1,
 			_In_opt_ DXGI_FORMAT SurfaceFormat = DXGI_FORMAT_R32G32B32A32_FLOAT ,
@@ -208,7 +208,8 @@ namespace DirectX{
 		Texture2D();
 
 	protected:
-		D3D11_TEXTURE2D_DESC	m_TextureDescription;
+		Microsoft::WRL::ComPtr<ID3D11Texture2D>	m_pTexture;
+		D3D11_TEXTURE2D_DESC					m_TextureDescription;
 
 	private:
 		Texture2D(const Texture2D&);
@@ -297,7 +298,7 @@ namespace DirectX{
 		RenderTargetTexture2D Subtexture(const D3D11_VIEWPORT *pViewport)
 		{
 			Microsoft::WRL::ComPtr<ID3D11Texture2D> pTexture;
-			m_pTexture.As<ID3D11Texture2D>(&pTexture);
+			m_pResource.As<ID3D11Texture2D>(&pTexture);
 			return RenderTargetTexture2D(pTexture.Get(), m_pRenderTargetView.Get(), m_pShaderResourceView.Get(), pViewport);
 		}
 

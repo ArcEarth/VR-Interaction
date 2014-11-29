@@ -11,20 +11,21 @@ using namespace DirectX;
 using namespace std;
 
 ITexture::ITexture(ITexture&& Src)
-	: m_pTexture(std::move(Src.m_pTexture))
+	: m_pResource(std::move(Src.m_pResource))
 	, m_pShaderResourceView(std::move(Src.ShaderResourceView()))
 {
 }
 
 ITexture& ITexture::operator = (ITexture&& Src)
 {
-	m_pTexture = std::move(Src.m_pTexture);
+	m_pResource = std::move(Src.m_pResource);
 	m_pShaderResourceView = std::move(Src.ShaderResourceView());
 	return *this;
 }
 
 Texture2D::Texture2D(Texture2D &&Src)
 	:ITexture(std::move(Src))
+	, m_pTexture(std::move(Src.m_pTexture))
 	, m_TextureDescription(Src.m_TextureDescription)
 {
 }
@@ -32,6 +33,7 @@ Texture2D::Texture2D(Texture2D &&Src)
 Texture2D& Texture2D::operator = (Texture2D &&Src)
 {
 	ITexture::operator=(std::move(Src));
+	m_pTexture = Src.m_pTexture;
 	m_TextureDescription = Src.m_TextureDescription;
 	return *this;
 }
@@ -61,10 +63,10 @@ Texture2D::Texture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ u
 	TextureDesc.CPUAccessFlags = cpuAccessFlags;
 	TextureDesc.MiscFlags = miscFlags;
 
-	ID3D11Texture2D *pTexture;
-	HRESULT hr = pDevice->CreateTexture2D(&TextureDesc, NULL, &pTexture);
+	HRESULT hr = pDevice->CreateTexture2D(&TextureDesc, NULL, &m_pTexture);
 	DirectX::ThrowIfFailed(hr);
-	m_pTexture = pTexture;
+	hr = m_pTexture.As<ID3D11Resource>(&m_pResource);
+	DirectX::ThrowIfFailed(hr);
 
 	if ((bindFlags & D3D11_BIND_DEPTH_STENCIL) && !(bindFlags & D3D11_BIND_SHADER_RESOURCE) && !(format == DXGI_FORMAT_R32_TYPELESS))
 	{
@@ -72,35 +74,35 @@ Texture2D::Texture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ u
 		return;
 	}
 
-	D3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceViewDesc;
+	CD3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceViewDesc(m_pTexture.Get(),D3D11_SRV_DIMENSION_TEXTURE2D);/*
 	ShaderResourceViewDesc.Format = TextureDesc.Format;
 	ShaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	ShaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-	ShaderResourceViewDesc.Texture2D.MipLevels = 1;
+	ShaderResourceViewDesc.Texture2D.MipLevels = 1;*/
 
-	hr = pDevice->CreateShaderResourceView(m_pTexture.Get(), &ShaderResourceViewDesc, &m_pShaderResourceView);
+	hr = pDevice->CreateShaderResourceView(m_pResource.Get(), &ShaderResourceViewDesc, &m_pShaderResourceView);
 	DirectX::ThrowIfFailed(hr);
 }
 
 Texture2D::Texture2D(ID3D11Texture2D* pTexture, ID3D11ShaderResourceView* pResourceView)
 {
-	pTexture->GetDesc(&m_TextureDescription);
+	assert(pTexture);
 	m_pTexture = pTexture;
+	HRESULT hr = m_pTexture.As<ID3D11Resource>(&m_pResource);
+	DirectX::ThrowIfFailed(hr);
+
+	m_pTexture->GetDesc(&m_TextureDescription);
 	m_pShaderResourceView = pResourceView;
 }
 
 Texture2D::Texture2D(ID3D11Resource* pResource, ID3D11ShaderResourceView* pResourceView)
 {
 	assert(pResource);
-	ID3D11Texture2D *pTexture = nullptr;
-	HRESULT hr = pResource->QueryInterface<ID3D11Texture2D>(&pTexture);
+	HRESULT hr = pResource->QueryInterface<ID3D11Texture2D>(&m_pTexture);
 	DirectX::ThrowIfFailed(hr);
-	pTexture->GetDesc(&m_TextureDescription);
+	m_pTexture->GetDesc(&m_TextureDescription);
 	m_pShaderResourceView = pResourceView;
-	m_pTexture = pTexture;
-
-	pTexture->Release();
-	//pResource->Release();
+	m_pResource = pResource;
 }
 
 void Texture2D::CopyFrom(ID3D11DeviceContext *pContext, const Texture2D* pSource)
@@ -121,11 +123,11 @@ void DynamicTexture2D::SetData(ID3D11DeviceContext* pContext, const void* Raw_Da
 
 
 	D3D11_MAPPED_SUBRESOURCE Resouce;
-	auto hr = pContext->Map(m_pTexture.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &Resouce);
+	auto hr = pContext->Map(m_pResource.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &Resouce);
 	DirectX::ThrowIfFailed(hr);
 
 	memcpy(Resouce.pData, Raw_Data, element_size * Width() * Height());
-	pContext->Unmap(m_pTexture.Get(), 0);
+	pContext->Unmap(m_pResource.Get(), 0);
 }
 
 DynamicTexture2D::DynamicTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height, _In_opt_ DXGI_FORMAT Format)
@@ -144,7 +146,7 @@ RenderTargetTexture2D::RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ un
 	RenderTargetViewDesc.Texture2D.MipSlice = 0;
 
 	// Create the render target view.
-	HRESULT hr = pDevice->CreateRenderTargetView(m_pTexture.Get(), &RenderTargetViewDesc, &m_pRenderTargetView);
+	HRESULT hr = pDevice->CreateRenderTargetView(m_pResource.Get(), &RenderTargetViewDesc, &m_pRenderTargetView);
 	DirectX::ThrowIfFailed(hr);
 
 	m_Viewport = { 0.0f, 0.0f, (float) m_TextureDescription.Width, (float) m_TextureDescription.Height, 0.0f, 1.0f };
@@ -210,7 +212,7 @@ DepthStencilBuffer::DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width
 	ViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	ViewDesc.Texture2D.MipSlice = 0;
 
-	auto pTexture = m_pTexture.Get();
+	auto pTexture = m_pResource.Get();
 	// Create the depth stencil view.
 	HRESULT hr = pDevice->CreateDepthStencilView(pTexture, &ViewDesc, m_pDepthStencilView.GetAddressOf());
 	DirectX::ThrowIfFailed(hr);
@@ -284,7 +286,7 @@ std::unique_ptr<ITexture> ITexture::CreateFromDDSFile(_In_ ID3D11Device* pDevice
 
 void ITexture::SaveAsDDSFile(_In_ ID3D11DeviceContext *pDeviceContext, _In_z_ const wchar_t* szFileName)
 {
-	HRESULT hr = SaveDDSTextureToFile(pDeviceContext, m_pTexture.Get(), szFileName);
+	HRESULT hr = SaveDDSTextureToFile(pDeviceContext, m_pResource.Get(), szFileName);
 	ThrowIfFailed(hr);
 }
 
@@ -306,10 +308,10 @@ std::unique_ptr<Texture2D> Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevi
 	std::unique_ptr<Texture2D> pTexture;
 	if (exName == L"DDS")
 	{
-		hr = DirectX::CreateDDSTextureFromFileEx(pDevice, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &pTexture->m_pTexture, &pTexture->m_pShaderResourceView);
+		hr = DirectX::CreateDDSTextureFromFileEx(pDevice, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &pTexture->m_pResource, &pTexture->m_pShaderResourceView);
 		ThrowIfFailed(hr);
 		D3D11_RESOURCE_DIMENSION dimension;
-		pTexture->m_pTexture->GetType(&dimension);
+		pTexture->m_pResource->GetType(&dimension);
 		if (dimension == D3D11_RESOURCE_DIMENSION::D3D11_RESOURCE_DIMENSION_TEXTURE2D)
 		{
 			ID3D11Texture2D* pTexInterface;
@@ -323,7 +325,7 @@ std::unique_ptr<Texture2D> Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevi
 	}
 	else
 	{
-		hr = DirectX::CreateWICTextureFromFileEx(pDevice, pDeviceContext, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &pTexture->m_pTexture, &pTexture->m_pShaderResourceView);
+		hr = DirectX::CreateWICTextureFromFileEx(pDevice, pDeviceContext, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &pTexture->m_pResource, &pTexture->m_pShaderResourceView);
 		ThrowIfFailed(hr);
 		ID3D11Texture2D* pTexInterface;
 		pTexture->Resource()->QueryInterface<ID3D11Texture2D>(&pTexInterface);
@@ -441,14 +443,14 @@ StagingTexture2D::StagingTexture2D(ID3D11DeviceContext* pContext, const Texture2
 		ID3D11Texture2D* pTex;
 		hr = d3dDevice->CreateTexture2D(&m_TextureDescription, 0, &pTex);
 		ThrowIfFailed(hr);
-		assert(m_pTexture.Get());
-		pContext->CopyResource(m_pTexture.Get(), pTemp.Get());
+		assert(m_pResource.Get());
+		pContext->CopyResource(m_pResource.Get(), pTemp.Get());
 		//m_pTexture = pTexture.Get();
 	}
 	else if ((m_TextureDescription.Usage == D3D11_USAGE_STAGING) && (m_TextureDescription.CPUAccessFlags & cpuAccessFlags))
 	{
 		// Handle case where the source is already a staging texture we can use directly
-		m_pTexture = pTexture.Get();
+		m_pResource = pTexture.Get();
 	}
 	else
 	{
@@ -460,12 +462,12 @@ StagingTexture2D::StagingTexture2D(ID3D11DeviceContext* pContext, const Texture2
 
 		ID3D11Texture2D* pTex;
 		hr = d3dDevice->CreateTexture2D(&m_TextureDescription, 0, &pTex);
-		m_pTexture = pTex;
+		m_pResource = pTex;
 		ThrowIfFailed(hr);
 
-		assert(m_pTexture.Get());
+		assert(m_pResource.Get());
 
-		pContext->CopyResource(m_pTexture.Get(), pSource);
+		pContext->CopyResource(m_pResource.Get(), pSource);
 		//m_pTexture = pTexture.Get();
 	}
 }
@@ -579,13 +581,13 @@ std::unique_ptr<uint8_t> StagingTexture2D::GetData(ID3D11DeviceContext *pContext
 
 	D3D11_MAPPED_SUBRESOURCE mapped;
 
-	HRESULT hr = pContext->Map(m_pTexture.Get(), 0, D3D11_MAP_READ, 0, &mapped);
+	HRESULT hr = pContext->Map(m_pResource.Get(), 0, D3D11_MAP_READ, 0, &mapped);
 	ThrowIfFailed(hr);
 
 	const uint8_t* sptr = reinterpret_cast<const uint8_t*>(mapped.pData);
 	if (!sptr)
 	{
-		pContext->Unmap(m_pTexture.Get(), 0);
+		pContext->Unmap(m_pResource.Get(), 0);
 		throw std::runtime_error("Resource is invalid.");
 	}
 
@@ -599,7 +601,7 @@ std::unique_ptr<uint8_t> StagingTexture2D::GetData(ID3D11DeviceContext *pContext
 		dptr += rowPitch;
 	}
 
-	pContext->Unmap(m_pTexture.Get(), 0);
+	pContext->Unmap(m_pResource.Get(), 0);
 
 	return pixels;
 }

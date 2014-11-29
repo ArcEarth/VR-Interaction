@@ -1,8 +1,10 @@
 ﻿#include "../pch.h"
 #include "SampleFpsTextRenderer.h"
 #include "../Common/DirectXHelper.h"
+#include "../Common/Textures.h"
 
 using namespace Causality;
+using namespace DirectX;
 
 // Initializes D2D resources used for text rendering.
 FpsTextScene::FpsTextScene(const std::shared_ptr<DirectX::DeviceResources>& deviceResources) : 
@@ -10,6 +12,29 @@ FpsTextScene::FpsTextScene(const std::shared_ptr<DirectX::DeviceResources>& devi
 	m_deviceResources(deviceResources)
 {
 	ZeroMemory(&m_textMetrics, sizeof(DWRITE_TEXT_METRICS));
+
+	////DirectX::Texture2D tex(deviceResources->GetD3DDevice(), 800, 600);
+	//DirectX::RenderTargetTexture2D tex(deviceResources->GetD3DDevice(), 800, 600);
+	////DirectX::Texture2D tex(deviceResources->GetD3DDevice(), 800, 600,1,DXGI_FORMAT_R8G8B8A8_UNORM,D3D11_USAGE_DEFAULT,D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,0,0, deviceResources->GetMultiSampleCount(), deviceResources->GetMultiSampleQuality());
+
+	//auto ptex = tex.Resource();
+	//ComPtr<IDXGISurface> pDxgiSurface = NULL;
+	//ptex->QueryInterface<IDXGISurface>(&pDxgiSurface);
+	//D2D1_RENDER_TARGET_PROPERTIES props =
+	//	D2D1::RenderTargetProperties(
+	//	D2D1_RENDER_TARGET_TYPE_DEFAULT,
+	//	D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED),
+	//	96,
+	//	96
+	//	);
+
+	//auto pD2DFactory = deviceResources->GetD2DFactory();
+	//ComPtr<ID2D1RenderTarget> pRenderTarget;
+	//pD2DFactory->CreateDxgiSurfaceRenderTarget(
+	//	pDxgiSurface.Get(),
+	//	&props,
+	//	&pRenderTarget
+	//	);
 
 	// Create device independent resources
 	DirectX::ThrowIfFailed(
@@ -28,7 +53,6 @@ FpsTextScene::FpsTextScene(const std::shared_ptr<DirectX::DeviceResources>& devi
 	DirectX::ThrowIfFailed(
 		m_textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR)
 		);
-
 	DirectX::ThrowIfFailed(
 		m_deviceResources->GetD2DFactory()->CreateDrawingStateBlock(&m_stateBlock)
 		);

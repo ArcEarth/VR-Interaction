@@ -49,9 +49,18 @@ DirectX::XMMATRIX PlayerCamera::GetProjectionMatrix(size_t view) const
 void PlayerCamera::FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir)
 {
 	using namespace DirectX;
-	Foward = XMVector3Normalize(focusPoint - (XMVECTOR) GetPosition());
-	Up = upDir;
-	SetOrientation(XMQuaternionIdentity());
+	// Right-Hand Coordinate
+	XMVECTOR foward = -XMVector3Normalize(focusPoint - (XMVECTOR) GetPosition()); // Foward is (0,0,-1), Right is (1,0,0) Up is (0,1,0)
+	XMVECTOR right = XMVector3Normalize(XMVector3Cross(upDir,foward)); // Y x Z
+	XMVECTOR up = XMVector3Normalize(XMVector3Cross(foward,right)); // Z x X
+	XMMATRIX m;
+	m.r[0] = right;
+	m.r[1] = up;
+	m.r[2] = foward;
+	m.r[3] = g_XMIdentityR3;
+	XMVECTOR scale,quat,trans;
+	XMMatrixDecompose(&scale, &quat, &trans, m);
+	SetOrientation(quat);
 }
 
 const Platform::Fundation::Vector3 & PlayerCamera::GetPosition() const
@@ -73,6 +82,17 @@ void PlayerCamera::SetOrientation(const Platform::Fundation::Quaternion &q)
 {
 	m_BodyPose.Orientation = q;
 }
+//
+//void XM_CALLCONV PlayerCamera::Move(FXMVECTOR p) 
+//{
+//
+//}
+//
+//void XM_CALLCONV PlayerCamera::Rotate(FXMVECTOR q)
+//{
+//
+//}
+
 
 void PlayerCamera::BeginFrame()
 {

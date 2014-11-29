@@ -12,6 +12,34 @@ namespace Platform
 		NoButton,
 	};
 
+	class IAppComponent
+	{
+	public:
+		virtual ~IAppComponent() {}
+
+		// Retrive the given interface
+		template <class T>
+		const T* As() const 
+		{ return dynamic_cast<const T*>(this); }
+		// Retrive the given interface
+		template <class T>
+		T* As() { return dynamic_cast<T*>(this); }
+
+		//const DirectX::Scene::IViewable* AsViewable() const { return dynamic_cast<const DirectX::Scene::IViewable*>(this); }
+		//DirectX::Scene::IViewable* AsViewable() { return dynamic_cast<DirectX::Scene::IViewable*>(this); }
+		//const DirectX::Scene::ITimeAnimatable* AsTimeAnimatedable() const { return dynamic_cast<const DirectX::Scene::ITimeAnimatable*>(this); }
+		//DirectX::Scene::ITimeAnimatable* AsTimeAnimatedable() { return dynamic_cast<DirectX::Scene::ITimeAnimatable*>(this); }
+		//const DirectX::Scene::IRenderable* AsRenderable() const { return dynamic_cast<const DirectX::Scene::IRenderable*>(this); }
+		//DirectX::Scene::IRenderable* AsRenderable() { return dynamic_cast<DirectX::Scene::IRenderable*>(this); }
+
+		//const Platform::ICursorInteractive* AsCursorInteractive() const { return dynamic_cast<const Platform::ICursorInteractive*>(this); }
+		//ICursorInteractive* AsCursorInteractive() { return dynamic_cast<Platform::ICursorInteractive*>(this); }
+		//const Platform::IKeybordInteractive* AsKeybordInteractive() const { return dynamic_cast<const Platform::IKeybordInteractive*>(this); }
+		//IKeybordInteractive* AsKeybordInteractive() { return dynamic_cast<Platform::IKeybordInteractive*>(this); }
+		//const Platform::IUserHandsInteractive* AsUserHandsInteractive() const { return dynamic_cast<const Platform::IUserHandsInteractive*>(this); }
+		//IUserHandsInteractive* AsUserHandsInteractive() { return dynamic_cast<Platform::IUserHandsInteractive*>(this); }
+	};
+
 	struct CursorMoveEventArgs
 	{
 		// Relative position to window's top left corner
@@ -84,10 +112,10 @@ namespace Platform
 		virtual void OnHandsMove(const UserHandsEventArgs& e) = 0;
 	};
 
-	class IUserHeadInteractive abstract
-	{
-	public:
-	};
+	//class IUserHeadInteractive abstract
+	//{
+	//public:
+	//};
 
 	class IUserSkeletonInteractive abstract
 	{

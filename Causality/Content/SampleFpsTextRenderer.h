@@ -4,11 +4,12 @@
 #include "..\Common\DeviceResources.h"
 #include "..\Common\StepTimer.h"
 #include "..\Common\Renderable.h"
+#include "..\Interactive.h"
 
 namespace Causality
 {
 	// Renders the current FPS value in the bottom right corner of the screen using Direct2D and DirectWrite.
-	class FpsTextScene : public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable
+	class FpsTextScene : public Platform::IAppComponent, public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable
 	{
 	public:
 		FpsTextScene(const std::shared_ptr<DirectX::DeviceResources>& deviceResources);

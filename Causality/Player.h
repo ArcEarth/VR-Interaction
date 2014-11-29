@@ -2,7 +2,8 @@
 #include "OculusRift.h"
 
 // A Camera setup which works both in the case with OculusRift and Normal Monolith Camera
-class PlayerCamera : public DirectX::Scene::ICameraBase , public DirectX::Scene::ICameraRenderControl , public DirectX::Scene::ICameraParameters
+__declspec(align(16))
+class PlayerCamera : public DirectX::AlignedNew<PlayerCamera>, public DirectX::Scene::ICameraBase , public DirectX::Scene::ICameraRenderControl , public DirectX::Scene::ICameraParameters
 {
 public:
 	PlayerCamera(const std::shared_ptr<DirectX::DeviceResources> &resources = nullptr)
@@ -50,8 +51,10 @@ public:
 	virtual void  SetPosition(const Platform::Fundation::Vector3& p) override;
 	virtual const Platform::Fundation::Quaternion& GetOrientation() const override;
 	virtual void  SetOrientation(const Platform::Fundation::Quaternion &q) override;
+	//virtual void XM_CALLCONV Move(DirectX::FXMVECTOR p) override;
+	//virtual void XM_CALLCONV Rotate(DirectX::FXMVECTOR q) override;
 private:
-	Platform::Fundation::Vector3 Foward = { 0, 0, -1.0f }, Up = { 0, 1.0f, 0 };
+	DirectX::XMVECTORF32 Foward = DirectX::g_XMNegIdentityR2, Up = DirectX::g_XMIdentityR1;
 	Platform::Fundation::StaticPose m_BodyPose;
 	float Fov, AspectRatio;
 	std::shared_ptr<Platform::Devices::OculusRift>	m_pRift;
