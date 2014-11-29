@@ -33,7 +33,7 @@ namespace Causality
 		// TODO: Replace with your own content renderers.
 		std::unique_ptr<CubeScene> m_sceneRenderer;
 		std::unique_ptr<FpsTextScene> m_fpsTextRenderer;
-		std::unique_ptr<DirectX::Scene::SkyBox> m_pSkyBox;
+		std::unique_ptr<DirectX::Scene::SkyDome> m_pSkyBox;
 
 		// Rendering loop timer.
 		DirectX::StepTimer m_timer;

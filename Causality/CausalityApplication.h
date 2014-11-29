@@ -17,26 +17,23 @@ namespace Causality
 	class CameraControlLogic : public Platform::IAppComponent , public DirectX::Scene::ITimeAnimatable, public Platform::IKeybordInteractive, public Platform::ICursorInteractive
 	{
 	public:
-		CameraControlLogic(ICameraBase* pCamera)
-		{
-			m_pCamera = pCamera;
-		}
+		CameraControlLogic(DirectX::Scene::ICameraBase* pCamera);
 		// Inherited via ITimeAnimatable
-		virtual void UpdateAnimation(StepTimer const & timer) override;
+		virtual void UpdateAnimation(DirectX::StepTimer const & timer) override;
 
 		// Inherited via IKeybordInteractive
-		virtual void OnKeyDown(const KeyboardEventArgs & e) override;
-		virtual void OnKeyUp(const KeyboardEventArgs & e) override;
+		virtual void OnKeyDown(const Platform::KeyboardEventArgs & e) override;
+		virtual void OnKeyUp(const Platform::KeyboardEventArgs & e) override;
 
 		// Inherited via ICursorInteractive
-		virtual void OnMouseButtonDown(const CursorButtonEvent & e) override;
-		virtual void OnMouseButtonUp(const CursorButtonEvent & e) override;
-		virtual void OnMouseMove(const CursorMoveEventArgs & e) override;
+		virtual void OnMouseButtonDown(const Platform::CursorButtonEvent & e) override;
+		virtual void OnMouseButtonUp(const Platform::CursorButtonEvent & e) override;
+		virtual void OnMouseMove(const Platform::CursorMoveEventArgs & e) override;
 	public:
-		float											Speed = 0.8f;
+		float											Speed;
 
 	private:
-		ICameraBase*									m_pCamera= nullptr;
+		DirectX::Scene::ICameraBase*					m_pCamera= nullptr;
 		bool											IsTrackingCursor = false;
 		DirectX::Vector3								CameraVeclocity;
 		DirectX::Vector3								CameraAngularVeclocity;
@@ -79,14 +76,21 @@ namespace Causality
 		// Devices & Resources
 		boost::filesystem::path							ResourceDirectory;
 
+		// System resources
 		std::shared_ptr<Platform::DebugConsole>			pConsole;
 		std::shared_ptr<Platform::NativeWindow>			pWindow;
 		std::shared_ptr<DirectX::DeviceResources>		pDeviceResources;
+
+		// Extern Devices
 		std::shared_ptr<Platform::Devices::OculusRift>	pRift;
 		std::shared_ptr<Platform::Devices::LeapMotion>	pLeap;
 
-		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pPrimaryCamera;
+		// Application Logic object
 		std::vector<std::unique_ptr<Platform::IAppComponent>> Components;
+		std::map<Platform::IAppComponent*, std::vector<Platform::Fundation::EventConnection>> ComponentsEventRegisterations;
+
+		// Primary Camera
+		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pPrimaryCamera;
 
 		// Rendering loop timer.
 		DirectX::StepTimer m_timer;

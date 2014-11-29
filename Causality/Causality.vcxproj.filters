@@ -93,6 +93,9 @@
     <ClCompile Include="Common\Material.cpp">
       <Filter>DirectX</Filter>
     </ClCompile>
+    <ClCompile Include="Common\DebugVisualizer.cpp">
+      <Filter>DirectX</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -198,6 +201,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\Material.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\DebugVisualizer.h">
       <Filter>DirectX</Filter>
     </ClInclude>
   </ItemGroup>

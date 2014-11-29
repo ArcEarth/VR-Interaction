@@ -3,6 +3,7 @@
 #include "Common\BasicClass.h"
 #include <Leap.h>
 #include <memory>
+#include "Interactive.h"
 
 namespace Platform
 {
@@ -24,8 +25,9 @@ namespace Platform
 			Platform::Fundation::Event<const Leap::Controller &> FrameArrived;
 			Platform::Fundation::Event<const Leap::Controller &> DeviceConnected;
 			Platform::Fundation::Event<const Leap::Controller &> DeviceDisconnected;
-			Platform::Fundation::Event<const Leap::Controller &> HandsTracked;
-			Platform::Fundation::Event<const Leap::Controller &> HandsLost;
+			Platform::Fundation::Event<const Platform::UserHandsEventArgs &> HandsTracked;
+			Platform::Fundation::Event<const Platform::UserHandsEventArgs &> HandsLost;
+			Platform::Fundation::Event<const Platform::UserHandsEventArgs &> HandsMove;
 
 		private:
 			int				 PrevHandsCount;

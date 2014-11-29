@@ -8,7 +8,7 @@ namespace DirectX
 	namespace Scene
 	{
 
-		const SkyBox::VertexType SkyBox::CubeVertices[24] =
+		const SkyDome::VertexType SkyDome::CubeVertices[24] =
 		{
 			// positive x
 			VertexPositionTexture(XMFLOAT3(1.0f, -1.0f,  1.0f) , XMFLOAT2(0.0f, 1.0f)),
@@ -48,7 +48,7 @@ namespace DirectX
 			//VertexPositionTexture(XMFLOAT3(-1.0f, -1.0f, -1.0f) , XMFLOAT2(1.0f, 1.0f)),//23
 		};
 
-		const SkyBox::IndexType SkyBox::CubeIndices[SkyBox::IndicesCount] =
+		const SkyDome::IndexType SkyDome::CubeIndices[SkyDome::IndicesCount] =
 		{
 			0, 2, 1,
 			0, 3, 2,
@@ -143,11 +143,11 @@ namespace DirectX
 		//}
 
 
-		SkyBox::~SkyBox(void)
+		SkyDome::~SkyDome(void)
 		{
 		}
 
-		void XM_CALLCONV SkyBox::UpdateViewMatrix(DirectX::FXMMATRIX view)
+		void XM_CALLCONV SkyDome::UpdateViewMatrix(DirectX::FXMMATRIX view)
 		{
 			XMMATRIX View = view;
 			// Last column of View Inverse is camera's position
@@ -155,14 +155,14 @@ namespace DirectX
 			m_pEffect->SetView(View);
 		}
 
-		void XM_CALLCONV SkyBox::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
+		void XM_CALLCONV SkyDome::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
 		{
 			m_pEffect->SetProjection(projection);
 		}
 
 		std::unique_ptr<CommonStates> pStates;
 
-		SkyBox::SkyBox(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6])
+		SkyDome::SkyDome(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6])
 			: m_pCubeTexture(new CubeTexture(pDevice, TextureFiles))
 			, m_pEffect(std::make_shared<BasicEffect>(pDevice))
 		{
@@ -186,7 +186,7 @@ namespace DirectX
 		//}
 
 
-		void SkyBox::Render(ID3D11DeviceContext* pDeviceContext)
+		void SkyDome::Render(ID3D11DeviceContext* pDeviceContext)
 		{
 			ComPtr<ID3D11DepthStencilState> pFomerState;
 			UINT sRef;

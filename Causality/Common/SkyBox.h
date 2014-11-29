@@ -15,7 +15,7 @@ namespace DirectX
 
 	namespace Scene
 	{
-		class SkyBox : public IRenderable , public IViewable , protected TypedMesh<VertexPositionTexture, uint16_t>
+		class SkyDome : public IRenderable , public IViewable , protected TypedMesh<VertexPositionTexture, uint16_t>
 		{
 			typedef TypedMesh<VertexPositionTexture, uint16_t> BaseType;
 			typedef VertexPositionTexture VertexType;
@@ -25,14 +25,14 @@ namespace DirectX
 			const static VertexType CubeVertices[VerticesCount];
 			const static IndexType CubeIndices[IndicesCount];
 		public:
-			SkyBox(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6]);
+			SkyDome(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6]);
 
 			virtual void Render(ID3D11DeviceContext* pDeviceContext) override;
 			// Inherited via IViewable
 			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) override;
 			virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override;
 
-			~SkyBox(void);
+			~SkyDome(void);
 
 		protected:
 			//std::shared_ptr<Mesh>			m_pMesh;

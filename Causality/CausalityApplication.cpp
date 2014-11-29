@@ -4,6 +4,7 @@
 #include "Common\SkyBox.h"
 #include "Foregrounds.h"
 #include <CommonStates.h>
+#include "Common\DebugVisualizer.h"
 
 using namespace Causality;
 using namespace std;
@@ -15,16 +16,6 @@ using namespace boost;
 //std::unique_ptr<Causality::DXAppMain> m_main;
 
 wstring ResourcesDirectory(L"C:\\Users\\Yupeng\\Documents\\GitHub\\VR\\Causality\\Resources\\");
-
-const static wstring SkyBoxTextures[6] = {
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Right.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Left.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Top.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Bottom.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Front.dds"),
-	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Back.dds"),
-};
-
 
 App::App()
 {
@@ -38,16 +29,19 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 {
 	ResourceDirectory = filesystem::current_path().parent_path() / "Resources";
 
+	// Initialize Windows
 	pConsole = make_shared<DebugConsole>();
 	pConsole->Initialize(ref new String(L"CausalityDebug"), 800, 600, false);
 
 	pWindow = make_shared<Platform::NativeWindow>();
 	pWindow->Initialize(ref new String(L"Causality"), 1280U, 720, false);
 
+	// Initialize DirectX
 	pDeviceResources = make_shared<DirectX::DeviceResources>();
 	pDeviceResources->SetNativeWindow(pWindow->Handle());
 	// Register to be notified if the Device is lost or recreated
 	pDeviceResources->RegisterDeviceNotify(this);
+	dxout.Initialize(pDeviceResources->GetD3DDeviceContext());
 
 	// Oculus Rift
 	pRift = std::make_shared<Platform::Devices::OculusRift>();
@@ -61,10 +55,17 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 		pRift = nullptr;
 	}
 
-	pLeap = std::make_shared<Platform::Devices::LeapMotion>(false);
-	if (pLeap->Controller().isConnected)
+	// Leap Motion
+	pLeap = std::make_shared<Platform::Devices::LeapMotion>(true);
+	if (!pLeap->Controller().isConnected()) // Deactive Leap-motion control
 	{
-
+		auto devices = pLeap->Controller().devices();
+		cout << "[Leap] Leap Motion Can not be initialized. Deivces cout : " << devices.count() << endl;
+		pLeap = nullptr;
+	}
+	else
+	{
+		cout << "[Leap] Leap Motion Initialized." << endl;
 	}
 
 	// Primary Camera setup
@@ -81,8 +82,8 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 
 	m_pPrimaryCamera = std::move(pPlayer);
 
-	// Scenes
-	RegisterComponent(std::make_unique<CubeScene>(pDeviceResources));
+	// Scenes & Logic
+	//RegisterComponent(std::make_unique<CubeScene>(pDeviceResources));
 	//Componentsents.push_back(std::make_unique<SkyBox>(pDeviceResources->GetD3DDevice(), SkyBoxTextures));
 	RegisterComponent(std::make_unique<Foregrounds>(pDeviceResources));
 	RegisterComponent(std::make_unique<FpsTextScene>(pDeviceResources));
@@ -92,24 +93,28 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 void Causality::App::RegisterComponent(std::unique_ptr<Platform::IAppComponent> &&pComponent)
 {
 	auto pCursorInteractive = pComponent->As<ICursorInteractive>();
+	auto& Regs = ComponentsEventRegisterations[pComponent.get()];
 	if (pCursorInteractive)
 	{
-		pWindow->CursorButtonDown += MakeEventHandler(&ICursorInteractive::OnMouseButtonDown, pCursorInteractive);
-		pWindow->CursorButtonUp += MakeEventHandler(&ICursorInteractive::OnMouseButtonUp, pCursorInteractive);
-		pWindow->CursorMove += MakeEventHandler(&ICursorInteractive::OnMouseMove, pCursorInteractive);
+		Regs.push_back(pWindow->CursorButtonDown += MakeEventHandler(&ICursorInteractive::OnMouseButtonDown, pCursorInteractive));
+		Regs.push_back(pWindow->CursorButtonUp += MakeEventHandler(&ICursorInteractive::OnMouseButtonUp, pCursorInteractive));
+		Regs.push_back(pWindow->CursorMove += MakeEventHandler(&ICursorInteractive::OnMouseMove, pCursorInteractive));
 	}
 	auto pKeyInteractive = pComponent->As<IKeybordInteractive>();
 	if (pKeyInteractive)
 	{
-		pWindow->KeyDown += MakeEventHandler(&IKeybordInteractive::OnKeyDown, pKeyInteractive);
-		pWindow->KeyUp += MakeEventHandler(&IKeybordInteractive::OnKeyUp, pKeyInteractive);
+		Regs.push_back(pWindow->KeyDown += MakeEventHandler(&IKeybordInteractive::OnKeyDown, pKeyInteractive));
+		Regs.push_back(pWindow->KeyUp += MakeEventHandler(&IKeybordInteractive::OnKeyUp, pKeyInteractive));
 	}
 	auto pAnimatable = pComponent->As<ITimeAnimatable>();
 	if (pAnimatable)
-		TimeElapsed += MakeEventHandler(&ITimeAnimatable::UpdateAnimation, pAnimatable);
+		Regs.push_back(TimeElapsed += MakeEventHandler(&ITimeAnimatable::UpdateAnimation, pAnimatable));
 	auto pHands = pComponent->As<IUserHandsInteractive>();
-	if (pHands)
+	if (pHands && pLeap)
 	{
+		Regs.push_back(pLeap->HandsTracked += MakeEventHandler(&IUserHandsInteractive::OnHandsTracked, pHands));
+		Regs.push_back(pLeap->HandsLost += MakeEventHandler(&IUserHandsInteractive::OnHandsTrackLost, pHands));
+		Regs.push_back(pLeap->HandsMove += MakeEventHandler(&IUserHandsInteractive::OnHandsMove, pHands));
 	}
 	Components.push_back(std::move(pComponent));
 }
@@ -201,6 +206,12 @@ void Causality::App::OnCursorMove_RotateCamera(const Platform::CursorMoveEventAr
 //	//std::cout << "Frame available" << std::endl;
 //}
 
+inline Causality::CameraControlLogic::CameraControlLogic(DirectX::Scene::ICameraBase * pCamera)
+{
+	m_pCamera = pCamera;
+	Speed = 2.5f;
+}
+
 void Causality::CameraControlLogic::UpdateAnimation(StepTimer const & timer)
 {
 	m_pCamera->Move(XMVector3Normalize(CameraVeclocity) * (Speed * timer.GetElapsedSeconds()));
@@ -253,6 +264,6 @@ void Causality::CameraControlLogic::OnMouseButtonUp(const CursorButtonEvent & e)
 void Causality::CameraControlLogic::OnMouseMove(const CursorMoveEventArgs & e)
 {
 	if (!IsTrackingCursor) return;
-	auto yaw = e.PositionDelta.x / 1000.0 * XM_PI;
+	auto yaw = -e.PositionDelta.x / 1000.0 * XM_PI;
 	m_pCamera->Rotate(XMQuaternionRotationRollPitchYaw(0, yaw, 0));
 }
