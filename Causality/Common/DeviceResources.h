@@ -142,8 +142,8 @@ namespace DirectX
 		Windows::Graphics::Display::DisplayOrientations	m_nativeOrientation;
 		Windows::Graphics::Display::DisplayOrientations	m_currentOrientation;
 		float											m_dpi;
-		float											m_compositionScaleX;
-		float											m_compositionScaleY;
+		float											m_dpiScaleX;
+		float											m_dpiScaleY;
 		UINT											m_multiSampleLevel;
 		UINT											m_multiSampleQuality;
 		// Transforms used for display orientation.

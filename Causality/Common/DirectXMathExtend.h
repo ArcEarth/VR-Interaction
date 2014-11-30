@@ -9,10 +9,13 @@
 #include <smmintrin.h>
 #include <type_traits>
 #include <boost\operators.hpp>
+//#include <Eigen\Eigen>
 
 namespace DirectX
 {
-
+	//using VectorX = Eigen::VectorXf;
+	//template <int _Rows, int _Columns>
+	//using Matrix = Eigen::Matrix<float,_Rows,_Columns>;
 	using SimpleMath::Vector2;
 	using SimpleMath::Vector3;
 	using SimpleMath::Vector4;

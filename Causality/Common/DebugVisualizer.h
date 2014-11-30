@@ -2,6 +2,7 @@
 #include <PrimitiveBatch.h>
 #include <Effects.h>
 #include <VertexTypes.h>
+#include <CommonStates.h>
 #include <wrl\client.h>
 //#include "DirectXHelper.h"
 
@@ -54,6 +55,7 @@ namespace DirectX
 	private:
 
 		::std::unique_ptr<PrimitiveBatch<VertexPositionColor>> m_pDirectXBatch;
+		::std::unique_ptr<CommonStates>	m_pStates;
 		::std::unique_ptr<BasicEffect> m_pEffect;
 		::Microsoft::WRL::ComPtr<ID3D11InputLayout> m_pInputLayout;
 		::Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_pContext;

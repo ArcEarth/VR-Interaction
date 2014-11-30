@@ -241,4 +241,10 @@
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Xml Include="manifest.xml" />
+    <Xml Include="Resources\Foregrounds.xml">
+      <Filter>Resource Files</Filter>
+    </Xml>
+  </ItemGroup>
 </Project>

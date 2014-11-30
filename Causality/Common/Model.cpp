@@ -60,6 +60,7 @@ DirectX::Scene::GeometryModel::GeometryModel(ID3D11Device *pDevice, const std::w
 	vector<shape_t> shapes;
 	vector<material_t> materis;
 	path file(fileName);
+	Name = file.filename().replace_extension().string();
 	auto dir = file.parent_path();
 	auto result = tinyobj::LoadObj(shapes, materis, file.string().c_str(), (dir.string() + "\\").c_str());
 

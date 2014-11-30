@@ -59,8 +59,8 @@ DirectX::DeviceResources::DeviceResources() :
 	m_nativeOrientation(DisplayOrientations::None),
 	m_currentOrientation(DisplayOrientations::None),
 	m_dpi(-1.0f),
-	m_compositionScaleX(1.0f),
-	m_compositionScaleY(1.0f),
+	m_dpiScaleX(1.0f),
+	m_dpiScaleY(1.0f),
 	m_deviceNotify(nullptr)
 {
 	m_multiSampleLevel = 4;
@@ -79,11 +79,19 @@ void DirectX::DeviceResources::SetNativeWindow(HWND hWnd)
 	m_nativeOrientation = DisplayOrientations::None;
 	m_currentOrientation = DisplayOrientations::None;
 
+	UINT arrayElements = 4, modeElements = 4;
+	DISPLAYCONFIG_PATH_INFO dispInfos[4];
+	DISPLAYCONFIG_MODE_INFO dispModeInfo[4];
+	QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &arrayElements, dispInfos, &modeElements, dispModeInfo,NULL);
 	HDC screen = GetDC(hWnd);
 	m_dpi = (float)GetDeviceCaps(screen, LOGPIXELSX);
+	auto pyhsicalw = (float) GetDeviceCaps(screen, HORZRES);
+	auto physicalh = (float) GetDeviceCaps(screen, VERTRES);
+	m_dpiScaleY = (float) dispModeInfo[1].sourceMode.height / physicalh;
+	m_dpiScaleX = (float) dispModeInfo[1].sourceMode.width / pyhsicalw;
 	ReleaseDC(hWnd, screen);
 
-	m_d2dContext->SetDpi(m_dpi, m_dpi);
+	//m_d2dContext->SetDpi(m_dpi, m_dpi);
 
 	CreateWindowSizeDependentResources();
 }
@@ -288,8 +296,8 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 	m_d3dContext->Flush();
 
 	// Calculate the necessary swap chain and render target size in pixels.
-	m_outputSize.Width = m_logicalSize.Width * m_compositionScaleX;
-	m_outputSize.Height = m_logicalSize.Height * m_compositionScaleY;
+	m_outputSize.Width = m_logicalSize.Width * m_dpiScaleX;
+	m_outputSize.Height = m_logicalSize.Height * m_dpiScaleY;
 	
 	// Prevent zero size DirectX content from being created.
 	m_outputSize.Width = std::max(m_outputSize.Width, 1.0f);
@@ -471,8 +479,8 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 	{
 		// Setup inverse scale on the swap chain
 		DXGI_MATRIX_3X2_F inverseScale = { 0 };
-		inverseScale._11 = 1.0f / m_compositionScaleX;
-		inverseScale._22 = 1.0f / m_compositionScaleY;
+		inverseScale._11 = 1.0f / m_dpiScaleX;
+		inverseScale._22 = 1.0f / m_dpiScaleY;
 		ComPtr<IDXGISwapChain2> spSwapChain2;
 		DirectX::ThrowIfFailed(
 			m_swapChain.As<IDXGISwapChain2>(&spSwapChain2)
@@ -579,8 +587,8 @@ void DirectX::DeviceResources::SetSwapChainPanel(SwapChainPanel^ panel)
 	m_logicalSize = Windows::Foundation::Size(static_cast<float>(panel->ActualWidth), static_cast<float>(panel->ActualHeight));
 	m_nativeOrientation = currentDisplayInformation->NativeOrientation;
 	m_currentOrientation = currentDisplayInformation->CurrentOrientation;
-	m_compositionScaleX = panel->CompositionScaleX;
-	m_compositionScaleY = panel->CompositionScaleY;
+	m_dpiScaleX = panel->CompositionScaleX;
+	m_dpiScaleY = panel->CompositionScaleY;
 	m_dpi = currentDisplayInformation->LogicalDpi;
 	m_d2dContext->SetDpi(m_dpi, m_dpi);
 
@@ -627,11 +635,11 @@ void DirectX::DeviceResources::SetCurrentOrientation(DirectX::FXMVECTOR quaterni
 // This method is called in the event handler for the CompositionScaleChanged event.
 void DirectX::DeviceResources::SetCompositionScale(float compositionScaleX, float compositionScaleY)
 {
-	if (m_compositionScaleX != compositionScaleX ||
-		m_compositionScaleY != compositionScaleY)
+	if (m_dpiScaleX != compositionScaleX ||
+		m_dpiScaleY != compositionScaleY)
 	{
-		m_compositionScaleX = compositionScaleX;
-		m_compositionScaleY = compositionScaleY;
+		m_dpiScaleX = compositionScaleX;
+		m_dpiScaleY = compositionScaleY;
 		CreateWindowSizeDependentResources();
 	}
 }

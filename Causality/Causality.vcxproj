@@ -113,8 +113,10 @@
     <PostBuildEvent>
       <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
     </PostBuildEvent>
+    <Manifest />
+    <Manifest />
     <Manifest>
-      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -137,8 +139,10 @@
     <PostBuildEvent>
       <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
     </PostBuildEvent>
+    <Manifest />
+    <Manifest />
     <Manifest>
-      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -164,8 +168,10 @@
     <PostBuildEvent>
       <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     </PostBuildEvent>
+    <Manifest />
+    <Manifest />
     <Manifest>
-      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -191,8 +197,10 @@
     <PostBuildEvent>
       <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     </PostBuildEvent>
+    <Manifest />
+    <Manifest />
     <Manifest>
-      <AdditionalManifestFiles>%(AdditionalManifestFiles)</AdditionalManifestFiles>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -388,6 +396,10 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Causality.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="manifest.xml" />
+    <Xml Include="Resources\Foregrounds.xml" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -9,6 +9,10 @@
 #include <mutex>
 #include <map>
 #include <array>
+#include <deque>
+#include <boost\circular_buffer.hpp>
+#include <boost\thread\shared_mutex.hpp>
+#include <boost\thread\locks.hpp>
 
 namespace Causality
 {
@@ -44,11 +48,17 @@ namespace Causality
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState>	pRSState;
 		Microsoft::WRL::ComPtr<ID3D11InputLayout>		pInputLayout;
 		DirectX::CommonStates							States;
-		std::mutex										m_HandFrameMutex;
 		bool											m_HaveHands;
 		Leap::Frame										m_Frame;
-		std::map<int,std::array<std::array<DirectX::Vector3,4>,5>> m_JointTracjectory;
 		DirectX::Matrix4x4								m_FrameTransform;
+		std::deque<std::array<DirectX::Vector3, 25>>	m_HandTrace;
+		std::vector<DirectX::Vector3>					m_TracePoints;
+		DirectX::BoundingOrientedBox					m_CurrentHandBoundingBox;
+		DirectX::BoundingOrientedBox					m_HandTraceBoundingBox;
+		std::map<std::string, DirectX::Vector2>			m_ModelsFeature;
+		DirectX::Vector2								m_HandDescriptionFeature;
+		std::mutex										m_HandFrameMutex;
+
 		bool m_loadingComplete;
 
 	};

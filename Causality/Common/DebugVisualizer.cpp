@@ -121,7 +121,7 @@ namespace DirectX{
 	{
 		m_pContext = pContext;
 		m_pContext->GetDevice(&m_pDevice);
-
+		m_pStates.reset(new CommonStates(m_pDevice.Get()));
 		m_pDirectXBatch.reset(new PrimitiveBatch<VertexPositionColor>(pContext));
 
 		m_pEffect.reset(new BasicEffect(m_pDevice.Get()));
@@ -190,7 +190,12 @@ namespace DirectX{
 
 	void DebugVisualizer::End()
 	{
+
+		Microsoft::WRL::ComPtr<ID3D11RasterizerState> pRSState;
+		m_pContext->RSGetState(&pRSState);
+		m_pContext->RSSetState(m_pStates->CullClockwise());
 		m_pDirectXBatch->End();
+		m_pContext->RSSetState(pRSState.Get());
 	}
 
 	void DebugVisualizer::DrawLine(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR Color)
