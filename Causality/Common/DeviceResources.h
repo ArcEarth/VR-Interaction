@@ -1,4 +1,5 @@
 ﻿#pragma once
+#define NOMINMAX
 #include <agile.h>
 #include <wrl\client.h>
 #include <Windows.h>
@@ -143,8 +144,8 @@ namespace DirectX
 		float											m_dpi;
 		float											m_compositionScaleX;
 		float											m_compositionScaleY;
-		UINT											m_multiSampleLevel = 1;
-		UINT											m_multiSampleQuality = 0;
+		UINT											m_multiSampleLevel;
+		UINT											m_multiSampleQuality;
 		// Transforms used for display orientation.
 		D2D1::Matrix3x2F	m_orientationTransform2D;
 		DirectX::XMFLOAT4X4	m_orientationTransform3D;

@@ -50,6 +50,8 @@ Texture2D::Texture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ u
 	_In_opt_ unsigned int multisamplesQuality
 	)
 {
+	if (multisamplesCount > 1)
+		bindFlags &= ~D3D11_BIND_SHADER_RESOURCE; // Shader resources is not valiad for MSAA texture
 	D3D11_TEXTURE2D_DESC &TextureDesc = m_TextureDescription;
 	TextureDesc.Width = Width;
 	TextureDesc.Height = Height;
@@ -68,7 +70,7 @@ Texture2D::Texture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ u
 	hr = m_pTexture.As<ID3D11Resource>(&m_pResource);
 	DirectX::ThrowIfFailed(hr);
 
-	if ((bindFlags & D3D11_BIND_DEPTH_STENCIL) && !(bindFlags & D3D11_BIND_SHADER_RESOURCE) && !(format == DXGI_FORMAT_R32_TYPELESS))
+	if ((bindFlags & D3D11_BIND_DEPTH_STENCIL) || !(bindFlags & D3D11_BIND_SHADER_RESOURCE) || !(format == DXGI_FORMAT_R32_TYPELESS))
 	{
 		m_pShaderResourceView = nullptr;
 		return;
@@ -136,17 +138,17 @@ DynamicTexture2D::DynamicTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int
 }
 
 RenderTargetTexture2D::RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
-	_In_opt_ DXGI_FORMAT Format, _In_opt_ bool Shared)
-	: Texture2D(pDevice, Width, Height, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE, 0, Shared ? D3D11_RESOURCE_MISC_SHARED : 0,4,1)
+	_In_opt_ DXGI_FORMAT Format, _In_opt_ UINT MultiSampleCount , _In_opt_ UINT MultiSampleQuality , _In_opt_ bool Shared)
+	: Texture2D(pDevice, Width, Height, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_RENDER_TARGET | (MultiSampleCount == 1 ? D3D11_BIND_SHADER_RESOURCE : 0), 0, Shared ? D3D11_RESOURCE_MISC_SHARED : 0, MultiSampleCount, MultiSampleQuality)
 {
-	D3D11_RENDER_TARGET_VIEW_DESC	RenderTargetViewDesc;
+	CD3D11_RENDER_TARGET_VIEW_DESC	RenderTargetViewDesc(m_pTexture.Get(), D3D11_RTV_DIMENSION_TEXTURE2D);
 	// Setup the description of the render target view.
-	RenderTargetViewDesc.Format = Format;
-	RenderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	RenderTargetViewDesc.Texture2D.MipSlice = 0;
+	//RenderTargetViewDesc.Format = Format;
+	//RenderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	//RenderTargetViewDesc.Texture2D.MipSlice = 0;
 
 	// Create the render target view.
-	HRESULT hr = pDevice->CreateRenderTargetView(m_pResource.Get(), &RenderTargetViewDesc, &m_pRenderTargetView);
+	HRESULT hr = pDevice->CreateRenderTargetView(m_pResource.Get(), nullptr, &m_pRenderTargetView);
 	DirectX::ThrowIfFailed(hr);
 
 	m_Viewport = { 0.0f, 0.0f, (float) m_TextureDescription.Width, (float) m_TextureDescription.Height, 0.0f, 1.0f };

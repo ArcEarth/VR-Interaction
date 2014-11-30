@@ -7,15 +7,15 @@ using namespace Causality;
 using namespace DirectX;
 
 // Initializes D2D resources used for text rendering.
-FpsTextScene::FpsTextScene(const std::shared_ptr<DirectX::DeviceResources>& deviceResources) : 
+HUDInterface::HUDInterface(const std::shared_ptr<DirectX::DeviceResources>& deviceResources) : 
 	m_text(L""),
 	m_deviceResources(deviceResources)
 {
 	ZeroMemory(&m_textMetrics, sizeof(DWRITE_TEXT_METRICS));
 
 	////DirectX::Texture2D tex(deviceResources->GetD3DDevice(), 800, 600);
-	//DirectX::RenderTargetTexture2D tex(deviceResources->GetD3DDevice(), 800, 600);
-	////DirectX::Texture2D tex(deviceResources->GetD3DDevice(), 800, 600,1,DXGI_FORMAT_R8G8B8A8_UNORM,D3D11_USAGE_DEFAULT,D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,0,0, deviceResources->GetMultiSampleCount(), deviceResources->GetMultiSampleQuality());
+	//DirectX::RenderTargetTexture2D tex(deviceResources->GetD3DDevice(), 800, 600,DXGI_FORMAT_R8G8B8A8_UNORM,4,1);
+	////DirectX::Texture2D tex(deviceResources->GetD3DDevice(), 800, 600,1,DXGI_FORMAT_R8G8B8A8_UNORM,D3D11_USAGE_DEFAULT,D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE,0,0, 4,1);
 
 	//auto ptex = tex.Resource();
 	//ComPtr<IDXGISurface> pDxgiSurface = NULL;
@@ -61,7 +61,7 @@ FpsTextScene::FpsTextScene(const std::shared_ptr<DirectX::DeviceResources>& devi
 }
 
 // Updates the text to be displayed.
-void FpsTextScene::UpdateAnimation(DirectX::StepTimer const& timer)
+void HUDInterface::UpdateAnimation(DirectX::StepTimer const& timer)
 {
 	// Update display text.
 	uint32 fps = timer.GetFramesPerSecond();
@@ -85,7 +85,7 @@ void FpsTextScene::UpdateAnimation(DirectX::StepTimer const& timer)
 }
 
 // Renders a frame to the screen.
-void FpsTextScene::Render(DirectX::DeviceResources *pDeviceResources)
+void HUDInterface::Render(DirectX::DeviceResources *pDeviceResources)
 {
 	ID2D1DeviceContext* context = pDeviceResources->GetD2DDeviceContext();
 	Windows::Foundation::Size logicalSize = pDeviceResources->GetLogicalSize();
@@ -122,18 +122,18 @@ void FpsTextScene::Render(DirectX::DeviceResources *pDeviceResources)
 	context->RestoreDrawingState(m_stateBlock.Get());
 }
 
-void Causality::FpsTextScene::Render(ID3D11DeviceContext * pContext)
+void Causality::HUDInterface::Render(ID3D11DeviceContext * pContext)
 {
 	Render(m_deviceResources.get());
 }
 
-void FpsTextScene::CreateDeviceDependentResources()
+void HUDInterface::CreateDeviceDependentResources()
 {
 	DirectX::ThrowIfFailed(
 		m_deviceResources->GetD2DDeviceContext()->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &m_whiteBrush)
 		);
 }
-void FpsTextScene::ReleaseDeviceDependentResources()
+void HUDInterface::ReleaseDeviceDependentResources()
 {
 	m_whiteBrush.Reset();
 }

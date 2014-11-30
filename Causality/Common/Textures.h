@@ -253,7 +253,7 @@ namespace DirectX{
 		RenderTargetTexture2D(RenderTargetTexture2D &&);
 		RenderTargetTexture2D& operator=(RenderTargetTexture2D &&);
 		RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
-			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM , _In_opt_ bool Shared = false);
+			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM , _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0, _In_opt_ bool Shared = false);
 		RenderTargetTexture2D( ID3D11Texture2D* pTexture , ID3D11RenderTargetView* pRenderTargetView , ID3D11ShaderResourceView* pShaderResouceView , const D3D11_VIEWPORT *pViewport = nullptr);
 		~RenderTargetTexture2D();
 

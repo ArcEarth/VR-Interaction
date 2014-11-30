@@ -23,6 +23,10 @@ App::App()
 
 App::~App()
 {
+	for (auto& pCom : Components)
+	{
+		UnregisterComponent(pCom.get());
+	}
 }
 
 void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
@@ -55,19 +59,6 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 		pRift = nullptr;
 	}
 
-	// Leap Motion
-	pLeap = std::make_shared<Platform::Devices::LeapMotion>(true);
-	if (!pLeap->Controller().isConnected()) // Deactive Leap-motion control
-	{
-		auto devices = pLeap->Controller().devices();
-		cout << "[Leap] Leap Motion Can not be initialized. Deivces cout : " << devices.count() << endl;
-		pLeap = nullptr;
-	}
-	else
-	{
-		cout << "[Leap] Leap Motion Initialized." << endl;
-	}
-
 	// Primary Camera setup
 	auto pPlayer = std::make_unique<PlayerCamera>(pDeviceResources);
 	if (pRift)
@@ -80,13 +71,16 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	pPlayer->SetPosition(Fundation::Vector3(-1.5f, 0.0f, .0f));
 	pPlayer->FocusAt(Fundation::Vector3(0, 0, 0), Fundation::Vector3(0.0f, 1.0f, 0));
 
+	pLeap = std::make_shared<Platform::Devices::LeapMotion>(true);
+	pLeap->SetMotionProvider(pPlayer.get(), pPlayer.get());
+
 	m_pPrimaryCamera = std::move(pPlayer);
 
 	// Scenes & Logic
 	//RegisterComponent(std::make_unique<CubeScene>(pDeviceResources));
 	//Componentsents.push_back(std::make_unique<SkyBox>(pDeviceResources->GetD3DDevice(), SkyBoxTextures));
-	RegisterComponent(std::make_unique<Foregrounds>(pDeviceResources));
-	RegisterComponent(std::make_unique<FpsTextScene>(pDeviceResources));
+	RegisterComponent(std::make_unique<WorldScene>(pDeviceResources));
+	RegisterComponent(std::make_unique<HUDInterface>(pDeviceResources));
 	RegisterComponent(std::make_unique<CameraControlLogic>(m_pPrimaryCamera.get()));
 }
 
@@ -117,6 +111,15 @@ void Causality::App::RegisterComponent(std::unique_ptr<Platform::IAppComponent> 
 		Regs.push_back(pLeap->HandsMove += MakeEventHandler(&IUserHandsInteractive::OnHandsMove, pHands));
 	}
 	Components.push_back(std::move(pComponent));
+}
+
+void Causality::App::UnregisterComponent(Platform::IAppComponent * pComponent)
+{
+	auto& Regs = ComponentsEventRegisterations[pComponent];
+	for (auto& connection : Regs)
+	{
+		connection.disconnect();
+	}
 }
 
 
@@ -209,7 +212,7 @@ void Causality::App::OnCursorMove_RotateCamera(const Platform::CursorMoveEventAr
 inline Causality::CameraControlLogic::CameraControlLogic(DirectX::Scene::ICameraBase * pCamera)
 {
 	m_pCamera = pCamera;
-	Speed = 2.5f;
+	Speed = 5.0f;
 }
 
 void Causality::CameraControlLogic::UpdateAnimation(StepTimer const & timer)
@@ -239,7 +242,8 @@ void Causality::CameraControlLogic::OnKeyUp(const KeyboardEventArgs & e)
 		CameraVeclocity -= Vector3{ -1,0,0 };
 	if (e.Key == 'D')
 		CameraVeclocity -= Vector3{ 1,0,0 };
-
+	if (e.Key == VK_ESCAPE)
+		App::Current()->Exit();
 }
 
 void Causality::CameraControlLogic::OnMouseButtonDown(const CursorButtonEvent & e)

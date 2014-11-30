@@ -102,6 +102,7 @@ namespace Platform
 	struct UserHandsEventArgs
 	{
 		const Leap::Controller& sender;
+		DirectX::Matrix4x4 toWorldTransform;
 	};
 
 	class IUserHandsInteractive abstract

@@ -1,5 +1,5 @@
 ﻿#pragma once
-
+#define NOMINMAX
 #include <ppltasks.h>	// For create_task
 #include <fstream>
 #include <filesystem>

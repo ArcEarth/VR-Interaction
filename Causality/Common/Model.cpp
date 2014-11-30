@@ -1,3 +1,4 @@
+#define NOMINMAX
 #include "Model.h"
 #include <string>
 #include "stride_iterator.h"
@@ -156,8 +157,23 @@ DirectX::Scene::GeometryModel::GeometryModel(ID3D11Device *pDevice, const std::w
 	TexCoords = stride_range<Vector2>((Vector2*) &Vertices[0].textureCoordinate, sizeof(VertexType), Vertices.size());
 
 	BoundingBox::CreateFromPoints(BoundBox, Positions.size(), &Positions[0], sizeof(VertexType));
+
+	float scale = std::max(BoundBox.Extents.x,std::max(BoundBox.Extents.y, BoundBox.Extents.z));
+	XMVECTOR s = XMVectorReplicate(scale);
+	for (auto& p : Positions)
+	{
+		p = (XMVECTOR)p / s;
+	}
 	BoundingOrientedBox::CreateFromPoints(BoundOrientedBox, Positions.size(), &Positions[0], sizeof(VertexType));
 	BoundingSphere::CreateFromPoints(BoundSphere, Positions.size(), &Positions[0], sizeof(VertexType));
+	for (auto& p : Positions)
+	{
+		p = (XMVECTOR)p * s;
+	}
+	XMStoreFloat3(&BoundOrientedBox.Center, XMLoadFloat3(&BoundOrientedBox.Center) * s);
+	XMStoreFloat3(&BoundOrientedBox.Extents, XMLoadFloat3(&BoundOrientedBox.Extents) * s);
+	XMStoreFloat3(&BoundSphere.Center, XMLoadFloat3(&BoundSphere.Center) * s);
+	BoundSphere.Radius *= scale;
 
 	// Device Dependent Resources Creation
 	auto pVertexBuffer = DirectX::CreateVertexBuffer(pDevice, Vertices.size(), &Vertices[0]);

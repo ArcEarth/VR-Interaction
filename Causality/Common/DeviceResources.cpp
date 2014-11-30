@@ -1,5 +1,7 @@
 ﻿#include "DeviceResources.h"
 #include "DirectXHelper.h"
+#include <algorithm>
+#include <cmath>
 #include <windows.ui.xaml.media.dxinterop.h>
 
 using namespace D2D1;
@@ -61,6 +63,8 @@ DirectX::DeviceResources::DeviceResources() :
 	m_compositionScaleY(1.0f),
 	m_deviceNotify(nullptr)
 {
+	m_multiSampleLevel = 4;
+	m_multiSampleQuality = 1;
 	CreateDeviceIndependentResources();
 	CreateDeviceResources();
 }
@@ -288,8 +292,8 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 	m_outputSize.Height = m_logicalSize.Height * m_compositionScaleY;
 	
 	// Prevent zero size DirectX content from being created.
-	m_outputSize.Width = max(m_outputSize.Width, 1);
-	m_outputSize.Height = max(m_outputSize.Height, 1);
+	m_outputSize.Width = std::max(m_outputSize.Width, 1.0f);
+	m_outputSize.Height = std::max(m_outputSize.Height, 1.0f);
 
 	// The width and height of the swap chain must be based on the window's
 	// natively-oriented width and height. If the window is not in the native
@@ -355,7 +359,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		if (m_multiSampleLevel > 1)
 		{
 			HRESULT hr = m_d3dDevice->CheckMultisampleQualityLevels(DXGI_FORMAT_B8G8R8A8_UNORM, m_multiSampleLevel, &m_multiSampleQuality);
-			m_multiSampleQuality = min(max(m_multiSampleQuality - 1, 0),4);
+			m_multiSampleQuality = std::min(std::max(m_multiSampleQuality - 1.0f, 0.0f),4.0f);
 			swapChainDesc.SampleDesc.Count = m_multiSampleLevel;
 			swapChainDesc.SampleDesc.Quality = m_multiSampleQuality;
 			swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
@@ -502,9 +506,9 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		1, // Use a single mipmap level.
 		D3D11_BIND_DEPTH_STENCIL,
 		D3D11_USAGE_DEFAULT,
-		0U
-		//m_multiSampleLevel,
-		//m_multiSampleQuality
+		0U,
+		m_multiSampleLevel,
+		m_multiSampleQuality
 		);
 
 	ComPtr<ID3D11Texture2D> depthStencil;
@@ -516,12 +520,12 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 			)
 		);
 
-	CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(depthStencil.Get(),D3D11_DSV_DIMENSION_TEXTURE2D);
+	//CD3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc(depthStencil.Get(),D3D11_DSV_DIMENSION_TEXTURE2D);
 
 	DirectX::ThrowIfFailed(
 		m_d3dDevice->CreateDepthStencilView(
 			depthStencil.Get(),
-			&depthStencilViewDesc,
+			nullptr,
 			&m_d3dDepthStencilView
 			)
 		);

@@ -67,7 +67,7 @@ namespace Causality
 		void SetResourcesDirectory(const std::wstring& dir);
 
 		void RegisterComponent(std::unique_ptr<Platform::IAppComponent> &&pComponent);
-
+		void UnregisterComponent(Platform::IAppComponent *pComponent);
 		void XM_CALLCONV RenderToView(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection);
 		void OnCursorMove_RotateCamera(const Platform::CursorMoveEventArgs&e);
 		Platform::Fundation::Event<const DirectX::StepTimer&> TimeElapsed;
@@ -83,14 +83,17 @@ namespace Causality
 
 		// Extern Devices
 		std::shared_ptr<Platform::Devices::OculusRift>	pRift;
+
+		// Primary Camera
+		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pPrimaryCamera;
+
+		// Extern Devices depend on Camera
 		std::shared_ptr<Platform::Devices::LeapMotion>	pLeap;
 
 		// Application Logic object
 		std::vector<std::unique_ptr<Platform::IAppComponent>> Components;
 		std::map<Platform::IAppComponent*, std::vector<Platform::Fundation::EventConnection>> ComponentsEventRegisterations;
 
-		// Primary Camera
-		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pPrimaryCamera;
 
 		// Rendering loop timer.
 		DirectX::StepTimer m_timer;

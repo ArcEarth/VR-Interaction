@@ -1,15 +1,39 @@
 #include "LeapMotion.h"
 #include <iostream>
 
-Platform::Devices::LeapMotion::LeapMotion(bool useEvent)
+using namespace Platform::Devices;
+
+class LeapMotion::Listener : public Leap::Listener
 {
-	if (useEvent)
-		LeapController.addListener(*this);
+public:
+	Listener(LeapMotion* pLeap)
+	{
+		pOwner = pLeap;
+	}
+	virtual void onConnect(const Leap::Controller & controller) override;
+	virtual void onDisconnect(const Leap::Controller &controller) override;
+	virtual void onFrame(const Leap::Controller &controller) override;
+
+	int							PrevHandsCount;
+	Leap::Frame					CurrentFrame;
+	LeapMotion*	pOwner;
+};
+
+Platform::Devices::LeapMotion::LeapMotion(bool useEvent, bool isFixed)
+	:pListener(new Listener(this))
+{
+	using namespace DirectX;
+	pHeadLocation = nullptr;
+	pHeadOrientation = nullptr;
+	Coordinate = XMMatrixScalingFromVector(XMVectorReplicate(0.001f)) * XMMatrixTranslation(0, 0, -0.50); // Default setting
+	LeapController.addListener(*pListener.get());
+	if (!isFixed)
+		LeapController.setPolicy(Leap::Controller::PolicyFlag::POLICY_OPTIMIZE_HMD);
 }
 
 Platform::Devices::LeapMotion::~LeapMotion()
 {
-	LeapController.removeListener(*this);
+	LeapController.removeListener(*pListener.get());
 }
 
 Leap::Controller & Platform::Devices::LeapMotion::Controller() {
@@ -20,38 +44,59 @@ const Leap::Controller & Platform::Devices::LeapMotion::Controller() const {
 	return LeapController;
 }
 
-void Platform::Devices::LeapMotion::onConnect(const Leap::Controller & controller)
+void Platform::Devices::LeapMotion::SetMotionProvider(DirectX::ILocatable * pHeadLoc, DirectX::IOriented * pHeadOrient)
 {
-	DeviceConnected(controller);
+	pHeadLocation = pHeadLoc;
+	pHeadOrientation = pHeadOrient;
+}
+
+void Platform::Devices::LeapMotion::SetLeapCoord(const DirectX::Matrix4x4 & m)
+{
+	using namespace DirectX;
+	Coordinate = XMMatrixScalingFromVector(XMVectorReplicate(0.001f)) * (XMMATRIX)m;
+}
+
+DirectX::XMMATRIX Platform::Devices::LeapMotion::ToWorldTransform() const
+{
+	using namespace DirectX;
+	if (pHeadLocation && pHeadOrientation)
+		return Coordinate * XMMatrixRotationQuaternion(pHeadOrientation->GetOrientation()) * XMMatrixTranslationFromVector(pHeadLocation->GetPosition());
+	else
+		return Coordinate;
+}
+
+void Platform::Devices::LeapMotion::Listener::onConnect(const Leap::Controller & controller)
+{
+	pOwner->DeviceConnected(controller);
 	std::cout << "[Leap] Device Connected." << std::endl;
 }
 
-void Platform::Devices::LeapMotion::onDisconnect(const Leap::Controller & controller)
+void Platform::Devices::LeapMotion::Listener::onDisconnect(const Leap::Controller & controller)
 {
-	DeviceConnected(controller);
+	pOwner->DeviceConnected(controller);
 	std::cout << "[Leap] Device Disconnected." << std::endl;
 }
 
-void Platform::Devices::LeapMotion::onFrame(const Leap::Controller & controller)
+void Platform::Devices::LeapMotion::Listener::onFrame(const Leap::Controller & controller)
 {
 	CurrentFrame = controller.frame();
-	FrameArrived(controller);
+	pOwner->FrameArrived(controller);
 
-	UserHandsEventArgs e{ controller };
+	UserHandsEventArgs e{ controller , pOwner->ToWorldTransform()};
 
 	if (CurrentFrame.hands().count() > PrevHandsCount)
 	{
 		PrevHandsCount = CurrentFrame.hands().count();
-		HandsTracked(e);
+		pOwner->HandsTracked(e);
 	}
 	else
 	{
 		PrevHandsCount = CurrentFrame.hands().count();
-		HandsLost(e);
+		pOwner->HandsLost(e);
 	}
 	if (CurrentFrame.hands().count() > 0)
 	{
-		HandsMove(e);
+		pOwner->HandsMove(e);
 	}
 
 	//std::cout << "[Leap] Frame arrived." << std::endl;
