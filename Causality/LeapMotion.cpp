@@ -23,10 +23,12 @@ Platform::Devices::LeapMotion::LeapMotion(bool useEvent, bool isFixed)
 	:pListener(new Listener(this))
 {
 	using namespace DirectX;
+	PrevConnectionStates = false;
 	pHeadLocation = nullptr;
 	pHeadOrientation = nullptr;
 	Coordinate = XMMatrixScalingFromVector(XMVectorReplicate(0.001f)) * XMMatrixTranslation(0, 0, -0.50); // Default setting
-	LeapController.addListener(*pListener.get());
+	if (useEvent)
+		LeapController.addListener(*pListener.get());
 	if (!isFixed)
 		LeapController.setPolicy(Leap::Controller::PolicyFlag::POLICY_OPTIMIZE_HMD);
 }
@@ -42,6 +44,23 @@ Leap::Controller & Platform::Devices::LeapMotion::Controller() {
 
 const Leap::Controller & Platform::Devices::LeapMotion::Controller() const {
 	return LeapController;
+}
+
+void Platform::Devices::LeapMotion::PullFrame()
+{
+	bool connected = LeapController.isConnected();
+	if (connected && !PrevConnectionStates)
+	{
+		PrevConnectionStates = connected;
+		pListener->onConnect(LeapController);
+	}
+	else if (!connected && PrevConnectionStates)
+	{
+		PrevConnectionStates = connected;
+		pListener->onDisconnect(LeapController);
+	}
+	if (connected)
+		pListener->onFrame(LeapController);
 }
 
 void Platform::Devices::LeapMotion::SetMotionProvider(DirectX::ILocatable * pHeadLoc, DirectX::IOriented * pHeadOrient)

@@ -142,6 +142,8 @@ namespace DirectX
 			std::string	Name;
 			std::shared_ptr<Mesh>			pMesh;
 			std::shared_ptr<PhongMaterial>	pMaterial;
+			DirectX::BoundingBox			BoundBox;
+			DirectX::BoundingOrientedBox	BoundOrientedBox;
 			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
 		};
 

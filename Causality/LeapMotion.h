@@ -20,6 +20,9 @@ namespace Platform
 			Leap::Controller& Controller();
 			const Leap::Controller& Controller() const;
 
+			// To use with seqential logic and distribute events
+			void PullFrame();
+
 			void SetMotionProvider(DirectX::ILocatable* pHeadLoc, DirectX::IOriented *pHeadOrient);
 			// Assign Leap motion's coordinate in world space
 			void SetLeapCoord(const DirectX::Matrix4x4 &m);
@@ -39,6 +42,7 @@ namespace Platform
 			DirectX::Matrix4x4			Coordinate;
 			DirectX::ILocatable			*pHeadLocation;
 			DirectX::IOriented			*pHeadOrientation;
+			bool						PrevConnectionStates;
 			Leap::Controller			LeapController;
 		};
 	}

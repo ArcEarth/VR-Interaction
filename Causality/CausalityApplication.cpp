@@ -29,6 +29,17 @@ App::~App()
 	}
 }
 
+inline void Platform::Application::Exit()
+{
+	for (auto& p : WindowsLookup)
+	{
+		auto pWindow = p.second.lock();
+		if (pWindow)
+			pWindow->Close();
+	}
+	PostQuitMessage(0);
+}
+
 void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 {
 	ResourceDirectory = filesystem::current_path().parent_path() / "Resources";
@@ -69,9 +80,9 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 		pPlayer->SetFov(75.f*XM_PI / 180.f, size.Width / size.Height);
 	}
 	pPlayer->SetPosition(Fundation::Vector3(-1.5f, 0.0f, .0f));
-	pPlayer->FocusAt(Fundation::Vector3(0, 0, 0), Fundation::Vector3(0.0f, 1.0f, 0));
+	pPlayer->FocusAt(Fundation::Vector3(0, 0.0f, 0), Fundation::Vector3(0.0f, 1.0f, 0));
 
-	pLeap = std::make_shared<Platform::Devices::LeapMotion>(true);
+	pLeap = std::make_shared<Platform::Devices::LeapMotion>(false,false);
 	pLeap->SetMotionProvider(pPlayer.get(), pPlayer.get());
 
 	m_pPrimaryCamera = std::move(pPlayer);
@@ -81,7 +92,7 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	//Componentsents.push_back(std::make_unique<SkyBox>(pDeviceResources->GetD3DDevice(), SkyBoxTextures));
 	RegisterComponent(std::make_unique<WorldScene>(pDeviceResources));
 	RegisterComponent(std::make_unique<HUDInterface>(pDeviceResources));
-	RegisterComponent(std::make_unique<CameraControlLogic>(m_pPrimaryCamera.get()));
+	RegisterComponent(std::make_unique<KeyboardMouseLogic>(m_pPrimaryCamera.get()));
 }
 
 void Causality::App::RegisterComponent(std::unique_ptr<Platform::IAppComponent> &&pComponent)
@@ -136,7 +147,7 @@ void Causality::App::OnIdle()
 	});
 
 	// Processing & Distribute Extra Input
-
+	pLeap->PullFrame();
 
 	// Rendering
 	auto pRenderControl = dynamic_cast<ICameraRenderControl*>(m_pPrimaryCamera.get());
@@ -209,18 +220,18 @@ void Causality::App::OnCursorMove_RotateCamera(const Platform::CursorMoveEventAr
 //	//std::cout << "Frame available" << std::endl;
 //}
 
-inline Causality::CameraControlLogic::CameraControlLogic(DirectX::Scene::ICameraBase * pCamera)
+inline Causality::KeyboardMouseLogic::KeyboardMouseLogic(DirectX::Scene::ICameraBase * pCamera)
 {
 	m_pCamera = pCamera;
 	Speed = 5.0f;
 }
 
-void Causality::CameraControlLogic::UpdateAnimation(StepTimer const & timer)
+void Causality::KeyboardMouseLogic::UpdateAnimation(StepTimer const & timer)
 {
 	m_pCamera->Move(XMVector3Normalize(CameraVeclocity) * (Speed * timer.GetElapsedSeconds()));
 }
 
-void Causality::CameraControlLogic::OnKeyDown(const KeyboardEventArgs & e)
+void Causality::KeyboardMouseLogic::OnKeyDown(const KeyboardEventArgs & e)
 {
 	if (e.Key == 'W')
 		CameraVeclocity += Vector3{ 0,0,-1 };
@@ -232,7 +243,7 @@ void Causality::CameraControlLogic::OnKeyDown(const KeyboardEventArgs & e)
 		CameraVeclocity += Vector3{ 1,0,0 };
 }
 
-void Causality::CameraControlLogic::OnKeyUp(const KeyboardEventArgs & e)
+void Causality::KeyboardMouseLogic::OnKeyUp(const KeyboardEventArgs & e)
 {
 	if (e.Key == 'W')
 		CameraVeclocity -= Vector3{ 0,0,-1 };
@@ -246,7 +257,7 @@ void Causality::CameraControlLogic::OnKeyUp(const KeyboardEventArgs & e)
 		App::Current()->Exit();
 }
 
-void Causality::CameraControlLogic::OnMouseButtonDown(const CursorButtonEvent & e)
+void Causality::KeyboardMouseLogic::OnMouseButtonDown(const CursorButtonEvent & e)
 {
 	if (e.Button == CursorButtonEnum::RButton)
 	{
@@ -255,7 +266,7 @@ void Causality::CameraControlLogic::OnMouseButtonDown(const CursorButtonEvent & 
 	}
 }
 
-void Causality::CameraControlLogic::OnMouseButtonUp(const CursorButtonEvent & e)
+void Causality::KeyboardMouseLogic::OnMouseButtonUp(const CursorButtonEvent & e)
 {
 	if (e.Button == CursorButtonEnum::RButton)
 	{
@@ -265,9 +276,10 @@ void Causality::CameraControlLogic::OnMouseButtonUp(const CursorButtonEvent & e)
 	}
 }
 
-void Causality::CameraControlLogic::OnMouseMove(const CursorMoveEventArgs & e)
+void Causality::KeyboardMouseLogic::OnMouseMove(const CursorMoveEventArgs & e)
 {
 	if (!IsTrackingCursor) return;
-	auto yaw = -e.PositionDelta.x / 1000.0 * XM_PI;
-	m_pCamera->Rotate(XMQuaternionRotationRollPitchYaw(0, yaw, 0));
+	auto yaw = -e.PositionDelta.x / 1000.0f * XM_PI;
+	auto pitch = -e.PositionDelta.y / 1000.0f * XM_PI;
+	m_pCamera->Rotate(XMQuaternionRotationRollPitchYaw(pitch, yaw, 0));
 }

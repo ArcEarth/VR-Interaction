@@ -142,6 +142,21 @@ DirectX::Scene::GeometryModel::GeometryModel(ID3D11Device *pDevice, const std::w
 		Parts.back().Name = shape.name;
 		Parts.back().pMesh = mesh;
 
+		auto& part = Parts.back();
+		auto& box = Parts.back().BoundBox;
+		BoundingBox::CreateFromPoints(box, N, (XMFLOAT3*) shape.mesh.positions.data(), sizeof(float) * 3);
+		float scale = std::max(box.Extents.x, std::max(box.Extents.y, box.Extents.z));
+		for (auto& p : shape.mesh.positions)
+		{
+			p /= scale;
+		}
+		BoundingOrientedBox::CreateFromPoints(part.BoundOrientedBox, N, (XMFLOAT3*) shape.mesh.positions.data(), sizeof(float) * 3);
+		XMStoreFloat3(&part.BoundOrientedBox.Center, XMLoadFloat3(&part.BoundOrientedBox.Center) * scale);
+		XMStoreFloat3(&part.BoundOrientedBox.Extents, XMLoadFloat3(&part.BoundOrientedBox.Extents) * scale);
+		for (auto& p : shape.mesh.positions)
+		{
+			p *= scale;
+		}
 		mesh->VertexCount = N;
 		mesh->IndexCount = shape.mesh.indices.size();
 		mesh->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;

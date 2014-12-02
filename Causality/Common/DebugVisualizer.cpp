@@ -198,6 +198,8 @@ namespace DirectX{
 		m_pContext->RSSetState(pRSState.Get());
 	}
 
+	inline PrimitiveBatch<VertexPositionColor>* DebugVisualizer::GetBatch() { return m_pDirectXBatch.get(); }
+
 	void DebugVisualizer::DrawLine(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR Color)
 	{
 		VertexType Vertices [] = { VertexType(P0,Color),VertexType(P1,Color) };

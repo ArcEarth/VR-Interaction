@@ -8,8 +8,9 @@
 #include <SimpleMath.h>
 #include <smmintrin.h>
 #include <type_traits>
-#include <boost\operators.hpp>
 //#include <Eigen\Eigen>
+#include <boost\operators.hpp>
+
 
 namespace DirectX
 {
@@ -337,6 +338,19 @@ namespace DirectX
 
 		//friend XMDUALVECTOR operator* (float S, CXMMATRIX M);
 	};
+
+	inline static XMVECTOR XMQuaternionRotationVectorToVector(FXMVECTOR v1, FXMVECTOR v2) {
+		assert(!XMVector3Equal(v1, XMVectorZero()));
+		assert(!XMVector3Equal(v2, XMVectorZero()));
+		XMVECTOR n1 = XMVector3Normalize(v1);
+		XMVECTOR n2 = XMVector3Normalize(v2);
+		if (XMVector4NearEqual(n1, n2, g_XMEpsilon))
+			return XMQuaternionIdentity();
+		XMVECTOR axias = XMVector3Cross(n1, n2);
+		float angle = std::acosf(XMVectorGetX(XMVector3Dot(n1, n2)));
+		auto rot = XMQuaternionRotationAxis(axias, angle);
+		return rot;
+	}
 
 	XMVECTOR XMVector3Displacement(FXMVECTOR V, FXMVECTOR RotationQuaternion, FXMVECTOR TranslationQuaternion);
 
@@ -762,3 +776,45 @@ namespace DirectX
 			}
 		};
 }
+
+// Extending std lib for output
+#ifdef _OSTREAM_
+#include <iomanip>
+
+namespace std
+{
+	inline std::ostream& operator << (std::ostream& lhs, const DirectX::Vector2& rhs)
+	{
+		lhs << '(' << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.x
+			<< "," << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.y << ')';
+		return lhs;
+	};
+
+	inline std::ostream& operator << (std::ostream& lhs, const DirectX::Vector3& rhs)
+	{
+		lhs << '(' << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.x
+			<< "," << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.y
+			<< "," << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.z << ')';
+		return lhs;
+	};
+
+	inline std::ostream& operator << (std::ostream& lhs, const DirectX::XMFLOAT4& rhs)
+	{
+		lhs << '(' << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.x
+			<< "," << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.y
+			<< "," << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.z
+			<< "," << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.w << ')';
+		return lhs;
+	};
+
+	inline std::ostream& operator << (std::ostream& lhs, const DirectX::Quaternion& rhs)
+	{
+		float theta = std::acosf(rhs.w) * 2 / DirectX::XM_PI;
+		DirectX::Vector3 axis(rhs);
+		axis.Normalize();
+		lhs << '(' << axis
+			<< "," << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << theta << "*Pi)";
+		return lhs;
+	};
+}
+#endif

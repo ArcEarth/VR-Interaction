@@ -14,10 +14,10 @@
 
 namespace Causality
 {
-	class CameraControlLogic : public Platform::IAppComponent , public DirectX::Scene::ITimeAnimatable, public Platform::IKeybordInteractive, public Platform::ICursorInteractive
+	class KeyboardMouseLogic : public Platform::IAppComponent , public DirectX::Scene::ITimeAnimatable, public Platform::IKeybordInteractive, public Platform::ICursorInteractive
 	{
 	public:
-		CameraControlLogic(DirectX::Scene::ICameraBase* pCamera);
+		KeyboardMouseLogic(DirectX::Scene::ICameraBase* pCamera);
 		// Inherited via ITimeAnimatable
 		virtual void UpdateAnimation(DirectX::StepTimer const & timer) override;
 

@@ -1,3 +1,4 @@
+#include <iostream>
 #include "Foregrounds.h"
 #include "CausalityApplication.h"
 #include <tinyxml2.h>
@@ -5,6 +6,7 @@
 #include <mutex>
 #include <thread>
 #include "Common\DebugVisualizer.h"
+#include <random>
 
 using namespace Causality;
 using namespace DirectX;
@@ -25,7 +27,6 @@ const static wstring SkyBoxTextures[6] = {
 
 Causality::WorldScene::WorldScene(const std::shared_ptr<DirectX::DeviceResources>& pResouce)
 	: States(pResouce->GetD3DDevice())
-	, m_HandTrace(60)
 {
 	m_HaveHands = false;
 	LoadAsync(pResouce->GetD3DDevice());
@@ -78,10 +79,11 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 			{
 				auto model = GeometryModel::CreateFromObjFile(pDevice, (ModelDirectory / path).wstring(), texDir);
 				XMFLOAT3 v = model->BoundOrientedBox.Extents;
-				std::sort(&v.x, &v.z);
-				v.y /= v.x;
-				v.z /= v.x;
-				m_ModelsFeature[model->Name] = {v.y, v.z};
+				std::sort(&v.x, &v.z + 1);
+				v.x /= v.z;
+				v.y /= v.z;
+				m_ModelsFeature[model->Name] = { v.x, v.y };
+				std::cout << "[Model] f(" << model->Name << ") = " << m_ModelsFeature[model->Name] << std::endl;
 
 				auto attr = obj->Attribute("position");
 				if (attr != nullptr)
@@ -130,26 +132,52 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 	pContext->RSSetState(pRSState.Get());
 	ModelCollection::Render(pContext, pEffect.get());
 	Vector3 conners[8];
+	BoundingOrientedBox obox;
+	BoundingBox box;
 	dxout.Begin();
 	{
+		//Draw axias
+		dxout.DrawSphere({ 0,0,0,0.02 }, Colors::Red);
+		dxout.DrawLine({ -5,0,0 }, { 5,0,0 }, Colors::Red);
+		dxout.DrawLine({ 0,-5,0 }, { 0,5,0 }, Colors::Green);
+		dxout.DrawLine({ 0,0,-5 }, { 0,0,5 }, Colors::Blue);
+		dxout.DrawTriangle({ 5.05f,0,0 }, { 4.95,0.05,0 }, { 4.95,-0.05,0 }, Colors::Red);
+		dxout.DrawTriangle({ 0,5.05f,0 }, { -0.05,4.95,0 }, { 0.05,4.95,0 }, Colors::Green);
+		dxout.DrawTriangle({ 0,0,5.05f }, { 0.05,0,4.95 }, { -0.05,0,4.95 }, Colors::Blue);
+		dxout.DrawTriangle({ 5.05f,0,0 }, { 4.95,-0.05,0 }, { 4.95,0.05,0 }, Colors::Red);
+		dxout.DrawTriangle({ 0,5.05f,0 }, { 0.05,4.95,0 }, { -0.05,4.95,0 }, Colors::Green);
+		dxout.DrawTriangle({ 0,0,5.05f }, { -0.05,0,4.95 }, { 0.05,0,4.95 }, Colors::Blue);
+
+
 		auto fh = m_HandDescriptionFeature;
 
 		auto s = Children.size();
 		for (size_t i = 0; i < s; i++)
 		{
 			const auto& model = Children[i];
+			XMMATRIX transform = model->GetModelMatrix();
 			model->GetOrientedBoundingBox().GetCorners(conners);
 			DrawBox(conners, DirectX::Colors::DarkGreen);
-
 			if (m_HaveHands)
 			{
 				const auto& fm = m_ModelsFeature[model->Name];
 				auto dis = Vector2::Distance(fm, fh);
 				std::cout << dis << ' ';
-				Color c = Color::Lerp({ 0,1,0 }, { 1,0,0 }, dis);
+				dis = 1.414 - dis;
+				Color c = Color::Lerp({ 1,0,0 }, { 0,1,0 }, dis);
 				for (size_t i = 0; i < 8; i++)
 				{
-					dxout.DrawSphere(conners[i], 0.02, c);
+					dxout.DrawSphere(conners[i], 0.1 * dis, c);
+				}
+			}
+			auto pModel = dynamic_cast<Model*>(model.get());
+			if (pModel)
+			{
+				for (const auto& part : pModel->Parts)
+				{
+					part.BoundOrientedBox.Transform(obox, transform);
+					obox.GetCorners(conners);
+					DrawBox(conners, DirectX::Colors::Orange);
 				}
 			}
 		}
@@ -184,21 +212,21 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		// NOT VALIAD!~!!!!!
 		if (m_HandTrace.size() > 0)
 		{
-			const int plotSize = 45;
 			//auto pJoints = m_HandTrace.linearize();
 			m_CurrentHandBoundingBox.GetCorners(conners);
 			DrawBox(conners, Colors::LimeGreen);
 			m_HandTraceBoundingBox.GetCorners(conners);
 			DrawBox(conners, Colors::YellowGreen);
-			for (int i = m_HandTrace.size()-1; i >= std::max(0, (int)m_HandTrace.size() - plotSize); i--)
+			for (int i = m_HandTrace.size() - 1; i >= std::max(0, (int) m_HandTrace.size() - TraceLength); i--)
 			{
 				const auto& h = m_HandTrace[i];
-				float radius = (i + 1 - std::max(0U, m_HandTrace.size()- plotSize)) / (std::min<float>(m_HandTrace.size(), plotSize));
+				float radius = (i + 1 - std::max(0U, m_HandTrace.size() - TraceLength)) / (std::min<float>(m_HandTrace.size(), TraceLength));
 				for (size_t j = 0; j < h.size(); j++)
 				{
 					dxout.DrawSphere(h[j], 0.005 * radius, Colors::LimeGreen);
 				}
 			}
+
 		}
 	}
 	dxout.End();
@@ -265,8 +293,43 @@ void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 		}
 		BoundingOrientedBox::CreateFromPoints(m_HandTraceBoundingBox, m_TracePoints.size(), m_TracePoints.data(), sizeof(Vector3));
 		XMFLOAT3 v = m_HandTraceBoundingBox.Extents;
-		std::sort(&v.x, &v.z);
-		m_HandDescriptionFeature = { v.y / v.x, v.z /v.x };
+		std::sort(&v.x, &v.z + 1);
+		m_HandDescriptionFeature = { v.x / v.z, v.y / v.z };
+
+		// ASSUMPTION: Extends is sorted from!
+
+
+		//XMMATRIX invTrans = XMMatrixAffineTransformation(g_XMOne / XMLoadFloat3(&m_HandTraceBoundingBox.Extents), XMVectorZero(), XMQuaternionInverse(XMLoadFloat4(&m_HandTraceBoundingBox.Orientation)), -XMLoadFloat3(&m_HandTraceBoundingBox.Center));
+		//int sampleCount = std::min<int>(m_TraceSamples.size(), TraceLength)*m_TraceSamples[0].size();
+		//for (const auto& model : Children)
+		//{
+		//	auto pModel = dynamic_cast<Model*>(model.get());
+		//	auto inCount = 0;
+		//	if (pModel)
+		//	{
+		//		auto obox = model->GetOrientedBoundingBox();
+		//		XMMATRIX fowTrans = XMMatrixAffineTransformation(XMLoadFloat3(&obox.Extents), XMVectorZero(), XMQuaternionIdentity(), XMVectorZero());
+		//		fowTrans = invTrans * fowTrans;
+		//		auto pSample = m_TraceSamples.front().data();
+		//		for (size_t i = 0; i < sampleCount; i++)
+		//		{
+		//			const auto& point = pSample[-i];
+		//			XMVECTOR p = XMVector3Transform(point, fowTrans);
+		//			int j;
+		//			for ( j = 0; j < pModel->Parts.size(); j++)
+		//			{
+		//				if (pModel->Parts[j].BoundOrientedBox.Contains(p))
+		//					break;
+		//			}
+		//			if (j >= pModel->Parts.size())
+		//				inCount++;
+		//		}
+		//	}
+		//	m_ModelDetailSimilarity[model->Name] = (float) inCount / (float)sampleCount;
+		//}
+
+
+
 	}
 	//for (auto& obj : Children)
 	//{
@@ -287,6 +350,7 @@ void Causality::WorldScene::OnHandsTrackLost(const UserHandsEventArgs & e)
 		m_HaveHands = false;
 		std::lock_guard<mutex> guard(m_HandFrameMutex);
 		m_HandTrace.clear();
+		m_TraceSamples.clear();
 	}
 }
 
@@ -298,27 +362,56 @@ void Causality::WorldScene::OnHandsMove(const UserHandsEventArgs & e)
 	XMMATRIX leap2world = m_FrameTransform;
 	//std::array<DirectX::Vector3, 25> joints;
 	std::vector<DirectX::BoundingOrientedBox> handBoxes;
+	float fingerStdev = 0.02;
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::normal_distribution<float> normalDist(0, fingerStdev);
+	std::uniform_real<float> uniformDist;
+
+	int handIdx = 0;
 	for (const auto& hand : m_Frame.hands())
 	{
-		int hidx = 0;
+		int fingerIdx = 0; // hand idx
 		m_HandTrace.emplace_back();
+		//m_TraceSamples.emplace_back();
+		//auto& samples = m_TraceSamples.back();
 		auto& joints = m_HandTrace.back();
 		for (const auto& finger : hand.fingers())
 		{
 			XMVECTOR bJ = XMVector3Transform(finger.bone((Leap::Bone::Type)0).prevJoint().toVector3<Vector3>(), leap2world);
-			joints[hidx*5] = bJ;
-			for (size_t i = 0; i < 4; i++)
+			joints[fingerIdx * 5] = bJ;
+			for (size_t boneIdx = 0; boneIdx < 4; boneIdx++) // bone idx
 			{
-				const auto & bone = finger.bone((Leap::Bone::Type)i);
+				const auto & bone = finger.bone((Leap::Bone::Type)boneIdx);
 				XMVECTOR eJ = XMVector3Transform(bone.nextJoint().toVector3<Vector3>(), leap2world);
-				joints[hidx*5 + i + 1] = eJ;
+				joints[fingerIdx * 5 + boneIdx + 1] = eJ;
+
+
+				//auto dir = eJ - bJ;
+				//float dis = XMVectorGetX(XMVector3Length(dir));
+				//if (abs(dis) < 0.001)
+				//	continue;
+				//XMVECTOR rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, dir);
+				//bJ = eJ;
+				//for (size_t k = 0; k < 100; k++) // bone idx
+				//{
+				//	float x = normalDist(gen);
+				//	float h = uniformDist(gen);
+				//	float z = normalDist(gen);
+				//	XMVECTOR disp = XMVectorSet(x, h*dis, z, 1);
+				//	disp = XMVector3Rotate(disp, rot);
+				//	disp += bJ;
+				//	samples[(fingerIdx * 4 + boneIdx) * 100 + k] = disp;
+				//}
 			}
-			hidx++;
+			fingerIdx++;
 		}
-		//handBoxes.emplace_back();
-		//BoundingOrientedBox::CreateFromPoints(handBoxes.back(), joints.size(), joints.data(), sizeof(Vector3));
+		handIdx++;
 		while (m_HandTrace.size() > 60)
+		{
 			m_HandTrace.pop_front();
+			//m_TraceSamples.pop_front();
+		}
 	}
 
 

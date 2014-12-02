@@ -51,11 +51,14 @@ namespace Causality
 		bool											m_HaveHands;
 		Leap::Frame										m_Frame;
 		DirectX::Matrix4x4								m_FrameTransform;
+		const int TraceLength = 45;
 		std::deque<std::array<DirectX::Vector3, 25>>	m_HandTrace;
+		std::deque<std::array<DirectX::Vector3,2000>>	m_TraceSamples;
 		std::vector<DirectX::Vector3>					m_TracePoints;
 		DirectX::BoundingOrientedBox					m_CurrentHandBoundingBox;
 		DirectX::BoundingOrientedBox					m_HandTraceBoundingBox;
 		std::map<std::string, DirectX::Vector2>			m_ModelsFeature;
+		std::map<std::string, float>					m_ModelDetailSimilarity;
 		DirectX::Vector2								m_HandDescriptionFeature;
 		std::mutex										m_HandFrameMutex;
 

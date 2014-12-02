@@ -37,6 +37,8 @@ namespace DirectX
 
 		void End();
 
+		PrimitiveBatch<VertexPositionColor>* GetBatch();
+
 		void DrawLine(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR Color);
 		void DrawLine(FXMVECTOR P0, FXMVECTOR P1, float Width, FXMVECTOR Color);
 

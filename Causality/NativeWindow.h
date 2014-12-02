@@ -59,10 +59,7 @@ namespace Platform
 			return S_OK;
 		}
 
-		void Exit()
-		{
-			PostQuitMessage(0);
-		}
+		void Exit();
 
 		virtual void OnStartup(Platform::Array<Platform::String^>^ args) = 0;
 		virtual void OnExit() = 0;
