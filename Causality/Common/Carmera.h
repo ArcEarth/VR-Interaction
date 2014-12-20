@@ -27,7 +27,7 @@ namespace DirectX
 			Eye_Count = 2,
 		};
 
-		struct CameraBuffer : public ILocatable, public IOriented
+		struct CameraBuffer
 		{
 			DirectX::XMFLOAT4X4	ViewProjectionMatrix;
 			DirectX::XMFLOAT4	CameraPosition;
@@ -40,10 +40,11 @@ namespace DirectX
 		class ICameraParameters
 		{
 			virtual void SetFov(float fovRadius, float aspectRatioHbyW) = 0;
+			virtual float GetFov() const = 0;
 		};
 
 		// The basic functions for camera, to provide View/Projection Matrix, Setup Position and focus
-		class ICameraBase abstract : public ILocatable, public IOriented
+		class ICameraBase abstract : virtual public ILocatable, virtual public IOriented
 		{
 		public:
 			virtual ~ICameraBase()
@@ -53,8 +54,8 @@ namespace DirectX
 			virtual DirectX::XMMATRIX GetProjectionMatrix(size_t view) const = 0;
 			virtual void FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir) = 0;
 
-			virtual void XM_CALLCONV Move(FXMVECTOR p) { SetPosition((XMVECTOR) GetPosition() + XMVector3Rotate(p, GetOrientation())); }
-			virtual void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(q, GetOrientation())); }
+			virtual void XM_CALLCONV Move(FXMVECTOR p);
+			virtual void XM_CALLCONV Rotate(FXMVECTOR q);
 			virtual bool XM_CALLCONV IsInView(FXMVECTOR pos) const { return true; }
 		};
 
@@ -70,14 +71,14 @@ namespace DirectX
 			virtual void SetView(size_t view) = 0;
 		};
 
-		class IMonolithCamera abstract : public ICameraBase , public ICameraParameters
+		class IMonolithCamera abstract : public ICameraBase , virtual public ICameraParameters
 		{
 		public:
 			virtual size_t ViewCount() const { return 1U; }
 		};
 
 		// StereoCamera usually need to setup different view ports for differnt view, and it should implement the ICameraRenderControlInterface
-		class IStereoCamera abstract : public ICameraBase , public ICameraRenderControl
+		class IStereoCamera abstract : public ICameraBase , virtual public ICameraRenderControl
 		{
 		public:
 			virtual size_t ViewCount() const { return 2U; }

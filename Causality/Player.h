@@ -46,7 +46,7 @@ public:
 	virtual DirectX::XMMATRIX GetProjectionMatrix(size_t view) const override;
 	// Inherited via ICameraParameters
 	virtual void SetFov(float fovRadius, float aspectRatioHbyW) override;
-
+	virtual float GetFov() const override;
 	virtual const Platform::Fundation::Vector3&    GetPosition() const override;
 	virtual void  SetPosition(const Platform::Fundation::Vector3& p) override;
 	virtual const Platform::Fundation::Quaternion& GetOrientation() const override;

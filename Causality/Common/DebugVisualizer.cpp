@@ -44,78 +44,127 @@ namespace DirectX{
 
 		// 64 Facets
 		static const uint16_t SphereIndics[] = {
-			0,1,2,
-			1,3,4,
-			1,4,2,
-			2,4,5,
-			3,6,7,
-			3,7,4,
-			4,7,8,
-			4,8,5,
-			5,8,9,
-			6,10,11,
-			6,11,7,
-			7,11,12,
-			7,12,8,
-			8,12,13,
-			8,13,9,
-			9,13,14,
-			0,2,15,
-			2,5,16,
-			2,16,15,
-			15,16,17,
-			5,9,18,
-			5,18,16,
-			16,18,19,
-			16,19,17,
-			17,19,20,
-			9,14,21,
-			9,21,18,
-			18,21,22,
-			18,22,19,
-			19,22,23,
-			19,23,20,
-			20,23,24,
-			0,15,1,
-			15,17,25,
-			15,25,1,
-			1,25,3,
-			17,20,26,
-			17,26,25,
-			25,26,27,
-			25,27,3,
-			3,27,6,
-			20,24,28,
-			20,28,26,
-			26,28,29,
-			26,29,27,
-			27,29,30,
-			27,30,6,
-			6,30,10,
-			10,30,11,
-			30,29,31,
-			30,31,11,
-			11,31,12,
-			29,28,32,
-			29,32,31,
-			31,32,33,
-			31,33,12,
-			12,33,13,
-			28,24,23,
-			28,23,32,
-			32,23,22,
-			32,22,33,
-			33,22,21,
-			33,21,13,
-			13,21,14,
+			2,1,0,
+			4,3,1,
+			2,4,1,
+			5,4,2,
+			7,6,3,
+			4,7,3,
+			8,7,4,
+			5,8,4,
+			9,8,5,
+			11,10,6,
+			7,11,6,
+			12,11,7,
+			8,12,7,
+			13,12,8,
+			9,13,8,
+			14,13,9,
+			15,2,0,
+			16,5,2,
+			15,16,2,
+			17,16,15,
+			18,9,5,
+			16,18,5,
+			19,18,16,
+			17,19,16,
+			20,19,17,
+			21,14,9,
+			18,21,9,
+			22,21,18,
+			19,22,18,
+			23,22,19,
+			20,23,19,
+			24,23,20,
+			1,15,0,
+			25,17,15,
+			1,25,15,
+			3,25,1,
+			26,20,17,
+			25,26,17,
+			27,26,25,
+			3,27,25,
+			6,27,3,
+			28,24,20,
+			26,28,20,
+			29,28,26,
+			27,29,26,
+			30,29,27,
+			6,30,27,
+			10,30,6,
+			11,30,10,
+			31,29,30,
+			11,31,30,
+			12,31,11,
+			32,28,29,
+			31,32,29,
+			33,32,31,
+			12,33,31,
+			13,33,12,
+			23,24,28,
+			32,23,28,
+			22,23,32,
+			33,22,32,
+			21,22,33,
+			13,21,33,
+			14,21,13,
 		};
 
 		std::vector<VertexPositionColor> CylinderVertices;
 		std::vector<uint16_t> CylinderIndices;
 	}
 
+	void GeometricPrimitiveDrawer::Initialize(ID3D11DeviceContext *pContext)
+	{
+		m_pCylinder = DirectX::GeometricPrimitive::CreateCylinder(pContext);
+		m_pSphere = DirectX::GeometricPrimitive::CreateGeoSphere(pContext);
+		m_pCube = DirectX::GeometricPrimitive::CreateCube(pContext);
+		m_pCone = DirectX::GeometricPrimitive::CreateCone(pContext);
+	}
+
+	void XM_CALLCONV GeometricPrimitiveDrawer::DrawCylinder(ID3D11DeviceContext * pContext, FXMVECTOR P1, FXMVECTOR P2, float radius, FXMVECTOR Color)
+	{
+		auto center = 0.5f * XMVectorAdd(P1, P2);
+		auto dir = XMVectorSubtract(P1, P2);
+		auto scale = XMVector3Length(dir);
+		XMVECTOR rot;
+		if (XMVector4LessOrEqual(XMVector3LengthSq(dir), XMVectorReplicate(0.01f)))
+			rot = XMQuaternionIdentity();
+		else
+			rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, dir);
+		XMMATRIX world = XMMatrixAffineTransformation(scale, g_XMZero, rot, center);
+		m_pCylinder->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	}
+
+		void XM_CALLCONV GeometricPrimitiveDrawer::DrawCylinder(ID3D11DeviceContext * pContext, FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
+	{
+		XMVECTOR rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, YDirection);
+		XMMATRIX world = XMMatrixAffineTransformation(XMVectorSet(radius,height,radius,1), g_XMZero, rot, Position);
+		m_pCylinder->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	}
+
+	void XM_CALLCONV GeometricPrimitiveDrawer::DrawSphere(ID3D11DeviceContext * pContext, FXMVECTOR Position, float radius, FXMVECTOR Color)
+	{
+		XMMATRIX world = XMMatrixAffineTransformation(XMVectorReplicate(radius), g_XMZero, XMQuaternionIdentity(), Position);
+		m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	}
+
+	void XM_CALLCONV GeometricPrimitiveDrawer::DrawCube(ID3D11DeviceContext *pContext, FXMVECTOR Position, FXMVECTOR HalfExtend, FXMVECTOR Orientation, GXMVECTOR Color)
+	{
+		XMMATRIX world = XMMatrixAffineTransformation(HalfExtend, g_XMZero, Orientation, Position);
+		m_pCube->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	}
+
+	void XM_CALLCONV GeometricPrimitiveDrawer::DrawCone(ID3D11DeviceContext * pContext, FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
+	{
+		XMVECTOR rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, YDirection);
+		XMMATRIX world = XMMatrixAffineTransformation(XMVectorSet(radius, height, radius, 1), g_XMZero, rot, Position);
+		m_pCone->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	}
+
 	DebugVisualizer::DebugVisualizer()
-		{}
+	{}
+
 
 	void DebugVisualizer::Initialize(ID3D11DeviceContext * pContext)
 	{

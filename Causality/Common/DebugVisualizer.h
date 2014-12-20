@@ -4,10 +4,43 @@
 #include <VertexTypes.h>
 #include <CommonStates.h>
 #include <wrl\client.h>
+#include <GeometricPrimitive.h>
+#include "DirectXMathExtend.h"
 //#include "DirectXHelper.h"
 
 namespace DirectX
 {
+	class GeometricPrimitiveDrawer
+	{
+	public:
+		GeometricPrimitiveDrawer();
+		void Initialize(ID3D11DeviceContext *pContext);
+
+		void SetEffect(IEffect* pEffect);
+		void XM_CALLCONV DrawCylinder(ID3D11DeviceContext *pContext, FXMVECTOR P1, FXMVECTOR P2, float radius, FXMVECTOR Color);
+		void XM_CALLCONV DrawCylinder(ID3D11DeviceContext *pContext, FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color);
+		void XM_CALLCONV DrawSphere(ID3D11DeviceContext *pContext, FXMVECTOR Position, float radius, FXMVECTOR Color);
+		void XM_CALLCONV DrawCube(ID3D11DeviceContext *pContext, FXMVECTOR Position, FXMVECTOR HalfExtend, FXMVECTOR Orientation, GXMVECTOR Color);
+		void XM_CALLCONV DrawCone(ID3D11DeviceContext *pContext, FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color);
+
+		void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view)
+		{
+			XMStoreFloat4x4(&ViewMatrix, view);
+		}
+		void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
+		{
+			XMStoreFloat4x4(&ProjectionMatrix, projection);
+		}
+
+	protected:
+		Matrix4x4	ViewMatrix;
+		Matrix4x4	ProjectionMatrix;
+		std::unique_ptr<DirectX::GeometricPrimitive> m_pCylinder;
+		std::unique_ptr<DirectX::GeometricPrimitive> m_pSphere;
+		std::unique_ptr<DirectX::GeometricPrimitive> m_pCube;
+		std::unique_ptr<DirectX::GeometricPrimitive> m_pCone;
+	};
+
 	class DebugVisualizer
 	{
 	public:

@@ -3,20 +3,26 @@
 #endif
 #pragma once
 
+#if defined(BT_USE_SSE)
+#error Bullet physics can not be include before DirectX Math headers.
+#endif
+
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
 #include <SimpleMath.h>
 #include <smmintrin.h>
 #include <type_traits>
-//#include <Eigen\Eigen>
+#include <Eigen\Dense>
+#include <Eigen\Sparse>
 #include <boost\operators.hpp>
 
 
 namespace DirectX
 {
-	//using VectorX = Eigen::VectorXf;
-	//template <int _Rows, int _Columns>
-	//using Matrix = Eigen::Matrix<float,_Rows,_Columns>;
+	using VectorX = Eigen::VectorXf;
+	template <int _Rows, int _Columns>
+	using Matrix = Eigen::Matrix<float, _Rows, _Columns>;
+
 	using SimpleMath::Vector2;
 	using SimpleMath::Vector3;
 	using SimpleMath::Vector4;
@@ -28,10 +34,10 @@ namespace DirectX
 
 	//inline namespace Operators
 	//{
-		using SimpleMath::operator*;
-		using SimpleMath::operator+;
-		using SimpleMath::operator-;
-		using SimpleMath::operator/;
+	using SimpleMath::operator*;
+	using SimpleMath::operator+;
+	using SimpleMath::operator-;
+	using SimpleMath::operator/;
 	//}
 
 
@@ -339,7 +345,8 @@ namespace DirectX
 		//friend XMDUALVECTOR operator* (float S, CXMMATRIX M);
 	};
 
-	inline static XMVECTOR XMQuaternionRotationVectorToVector(FXMVECTOR v1, FXMVECTOR v2) {
+	// Caculate the rotation quaternion base on v1 and v2 (shortest rotation geo-distance in sphere surface)
+	inline XMVECTOR XMQuaternionRotationVectorToVector(FXMVECTOR v1, FXMVECTOR v2) {
 		assert(!XMVector3Equal(v1, XMVectorZero()));
 		assert(!XMVector3Equal(v2, XMVectorZero()));
 		XMVECTOR n1 = XMVector3Normalize(v1);
@@ -350,6 +357,43 @@ namespace DirectX
 		float angle = std::acosf(XMVectorGetX(XMVector3Dot(n1, n2)));
 		auto rot = XMQuaternionRotationAxis(axias, angle);
 		return rot;
+	}
+
+	// This function garuntee the extends of the bounding box is sorted from bigger to smaller
+	inline void CreateBoundingOrientedBoxFromPoints(_Out_ BoundingOrientedBox& Out, _In_ size_t Count,
+		_In_reads_bytes_(sizeof(XMFLOAT3) + Stride*(Count - 1)) const XMFLOAT3* pPoints, _In_ size_t Stride) {
+		using namespace std;
+		BoundingOrientedBox::CreateFromPoints(Out, Count, pPoints, Stride);
+		XMMATRIX rot = XMMatrixIdentity();
+		auto& ext = Out.Extents;
+
+		// Sort the demension
+		if (ext.x < ext.y)
+		{
+			swap(ext.x, ext.y);
+			swap(rot.r[0], rot.r[1]);
+			rot.r[2] = -rot.r[2]; // Flip the other axias to maintain the chirality
+		}
+		if (ext.y < ext.z)
+		{
+			swap(ext.y, ext.z);
+			swap(rot.r[1], rot.r[2]);
+			rot.r[0] = -rot.r[0];
+		}
+		if (ext.x < ext.y)
+		{
+			swap(ext.x, ext.y);
+			swap(rot.r[0], rot.r[1]);
+			rot.r[2] = -rot.r[2];
+		}
+
+		//qw = sqrt(1 + m00 + m11 + m22) / 2
+		//qx = (m21 - m12) / (4 * qw)
+		//qy = (m02 - m20) / (4 * qw)
+		//qz = (m10 - m01) / (4 * qw)
+		XMVECTOR q = XMQuaternionRotationMatrix(rot);
+		XMStoreFloat4(&Out.Orientation, XMQuaternionMultiply(q, XMLoadFloat4(&Out.Orientation)));
+		//auto q = XMQuaternionRotationMatrix(rot);
 	}
 
 	XMVECTOR XMVector3Displacement(FXMVECTOR V, FXMVECTOR RotationQuaternion, FXMVECTOR TranslationQuaternion);
@@ -626,155 +670,230 @@ namespace DirectX
 	};
 
 	class DualQuaternion
-			: boost::additive<DualQuaternion>
-			, boost::multipliable<DualQuaternion>
-			, boost::multiplicative<DualQuaternion,float>
+		: boost::additive<DualQuaternion>
+		, boost::multipliable<DualQuaternion>
+		, boost::multiplicative<DualQuaternion, float>
+	{
+	public:
+		DirectX::Quaternion Qr, Qe;
+		DualQuaternion()
+			: Qr(), Qe(0.0f, 0.0f, 0.0f, 0.0f)
+		{}
+		DualQuaternion(const Quaternion& Rotation, const Vector3& Translation)
+			: Qr(Rotation)
 		{
-		public:
-			DirectX::Quaternion Qr,Qe;
-			DualQuaternion()
-				: Qr(),Qe(0.0f,0.0f,0.0f,0.0f)
-			{}
-			DualQuaternion(const Quaternion& Rotation,const Vector3& Translation)
-				: Qr(Rotation)
-			{
-				Qr.Normalize();
-				const float* Q0 = reinterpret_cast<float*>(&Qr);
-				const float* T = reinterpret_cast<const float*>(&Translation);
-				Qe.w = -0.5f*(T[0]*Q0[0] + T[1]*Q0[1] + T[2]*Q0[2]);
-				Qe.x = 0.5f*( T[0]*Q0[3] + T[1]*Q0[2] - T[2]*Q0[1]);
-				Qe.y = 0.5f*(-T[0]*Q0[2] + T[1]*Q0[3] + T[2]*Q0[0]);
-				Qe.z = 0.5f*( T[0]*Q0[1] - T[1]*Q0[0] + T[2]*Q0[3]);
-			}
-			DualQuaternion(FXMVECTOR Qr,FXMVECTOR Qe)
-				: Qr(Qr) , Qe(Qe)
-			{}
-			DualQuaternion(CXMDUALVECTOR DQ)
-				: Qr(DQ.r[0]) , Qe(DQ.r[1])
-			{}
+			Qr.Normalize();
+			const float* Q0 = reinterpret_cast<float*>(&Qr);
+			const float* T = reinterpret_cast<const float*>(&Translation);
+			Qe.w = -0.5f*(T[0] * Q0[0] + T[1] * Q0[1] + T[2] * Q0[2]);
+			Qe.x = 0.5f*(T[0] * Q0[3] + T[1] * Q0[2] - T[2] * Q0[1]);
+			Qe.y = 0.5f*(-T[0] * Q0[2] + T[1] * Q0[3] + T[2] * Q0[0]);
+			Qe.z = 0.5f*(T[0] * Q0[1] - T[1] * Q0[0] + T[2] * Q0[3]);
+		}
+		DualQuaternion(FXMVECTOR Qr, FXMVECTOR Qe)
+			: Qr(Qr), Qe(Qe)
+		{}
+		DualQuaternion(CXMDUALVECTOR DQ)
+			: Qr(DQ.r[0]), Qe(DQ.r[1])
+		{}
 
-			explicit DualQuaternion(_In_reads_(8) const float* pArray)
-				: Qr(pArray) , Qe(pArray+4)
-			{}
-			explicit DualQuaternion(_In_reads_(2) const Quaternion* pQArray)
-				: Qr(*pQArray) , Qe(*(pQArray+1))
-			{}
+		explicit DualQuaternion(_In_reads_(8) const float* pArray)
+			: Qr(pArray), Qe(pArray + 4)
+		{}
+		explicit DualQuaternion(_In_reads_(2) const Quaternion* pQArray)
+			: Qr(*pQArray), Qe(*(pQArray + 1))
+		{}
 
-			inline operator XMDUALVECTOR() const
-			{
-				XMDUALVECTOR dqRes;
-				dqRes.r[0] = Qr;
-				dqRes.r[1] = Qe;
-				return dqRes;
-			}
+		inline operator XMDUALVECTOR() const
+		{
+			XMDUALVECTOR dqRes;
+			dqRes.r[0] = Qr;
+			dqRes.r[1] = Qe;
+			return dqRes;
+		}
 
 
-			void Normarlize(DualQuaternion& result) const
-			{
-				XMDUALVECTOR dq = *this;
-				dq = XMDualQuaternionNormalize(dq);
-				result.Qr = dq.r[0];
-				result.Qe = dq.r[1];
-			}
+		void Normarlize(DualQuaternion& result) const
+		{
+			XMDUALVECTOR dq = *this;
+			dq = XMDualQuaternionNormalize(dq);
+			result.Qr = dq.r[0];
+			result.Qe = dq.r[1];
+		}
 
-			void Normarlize()
-			{
-				Normarlize(*this);
-			}
+		void Normarlize()
+		{
+			Normarlize(*this);
+		}
 
-			void Inverse( DualQuaternion& result) const
-			{
-				XMDUALVECTOR dq = *this;
-				dq = XMDualQuaternionInverse(dq);
-				result.Qr = dq.r[0];
-				result.Qe = dq.r[1];
-			}
-			void Inverse()
-			{
-				Inverse(*this);
-			}
+		void Inverse(DualQuaternion& result) const
+		{
+			XMDUALVECTOR dq = *this;
+			dq = XMDualQuaternionInverse(dq);
+			result.Qr = dq.r[0];
+			result.Qe = dq.r[1];
+		}
+		void Inverse()
+		{
+			Inverse(*this);
+		}
 
-			void Conjugate()
-			{
-				Qr.Conjugate();
-				Qe.Conjugate();
-			}
+		void Conjugate()
+		{
+			Qr.Conjugate();
+			Qe.Conjugate();
+		}
 
-			void Conjugate( DualQuaternion& result ) const
-			{
-				result.Qr = XMQuaternionConjugate(Qr);
-				result.Qe = XMQuaternionConjugate(Qe);
-			}
+		void Conjugate(DualQuaternion& result) const
+		{
+			result.Qr = XMQuaternionConjugate(Qr);
+			result.Qe = XMQuaternionConjugate(Qe);
+		}
 
-			Vector2 Norm() const
-			{
-				Vector2 value;
-				XMVECTOR q0 = Qr;
-				XMVECTOR q1 = Qe;
-				XMVECTOR len = XMQuaternionLength(q0);
-				q1 = XMVector4Dot(q0,q1);
-				q0 = XMVectorDivide(q1,len);
-				q1 = XMVectorSelect(len,q0,g_XMSelect0101);
-				value = q1;
-				return value;
-			}
+		Vector2 Norm() const
+		{
+			Vector2 value;
+			XMVECTOR q0 = Qr;
+			XMVECTOR q1 = Qe;
+			XMVECTOR len = XMQuaternionLength(q0);
+			q1 = XMVector4Dot(q0, q1);
+			q0 = XMVectorDivide(q1, len);
+			q1 = XMVectorSelect(len, q0, g_XMSelect0101);
+			value = q1;
+			return value;
+		}
 
-			bool IsUnit() const
-			{
-				XMVECTOR q0 = Qr;
-				XMVECTOR q1 = Qe;
-				q1 = XMVector4Dot(q0,q1);
-				return XMVector4NearEqual(q0,g_XMZero.v,g_XMEpsilon.v);
-			}
+		bool IsUnit() const
+		{
+			XMVECTOR q0 = Qr;
+			XMVECTOR q1 = Qe;
+			q1 = XMVector4Dot(q0, q1);
+			return XMVector4NearEqual(q0, g_XMZero.v, g_XMEpsilon.v);
+		}
 
-			bool Decompose(Quaternion& Rotation,Vector3& Translation) const
-			{
-				const auto& Q = Rotation = XMQuaternionNormalize(Qr);
-				// translation vector:
-				Translation.x = 2.0f*(-Qe.w*Q.x + Qe.x*Q.w - Qe.y*Q.z + Qe.z*Q.y);
-				Translation.y = 2.0f*(-Qe.w*Q.y + Qe.x*Q.z + Qe.y*Q.w - Qe.z*Q.x);
-				Translation.z = 2.0f*(-Qe.w*Q.z - Qe.x*Q.y + Qe.y*Q.x + Qe.z*Q.w);
-			}
+		bool Decompose(Quaternion& Rotation, Vector3& Translation) const
+		{
+			const auto& Q = Rotation = XMQuaternionNormalize(Qr);
+			// translation vector:
+			Translation.x = 2.0f*(-Qe.w*Q.x + Qe.x*Q.w - Qe.y*Q.z + Qe.z*Q.y);
+			Translation.y = 2.0f*(-Qe.w*Q.y + Qe.x*Q.z + Qe.y*Q.w - Qe.z*Q.x);
+			Translation.z = 2.0f*(-Qe.w*Q.z - Qe.x*Q.y + Qe.y*Q.x + Qe.z*Q.w);
+		}
 
-			DualQuaternion& operator+= (const DualQuaternion& rhs)
-			{
-				Qr += rhs.Qr;
-				Qe += rhs.Qe;
-				return *this;
-			}
+		DualQuaternion& operator+= (const DualQuaternion& rhs)
+		{
+			Qr += rhs.Qr;
+			Qe += rhs.Qe;
+			return *this;
+		}
 
-			DualQuaternion& operator-= (const DualQuaternion& rhs)
-			{
-				Qr -= rhs.Qr;
-				Qe -= rhs.Qe;
-				return *this;
-			}
+		DualQuaternion& operator-= (const DualQuaternion& rhs)
+		{
+			Qr -= rhs.Qr;
+			Qe -= rhs.Qe;
+			return *this;
+		}
 
-			DualQuaternion& operator*= (const DualQuaternion& rhs)
-			{
-				XMVECTOR A = this->Qr;
-				XMVECTOR B = this->Qe;
-				XMVECTOR C = rhs.Qr;
-				XMVECTOR D = rhs.Qe;
-				D = XMQuaternionMultiply(A,D);
-				B = XMQuaternionMultiply(B,C);
-				Qe = XMVectorAdd(D,B);
-				Qr = XMQuaternionMultiply(A,C);
-			}
+		DualQuaternion& operator*= (const DualQuaternion& rhs)
+		{
+			XMVECTOR A = this->Qr;
+			XMVECTOR B = this->Qe;
+			XMVECTOR C = rhs.Qr;
+			XMVECTOR D = rhs.Qe;
+			D = XMQuaternionMultiply(A, D);
+			B = XMQuaternionMultiply(B, C);
+			Qe = XMVectorAdd(D, B);
+			Qr = XMQuaternionMultiply(A, C);
+		}
 
-			DualQuaternion& operator*= (float scale)
-			{
-				Qr *= scale;
-				Qr *= scale;
-				return *this;
-			}
+		DualQuaternion& operator*= (float scale)
+		{
+			Qr *= scale;
+			Qr *= scale;
+			return *this;
+		}
 
-			DualQuaternion& operator/= (float scale)
+		DualQuaternion& operator/= (float scale)
+		{
+			float s = 1.0f / scale;
+			return (*this) *= s;
+		}
+	};
+
+	typedef std::pair<Vector3, Vector3> LineSegement;
+	typedef std::vector<Vector3> LinePath;
+	static const float g_INFINITY = 1e12f;
+
+
+	//Some supporting method
+
+	inline float FindDistancePointToSegment(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
+	{
+		XMVECTOR s = s1 - s0;
+		XMVECTOR v = p - s0;
+		auto Ps = XMVector3Dot(v, s);
+		//p-s0 is the shortest distance
+		if (XMVector4LessOrEqual(Ps, XMVectorZero()))
+			return XMVectorGetX(XMVector3Length(v));
+
+		auto Ds = XMVector3LengthSq(s);
+		//p-s1 is the shortest distance
+		if (XMVector4Greater(Ps,Ds))
+			return XMVectorGetX(XMVector3Length(p - s1));
+		//find the projection point on line segment U
+		return XMVectorGetX(XMVector3Length(v - s * (Ps / Ds)));
+	}
+
+	// Takes a space point and space line segment , return the projection point on the line segment
+	//  A0  |		A1		  |
+	//      |s0-------------s1|
+	//      |				  |		A2
+	// where p in area of A0 returns s0 , area A2 returns s1 , point in A1 returns the really projection point 
+	inline XMVECTOR Projection(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
+	{
+		XMVECTOR s = s1 - s0;
+		XMVECTOR v = p - s0;
+		XMVECTOR Ps = XMVector3Dot(v, s);
+
+		//p-s0 is the shortest distance
+		//if (Ps<=0.0f) 
+		//	return s0;
+		if (XMVector4LessOrEqual(Ps, g_XMZero))
+			return s0;
+		XMVECTOR Ds = XMVector3LengthSq(s);
+		//p-s1 is the shortest distance
+		//if (Ps>Ds) 	
+		//	return s1;
+		if (XMVector4Less(Ds, Ps))
+			return s1;
+		//find the projection point on line segment U
+		return (s * (Ps / Ds)) + s0;
+	}
+
+	inline XMVECTOR Projection(FXMVECTOR p, const std::vector<Vector3> &path)
+	{
+		const auto N = path.size();
+		XMVECTOR vBegin = path.front();
+		XMVECTOR vEnd = path[1];
+		XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
+		XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
+		vBegin = vEnd;
+
+		for (size_t i = 2; i < N - 1; i++)
+		{
+			vEnd = path[i];
+			XMVECTOR vProj = Projection(p, vBegin, vEnd);
+			XMVECTOR vDis = XMVector3LengthSq(p - vProj);
+			if (XMVector4LessOrEqual(vDis, vMinDis))
 			{
-				float s = 1.0f/scale;
-				return (*this) *= s;
+				vMinDis = vDis;
+				vMinProj = vProj;
 			}
-		};
+			vBegin = vEnd;
+		}
+
+		return vMinProj;
+	}
 }
 
 // Extending std lib for output

@@ -75,17 +75,17 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -157,6 +157,9 @@
       <AdditionalUsingDirectories>C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1\ExtensionSDKs\Microsoft.VCLibs\12.0\References\CommonConfiguration\neutral\;C:\Program Files (x86)\Windows Kits\8.1\References\CommonConfiguration\Neutral;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <CompileAsWinRT>true</CompileAsWinRT>
       <AdditionalOptions>-D_SCL_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -186,6 +189,8 @@
       <AdditionalUsingDirectories>C:\Program Files (x86)\Microsoft SDKs\Windows\v8.1\ExtensionSDKs\Microsoft.VCLibs\12.0\References\CommonConfiguration\neutral\;C:\Program Files (x86)\Windows Kits\8.1\References\CommonConfiguration\Neutral;%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <CompileAsWinRT>true</CompileAsWinRT>
       <AdditionalOptions>-D_SCL_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -204,15 +209,18 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BulletPhysics.cpp" />
     <ClCompile Include="CausalityApplication.cpp" />
     <ClCompile Include="Common\Carmera.cpp" />
     <ClCompile Include="Common\DebugVisualizer.cpp" />
     <ClCompile Include="Common\DeviceResources.cpp" />
     <ClCompile Include="Common\DXGIFormatHelper.cpp" />
     <ClCompile Include="Common\Material.cpp" />
+    <ClCompile Include="Common\MetaBallModel.cpp" />
     <ClCompile Include="Common\Model.cpp" />
-    <ClCompile Include="Common\Renderable.cpp" />
+    <ClCompile Include="Common\Polygonizer.cpp" />
     <ClCompile Include="Common\SkyBox.cpp" />
+    <ClCompile Include="Common\SpaceCurve.cpp" />
     <ClCompile Include="Common\Textures.cpp" />
     <ClCompile Include="Content\CubeScene.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
@@ -282,8 +290,10 @@
     <ClCompile Include="Scene.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BulletPhysics.h" />
     <ClInclude Include="CausalityApplication.h" />
     <ClInclude Include="Common\BasicClass.h" />
+    <ClInclude Include="Common\BezierClip.h" />
     <ClInclude Include="Common\Carmera.h" />
     <ClInclude Include="Common\CompositeFlag.h" />
     <ClInclude Include="Common\ConstantBuffer.h" />
@@ -296,10 +306,13 @@
     <ClInclude Include="Common\Lights.h" />
     <ClInclude Include="Common\Locatable.h" />
     <ClInclude Include="Common\Material.h" />
+    <ClInclude Include="Common\MetaBallModel.h" />
     <ClInclude Include="Common\Model.h" />
+    <ClInclude Include="Common\Polygonizer.h" />
     <ClInclude Include="Common\Renderable.h" />
     <ClInclude Include="Common\ShaderEffect.h" />
     <ClInclude Include="Common\SkyBox.h" />
+    <ClInclude Include="Common\SpaceCurve.h" />
     <ClInclude Include="Common\StepTimer.h" />
     <ClInclude Include="Common\stride_iterator.h" />
     <ClInclude Include="Common\Textures.h" />
@@ -316,6 +329,7 @@
     <ClInclude Include="OculusRift.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="ProbalisticModel.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Scene.h" />
   </ItemGroup>
@@ -400,6 +414,17 @@
   <ItemGroup>
     <Xml Include="manifest.xml" />
     <Xml Include="Resources\Foregrounds.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\BulletCollision.vcxproj">
+      <Project>{8937c279-5097-eb49-b459-ce535897a306}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\BulletDynamics.vcxproj">
+      <Project>{f3e7f78e-18aa-cb43-84bc-0b1c979f0993}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\LinearMath.vcxproj">
+      <Project>{94240b48-9226-514f-b232-8d06ae1cd252}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

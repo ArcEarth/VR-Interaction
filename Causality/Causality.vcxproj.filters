@@ -72,9 +72,6 @@
     <ClCompile Include="Common\SkyBox.cpp">
       <Filter>DirectX</Filter>
     </ClCompile>
-    <ClCompile Include="Common\Renderable.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Foregrounds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -82,9 +79,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Scene.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="LeapMotion.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Extern\tiny_obj_loader.cc">
@@ -95,6 +89,21 @@
     </ClCompile>
     <ClCompile Include="Common\DebugVisualizer.cpp">
       <Filter>DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="LeapMotion.cpp">
+      <Filter>Platform.Devices</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\MetaBallModel.cpp">
+      <Filter>DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Polygonizer.cpp">
+      <Filter>DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\SpaceCurve.cpp">
+      <Filter>DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="BulletPhysics.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -194,9 +203,6 @@
     <ClInclude Include="Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="LeapMotion.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Extern\tiny_obj_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -205,6 +211,27 @@
     </ClInclude>
     <ClInclude Include="Common\DebugVisualizer.h">
       <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="LeapMotion.h">
+      <Filter>Platform.Devices</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\MetaBallModel.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Polygonizer.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\BezierClip.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\SpaceCurve.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="ProbalisticModel.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BulletPhysics.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

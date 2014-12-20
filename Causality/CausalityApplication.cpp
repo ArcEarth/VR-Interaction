@@ -140,14 +140,15 @@ void Causality::App::OnExit()
 
 void Causality::App::OnIdle()
 {
+	// Processing & Distribute Extra Input
+	pLeap->PullFrame();
+
 	// Time Aware update
 	m_timer.Tick([&]()
 	{
 		TimeElapsed(m_timer);
 	});
 
-	// Processing & Distribute Extra Input
-	pLeap->PullFrame();
 
 	// Rendering
 	auto pRenderControl = dynamic_cast<ICameraRenderControl*>(m_pPrimaryCamera.get());

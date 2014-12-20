@@ -40,16 +40,15 @@ namespace DirectX
 	};
 
 	// Interface for object with the ability to Move / Rotate / Isotropic-Scale
-	class IRigid abstract : public ILocatable, public IOriented, public IScalable
+	class IRigid abstract : virtual public ILocatable, virtual public IOriented, virtual public IScalable
 	{
 	public:
-		//virtual ~IRigid(){}
 		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition((XMVECTOR) GetPosition() + p); }
 		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(GetOrientation(),q)); }
 	};
 
 	// Helper struct to implement IRigid Interface
-	struct RigidBase : public IRigid
+	struct RigidBase : virtual public IRigid
 	{
 	public:
 		RigidBase()

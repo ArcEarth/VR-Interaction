@@ -1,8 +1,8 @@
 <scene>
 	<camera position="0,0,1.5" focus="0,0,0" up="0,1,0"></camera>
 	<skydome background="SkyBox\GrimmNight"/>
-	<obj src="baseball_bat.obj" position="2.0,0.0,15.0" scale="3.0"></obj>
-	<obj src="ConfederatePistolf.obj" position="6.0,2.0,4.0" scale = "0.3"></obj>
- 	<obj src="NBA_BASKETBALL.obj" position="3,0.0,0.0" scale="0.2"></obj>
- 	<obj src="sibenik_n.obj" position="0,13,46.2" scale="10.0"></obj>
+	<obj src="baseball_bat.obj" position="2.0,1.0,0.0" scale="0.15"></obj>
+	<obj src="ConfederatePistolf.obj" position="5.0,5.0,4.0" scale = "0.01"></obj>
+ 	<obj src="NBA_BASKETBALL.obj" position="2.5,1.0,0.0" scale="0.01"></obj>
+ 	<!--<obj src="sibenik_n.obj" position="0,13,46.2" scale="10.0"></obj>-->
 </scene>

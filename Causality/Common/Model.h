@@ -136,7 +136,7 @@ namespace DirectX
 		};
 
 		// A ModelPart is a aggregate of a mesh and it's Material
-		class ModelPart : public IModel
+		class ModelPart : virtual public IModel
 		{ 
 		public:
 			std::string	Name;
@@ -147,33 +147,44 @@ namespace DirectX
 			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
 		};
 
-		class ModelNode : public RigidObject, public IBoundable, public IModel
+		class LocalMatrixHolder : virtual public ILocalMatrix
 		{
 		public:
-			virtual ~ModelNode() {}
-			//virtual bool IsLeaf() const = 0;
-			//virtual std::type_info Type() const = 0;
+			// Inherited via ILocalMatrix
+			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
 			virtual XMMATRIX GetModelMatrix() const override;
+			Matrix4x4	LocalMatrix;
+		};
 
+		class IModelNode : virtual public ILocalMatrix, virtual public IBoundable, virtual public IModel
+		{
 		public:
+			virtual ~IModelNode();
+			// Get the Recursive multiplied model matrix since root, return the global world matrix
+			virtual XMMATRIX GetWorldMatrix() const;
+			//virtual XMMATRIX GetModelMatrix() const override;
 			// Transformed OrientedBounding Box
 			virtual BoundingOrientedBox GetOrientedBoundingBox() const override;
-
 			// Transformed Bounding Box
 			virtual BoundingBox GetBoundingBox() const override;
-
 			// Transformed Bounding Sphere
 			virtual BoundingSphere GetBoundingSphere() const override;
+
+			// Inherited via ILocalMatrix
+			//virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
+			//virtual XMMATRIX GetModelMatrix() const override;
+
+			IModelNode*			pParent = nullptr;
 			std::string			Name;
-			ModelNode*			pParent = nullptr;
 			BoundingOrientedBox BoundOrientedBox;
 			BoundingSphere		BoundSphere;
 			BoundingBox			BoundBox;
+
 		};
 
-		// A model is a collection of ModelPart that shares identical LocalMatrix\
-		// Leap node in a model tree
-		class Model : public ModelNode
+		// A basic model is a collection of ModelPart shares same Local Matrix
+		// Leaf node in a model tree
+		class IBasicModel : public IModelNode
 		{
 		public:
 			std::vector<ModelPart>	Parts;
@@ -181,31 +192,22 @@ namespace DirectX
 			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
 		};
 
-		class ModelCollection : public ModelNode
+		class ModelCollection : public IModelNode , public RigidBase
 		{
 		public:
 			// All the data in Children's postion/orientation is 
 			// In the local coordinate of it's parent!
-			std::vector<std::shared_ptr<ModelNode>> Children;
-			void AddModel(const std::shared_ptr<ModelNode>& pModel);
+			std::vector<std::shared_ptr<IModelNode>> Children;
+			void AddModel(const std::shared_ptr<IModelNode>& pModel);
 			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
 		};
 
 		// This Model also keeps the geomreics data in CPU
-		class GeometryModel : public Model
+		class IGeometryModel : public IBasicModel
 		{
 		public:
-			~GeometryModel();
-
-	/*		template <class ...TArgs>
-			friend std::shared_ptr<GeometryModel> std::make_shared<GeometryModel, TArgs>(TArgs&&...);*/
-
-			static std::shared_ptr<GeometryModel> CreateFromObjFile(ID3D11Device *pDevice, const std::wstring &file, const std::wstring& textureDir);
-
-		public:
-
-			GeometryModel(ID3D11Device *pDevice, const std::wstring &file, const std::wstring& textureDir);
-
+			static bool CreateFromObjFile(IGeometryModel *pResult, ID3D11Device *pDevice, const std::wstring &file, const std::wstring& textureDir);
+			IBasicModel* ReleaseCpuResource();
 		public:
 			std::vector<VertexPositionNormalTexture>			Vertices;
 			std::vector<FacetPrimitives::Triangle<uint16_t>>	Facets;

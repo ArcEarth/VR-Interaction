@@ -63,6 +63,10 @@ void PlayerCamera::FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upD
 	SetOrientation(quat);
 }
 
+void XM_CALLCONV DirectX::Scene::ICameraBase::Move(FXMVECTOR p) { SetPosition((XMVECTOR) GetPosition() + XMVector3Rotate(p, GetOrientation())); }
+
+void XM_CALLCONV DirectX::Scene::ICameraBase::Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(q, GetOrientation())); }
+
 const Platform::Fundation::Vector3 & PlayerCamera::GetPosition() const
 {
 	return m_BodyPose.Position;
@@ -151,4 +155,9 @@ void PlayerCamera::SetView(size_t view)
 void PlayerCamera::SetFov(float fovRadius, float aspectRatioHbyW)
 {
 	Fov = fovRadius; AspectRatio = aspectRatioHbyW;
+}
+
+float PlayerCamera::GetFov() const
+{
+	return Fov;
 }

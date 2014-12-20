@@ -126,7 +126,7 @@ public:
 		// Configure d3d11.
 		ovrD3D11Config d3d11cfg;
 		d3d11cfg.D3D11.Header.API = ovrRenderAPI_D3D11;
-		d3d11cfg.D3D11.Header.RTSize = OVR::Sizei(HMD->Resolution.w, HMD->Resolution.h);
+		d3d11cfg.D3D11.Header.BackBufferSize = OVR::Sizei(HMD->Resolution.w, HMD->Resolution.h);
 		d3d11cfg.D3D11.Header.Multisample = backBufferMultisample;
 		d3d11cfg.D3D11.pDevice = pDeviceResource->GetD3DDevice();
 		d3d11cfg.D3D11.pDeviceContext = pDeviceResource->GetD3DDeviceContext();

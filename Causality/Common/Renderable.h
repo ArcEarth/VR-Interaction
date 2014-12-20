@@ -12,8 +12,6 @@ namespace DirectX{
 		class IRenderable abstract
 		{
 		public:
-			~IRenderable()
-			{}
 			virtual void Render(ID3D11DeviceContext *pContext) = 0;
 		};
 
@@ -52,7 +50,7 @@ namespace DirectX{
 		};
 
 		// The object Using rigid information to genreate ILocalMatrix interface
-		class RigidObject : public RigidBase , public ILocalMatrix
+		struct IRigidLocalMatrix : virtual public ILocalMatrix, virtual public IRigid
 		{
 		public:
 			virtual XMMATRIX GetModelMatrix() const override
@@ -69,6 +67,51 @@ namespace DirectX{
 				SetPosition(translation);
 			}
 		};
+
+		// helper struct that implements IViewable interface and stored matrix for future use
+		struct ViewMatrixCache : virtual public IViewable
+		{
+		public:
+			// Inherited via IViewable
+			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) override
+			{
+				ViewMatrix = view;
+			}
+			virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override
+			{
+				ProjectionMatrix = projection;
+			}
+			Matrix4x4	ViewMatrix;
+			Matrix4x4	ProjectionMatrix;
+		};
+		
+		// An brige class to transfer Rigid data into model matrix
+		class RigidLocalMatrix : virtual public ILocalMatrix
+		{
+		public:
+			inline RigidLocalMatrix(IRigid* pRigid)
+				: m_pRigid(pRigid)
+			{
+				assert(pRigid != nullptr);
+			}
+
+			virtual XMMATRIX GetModelMatrix() const override
+			{
+				return XMMatrixAffineTransformation(m_pRigid->GetScale(), XMVectorZero(), m_pRigid->GetOrientation(), m_pRigid->GetPosition());
+			}
+		protected:
+			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override
+			{
+				XMVECTOR scale, rotation, translation;
+				XMMatrixDecompose(&scale, &rotation, &translation, model);
+				m_pRigid->SetScale((Vector3) scale);
+				m_pRigid->SetOrientation(rotation);
+				m_pRigid->SetPosition(translation);
+			}
+		private:
+			IRigid * m_pRigid;
+		};
+
 	}
 
 }
