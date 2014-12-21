@@ -1,7 +1,7 @@
+#pragma once
+
 #ifndef DX_MATH_EXT_H
 #define DX_MATH_EXT_H
-#endif
-#pragma once
 
 #if defined(BT_USE_SSE)
 #error Bullet physics can not be include before DirectX Math headers.
@@ -899,6 +899,7 @@ namespace DirectX
 // Extending std lib for output
 #ifdef _OSTREAM_
 #include <iomanip>
+#endif
 
 namespace std
 {

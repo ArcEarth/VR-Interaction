@@ -28,6 +28,12 @@
     <Filter Include="Resource Files\SkyBox">
       <UniqueIdentifier>{2a691754-e34e-4273-8bc7-b5354528fb65}</UniqueIdentifier>
     </Filter>
+    <Filter Include="DirectX\SourceFile">
+      <UniqueIdentifier>{4d83d3eb-44a5-411e-a775-704c51fd7ecc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DirectX\Extern">
+      <UniqueIdentifier>{05dbf451-bb45-45f2-9739-0e29d673a86a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -66,12 +72,6 @@
     <ClCompile Include="Content\CubeScene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Common\Model.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\SkyBox.cpp">
-      <Filter>DirectX</Filter>
-    </ClCompile>
     <ClCompile Include="Foregrounds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -81,29 +81,41 @@
     <ClCompile Include="Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Extern\tiny_obj_loader.cc">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\Material.cpp">
-      <Filter>DirectX</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\DebugVisualizer.cpp">
-      <Filter>DirectX</Filter>
-    </ClCompile>
     <ClCompile Include="LeapMotion.cpp">
       <Filter>Platform.Devices</Filter>
     </ClCompile>
-    <ClCompile Include="Common\MetaBallModel.cpp">
-      <Filter>DirectX</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\Polygonizer.cpp">
-      <Filter>DirectX</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\SpaceCurve.cpp">
-      <Filter>DirectX</Filter>
-    </ClCompile>
     <ClCompile Include="BulletPhysics.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pch_bullet.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Material.cpp">
+      <Filter>DirectX\SourceFile</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\MetaBallModel.cpp">
+      <Filter>DirectX\SourceFile</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\PrimitiveVisualizer.cpp">
+      <Filter>DirectX\SourceFile</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\SkyBox.cpp">
+      <Filter>DirectX\SourceFile</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\SpaceCurve.cpp">
+      <Filter>DirectX\SourceFile</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Polygonizer.cpp">
+      <Filter>DirectX\SourceFile</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Model.cpp">
+      <Filter>DirectX\SourceFile</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\Extern\tiny_obj_loader.cc">
+      <Filter>DirectX\Extern</Filter>
+    </ClCompile>
+    <ClCompile Include="Common\pch_directX.cpp">
+      <Filter>DirectX\SourceFile</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -203,13 +215,7 @@
     <ClInclude Include="Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Extern\tiny_obj_loader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Common\Material.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\DebugVisualizer.h">
       <Filter>DirectX</Filter>
     </ClInclude>
     <ClInclude Include="LeapMotion.h">
@@ -232,6 +238,18 @@
     </ClInclude>
     <ClInclude Include="BulletPhysics.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\PrimitiveVisualizer.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="pch_bullet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Extern\tiny_obj_loader.h">
+      <Filter>DirectX\Extern</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\pch_directX.h">
+      <Filter>DirectX</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -1,3 +1,4 @@
+#include "pch_bullet.h"
 #include "BulletPhysics.h"
 #include <type_traits>
 
@@ -24,7 +25,7 @@ bool Causality::PhysicalRigid::Disable()
 	return false;
 }
 
-bool Causality::PhysicalRigid::Enable(btDynamicsWorld * pWorld)
+bool Causality::PhysicalRigid::Enable(const std::shared_ptr<btDynamicsWorld> &pWorld)
 {
 	if (m_IsEnabled)
 	{
@@ -48,9 +49,10 @@ bool Causality::PhysicalRigid::IsEnabled() const
 	return m_IsEnabled;
 }
 
-void Causality::PhysicalRigid::InitializePhysics(btDynamicsWorld *pWorld, const std::shared_ptr<btCollisionShape>& pShape, float mass, const DirectX::Vector3 & Pos, const DirectX::Quaternion & Rot)
+void Causality::PhysicalRigid::InitializePhysics(const std::shared_ptr<btDynamicsWorld> &pWorld, const std::shared_ptr<btCollisionShape>& pShape, float mass, const DirectX::Vector3 & Pos, const DirectX::Quaternion & Rot)
 {
-	m_pShape = pShape;
+	if (pShape != nullptr)
+		m_pShape = pShape;
 	btVector3 minbox, maxbox;
 	m_pShape->getAabb(btTransform::getIdentity(), minbox, maxbox);
 	m_pWorld = pWorld;

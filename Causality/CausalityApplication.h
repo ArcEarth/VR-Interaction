@@ -1,5 +1,14 @@
 #pragma once
-#include "pch.h"
+#include <wrl/client.h>
+#include <d3d11_2.h>
+#include <d2d1_2.h>
+#include <d2d1effects_1.h>
+#include <dwrite_2.h>
+#include <wincodec.h>
+#include <DirectXColors.h>
+#include <DirectXMath.h>
+#include <memory>
+
 #include "NativeWindow.h"
 #include <iostream>
 #include "Common\DeviceResources.h"
@@ -31,7 +40,9 @@ namespace Causality
 		virtual void OnMouseMove(const Platform::CursorMoveEventArgs & e) override;
 	public:
 		float											Speed;
-
+		DirectX::Quaternion								InitialOrientation;
+		float											CameraYaw = 0;
+		float											CameraPitch = 0;
 	private:
 		DirectX::Scene::ICameraBase*					m_pCamera= nullptr;
 		bool											IsTrackingCursor = false;
@@ -86,6 +97,7 @@ namespace Causality
 
 		// Primary Camera
 		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pPrimaryCamera;
+		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pTopViewCamera;
 
 		// Extern Devices depend on Camera
 		std::shared_ptr<Platform::Devices::LeapMotion>	pLeap;

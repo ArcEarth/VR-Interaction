@@ -1,4 +1,5 @@
-#include "DebugVisualizer.h"
+#include "pch_directX.h"
+#include "PrimitiveVisualizer.h"
 #include <vector>
 
 //using namespace DirectX;
@@ -114,21 +115,14 @@ namespace DirectX{
 		std::vector<uint16_t> CylinderIndices;
 	}
 
-	void GeometricPrimitiveDrawer::Initialize(ID3D11DeviceContext *pContext)
-	{
-		m_pCylinder = DirectX::GeometricPrimitive::CreateCylinder(pContext);
-		m_pSphere = DirectX::GeometricPrimitive::CreateGeoSphere(pContext);
-		m_pCube = DirectX::GeometricPrimitive::CreateCube(pContext);
-		m_pCone = DirectX::GeometricPrimitive::CreateCone(pContext);
-	}
-
-	void XM_CALLCONV GeometricPrimitiveDrawer::DrawCylinder(ID3D11DeviceContext * pContext, FXMVECTOR P1, FXMVECTOR P2, float radius, FXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawCylinder(FXMVECTOR P1, FXMVECTOR P2, float radius, FXMVECTOR Color)
 	{
 		auto center = 0.5f * XMVectorAdd(P1, P2);
 		auto dir = XMVectorSubtract(P1, P2);
 		auto scale = XMVector3Length(dir);
+		scale = XMVectorSet(radius, XMVectorGetX(scale), radius, 1.0f);
 		XMVECTOR rot;
-		if (XMVector4LessOrEqual(XMVector3LengthSq(dir), XMVectorReplicate(0.01f)))
+		if (XMVector4Equal(dir, g_XMZero))
 			rot = XMQuaternionIdentity();
 		else
 			rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, dir);
@@ -136,37 +130,37 @@ namespace DirectX{
 		m_pCylinder->Draw(world, ViewMatrix, ProjectionMatrix, Color);
 	}
 
-		void XM_CALLCONV GeometricPrimitiveDrawer::DrawCylinder(ID3D11DeviceContext * pContext, FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
+		void XM_CALLCONV PrimitveDrawer::DrawCylinder(FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
 	{
 		XMVECTOR rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, YDirection);
 		XMMATRIX world = XMMatrixAffineTransformation(XMVectorSet(radius,height,radius,1), g_XMZero, rot, Position);
 		m_pCylinder->Draw(world, ViewMatrix, ProjectionMatrix, Color);
 	}
 
-	void XM_CALLCONV GeometricPrimitiveDrawer::DrawSphere(ID3D11DeviceContext * pContext, FXMVECTOR Position, float radius, FXMVECTOR Color)
-	{
-		XMMATRIX world = XMMatrixAffineTransformation(XMVectorReplicate(radius), g_XMZero, XMQuaternionIdentity(), Position);
-		m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
-	}
+	//void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Position, float radius, FXMVECTOR Color)
+	//{
+	//	XMMATRIX world = XMMatrixAffineTransformation(XMVectorReplicate(radius), g_XMZero, XMQuaternionIdentity(), Position);
+	//	m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	//}
 
-	void XM_CALLCONV GeometricPrimitiveDrawer::DrawCube(ID3D11DeviceContext *pContext, FXMVECTOR Position, FXMVECTOR HalfExtend, FXMVECTOR Orientation, GXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawCube(FXMVECTOR Position, FXMVECTOR HalfExtend, FXMVECTOR Orientation, GXMVECTOR Color)
 	{
 		XMMATRIX world = XMMatrixAffineTransformation(HalfExtend, g_XMZero, Orientation, Position);
 		m_pCube->Draw(world, ViewMatrix, ProjectionMatrix, Color);
 	}
 
-	void XM_CALLCONV GeometricPrimitiveDrawer::DrawCone(ID3D11DeviceContext * pContext, FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawCone(FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
 	{
 		XMVECTOR rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, YDirection);
 		XMMATRIX world = XMMatrixAffineTransformation(XMVectorSet(radius, height, radius, 1), g_XMZero, rot, Position);
 		m_pCone->Draw(world, ViewMatrix, ProjectionMatrix, Color);
 	}
 
-	DebugVisualizer::DebugVisualizer()
+	PrimitveDrawer::PrimitveDrawer()
 	{}
 
 
-	void DebugVisualizer::Initialize(ID3D11DeviceContext * pContext)
+	void PrimitveDrawer::Initialize(ID3D11DeviceContext * pContext)
 	{
 		m_pContext = pContext;
 		m_pContext->GetDevice(&m_pDevice);
@@ -183,25 +177,30 @@ namespace DirectX{
 			shaderByteCode, byteCodeLength,
 			&m_pInputLayout);
 
+		m_pCylinder = DirectX::GeometricPrimitive::CreateCylinder(pContext);
+		m_pSphere = DirectX::GeometricPrimitive::CreateGeoSphere(pContext);
+		m_pCube = DirectX::GeometricPrimitive::CreateCube(pContext,2.0f);
+		m_pCone = DirectX::GeometricPrimitive::CreateCone(pContext);
+
 		assert(SUCCEEDED(hr));
 	}
 
-	bool DebugVisualizer::Ready() const
+	bool PrimitveDrawer::Ready() const
 	{
 		return m_pContext;
 	}
 
-	ID3D11Device * DebugVisualizer::GetDevice() const
+	ID3D11Device * PrimitveDrawer::GetDevice() const
 	{
 		return m_pDevice.Get();
 	}
 
-	ID3D11DeviceContext * DebugVisualizer::GetDeviceContext() const
+	ID3D11DeviceContext * PrimitveDrawer::GetDeviceContext() const
 	{
 		return m_pContext.Get();
 	}
 
-	void DebugVisualizer::Release()
+	void PrimitveDrawer::Release()
 	{
 		m_pDirectXBatch.release();
 		m_pEffect.release();
@@ -210,34 +209,36 @@ namespace DirectX{
 		m_pDevice.Reset();
 	}
 
-	DebugVisualizer::DebugVisualizer(ID3D11DeviceContext * pContext)
+	PrimitveDrawer::PrimitveDrawer(ID3D11DeviceContext * pContext)
 	{
 		Initialize(pContext);
 	}
 
-	void DebugVisualizer::SetWorld(DirectX::CXMMATRIX World)
+	void PrimitveDrawer::SetWorld(DirectX::CXMMATRIX World)
 	{
 		m_pEffect->SetWorld(World);
 	}
 
-	void DebugVisualizer::SetProjection(DirectX::CXMMATRIX Projection)
+	void PrimitveDrawer::SetProjection(DirectX::CXMMATRIX Projection)
 	{
 		m_pEffect->SetProjection(Projection);
+		ProjectionMatrix = Projection;
 	}
 
-	void DebugVisualizer::SetView(DirectX::CXMMATRIX View)
+	void PrimitveDrawer::SetView(DirectX::CXMMATRIX View)
 	{
 		m_pEffect->SetView(View);
+		ViewMatrix = View;
 	}
 
-	void DebugVisualizer::Begin()
+	void PrimitveDrawer::Begin()
 	{
 		m_pEffect->Apply(m_pContext.Get());
 		m_pContext->IASetInputLayout(m_pInputLayout.Get());
 		m_pDirectXBatch->Begin();
 	}
 
-	void DebugVisualizer::End()
+	void PrimitveDrawer::End()
 	{
 
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState> pRSState;
@@ -247,38 +248,32 @@ namespace DirectX{
 		m_pContext->RSSetState(pRSState.Get());
 	}
 
-	inline PrimitiveBatch<VertexPositionColor>* DebugVisualizer::GetBatch() { return m_pDirectXBatch.get(); }
+	inline PrimitiveBatch<VertexPositionColor>* PrimitveDrawer::GetBatch() { return m_pDirectXBatch.get(); }
 
-	void DebugVisualizer::DrawLine(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawLine(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR Color)
 	{
 		VertexType Vertices [] = { VertexType(P0,Color),VertexType(P1,Color) };
 		m_pDirectXBatch->DrawLine(Vertices[0], Vertices[1]);
 	}
 
-	void DebugVisualizer::DrawLine(FXMVECTOR P0, FXMVECTOR P1, float Width, FXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawLine(FXMVECTOR P0, FXMVECTOR P1, float Width, FXMVECTOR Color)
 	{
 		DrawLine(P0, P1, Color);
 	}
 
-	void DebugVisualizer::DrawCylinder(FXMVECTOR P0, FXMVECTOR P1, float Radius, FXMVECTOR Color)
-	{
-		VertexType Vertices [] = { VertexType(P0,Color),VertexType(P1,Color) };
-		m_pDirectXBatch->DrawLine(Vertices[0], Vertices[1]);
-	}
-
-		void DebugVisualizer::DrawTriangle(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR P2, GXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawTriangle(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR P2, GXMVECTOR Color)
 	{
 		VertexType Vertices [] = { VertexType(P0,Color),VertexType(P1,Color),VertexType(P2,Color) };
 		m_pDirectXBatch->DrawTriangle(Vertices[0], Vertices[1], Vertices[2]);
 	}
 
-	void DebugVisualizer::DrawQuad(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR P2, GXMVECTOR P3, CXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawQuad(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR P2, GXMVECTOR P3, CXMVECTOR Color)
 	{
 		VertexType Vertices [] = { VertexType(P0,Color),VertexType(P1,Color),VertexType(P2,Color),VertexType(P3,Color) };
 		m_pDirectXBatch->DrawQuad(Vertices[0], Vertices[1], Vertices[2], Vertices[3]);
 	}
 
-		void DebugVisualizer::DrawSphere(FXMVECTOR Center,float Radius,FXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Center,float Radius,FXMVECTOR Color)
 	{
 		VertexPositionColor Vertices[34];
 		XMVECTOR vRadius = XMVectorReplicate(Radius);
@@ -292,7 +287,7 @@ namespace DirectX{
 		m_pDirectXBatch->DrawIndexed(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,Internal::SphereIndics,64*3,Vertices,34);
 	}
 
-	void DebugVisualizer::DrawSphere(FXMVECTOR Sphere,FXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Sphere,FXMVECTOR Color)
 	{
 		VertexPositionColor Vertices[34];
 		XMVECTOR vRadius = XMVectorSwizzle<3,3,3,3>(Sphere);
@@ -306,5 +301,8 @@ namespace DirectX{
 		m_pDirectXBatch->DrawIndexed(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,Internal::SphereIndics,64*3,Vertices,34);
 	}
 
-	DebugVisualizer dxout;
+	namespace Visualizers
+	{
+		PrimitveDrawer g_PrimitiveDrawer;
+	}
 }

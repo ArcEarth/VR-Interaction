@@ -115,10 +115,10 @@ namespace DirectX
 		D3D11_VIEWPORT									m_screenViewport;
 
 		// Direct2D drawing components.
-		Microsoft::WRL::ComPtr<ID2D1Factory2>		m_d2dFactory;
-		Microsoft::WRL::ComPtr<ID2D1Device1>		m_d2dDevice;
-		Microsoft::WRL::ComPtr<ID2D1DeviceContext1>	m_d2dContext;
-		Microsoft::WRL::ComPtr<ID2D1Bitmap1>		m_d2dTargetBitmap;
+		Microsoft::WRL::ComPtr<ID2D1Factory2>			m_d2dFactory;
+		Microsoft::WRL::ComPtr<ID2D1Device1>			m_d2dDevice;
+		Microsoft::WRL::ComPtr<ID2D1DeviceContext1>		m_d2dContext;
+		Microsoft::WRL::ComPtr<ID2D1Bitmap1>			m_d2dTargetBitmap;
 
 		// DirectWrite drawing components.
 		Microsoft::WRL::ComPtr<IDWriteFactory2>		m_dwriteFactory;

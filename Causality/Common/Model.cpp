@@ -1,3 +1,4 @@
+#include "pch_directX.h"
 #define NOMINMAX
 #include "Model.h"
 #include <string>
@@ -6,7 +7,7 @@
 #include <WICTextureLoader.h>
 #include <DDSTextureLoader.h>
 #include <boost\filesystem.hpp>
-#include "..\Extern\tiny_obj_loader.h"
+#include "Extern\tiny_obj_loader.h"
 #include <boost\filesystem.hpp>
 #include <CommonStates.h>
 

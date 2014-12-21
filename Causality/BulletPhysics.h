@@ -88,7 +88,7 @@ namespace Causality
 		~PhysicalRigid();
 
 		bool Disable();
-		bool Enable(btDynamicsWorld *pWorld = nullptr);
+		bool Enable(const std::shared_ptr<btDynamicsWorld> &pWorld = nullptr);
 		bool IsEnabled() const;
 
 		btRigidBody* GetBulletRigid() { return m_pRigidBody.get(); }
@@ -96,7 +96,7 @@ namespace Causality
 		const btRigidBody* GetBulletRigid() const { return m_pRigidBody.get(); }
 		const btCollisionShape* GetBulletShape() const { return m_pShape.get(); }
 
-		void InitializePhysics(btDynamicsWorld *pWorld, const std::shared_ptr<btCollisionShape>& pShape, float mass, const DirectX::Vector3 & Pos = DirectX::Vector3::Zero, const DirectX::Quaternion & Rot = DirectX::Quaternion::Identity);
+		void InitializePhysics(const std::shared_ptr<btDynamicsWorld> &pWorld, const std::shared_ptr<btCollisionShape>& pShape, float mass, const DirectX::Vector3 & Pos = DirectX::Vector3::Zero, const DirectX::Quaternion & Rot = DirectX::Quaternion::Identity);
 
 		// Inherited via IRigid
 		virtual const DirectX::Vector3 & GetPosition() const override;
@@ -110,7 +110,7 @@ namespace Causality
 		mutable btTransform					m_Transform;
 		btTransform							m_MassCenterTransform;
 		bool								m_IsEnabled;
-		btDynamicsWorld *					m_pWorld;
+		std::shared_ptr<btDynamicsWorld>	m_pWorld;
 		std::unique_ptr<btRigidBody>		m_pRigidBody;
 		std::shared_ptr<btCollisionShape>	m_pShape;
 		mutable DirectX::Vector3					Scale;

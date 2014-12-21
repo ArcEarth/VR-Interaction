@@ -1,7 +1,8 @@
+#include "pch_directX.h"
 #include <fstream>
 #include <WICTextureLoader.h>
 #include "Material.h"
-#include "../Extern/tiny_obj_loader.h"
+#include "Extern/tiny_obj_loader.h"
 #include <boost\filesystem.hpp>
 using namespace DirectX;
 using namespace DirectX::Scene;

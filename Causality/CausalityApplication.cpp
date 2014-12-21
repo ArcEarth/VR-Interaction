@@ -1,10 +1,11 @@
+#include "pch.h"
 #include "CausalityApplication.h"
 #include "Content\CubeScene.h"
 #include "Content\SampleFpsTextRenderer.h"
 #include "Common\SkyBox.h"
 #include "Foregrounds.h"
 #include <CommonStates.h>
-#include "Common\DebugVisualizer.h"
+#include "Common\PrimitiveVisualizer.h"
 
 using namespace Causality;
 using namespace std;
@@ -56,7 +57,7 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	pDeviceResources->SetNativeWindow(pWindow->Handle());
 	// Register to be notified if the Device is lost or recreated
 	pDeviceResources->RegisterDeviceNotify(this);
-	dxout.Initialize(pDeviceResources->GetD3DDeviceContext());
+	Visualizers::g_PrimitiveDrawer.Initialize(pDeviceResources->GetD3DDeviceContext());
 
 	// Oculus Rift
 	pRift = std::make_shared<Platform::Devices::OculusRift>();
@@ -79,7 +80,7 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 		auto size = pDeviceResources->GetOutputSize();
 		pPlayer->SetFov(75.f*XM_PI / 180.f, size.Width / size.Height);
 	}
-	pPlayer->SetPosition(Fundation::Vector3(-1.5f, 0.0f, .0f));
+	pPlayer->SetPosition(Fundation::Vector3(-1.5f, 0.1f, 0.1f));
 	pPlayer->FocusAt(Fundation::Vector3(0, 0.0f, 0), Fundation::Vector3(0.0f, 1.0f, 0));
 
 	pLeap = std::make_shared<Platform::Devices::LeapMotion>(false,false);
@@ -90,7 +91,7 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	// Scenes & Logic
 	//RegisterComponent(std::make_unique<CubeScene>(pDeviceResources));
 	//Componentsents.push_back(std::make_unique<SkyBox>(pDeviceResources->GetD3DDevice(), SkyBoxTextures));
-	RegisterComponent(std::make_unique<WorldScene>(pDeviceResources));
+	RegisterComponent(std::make_unique<WorldScene>(pDeviceResources, m_pPrimaryCamera.get()));
 	RegisterComponent(std::make_unique<HUDInterface>(pDeviceResources));
 	RegisterComponent(std::make_unique<KeyboardMouseLogic>(m_pPrimaryCamera.get()));
 }
@@ -224,7 +225,8 @@ void Causality::App::OnCursorMove_RotateCamera(const Platform::CursorMoveEventAr
 inline Causality::KeyboardMouseLogic::KeyboardMouseLogic(DirectX::Scene::ICameraBase * pCamera)
 {
 	m_pCamera = pCamera;
-	Speed = 5.0f;
+	InitialOrientation = pCamera->GetOrientation();
+	Speed = 2.0f;
 }
 
 void Causality::KeyboardMouseLogic::UpdateAnimation(StepTimer const & timer)
@@ -282,5 +284,7 @@ void Causality::KeyboardMouseLogic::OnMouseMove(const CursorMoveEventArgs & e)
 	if (!IsTrackingCursor) return;
 	auto yaw = -e.PositionDelta.x / 1000.0f * XM_PI;
 	auto pitch = -e.PositionDelta.y / 1000.0f * XM_PI;
-	m_pCamera->Rotate(XMQuaternionRotationRollPitchYaw(pitch, yaw, 0));
+	CameraYaw += yaw;
+	CameraPitch += pitch;
+	m_pCamera->SetOrientation((Quaternion)XMQuaternionRotationRollPitchYaw(CameraPitch, CameraYaw, 0)*InitialOrientation);
 }

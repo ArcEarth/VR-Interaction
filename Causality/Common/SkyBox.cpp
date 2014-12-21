@@ -1,3 +1,4 @@
+#include "pch_directX.h"
 #include "SkyBox.h"
 #include <DDSTextureLoader.h>
 #include <CommonStates.h>

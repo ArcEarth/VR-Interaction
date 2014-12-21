@@ -8,7 +8,6 @@ using namespace std;
 using namespace Leap;
 using namespace Platform;
 using namespace Windows::Globalization;
-using namespace concurrency;
 using namespace Windows::ApplicationModel;
 using namespace Windows::ApplicationModel::Core;
 using namespace Windows::ApplicationModel::Activation;

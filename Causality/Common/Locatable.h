@@ -43,7 +43,7 @@ namespace DirectX
 	class IRigid abstract : virtual public ILocatable, virtual public IOriented, virtual public IScalable
 	{
 	public:
-		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition((XMVECTOR) GetPosition() + p); }
+		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition(XMVectorAdd((XMVECTOR) GetPosition(), p)); }
 		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(GetOrientation(),q)); }
 	};
 
