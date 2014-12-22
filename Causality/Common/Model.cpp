@@ -299,13 +299,18 @@ void DirectX::Scene::ModelPart::Render(ID3D11DeviceContext * pContext, IEffect *
 void DirectX::Scene::BasicModel::Render(ID3D11DeviceContext * pContext, IEffect* pEffect)
 {
 	auto world = this->GetWorldMatrix();
+	auto pEffectB = dynamic_cast<BasicEffect*>(pEffect);
+	auto pEffectM = dynamic_cast<IEffectMatrices*>(pEffect);
 	for (auto& part : Parts)
 	{
-		auto pEffectM = dynamic_cast<IEffectMatrices*>(pEffect);
 		if (pEffectM)
 		{
 			pEffectM->SetWorld(world);
-		} 
+		}
+		if (pEffectB)
+		{
+			pEffectB->SetAlpha(Opticity);
+		}
 		part->Render(pContext,pEffect);
 	}
 }

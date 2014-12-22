@@ -115,13 +115,6 @@ namespace Causality
 	public:
 		void Initialize();
 
-		// Object states evolution with time and interaction subjects
-		std::map<std::string, std::shared_ptr<PhysicalRigid>>	Objects;
-
-		// Interactive subjects
-		std::map<int, std::shared_ptr<HandPhysicalModel>>		Subjects;
-		DirectX::Matrix4x4										SubjectTransform;
-
 		float Liklyhood() const
 		{
 			return 1;
@@ -152,6 +145,14 @@ namespace Causality
 		// The actual physics solver
 		std::shared_ptr<btSequentialImpulseConstraintSolver>	pSolver = nullptr;
 		std::shared_ptr<btDynamicsWorld>						pDynamicsWorld = nullptr;
+
+		// Object states evolution with time and interaction subjects
+		std::map<std::string, std::shared_ptr<PhysicalRigid>>	Objects;
+
+		// Interactive subjects
+		std::map<int, std::shared_ptr<HandPhysicalModel>>		Subjects;
+		DirectX::Matrix4x4										SubjectTransform;
+
 	};
 
 	class WorldScene : public Platform::IAppComponent, public Platform::IUserHandsInteractive, public Platform::IKeybordInteractive, public DirectX::Scene::IRenderable, public DirectX::Scene::IViewable , public DirectX::Scene::ITimeAnimatable

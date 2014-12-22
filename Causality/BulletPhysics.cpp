@@ -10,7 +10,7 @@ Causality::PhysicalRigid::PhysicalRigid()
 
 Causality::PhysicalRigid::~PhysicalRigid()
 {
-	//Disable();
+	Disable();
 	m_pWorld = nullptr;
 }
 
@@ -27,7 +27,7 @@ bool Causality::PhysicalRigid::Disable()
 
 bool Causality::PhysicalRigid::Enable(const std::shared_ptr<btDynamicsWorld> &pWorld)
 {
-	if (m_IsEnabled)
+	if (m_IsEnabled && pWorld != m_pWorld)
 	{
 		Disable();
 	}

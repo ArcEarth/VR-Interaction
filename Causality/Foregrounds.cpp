@@ -101,7 +101,7 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 				m_StateFrames.emplace_back(new StateFrame);
 				auto pFrame = m_StateFrames.back();
 				pFrame->Initialize();
-				pFrame->SubjectTransform = XMMatrixTranslation(0, 0, i*150.f);
+				pFrame->SubjectTransform = XMMatrixTranslation(0, 0, i*(-150.f));
 			}
 		}
 
@@ -631,9 +631,12 @@ void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 	//	pGroundRigid->setLinearVelocity({ 0,-1.0f,0 });
 
 
-	for (const auto& pFrame : m_StateFrames)
 	{
-		pFrame->pDynamicsWorld->stepSimulation(timer.GetElapsedSeconds(), 10);
+		lock_guard<mutex> guard(m_RenderLock);
+		for (const auto& pFrame : m_StateFrames)
+		{
+			pFrame->pDynamicsWorld->stepSimulation(timer.GetElapsedSeconds(), 10);
+		}
 	}
 	//pDynamicsWorld->stepSimulation(timer.GetElapsedSeconds(), 10);
 
