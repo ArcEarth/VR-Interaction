@@ -5,7 +5,7 @@
 #include "Interactive.h"
 #include <wrl\client.h>
 #include <CommonStates.h>
-#include "Common\SkyBox.h"
+#include "Common\SkyDome.h"
 #include <mutex>
 #include <map>
 #include <array>
@@ -17,11 +17,35 @@
 
 namespace Causality
 {
-	class SceneObject : public PhysicalGeometryModel
+	//class StateObject : virtual public DirectX::IRigid
+	//{
+	//	virtual ~StateObject()
+	//	{}
+	//};
+
+	class IShaped
 	{
+	public:
+		virtual std::shared_ptr<btCollisionShape> CreateCollisionShape() = 0;
+	};
+	
+	class ShapedGeomrtricModel : public DirectX::Scene::GeometryModel, virtual public IShaped
+	{
+	public:
+		virtual std::shared_ptr<btCollisionShape> CreateCollisionShape() override;
+
+	private:
+		std::shared_ptr<btCollisionShape> m_pShape;
 	};
 
-	struct HandPhysicalModel : public DirectX::Scene::IModelNode, public DirectX::Scene::LocalMatrixHolder
+	struct ProblistiscObject
+	{
+	public:
+		std::shared_ptr<DirectX::Scene::IModelNode>	Model;
+		std::map<DirectX::IRigid*,float> StatesDistribution;
+	};
+
+	struct HandPhysicalModel : public DirectX::Scene::IModelNode
 	{
 		HandPhysicalModel(const std::shared_ptr<btDynamicsWorld> &pWorld,const Leap::Frame& frame, const Leap::Hand& hand , const DirectX::Matrix4x4& transform);
 
@@ -40,6 +64,9 @@ namespace Causality
 		// Inherited via IModelNode
 		virtual void Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect) override;
 
+	public:
+		float		Opticity;
+
 	private:
 		int			Id;
 		int			LostFrames;
@@ -49,17 +76,24 @@ namespace Causality
 		static std::unique_ptr<DirectX::GeometricPrimitive> s_pSphere;
 	};
 
-	class CubeModel : public DirectX::Scene::IModelNode, public DirectX::Scene::IRigidLocalMatrix, public PhysicalRigid
+	class CubeModel : public DirectX::Scene::IModelNode, virtual public IShaped
 	{
 	public:
 		CubeModel(const std::string& name = "Cube", DirectX::FXMVECTOR extend = DirectX::g_XMOne, DirectX::FXMVECTOR color = DirectX::Colors::White)
 		{
 			Name = name;
 			m_Color = color;
-			m_pShape.reset(new btBoxShape(vector_cast<btVector3>(extend)));
+
 			XMStoreFloat3(&BoundBox.Extents,extend);
 			XMStoreFloat3(&BoundOrientedBox.Extents, extend);
 		}
+		virtual std::shared_ptr<btCollisionShape> CreateCollisionShape() override
+		{
+			std::shared_ptr<btCollisionShape> pShape;
+			pShape.reset(new btBoxShape(vector_cast<btVector3>(BoundBox.Extents)));
+			return pShape;
+		}
+
 		DirectX::XMVECTOR GetColor();
 		void XM_CALLCONV SetColor(DirectX::FXMVECTOR color);
 		virtual void Render(ID3D11DeviceContext *pContext, DirectX::IEffect* pEffect);
@@ -68,38 +102,47 @@ namespace Causality
 		DirectX::Color m_Color;
 	};
 
-	class Frame;
+	class StateFrame;
 	class FramePool
 	{
-		std::shared_ptr<Frame> CreateFrame();
-		std::shared_ptr<Frame> CopyFrame(const Frame& frame);
+		std::shared_ptr<StateFrame> CreateFrame();
+		std::shared_ptr<StateFrame> CopyFrame(const StateFrame& frame);
 	};
 
 	// One problistic frame for current state
-	class Frame
+	class StateFrame
 	{
 	public:
+		void Initialize();
+
 		// Object states evolution with time and interaction subjects
 		std::map<std::string, std::shared_ptr<PhysicalRigid>>	Objects;
 
 		// Interactive subjects
 		std::map<int, std::shared_ptr<HandPhysicalModel>>		Subjects;
-		std::map<int, DirectX::Matrix4x4>						SubjectTransforms;
+		DirectX::Matrix4x4										SubjectTransform;
 
-		float Liklyhood() const;
+		float Liklyhood() const
+		{
+			return 1;
+		}
+
+		StateFrame()
+		{
+		}
 
 		//copy sementic
-		Frame(const Frame& other)
+		StateFrame(const StateFrame& other)
 		{
 			*this = other;
 		}
-		Frame& operator=(const Frame& other);
+		StateFrame& operator=(const StateFrame& other);
 		// move sementic
-		Frame(Frame&& other)
+		StateFrame(StateFrame&& other)
 		{
 			*this = std::move(other);
 		}
-		Frame& operator=(const Frame&& other);
+		StateFrame& operator=(const StateFrame&& other);
 
 		// Evolution caculation object
 		std::shared_ptr<btBroadphaseInterface>					pBroadphase = nullptr;
@@ -111,7 +154,7 @@ namespace Causality
 		std::shared_ptr<btDynamicsWorld>						pDynamicsWorld = nullptr;
 	};
 
-	class WorldScene : public Platform::IAppComponent, public Platform::IUserHandsInteractive, public Platform::IKeybordInteractive, public DirectX::Scene::IRenderable, private DirectX::Scene::ModelCollection, public DirectX::Scene::IViewable , public DirectX::Scene::ITimeAnimatable
+	class WorldScene : public Platform::IAppComponent, public Platform::IUserHandsInteractive, public Platform::IKeybordInteractive, public DirectX::Scene::IRenderable, public DirectX::Scene::IViewable , public DirectX::Scene::ITimeAnimatable
 	{
 	public:
 		WorldScene(const std::shared_ptr<DirectX::DeviceResources> &pResouce, const DirectX::ILocatable* pCamera);
@@ -145,6 +188,13 @@ namespace Causality
 
 		virtual void OnKeyUp(const Platform::KeyboardEventArgs & e) override;
 
+		void AddObject(const std::shared_ptr<DirectX::Scene::IModelNode>& pModel, float mass, const DirectX::Vector3 &Position, const DirectX::Quaternion &Orientation, const DirectX::Vector3 &Scale);
+
+		std::vector<ProblistiscObject> ComposeFrame();
+
+		// Forece the scene to resolve the ambiguity, compress the frame count into one
+		void ResolveaAmbiguity();
+
 	private:
 		std::unique_ptr<DirectX::Scene::SkyDome>		pBackground;
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState>	pRSState;
@@ -171,7 +221,8 @@ namespace Causality
 		std::mutex										m_RenderLock;
 		const DirectX::ILocatable*						m_pCameraLocation;
 
-		std::list<std::shared_ptr<Frame>>				m_Frames;
+		DirectX::Scene::ModelCollection					Models;
+		std::list<std::shared_ptr<StateFrame>>				m_StateFrames;
 
 		std::shared_ptr<btConeShape>						 m_pHandConeShape;
 		std::map<int, std::shared_ptr<btCollisionObject>>	 m_pHandCones;
@@ -182,11 +233,9 @@ namespace Causality
 		
 		std::map<int, std::unique_ptr<HandPhysicalModel>>	 m_HandModels;
 
+
 		bool m_showTrace;
 		bool m_loadingComplete;
 
-		// Inherited via ModelCollection
-		virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
-		virtual DirectX::XMMATRIX GetModelMatrix() const override;
 	};
 }

@@ -293,7 +293,7 @@
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)$(TargetName).directX.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="Common\Polygonizer.cpp" />
-    <ClCompile Include="Common\SkyBox.cpp">
+    <ClCompile Include="Common\SkyDome.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch_directX.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)$(TargetName).directX.pch</PrecompiledHeaderOutputFile>
@@ -422,7 +422,7 @@
     <ClInclude Include="Common\Polygonizer.h" />
     <ClInclude Include="Common\Renderable.h" />
     <ClInclude Include="Common\ShaderEffect.h" />
-    <ClInclude Include="Common\SkyBox.h" />
+    <ClInclude Include="Common\SkyDome.h" />
     <ClInclude Include="Common\SpaceCurve.h" />
     <ClInclude Include="Common\StepTimer.h" />
     <ClInclude Include="Common\stride_iterator.h" />

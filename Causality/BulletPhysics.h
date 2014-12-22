@@ -80,7 +80,7 @@ namespace Causality
 		return btQuaternion(v.x, v.y, v.z, v.w);
 	}
 
-	class PhysicalRigid : virtual DirectX::IRigid
+	class PhysicalRigid : virtual public DirectX::IRigid
 	{
 	public:
 		PhysicalRigid();
@@ -118,9 +118,9 @@ namespace Causality
 		mutable DirectX::Quaternion					Orientation;
 	};
 
-	class PhysicalGeometryModel : public DirectX::Scene::IGeometryModel, public DirectX::Scene::IRigidLocalMatrix , public PhysicalRigid
-	{
-		void InitializePhysicalRigid(float mass = 1.0f);
-		static void CreateFromObjFile();
-	};
+	//class PhysicalGeometryModel : public DirectX::Scene::IGeometryModel, public DirectX::Scene::IRigidLocalMatrix , public PhysicalRigid
+	//{
+	//	void InitializePhysicalRigid(float mass = 1.0f);
+	//	static void CreateFromObjFile();
+	//};
 }

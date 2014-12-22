@@ -129,14 +129,14 @@ namespace DirectX
 			typedef _TIndex		IndexType;
 		};
 
-		class IModel
-		{
-		public:
-			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) = 0;
-		};
+		//class IModel
+		//{
+		//public:
+		//	virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) = 0;
+		//};
 
 		// A ModelPart is a aggregate of a mesh and it's Material
-		class ModelPart : virtual public IModel
+		class ModelPart
 		{ 
 		public:
 			std::string	Name;
@@ -144,22 +144,32 @@ namespace DirectX
 			std::shared_ptr<PhongMaterial>	pMaterial;
 			DirectX::BoundingBox			BoundBox;
 			DirectX::BoundingOrientedBox	BoundOrientedBox;
-			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
+			void Render(ID3D11DeviceContext *pContext, IEffect* pEffect);
 		};
 
 		class LocalMatrixHolder : virtual public ILocalMatrix
 		{
 		public:
 			// Inherited via ILocalMatrix
-			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
-			virtual XMMATRIX GetModelMatrix() const override;
+			void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model)
+			{
+				XMStoreFloat4x4(&LocalMatrix, model);
+			}
+
+			XMMATRIX GetModelMatrix() const
+			{
+				return XMLoadFloat4x4(&LocalMatrix);
+			}
 			Matrix4x4	LocalMatrix;
 		};
 
-		class IModelNode : virtual public ILocalMatrix, virtual public IBoundable, virtual public IModel
+		class IModelNode : virtual public ILocalMatrix, virtual public IBoundable
 		{
 		public:
 			virtual ~IModelNode();
+
+			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) = 0;
+
 			// Get the Recursive multiplied model matrix since root, return the global world matrix
 			virtual XMMATRIX GetWorldMatrix() const;
 			//virtual XMMATRIX GetModelMatrix() const override;
@@ -170,6 +180,11 @@ namespace DirectX
 			// Transformed Bounding Sphere
 			virtual BoundingSphere GetBoundingSphere() const override;
 
+			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
+
+			virtual XMMATRIX GetModelMatrix() const override;
+
+
 			// Inherited via ILocalMatrix
 			//virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
 			//virtual XMMATRIX GetModelMatrix() const override;
@@ -179,35 +194,39 @@ namespace DirectX
 			BoundingOrientedBox BoundOrientedBox;
 			BoundingSphere		BoundSphere;
 			BoundingBox			BoundBox;
-
+			Matrix4x4			LocalMatrix;
+			float				Opticity;
 		};
 
 		// A basic model is a collection of ModelPart shares same Local Matrix
 		// Leaf node in a model tree
-		class IBasicModel : public IModelNode
+		class BasicModel : public IModelNode
 		{
 		public:
-			std::vector<ModelPart>	Parts;
+			std::vector<std::shared_ptr<ModelPart>>	Parts;
 
 			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
 		};
 
-		class ModelCollection : public IModelNode , public RigidBase
+		// Inherit from vector type, only push_back is valiad !!!
+		class ModelCollection : public IModelNode, public std::vector<std::shared_ptr<IModelNode>>
 		{
 		public:
+			typedef std::vector<std::shared_ptr<IModelNode>> ContainnerType;
 			// All the data in Children's postion/orientation is 
 			// In the local coordinate of it's parent!
-			std::vector<std::shared_ptr<IModelNode>> Children;
-			void AddModel(const std::shared_ptr<IModelNode>& pModel);
+			using ContainnerType::operator[];
+			void push_back(const value_type& _Val);
+			void push_back(value_type&& _Val);
 			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
 		};
 
 		// This Model also keeps the geomreics data in CPU
-		class IGeometryModel : public IBasicModel
+		class GeometryModel : public BasicModel
 		{
 		public:
-			static bool CreateFromObjFile(IGeometryModel *pResult, ID3D11Device *pDevice, const std::wstring &file, const std::wstring& textureDir);
-			IBasicModel* ReleaseCpuResource();
+			static bool CreateFromObjFile(GeometryModel *pResult, ID3D11Device *pDevice, const std::wstring &file, const std::wstring& textureDir);
+			BasicModel* ReleaseCpuResource();
 		public:
 			std::vector<VertexPositionNormalTexture>			Vertices;
 			std::vector<FacetPrimitives::Triangle<uint16_t>>	Facets;

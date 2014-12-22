@@ -149,6 +149,12 @@ namespace DirectX{
 		m_pCube->Draw(world, ViewMatrix, ProjectionMatrix, Color);
 	}
 
+	void XM_CALLCONV PrimitveDrawer::DrawCube(FXMVECTOR HalfExtend, FXMMATRIX WorldTransform, GXMVECTOR Color)
+	{
+		XMMATRIX world = XMMatrixScalingFromVector(HalfExtend) * WorldTransform;
+		m_pCube->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	}
+
 	void XM_CALLCONV PrimitveDrawer::DrawCone(FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
 	{
 		XMVECTOR rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, YDirection);

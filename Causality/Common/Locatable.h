@@ -45,6 +45,10 @@ namespace DirectX
 	public:
 		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition(XMVectorAdd((XMVECTOR) GetPosition(), p)); }
 		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(GetOrientation(),q)); }
+		XMMATRIX GetRigidTransformMatrix() const
+		{
+			return XMMatrixAffineTransformation(GetScale(), XMVectorZero(), GetOrientation(), GetPosition());
+		}
 	};
 
 	// Helper struct to implement IRigid Interface

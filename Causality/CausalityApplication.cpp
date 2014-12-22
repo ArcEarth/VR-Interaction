@@ -2,7 +2,6 @@
 #include "CausalityApplication.h"
 #include "Content\CubeScene.h"
 #include "Content\SampleFpsTextRenderer.h"
-#include "Common\SkyBox.h"
 #include "Foregrounds.h"
 #include <CommonStates.h>
 #include "Common\PrimitiveVisualizer.h"

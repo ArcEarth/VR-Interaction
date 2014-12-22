@@ -64,6 +64,23 @@ class XmlModelLoader
 {
 };
 
+void StateFrame::Initialize()
+{
+	pBroadphase.reset(new btDbvtBroadphase());
+
+	// Set up the collision configuration and dispatcher
+	pCollisionConfiguration.reset(new btDefaultCollisionConfiguration());
+	pDispatcher.reset(new btCollisionDispatcher(pCollisionConfiguration.get()));
+
+	// The actual physics solver
+	pSolver.reset(new btSequentialImpulseConstraintSolver());
+
+	// The world.
+	pDynamicsWorld.reset(new btDiscreteDynamicsWorld(pDispatcher.get(), pBroadphase.get(), pSolver.get(), pCollisionConfiguration.get()));
+	pDynamicsWorld->setGravity(btVector3(0, -9.8f, 0));
+}
+
+
 void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 {
 
@@ -76,40 +93,17 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 	//ThrowIfFailed(pDevice->CreateRasterizerState(&Desc, &pRSState));
 
 	concurrency::task<void> load_models([this, pDevice]() {
-		// Build the broad phase
-		pBroadphase = make_unique<btDbvtBroadphase>();
 
-		// Set up the collision configuration and dispatcher
-		pCollisionConfiguration = make_unique<btDefaultCollisionConfiguration>();
-		pDispatcher = make_unique<btCollisionDispatcher>(pCollisionConfiguration.get());
-
-		// The actual physics solver
-		pSolver = make_unique<btSequentialImpulseConstraintSolver>();
-
-		// The world.
-		pDynamicsWorld.reset(new btDiscreteDynamicsWorld(pDispatcher.get(), pBroadphase.get(), pSolver.get(), pCollisionConfiguration.get()));
-		pDynamicsWorld->setGravity(btVector3(0, -9.8f, 0));
-
-		//pGroundShape = make_shared<btStaticPlaneShape>(btVector3{ 0,1,0.5},-0.5);
-		//pGroundShape.reset(new btBoxShape(btVector3{ 100,0.01f,100 }));
-		//btTransform trans = btTransform::getIdentity();
-		//trans.setOrigin(btVector3(0, -0.01f, 0));
-		//trans.setRotation(vector_cast<btQuaternion>(XMQuaternionRotationRollPitchYaw(0, 0, 0)));
-		//AlignedAllocator<btRigidBody> allocator;
-		//pGroundRigid = allocate_shared<btRigidBody>(allocator, 0, new btDefaultMotionState(trans), pGroundShape.get());
-		//pGroundRigid->setFriction(1.0f);
-		//pDynamicsWorld->addRigidBody(pGroundRigid.get());
-		////pGroundRigid->setAngularVelocity(btVector3(0.1f, 0, 0));
-		////pGroundRigid->setLinearVelocity({ 0,-1.0f,0 });
-		//pGroundRigid->setGravity({ 0,0,0 });
-		auto pShape = make_shared<btSphereShape>(0.01f);
-		//for (auto& pRigid : m_HandRigids)
-		//{
-		//	pRigid = make_shared<PhysicalRigid>();
-		//	//auto pShape = make_shared<btCylinderShape>()
-		//	pRigid->InitializePhysics(nullptr, pShape,1000);
-		//	pRigid->GetBulletRigid()->setGravity({ 0,0,0 });
-		//}
+		{
+			lock_guard<mutex> guard(m_RenderLock);
+			for (size_t i = 0; i < 5; i++)
+			{
+				m_StateFrames.emplace_back(new StateFrame);
+				auto pFrame = m_StateFrames.back();
+				pFrame->Initialize();
+				pFrame->SubjectTransform = XMMatrixTranslation(0, 0, i*150.f);
+			}
+		}
 
 		auto Directory = App::Current()->GetResourcesDirectory();
 		auto ModelDirectory = Directory / "Models";
@@ -141,30 +135,14 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 				auto path = node->Attribute("src");
 				if (path != nullptr && strlen(path) != 0)
 				{
-					auto model = std::make_shared<Causality::PhysicalGeometryModel>();
-					IGeometryModel::CreateFromObjFile(model.get(), pDevice, (ModelDirectory / path).wstring(), texDir);
-					XMFLOAT3 v = model->BoundOrientedBox.Extents;
+					auto pModel = std::make_shared<ShapedGeomrtricModel>();
+					GeometryModel::CreateFromObjFile(pModel.get(), pDevice, (ModelDirectory / path).wstring(), texDir);
+
+					XMFLOAT3 v = pModel->BoundOrientedBox.Extents;
 					v.y /= v.x;
 					v.z /= v.x;
-					m_ModelFeatures[model->Name] = Eigen::Vector2f(v.y, v.z);
-					std::cout << "[Model] f(" << model->Name << ") = " << m_ModelFeatures[model->Name] << std::endl;
-
-
-					btTransform trans;
-					shared_ptr<btCompoundShape> pShape(new btCompoundShape());
-					//trans.setOrigin(vector_cast<btVector3>(model->BoundOrientedBox.Center));
-					//trans.setRotation(vector_cast<btQuaternion>(model->BoundOrientedBox.Orientation));
-					//pShape->addChildShape(trans, new btBoxShape(vector_cast<btVector3>(model->BoundOrientedBox.Extents)));
-					for (const auto& part : model->Parts)
-					{
-						trans.setOrigin(vector_cast<btVector3>(part.BoundOrientedBox.Center));
-						trans.setRotation(vector_cast<btQuaternion>(part.BoundOrientedBox.Orientation));
-						pShape->addChildShape(trans, new btBoxShape(vector_cast<btVector3>(part.BoundOrientedBox.Extents)));
-					}
-					//shared_ptr<btBoxShape> pShape(new btBoxShape(vector_cast<btVector3>(model->BoundBox.Extents)));
-
-					//shared_ptr<btSphereShape> pShape;
-					//pShape.reset(new btSphereShape(model->BoundSphere.Radius));
+					m_ModelFeatures[pModel->Name] = Eigen::Vector2f(v.y, v.z);
+					std::cout << "[Model] f(" << pModel->Name << ") = " << m_ModelFeatures[pModel->Name] << std::endl;
 
 					float scale = 1.0f;
 					float mass = 1.0f;
@@ -192,19 +170,17 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 					if (attr)
 						mass = atof(attr);
 
-					pShape->setLocalScaling(btVector3(scale, scale, scale));
-					btVector3 minb, maxb;
-					trans.setIdentity();
-					//pShape->getAabb(trans, minb, maxb);
-					model->InitializePhysics(pDynamicsWorld, pShape, mass, pos, XMQuaternionIdentity());
-					model->GetBulletRigid()->setFriction(1.0f);
-					//model->GetBulletRigid()->applyTorqueImpulse(btVector3(1.0f, 0, 1.0f));
-					//model->SetOrientation(DirectX::Quaternion::CreateFromYawPitchRoll(1.0f,0,1.0f));
-					//model->GetBulletRigid()->setAngularVelocity(btVector3(1.0f, 0, 0));
-					{
-						std::lock_guard<mutex> guard(m_RenderLock);
-						AddModel(model);
-					}
+					AddObject(pModel, mass, pos, DirectX::Quaternion::Identity, DirectX::Vector3(scale));
+
+					//auto pShape = model->CreateCollisionShape();
+					//pShape->setLocalScaling(btVector3(scale, scale, scale));
+					//btVector3 minb, maxb;
+					//model->InitializePhysics(pDynamicsWorld, pShape, mass, pos, XMQuaternionIdentity());
+					//model->GetBulletRigid()->setFriction(1.0f);
+					//{
+					//	std::lock_guard<mutex> guard(m_RenderLock);
+					//	Models.push_back(model);
+					//}
 				}
 			}
 			else if (!strcmp(node->Name(),"cube"))
@@ -256,26 +232,19 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 				v.z /= v.x;
 				m_ModelFeatures[pModel->Name] = Eigen::Vector2f(v.y, v.z);
 
-				pModel->InitializePhysics(nullptr, nullptr, mass, pos);
-				pModel->Enable(pDynamicsWorld);
-				pModel->GetBulletRigid()->setFriction(1.0f);
-				{
-					std::lock_guard<mutex> guard(m_RenderLock);
-					AddModel(pModel);
-				}
+				AddObject(pModel, mass, pos, DirectX::Quaternion::Identity, DirectX::Vector3::One);
+				//auto pShape = pModel->CreateCollisionShape();
+				//pModel->InitializePhysics(nullptr, pShape, mass, pos);
+				//pModel->Enable(pDynamicsWorld);
+				//pModel->GetBulletRigid()->setFriction(1.0f);
+				//{
+				//	std::lock_guard<mutex> guard(m_RenderLock);
+				//	Models.push_back(pModel);
+				//}
 			}
 			node = node->NextSiblingElement();
 		}
 
-		//AddModel(GeometryModel::CreateFromObjFile(pDevice, (ModelDirectory / models[2]).wstring(), texDir));
-
-		for (auto& obj : Children)
-		{
-			//auto& ext = obj->BoundBox.Extents;
-			//auto s = max(max(ext.x, ext.y), ext.z);
-			////s = 5.0f / s;
-			//obj->SetScale({ s ,s ,s });
-		}
 		m_loadingComplete = true;
 	});
 }
@@ -283,6 +252,53 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 void Causality::WorldScene::SetViewIdenpendntCameraPosition(const DirectX::ILocatable * pCamera)
 {
 	m_pCameraLocation = pCamera;
+}
+
+std::vector<ProblistiscObject> Causality::WorldScene::ComposeFrame()
+{
+	std::vector<ProblistiscObject> Objects(Models.size());
+
+	float weightsSum = 0;
+	std::vector<float> weights(m_StateFrames.size());
+	int j = 0;
+	for (const auto& pFrame : m_StateFrames)
+	{
+		weightsSum += weights[j++] = pFrame->Liklyhood();
+	}
+
+	for (int i = 0; i < Models.size(); i++)
+	{
+		const auto& pModel = Models[i];
+		Objects[i].Model = pModel;
+		auto& distribution = Objects[i].StatesDistribution;
+		j = 0;
+		for (const auto& pFrame : m_StateFrames)
+		{
+			auto pNew = pFrame->Objects[pModel->Name].get();
+			auto itr = std::find_if(distribution.begin(), distribution.end(),
+				[pNew](std::remove_reference_t<decltype(distribution)>::const_reference item) -> bool
+				{
+					auto pExisted = item.first;
+					Vector3 PosDiff = pExisted->GetPosition() - pNew->GetPosition();
+					DirectX::Quaternion RotDiff = pExisted->GetOrientation();
+					RotDiff.Inverse(RotDiff);
+					RotDiff *= pNew->GetOrientation();
+					float AngDiff = 2 * acosf(RotDiff.w);
+					return (PosDiff.Length() <= 0.002f && AngDiff <= 1);
+				});
+			if (itr == distribution.end())
+			{
+				distribution[pNew] = weights[j] / weightsSum;
+			}
+			else
+			{
+				itr->second += weights[j] / weightsSum;
+			}
+			j++;
+		}
+	}
+
+	return Objects;
 }
 
 void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
@@ -296,14 +312,44 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		pContext->PSSetSamplers(0, 1, &pAWrap);
 		pContext->RSSetState(pRSState.Get());
 		std::lock_guard<mutex> guard(m_RenderLock);
-		ModelCollection::Render(pContext, pEffect.get());
+		float weightsSum = 0;
+		std::vector<float> weights(m_StateFrames.size());
+
+		int j = 0;
+		for (const auto& pFrame : m_StateFrames)
+		{
+			weightsSum += weights[j++] = pFrame->Liklyhood();
+		}
+		j = 0;
+
+		auto DistrubModel = ComposeFrame();
+
+		for (const auto & obj : DistrubModel)
+		{
+			for (const auto &state : obj.StatesDistribution)
+			{
+				obj.Model->LocalMatrix = state.first->GetRigidTransformMatrix();
+				obj.Model->Opticity = state.second;
+				obj.Model->Render(pContext, pEffect.get());
+			}
+		}
+
+		for (const auto& pFrame : m_StateFrames)
+		{
+			//Subjects
+			for (const auto& item : pFrame->Subjects)
+			{
+				if (item.second)
+				{
+					item.second->Opticity = weights[j] / weightsSum;
+					item.second->Render(pContext, nullptr);
+				}
+			}
+			j = 0;
+		}
 	}
 
-	for (const auto& item : m_HandModels)
-	{
-		if (item.second)
-			item.second->Render(pContext, nullptr);
-	}
+
 
 	g_PrimitiveDrawer.Begin();
 
@@ -336,12 +382,12 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 
 		{
 			std::lock_guard<mutex> guard(m_RenderLock);
-			auto s = Children.size();
+			auto s = Models.size();
 			if (m_HaveHands)
 				std::cout << "Detail Similarity = {";
 			for (size_t i = 0; i < s; i++)
 			{
-				const auto& model = Children[i];
+				const auto& model = Models[i];
 				model->GetOrientedBoundingBox().GetCorners(conners);
 				DrawBox(conners, DirectX::Colors::DarkGreen);
 				if (m_HaveHands)
@@ -357,13 +403,13 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 						g_PrimitiveDrawer.DrawSphere(conners[i], 0.005 * similarity, c);
 					}
 				}
-				auto pModel = dynamic_cast<IBasicModel*>(model.get());
+				auto pModel = dynamic_cast<BasicModel*>(model.get());
 				XMMATRIX transform = model->GetWorldMatrix();
 				if (pModel)
 				{
 					for (const auto& part : pModel->Parts)
 					{
-						part.BoundOrientedBox.Transform(obox, transform);
+						part->BoundOrientedBox.Transform(obox, transform);
 						obox.GetCorners(conners);
 						DrawBox(conners, DirectX::Colors::Orange);
 					}
@@ -373,7 +419,6 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		if (m_HaveHands)
 			std::cout << '}' << std::endl;
 	}
-
 
 	if (m_HaveHands)
 	{
@@ -496,18 +541,23 @@ void XM_CALLCONV Causality::WorldScene::UpdateProjectionMatrix(DirectX::FXMMATRI
 
 void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 {
-
-	for (auto itr = m_HandModels.begin(); itr != m_HandModels.end(); )
+	for (const auto& pFrame : m_StateFrames)
 	{
-		bool result = itr->second->Update(m_Frame, m_FrameTransform);
-		// Remove hands lost track for 60+ frames
-		if (!result)
+		auto& subjects = pFrame->Subjects;
+
+		for (auto itr = subjects.begin(); itr != subjects.end(); )
 		{
-			if (itr->second->LostFramesCount() > 60)
-				itr = m_HandModels.erase(itr);
+			auto trans = pFrame->SubjectTransform * m_FrameTransform;
+			bool result = itr->second->Update(m_Frame, trans);
+			// Remove hands lost track for 60+ frames
+			if (!result)
+			{
+				if (itr->second->LostFramesCount() > 60)
+					itr = subjects.erase(itr);
+			}
+			else
+				++itr;
 		}
-		else
-			++itr;
 	}
 
 	if (m_HandTrace.size() > 0)
@@ -580,7 +630,12 @@ void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 	//if (pGroundRigid)
 	//	pGroundRigid->setLinearVelocity({ 0,-1.0f,0 });
 
-	pDynamicsWorld->stepSimulation(timer.GetElapsedSeconds(), 10);
+
+	for (const auto& pFrame : m_StateFrames)
+	{
+		pFrame->pDynamicsWorld->stepSimulation(timer.GetElapsedSeconds(), 10);
+	}
+	//pDynamicsWorld->stepSimulation(timer.GetElapsedSeconds(), 10);
 
 	//for (auto& obj : Children)
 	//{
@@ -635,8 +690,14 @@ void Causality::WorldScene::OnHandsTracked(const UserHandsEventArgs & e)
 	m_Frame = e.sender.frame();
 	for (const auto& hand : m_Frame.hands())
 	{
-		if (!m_HandModels[hand.id()])
-			m_HandModels[hand.id()].reset(new HandPhysicalModel(pDynamicsWorld, m_Frame, hand, e.toWorldTransform));
+		for (const auto& pFrame : m_StateFrames)
+		{
+			auto & subjects = pFrame->Subjects;
+			Matrix4x4 trans = pFrame->SubjectTransform * e.toWorldTransform;
+			if (!subjects[hand.id()])
+				subjects[hand.id()].reset(new HandPhysicalModel(pFrame->pDynamicsWorld, m_Frame, hand, trans));
+
+		}
 	}
 
 	//for (size_t j = 0; j < i; j++)
@@ -677,6 +738,7 @@ void Causality::WorldScene::OnHandsMove(const UserHandsEventArgs & e)
 	std::normal_distribution<float> normalDist(0, fingerStdev);
 	std::uniform_real<float> uniformDist;
 
+	// Caculate moving trace
 	int handIdx = 0;
 	for (const auto& hand : m_Frame.hands())
 	{
@@ -722,36 +784,39 @@ void Causality::WorldScene::OnHandsMove(const UserHandsEventArgs & e)
 			//m_TraceSamples.pop_front();
 		}
 
-		Vector3 rayEnd = XMVector3Transform(hand.palmPosition().toVector3<Vector3>(), leap2world);
-		Vector3 rayBegin = m_pCameraLocation->GetPosition();
-		auto pConeShape = new btConeShape(100, XM_PI / 16 * 100);
-		auto pCollisionCone = new btCollisionObject();
-		pCollisionCone->setCollisionShape(pConeShape);
-		btTransform trans(
-			vector_cast<btQuaternion>(XMQuaternionRotationVectorToVector(g_XMIdentityR1, rayEnd - rayBegin)),
-			vector_cast<btVector3>(rayBegin));
-		pCollisionCone->setWorldTransform(trans);
-		class Callback : public btDynamicsWorld::ContactResultCallback
-		{
-		public:
-			const IModelNode* pModel;
-			Callback() {}
+		// Cone intersection test section
+		//Vector3 rayEnd = XMVector3Transform(hand.palmPosition().toVector3<Vector3>(), leap2world);
+		//Vector3 rayBegin = m_pCameraLocation->GetPosition();
+		//auto pConeShape = new btConeShape(100, XM_PI / 16 * 100);
+		//auto pCollisionCone = new btCollisionObject();
+		//pCollisionCone->setCollisionShape(pConeShape);
+		//btTransform trans(
+		//	vector_cast<btQuaternion>(XMQuaternionRotationVectorToVector(g_XMIdentityR1, rayEnd - rayBegin)),
+		//	vector_cast<btVector3>(rayBegin));
+		//pCollisionCone->setWorldTransform(trans);
+		//class Callback : public btDynamicsWorld::ContactResultCallback
+		//{
+		//public:
+		//	const IModelNode* pModel;
+		//	Callback() {}
 
-			void SetModel(const IModelNode* pModel)
-			{
-				this->pModel = pModel;
-			}
-			Callback(const IModelNode* pModel)
-				: pModel(pModel)
-			{
-			}
-			virtual	btScalar	addSingleResult(btManifoldPoint& cp, const btCollisionObjectWrapper* colObj0Wrap, int partId0, int index0, const btCollisionObjectWrapper* colObj1Wrap, int partId1, int index1)
-			{
-				cout << "point frustrum contact with "<< pModel->Name << endl;
-				return 0;
-			}
-		};
-		static map<string, Callback> callbackTable;
+		//	void SetModel(const IModelNode* pModel)
+		//	{
+		//		this->pModel = pModel;
+		//	}
+		//	Callback(const IModelNode* pModel)
+		//		: pModel(pModel)
+		//	{
+		//	}
+		//	virtual	btScalar	addSingleResult(btManifoldPoint& cp, const btCollisionObjectWrapper* colObj0Wrap, int partId0, int index0, const btCollisionObjectWrapper* colObj1Wrap, int partId1, int index1)
+		//	{
+		//		cout << "point frustrum contact with "<< pModel->Name << endl;
+		//		return 0;
+		//	}
+		//};
+		//static map<string, Callback> callbackTable;
+
+
 		//for (const auto& model : Children)
 		//{
 		//	auto pRigid = dynamic_cast<PhysicalRigid*>(model.get());
@@ -800,15 +865,20 @@ void Causality::WorldScene::OnKeyUp(const KeyboardEventArgs & e)
 		m_showTrace = !m_showTrace;
 }
 
-void XM_CALLCONV Causality::WorldScene::SetModelMatrix(DirectX::FXMMATRIX model)
+void Causality::WorldScene::AddObject(const std::shared_ptr<IModelNode>& pModel,float mass, const DirectX::Vector3 & Position, const DirectX::Quaternion & Orientation, const Vector3 & Scale)
 {
-	return;
-}
-
-XMMATRIX Causality::WorldScene::GetModelMatrix() const
-{
-	//return XMMatrixScalingFromVector(XMVectorReplicate(0.1f));//
-	return XMMatrixIdentity();
+	lock_guard<mutex> guard(m_RenderLock);
+	Models.push_back(pModel);
+	auto pShaped = dynamic_cast<IShaped*>(pModel.get());
+	auto pShape = pShaped->CreateCollisionShape();
+	pShape->setLocalScaling(vector_cast<btVector3>(Scale));
+	for (const auto& pFrame : m_StateFrames)
+	{
+		auto pObject = std::shared_ptr<PhysicalRigid>(new PhysicalRigid());
+		pObject->InitializePhysics(pFrame->pDynamicsWorld, pShape, mass, Position, Orientation);
+		pObject->GetBulletRigid()->setFriction(1.0f);
+		pFrame->Objects[pModel->Name] = pObject;
+	}
 }
 
 std::pair<DirectX::Vector3, DirectX::Quaternion> XM_CALLCONV CaculateCylinderTransform(FXMVECTOR P1, FXMVECTOR P2)
@@ -914,6 +984,8 @@ void Causality::HandPhysicalModel::Render(ID3D11DeviceContext * pContext, Direct
 	XMMATRIX leap2world = LocalMatrix;
 	auto palmPosition = XMVector3Transform(m_Hand.palmPosition().toVector3<Vector3>(), leap2world);
 	//g_PrimitiveDrawer.DrawSphere(palmPosition, 0.02f, Colors::YellowGreen);
+	XMVECTOR color = Colors::LimeGreen;
+	color = XMVectorSetW(color,Opticity);
 	for (const auto& pRigid : m_HandRigids)
 	{
 		g_PrimitiveDrawer.DrawCylinder(
@@ -921,7 +993,7 @@ void Causality::HandPhysicalModel::Render(ID3D11DeviceContext * pContext, Direct
 			XMVector3Rotate(g_XMIdentityR1, pRigid->GetOrientation()),
 			dynamic_cast<btCylinderShape*>(pRigid->GetBulletShape())->getHalfExtentsWithoutMargin().y(),
 			fingerRadius,
-			Colors::LimeGreen);
+			color);
 	}
 	//for (const auto& finger : m_Hand.fingers())
 	//{
@@ -951,8 +1023,34 @@ void Causality::HandPhysicalModel::Render(ID3D11DeviceContext * pContext, Direct
 inline void Causality::CubeModel::Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect)
 {
 	XMVECTOR extent = XMLoadFloat3(&BoundBox.Extents);
-	g_PrimitiveDrawer.DrawCube(this->GetPosition(),
-		XMVectorMultiply(extent, (XMVECTOR)this->GetScale()),
-		this->GetOrientation(),
-		m_Color);
+	XMMATRIX world = GetWorldMatrix();
+	XMVECTOR scale, pos, rot;
+	XMVECTOR color = m_Color;
+	color = XMVectorSetW(color, Opticity);
+	g_PrimitiveDrawer.DrawCube(extent,world, color);
+}
+
+// !!!Current don't support dynamic scaling for each state now!!!
+inline std::shared_ptr<btCollisionShape> Causality::ShapedGeomrtricModel::CreateCollisionShape()
+{
+	if (!m_pShape)
+	{
+		btTransform trans;
+		std::shared_ptr<btCompoundShape> pShape(new btCompoundShape());
+		//trans.setOrigin(vector_cast<btVector3>(model->BoundOrientedBox.Center));
+		//trans.setRotation(vector_cast<btQuaternion>(model->BoundOrientedBox.Orientation));
+		//pShape->addChildShape(trans, new btBoxShape(vector_cast<btVector3>(model->BoundOrientedBox.Extents)));
+		for (const auto& part : Parts)
+		{
+			trans.setOrigin(vector_cast<btVector3>(part->BoundOrientedBox.Center));
+			trans.setRotation(vector_cast<btQuaternion>(part->BoundOrientedBox.Orientation));
+			pShape->addChildShape(trans, new btBoxShape(vector_cast<btVector3>(part->BoundOrientedBox.Extents)));
+		}
+		m_pShape = pShape;
+		return m_pShape;
+	}
+	else
+	{
+		return m_pShape;
+	}
 }

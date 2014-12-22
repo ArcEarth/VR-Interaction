@@ -10,7 +10,7 @@ Causality::PhysicalRigid::PhysicalRigid()
 
 Causality::PhysicalRigid::~PhysicalRigid()
 {
-	Disable();
+	//Disable();
 	m_pWorld = nullptr;
 }
 
@@ -109,20 +109,20 @@ void Causality::PhysicalRigid::SetScale(const DirectX::Vector3 & s)
 	m_pShape->setLocalScaling(vector_cast<btVector3>(s));
 }
 
-void Causality::PhysicalGeometryModel::InitializePhysicalRigid(float mass)
-{
-	btTransform trans;
-	auto pShape = new btCompoundShape();
-	m_pShape.reset(pShape);
-
-	//trans.setOrigin(vector_cast<btVector3>(BoundOrientedBox.Center));
-	//trans.setRotation(vector_cast<btQuaternion>(BoundOrientedBox.Orientation));
-	//pShape->addChildShape(trans, new btBoxShape(vector_cast<btVector3>(BoundOrientedBox.Extents)));
-
-	for (const auto& part : Parts)
-	{
-		trans.setOrigin(vector_cast<btVector3>(part.BoundOrientedBox.Center));
-		trans.setRotation(vector_cast<btQuaternion>(part.BoundOrientedBox.Orientation));
-		pShape->addChildShape(trans, new btBoxShape(vector_cast<btVector3>(part.BoundOrientedBox.Extents)));
-	}
-}
+//void Causality::PhysicalGeometryModel::InitializePhysicalRigid(float mass)
+//{
+//	btTransform trans;
+//	auto pShape = new btCompoundShape();
+//	m_pShape.reset(pShape);
+//
+//	//trans.setOrigin(vector_cast<btVector3>(BoundOrientedBox.Center));
+//	//trans.setRotation(vector_cast<btQuaternion>(BoundOrientedBox.Orientation));
+//	//pShape->addChildShape(trans, new btBoxShape(vector_cast<btVector3>(BoundOrientedBox.Extents)));
+//
+//	for (const auto& part : Parts)
+//	{
+//		trans.setOrigin(vector_cast<btVector3>(part.BoundOrientedBox.Center));
+//		trans.setRotation(vector_cast<btQuaternion>(part.BoundOrientedBox.Orientation));
+//		pShape->addChildShape(trans, new btBoxShape(vector_cast<btVector3>(part.BoundOrientedBox.Extents)));
+//	}
+//}

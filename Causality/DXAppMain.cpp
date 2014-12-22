@@ -96,7 +96,7 @@ bool DXAppMain::Render()
 
 	// Render the scene objects.
 	// TODO: Replace this with your app's content rendering functions.
-	m_pSkyBox->Render(context);
+	//m_pSkyBox->Render(context);
 	m_sceneRenderer->Render(context);
 	//m_fpsTextRenderer->Render();
 

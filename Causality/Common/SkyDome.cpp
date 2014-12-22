@@ -1,5 +1,5 @@
 #include "pch_directX.h"
-#include "SkyBox.h"
+#include "SkyDome.h"
 #include <DDSTextureLoader.h>
 #include <CommonStates.h>
 using namespace std;

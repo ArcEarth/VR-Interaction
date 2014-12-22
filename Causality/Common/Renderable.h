@@ -38,12 +38,12 @@ namespace DirectX{
 			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) = 0;
 			virtual XMMATRIX GetModelMatrix() const = 0;
 
-			virtual void XM_CALLCONV TransformLocal(DirectX::FXMMATRIX trans)
+			void XM_CALLCONV TransformLocal(DirectX::FXMMATRIX trans)
 			{
 				SetModelMatrix(trans * GetModelMatrix());
 			}
 
-			virtual void XM_CALLCONV TransformGlobal(DirectX::FXMMATRIX trans)
+			void XM_CALLCONV TransformGlobal(DirectX::FXMMATRIX trans)
 			{
 				SetModelMatrix(GetModelMatrix() * trans);
 			}

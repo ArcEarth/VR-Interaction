@@ -56,6 +56,7 @@ namespace DirectX
 		void XM_CALLCONV DrawCylinder(FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color);
 		//void XM_CALLCONV DrawSphere(FXMVECTOR Position, float radius, FXMVECTOR Color);
 		void XM_CALLCONV DrawCube(FXMVECTOR Position, FXMVECTOR HalfExtend, FXMVECTOR Orientation, GXMVECTOR Color);
+		void XM_CALLCONV DrawCube(FXMVECTOR HalfExtend, FXMMATRIX WorldTransform , GXMVECTOR Color);
 		void XM_CALLCONV DrawCone(FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color);
 
 		GeometricPrimitive* GetCube()
