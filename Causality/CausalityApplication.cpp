@@ -71,7 +71,7 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	}
 
 	// Primary Camera setup
-	auto pPlayer = std::make_unique<PlayerCamera>(pDeviceResources);
+	auto pPlayer = std::make_unique<PlayerAttachedCamera>(pDeviceResources);
 	if (pRift)
 		pPlayer->EnableStereo(pRift);
 	else

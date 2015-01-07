@@ -64,6 +64,7 @@ namespace Causality
 		// Inherited via IModelNode
 		virtual void Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect) override;
 
+		DirectX::XMVECTOR XM_CALLCONV FieldAtPoint(DirectX::FXMVECTOR P);
 	public:
 		float		Opticity;
 
@@ -71,6 +72,7 @@ namespace Causality
 		int			Id;
 		int			LostFrames;
 		Leap::Hand  m_Hand;
+		std::array<std::pair<DirectX::Vector3, DirectX::Vector3>,20> m_Bones;
 		std::vector<std::shared_ptr<PhysicalRigid>>    m_HandRigids;
 		static std::unique_ptr<DirectX::GeometricPrimitive> s_pCylinder;
 		static std::unique_ptr<DirectX::GeometricPrimitive> s_pSphere;

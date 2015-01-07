@@ -1,13 +1,13 @@
-#include "Player.h"
+#include "PrimaryCamera.h"
 #include <DirectXColors.h>
 using namespace DirectX;
 
-size_t PlayerCamera::ViewCount() const
+size_t PlayerAttachedCamera::ViewCount() const
 {
 	return IsStereoEnabled() ? 2U : 1U;
 }
 
-DirectX::XMMATRIX PlayerCamera::GetViewMatrix(size_t view) const
+DirectX::XMMATRIX PlayerAttachedCamera::GetViewMatrix(size_t view) const
 {
 	assert(view < ViewCount());
 	if (IsStereoEnabled())
@@ -30,7 +30,7 @@ DirectX::XMMATRIX PlayerCamera::GetViewMatrix(size_t view) const
 	}
 }
 
-DirectX::XMMATRIX PlayerCamera::GetProjectionMatrix(size_t view) const
+DirectX::XMMATRIX PlayerAttachedCamera::GetProjectionMatrix(size_t view) const
 {
 	assert(view < ViewCount());
 	if (IsStereoEnabled())
@@ -46,7 +46,7 @@ DirectX::XMMATRIX PlayerCamera::GetProjectionMatrix(size_t view) const
 
 // This ignore the effect of Oculus
 
-void PlayerCamera::FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir)
+void PlayerAttachedCamera::FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir)
 {
 	using namespace DirectX;
 	// Right-Hand Coordinate
@@ -67,22 +67,22 @@ void XM_CALLCONV DirectX::Scene::ICameraBase::Move(FXMVECTOR p) { SetPosition((X
 
 void XM_CALLCONV DirectX::Scene::ICameraBase::Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(q, GetOrientation())); }
 
-const Platform::Fundation::Vector3 & PlayerCamera::GetPosition() const
+const Platform::Fundation::Vector3 & PlayerAttachedCamera::GetPosition() const
 {
 	return m_BodyPose.Position;
 }
 
-void PlayerCamera::SetPosition(const Platform::Fundation::Vector3 &p)
+void PlayerAttachedCamera::SetPosition(const Platform::Fundation::Vector3 &p)
 {
 	m_BodyPose.Position = p;
 }
 
-const Platform::Fundation::Quaternion & PlayerCamera::GetOrientation() const
+const Platform::Fundation::Quaternion & PlayerAttachedCamera::GetOrientation() const
 {
 	return m_BodyPose.Orientation;
 }
 
-void PlayerCamera::SetOrientation(const Platform::Fundation::Quaternion &q)
+void PlayerAttachedCamera::SetOrientation(const Platform::Fundation::Quaternion &q)
 {
 	m_BodyPose.Orientation = q;
 }
@@ -98,7 +98,7 @@ void PlayerCamera::SetOrientation(const Platform::Fundation::Quaternion &q)
 //}
 
 
-void PlayerCamera::BeginFrame()
+void PlayerAttachedCamera::BeginFrame()
 {
 	if (m_pRift)
 	{
@@ -116,7 +116,7 @@ void PlayerCamera::BeginFrame()
 	}
 }
 
-void PlayerCamera::EndFrame()
+void PlayerAttachedCamera::EndFrame()
 {
 	if (m_pRift)
 	{
@@ -128,7 +128,7 @@ void PlayerCamera::EndFrame()
 	}
 }
 
-void PlayerCamera::SetView(size_t view)
+void PlayerAttachedCamera::SetView(size_t view)
 {
 	if (m_pRift)
 	{
@@ -152,12 +152,12 @@ void PlayerCamera::SetView(size_t view)
 //	return XMMatrixPerspectiveFovRH(Fov, AspectRatio, 0.01f,100.0f);
 //}
 
-void PlayerCamera::SetFov(float fovRadius, float aspectRatioHbyW)
+void PlayerAttachedCamera::SetFov(float fovRadius, float aspectRatioHbyW)
 {
 	Fov = fovRadius; AspectRatio = aspectRatioHbyW;
 }
 
-float PlayerCamera::GetFov() const
+float PlayerAttachedCamera::GetFov() const
 {
 	return Fov;
 }

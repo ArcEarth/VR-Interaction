@@ -15,7 +15,7 @@
 #include "Common\Renderable.h"
 #include "NativeWindow.h"
 #include "OculusRift.h"
-#include "Player.h"
+#include "PrimaryCamera.h"
 #include "LeapMotion.h"
 #include <boost\filesystem.hpp>
 

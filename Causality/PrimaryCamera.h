@@ -3,15 +3,15 @@
 
 // A Camera setup which works both in the case with OculusRift and Normal Monolith Camera
 __declspec(align(16))
-class PlayerCamera : public DirectX::AlignedNew<PlayerCamera>, public DirectX::Scene::ICameraBase , public DirectX::Scene::ICameraRenderControl , public DirectX::Scene::ICameraParameters
+class PlayerAttachedCamera : public DirectX::AlignedNew<PlayerAttachedCamera>, public DirectX::Scene::ICameraBase , public DirectX::Scene::ICameraRenderControl , public DirectX::Scene::ICameraParameters
 {
 public:
-	PlayerCamera(const std::shared_ptr<DirectX::DeviceResources> &resources = nullptr)
+	PlayerAttachedCamera(const std::shared_ptr<DirectX::DeviceResources> &resources = nullptr)
 		: m_pDeviceResources(resources)
 	{
 	}
 
-	~PlayerCamera()
+	~PlayerAttachedCamera()
 	{
 	}
 

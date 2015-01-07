@@ -462,10 +462,10 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 			m_HandTraceBoundingBox.GetCorners(conners);
 			DrawBox(conners, Colors::YellowGreen);
 			m_HandTraceModel.Primitives.clear();
-			for (int i = m_HandTrace.size() - 1; i >= std::max(0, (int) m_HandTrace.size() - TraceLength); i--)
+			for (int i = m_HandTrace.size() - 1; i >= std::max<int>(0, (int) m_HandTrace.size() - TraceLength); i--)
 			{
 				const auto& h = m_HandTrace[i];
-				float radius = (i + 1 - std::max(0U, m_HandTrace.size() - TraceLength)) / (std::min<float>(m_HandTrace.size(), TraceLength));
+				float radius = (i + 1 - std::max<int>(0, m_HandTrace.size() - TraceLength)) / (std::min<float>(m_HandTrace.size(), TraceLength));
 				for (size_t j = 0; j < h.size(); j++)
 				{
 					//m_HandTraceModel.Primitives.emplace_back(h[j], 0.02f);
@@ -956,6 +956,9 @@ bool Causality::HandPhysicalModel::Update(const Leap::Frame & frame, const Direc
 				const auto & bone = finger.bone((Leap::Bone::Type)i);
 				XMVECTOR bJ = XMVector3Transform(bone.prevJoint().toVector3<Vector3>(), leap2world);
 				XMVECTOR eJ = XMVector3Transform(bone.nextJoint().toVector3<Vector3>(), leap2world);
+				m_Bones[i + j * 4].first = bJ;
+				m_Bones[i + j * 4].second = eJ;
+
 				auto center = 0.5f * XMVectorAdd(bJ, eJ);
 				auto dir = XMVectorSubtract(eJ, bJ);
 				XMVECTOR rot;
@@ -1021,6 +1024,84 @@ void Causality::HandPhysicalModel::Render(ID3D11DeviceContext * pContext, Direct
 	//		//s_pCylinder->Draw(world, ViewMatrix, ProjectionMatrix,Colors::LimeGreen);
 	//	}
 	//}
+}
+
+// normalized feild intensity equalent charge
+XMVECTOR XM_CALLCONV FieldSegmentToPoint(FXMVECTOR P, FXMVECTOR L0, FXMVECTOR L1)
+{
+	if (XMVector4NearEqual(L0, L1, XMVectorReplicate(0.001f)))
+	{
+		XMVECTOR v = XMVectorAdd(L0, L1);
+		v = XMVectorMultiply(v,g_XMOneHalf);
+		v = XMVectorSubtract(v, P);
+		XMVECTOR d = XMVector3LengthSq(v);
+		v = XMVector3Normalize(v);
+		v /= d;
+		return v;
+	}
+
+	XMVECTOR s = XMVectorSubtract(L1, L0);
+	XMVECTOR v0 = XMVectorSubtract(L0, P);
+	XMVECTOR v1 = XMVectorSubtract(L1, P);
+	
+	XMMATRIX Rot;
+	Rot.r[1] = XMVector3Normalize(s);
+	Rot.r[2] = XMVector3Cross(v0, v1);
+	Rot.r[2] = XMVector3Normalize(Rot.r[2]);
+	Rot.r[0] = XMVector3Cross(Rot.r[1], Rot.r[2]);
+	Rot.r[3] = g_XMIdentityR3;
+
+	// Rotated to standard question:
+	//  Y
+	//  ^     *y1
+	//  |     |
+	//--o-----|x0----->X
+	//  |     |
+	//	|     |
+	//	      *y0
+	// Close form solution of the intergral : f(y0,y1) = <-y/(x0*sqrt(x0^2+y^2)),1/sqrt(x0^2+y^2),0> | (y0,y1)
+	XMVECTOR Ds = XMVector3Length(s);
+	XMVECTOR Ps = XMVector3Dot(v0, s);
+	XMVECTOR Y0 = XMVectorDivide(Ps, Ds);
+
+	Ps = XMVector3Dot(v1, s);
+	XMVECTOR Y1 = XMVectorDivide(Ps, Ds);
+
+	XMVECTOR X0 = XMVector3LengthSq(Ps);
+	X0 = XMVectorSubtract(X0, Ps);
+	XMVECTOR R0 = XMVectorMultiplyAdd(Y0, Y0, X0);
+	XMVECTOR R1 = XMVectorMultiplyAdd(Y1, Y1, X0);
+	R0 = XMVectorReciprocalSqrt(R0);
+	R1 = XMVectorReciprocalSqrt(R1);
+
+	XMVECTOR Ry = XMVectorSubtract(R1, R0);
+
+	R0 = XMVectorMultiply(R0, Y0);
+	R1 = XMVectorMultiply(R1, Y1);
+	XMVECTOR Rx = XMVectorSubtract(R0, R1);
+	X0 = XMVectorReciprocalSqrt(X0);
+	Rx = XMVectorMultiply(Rx, X0);
+	Rx = XMVectorSelect(Rx, Ry, g_XMSelect0101);
+	// Field intensity in P centered coordinate
+	Rx = XMVectorAndInt(Rx, g_XMSelect1100);
+
+	Rx = XMVectorDivide(Rx, Ds);
+	Rx = XMVector3Transform(Rx, Rot);
+	return Rx;
+}
+
+DirectX::XMVECTOR XM_CALLCONV Causality::HandPhysicalModel::FieldAtPoint(DirectX::FXMVECTOR P)
+{
+	XMVECTOR field = XMVectorZero();
+	for (const auto& bone : m_Bones)
+	{
+		XMVECTOR v0 = bone.first;
+		XMVECTOR v1 = bone.second;
+		XMVECTOR f = FieldSegmentToPoint(P, v0, v1);
+		field += f;
+		//XMVECTOR l = XMVector3LengthSq(XMVectorSubtract(v1,v0));
+	}
+	return field;
 }
 
 inline void Causality::CubeModel::Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect)
