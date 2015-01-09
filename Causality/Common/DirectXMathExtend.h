@@ -261,15 +261,37 @@ namespace DirectX
 
 	struct XMDUALVECTOR;
 	// Calling convetion
+
+	// First XMDUALVECTOR
+#if ( defined(_M_IX86) || defined(_M_ARM) || defined(_XM_VMX128_INTRINSICS_) || _XM_VECTORCALL_ ) && !defined(_XM_NO_INTRINSICS_)
+	typedef const XMDUALVECTOR FXMDUALVECTOR;
+#else
+	typedef const XMDUALVECTOR& FXMDUALVECTOR;
+#endif
+
+	// 2nd
+#if ( defined(_M_ARM) || defined(_XM_VMX128_INTRINSICS_) || (_XM_VECTORCALL_)) && !defined(_XM_NO_INTRINSICS_)
+	typedef const XMDUALVECTOR GXMDUALVECTOR;
+#else
+	typedef const XMDUALVECTOR& GXMDUALVECTOR;
+#endif
+	// 3rd
+#if ( defined(_XM_VMX128_INTRINSICS_) || _XM_VECTORCALL_ ) && !defined(_XM_NO_INTRINSICS_)
+	typedef const XMDUALVECTOR HXMDUALVECTOR;
+#else
+	typedef const XMDUALVECTOR& HXMDUALVECTOR;
+#endif
+
+#if defined(_XM_VMX128_INTRINSICS_) && !defined(_XM_NO_INTRINSICS_)
+	typedef const XMDUALVECTOR CXMDUALVECTOR;
+#else
 	typedef const XMDUALVECTOR& CXMDUALVECTOR;
-	typedef XMDUALVECTOR FXMDUALVECTOR;
+#endif
 
 #if (defined(_M_IX86) || defined(_M_AMD64) || defined(_M_ARM)) && defined(_XM_NO_INTRINSICS_)
 	struct XMDUALVECTOR
 #else
 	__declspec(align(16)) struct XMDUALVECTOR
-		: boost::additive<DirectX::CXMDUALVECTOR>
-		, boost::multiplicative<DirectX::CXMDUALVECTOR, float>
 #endif
 	{
 #ifdef _XM_NO_INTRINSICS_
@@ -288,7 +310,7 @@ namespace DirectX
 #endif
 
 		XMDUALVECTOR() {}
-		XMDUALVECTOR(FXMVECTOR V0, FXMVECTOR V1) { r[0] = V0; r[1] = V1; }
+		XMDUALVECTOR(CXMVECTOR V0, CXMVECTOR V1) { r[0] = V0; r[1] = V1; }
 		XMDUALVECTOR(float m00, float m01, float m02, float m03,
 			float m10, float m11, float m12, float m13)
 		{
@@ -301,31 +323,30 @@ namespace DirectX
 			r[1] = XMLoadFloat4(reinterpret_cast<const XMFLOAT4*>(pArray + 4));
 		}
 
-		XMDUALVECTOR&   operator= (const XMDUALVECTOR& DV) { r[0] = DV.r[0]; r[1] = DV.r[1]; return *this; }
+		XMDUALVECTOR& XM_CALLCONV operator= (FXMDUALVECTOR DV) { r[0] = DV.r[0]; r[1] = DV.r[1]; return *this; }
 
-		XMDUALVECTOR    operator+ () const { return *this; }
-		XMDUALVECTOR    operator- () const
+		XMDUALVECTOR XM_CALLCONV operator+ () const { return *this; }
+		XMDUALVECTOR XM_CALLCONV operator- () const
 		{
 			XMDUALVECTOR dvResult(r[0], -r[1]);
 			return dvResult;
 		}
 
 
-		XMDUALVECTOR&   operator+= (CXMDUALVECTOR M)
+		XMDUALVECTOR& XM_CALLCONV operator+= (FXMDUALVECTOR M)
 		{
 			r[0] += M.r[0];
 			r[1] += M.r[1];
 			return *this;
 		}
 
-		XMDUALVECTOR&   operator-= (CXMDUALVECTOR M)
+		XMDUALVECTOR& XM_CALLCONV operator-= (FXMDUALVECTOR M)
 		{
 			r[0] -= M.r[0];
 			r[1] -= M.r[1];
 			return *this;
 		}
 
-		//XMDUALVECTOR&   operator*= (CXMDUALVECTOR M);
 		XMDUALVECTOR&   operator*= (float S)
 		{
 			r[0] *= S;
@@ -346,12 +367,12 @@ namespace DirectX
 	};
 
 	// Caculate the rotation quaternion base on v1 and v2 (shortest rotation geo-distance in sphere surface)
-	inline XMVECTOR XMQuaternionRotationVectorToVector(FXMVECTOR v1, FXMVECTOR v2) {
+	inline XMVECTOR XM_CALLCONV XMQuaternionRotationVectorToVector(FXMVECTOR v1, FXMVECTOR v2) {
 		assert(!XMVector3Equal(v1, XMVectorZero()));
 		assert(!XMVector3Equal(v2, XMVectorZero()));
 		XMVECTOR n1 = XMVector3Normalize(v1);
 		XMVECTOR n2 = XMVector3Normalize(v2);
-		if (XMVector4NearEqual(n1, n2, g_XMEpsilon))
+		if (XMVector4NearEqual(n1, n2, g_XMEpsilon.v))
 			return XMQuaternionIdentity();
 		XMVECTOR axias = XMVector3Cross(n1, n2);
 		float angle = std::acosf(XMVectorGetX(XMVector3Dot(n1, n2)));
@@ -396,9 +417,9 @@ namespace DirectX
 		//auto q = XMQuaternionRotationMatrix(rot);
 	}
 
-	XMVECTOR XMVector3Displacement(FXMVECTOR V, FXMVECTOR RotationQuaternion, FXMVECTOR TranslationQuaternion);
+	XMVECTOR XM_CALLCONV XMVector3Displacement(FXMVECTOR V, FXMVECTOR RotationQuaternion, FXMVECTOR TranslationQuaternion);
 
-	inline XMDUALVECTOR XMDualQuaternionTranslation(FXMVECTOR T)
+	inline XMDUALVECTOR XM_CALLCONV XMDualQuaternionTranslation(FXMVECTOR T)
 	{
 		static const XMVECTORF32 Control = { 0.5f,0.5f,0.5f,.0f };
 		XMVECTOR Qe = XMVectorMultiply(T, Control);
@@ -409,14 +430,14 @@ namespace DirectX
 		return dqRes;
 	}
 
-	inline XMDUALVECTOR XMDualQuaternionRotation(FXMVECTOR Q)
+	inline XMDUALVECTOR XM_CALLCONV XMDualQuaternionRotation(FXMVECTOR Q)
 	{
 		XMDUALVECTOR dqRes;
 		dqRes.r[0] = Q;
 		dqRes.r[1] = XMVectorZero();
 	}
 
-	inline XMDUALVECTOR XMDualQuaternionRigidTransform(FXMVECTOR RotationOrigin, FXMVECTOR RotationQuaternion, FXMVECTOR Translation)
+	inline XMDUALVECTOR XM_CALLCONV XMDualQuaternionRigidTransform(FXMVECTOR RotationOrigin, FXMVECTOR RotationQuaternion, FXMVECTOR Translation)
 	{
 		static const XMVECTORF32 Control = { 0.5f,0.5f,0.5f,.0f };
 
@@ -436,7 +457,7 @@ namespace DirectX
 		return dqRes;
 	}
 
-	inline XMDUALVECTOR XMDualQuaternionRotationTranslation(FXMVECTOR Q, FXMVECTOR T)
+	inline XMDUALVECTOR XM_CALLCONV XMDualQuaternionRotationTranslation(FXMVECTOR Q, FXMVECTOR T)
 	{
 		// non-dual part (just copy q0):
 		// dual part:
@@ -478,7 +499,7 @@ namespace DirectX
 		//return dResult;
 	};
 
-	inline XMDUALVECTOR XMDualQuaternionNormalize(CXMDUALVECTOR Dq)
+	inline XMDUALVECTOR XM_CALLCONV XMDualQuaternionNormalize(FXMDUALVECTOR Dq)
 	{
 		XMVECTOR Length = XMQuaternionLength(Dq.r[0]);
 		XMDUALVECTOR dqRes;
@@ -486,28 +507,28 @@ namespace DirectX
 		dqRes.r[1] = XMVectorDivide(Dq.r[1], Length);
 		return dqRes;
 	}
-	inline XMVECTOR XMDualQuaternionNormalizeEst(CXMDUALVECTOR Dq)
+	inline XMVECTOR XM_CALLCONV XMDualQuaternionNormalizeEst(FXMDUALVECTOR Dq)
 	{
 		return XMVector4NormalizeEst(Dq.r[0]);
 	}
-	inline XMVECTOR XMDualQuaternionLength(CXMDUALVECTOR Dq)
+	inline XMVECTOR XM_CALLCONV XMDualQuaternionLength(FXMDUALVECTOR Dq)
 	{
 		return XMVector4Length(Dq.r[0]);
 	}
-	inline XMVECTOR XMDualQuaternionLengthSq(CXMDUALVECTOR Dq)
+	inline XMVECTOR XM_CALLCONV XMDualQuaternionLengthSq(FXMDUALVECTOR Dq)
 	{
 		return XMVector4LengthSq(Dq.r[0]);
 	}
-	inline XMVECTOR XMDualQuaternionLengthEst(CXMDUALVECTOR Dq)
+	inline XMVECTOR XM_CALLCONV XMDualQuaternionLengthEst(FXMDUALVECTOR Dq)
 	{
 		return XMVector4LengthEst(Dq.r[0]);
 	}
-	inline XMDUALVECTOR XMDualVectorConjugate(CXMDUALVECTOR Dq)
+	inline XMDUALVECTOR XM_CALLCONV XMDualVectorConjugate(FXMDUALVECTOR Dq)
 	{
 		XMDUALVECTOR dvResult(Dq.r[0], XMVectorNegate(Dq.r[1]));
 		return dvResult;
 	}
-	inline XMDUALVECTOR XMDualQuaternionConjugate(CXMDUALVECTOR Dq)
+	inline XMDUALVECTOR XM_CALLCONV XMDualQuaternionConjugate(FXMDUALVECTOR Dq)
 	{
 		XMDUALVECTOR dvResult;
 		dvResult.r[0] = XMQuaternionConjugate(Dq.r[0]);
@@ -515,13 +536,13 @@ namespace DirectX
 		return dvResult;
 	}
 
-	inline XMDUALVECTOR XMDualQuaternionInverse(CXMDUALVECTOR Dq)
+	inline XMDUALVECTOR XM_CALLCONV XMDualQuaternionInverse(FXMDUALVECTOR Dq)
 	{
 		XMDUALVECTOR dvResult = XMDualQuaternionConjugate(Dq);
 		dvResult.r[0] = XMQuaternionNormalize(dvResult.r[0]);
 	}
 
-	inline XMDUALVECTOR XMDualQuaternionMultipy(CXMDUALVECTOR DQ0, CXMDUALVECTOR DQ1)
+	inline XMDUALVECTOR XM_CALLCONV XMDualQuaternionMultipy(FXMDUALVECTOR DQ0, GXMDUALVECTOR DQ1)
 	{
 		XMDUALVECTOR dvResult;
 		dvResult.r[0] = XMQuaternionMultiply(DQ0.r[0], DQ1.r[1]);
@@ -530,7 +551,7 @@ namespace DirectX
 		return dvResult;
 	}
 
-	inline bool XMDualQuaternionDecompose(XMVECTOR* outRotQuat, XMVECTOR* outTrans, CXMDUALVECTOR Dq)
+	inline bool XM_CALLCONV XMDualQuaternionDecompose(XMVECTOR* outRotQuat, XMVECTOR* outTrans, FXMDUALVECTOR Dq)
 	{
 		static const XMVECTORF32 ControlX = { 2.0f,-2.0f,2.0f,-2.0f };
 		static const XMVECTORF32 ControlY = { 2.0f,2.0f,-2.0f,-2.0f };
@@ -547,18 +568,18 @@ namespace DirectX
 		XMVECTOR Q = XMVectorSwizzle<3, 2, 1, 0>(Qr);
 		Q = XMVectorMultiply(Qe, Q);
 		Q = XMVector4Dot(Q, ControlX.v);
-		vT = XMVectorAndInt(Q, g_XMMaskX);
+		vT = XMVectorAndInt(Q, g_XMMaskX.v);
 
 		Q = XMVectorSwizzle<2, 3, 0, 1>(Qr);
 		Q = XMVectorMultiply(Qe, Q);
 		Q = XMVector4Dot(Q, ControlY.v);
-		Q = XMVectorAndInt(Q, g_XMMaskY);
+		Q = XMVectorAndInt(Q, g_XMMaskY.v);
 		vT = XMVectorOrInt(vT, Q);
 
 		Q = XMVectorSwizzle<1, 0, 3, 2>(Qr);
 		Q = XMVectorMultiply(Qe, Q);
 		Q = XMVector4Dot(Q, ControlZ.v);
-		Q = XMVectorAndInt(Q, g_XMMaskZ);
+		Q = XMVectorAndInt(Q, g_XMMaskZ.v);
 		vT = XMVectorOrInt(vT, Q);
 
 		*outRotQuat = Qr;
@@ -566,31 +587,31 @@ namespace DirectX
 		return true;
 	}
 
-	inline XMVECTOR XMVector3Displacement(FXMVECTOR V, FXMVECTOR RotationQuaternion, FXMVECTOR TranslationQuaternion)
+	inline XMVECTOR XM_CALLCONV XMVector3Displacement(FXMVECTOR V, FXMVECTOR RotationQuaternion, FXMVECTOR TranslationQuaternion)
 	{
 		XMVECTOR Qr = RotationQuaternion;
 		XMVECTOR Qe = TranslationQuaternion;
 		XMVECTOR Dual = XMVector4Dot(Qr, Qe);
-		assert(XMVector4NearEqual(Dual, g_XMZero, XMVectorReplicate(0.01f)));
+		assert(XMVector4NearEqual(Dual, XMVectorZero(), XMVectorReplicate(0.01f)));
 
 		XMVECTOR vRes = XMVector3Rotate(V, Qr);
 		Qr = XMQuaternionConjugate(Qr);
 		XMVECTOR vTrans = XMQuaternionMultiply(Qr, Qe);
 		//XMVECTOR vTrans = XMVectorSplatW(Qr) * Qe - Qr * XMVectorSplatW(Qe) + XMVector3Cross(Qr,Qe);
-		vTrans *= g_XMTwo;
+		vTrans *= g_XMTwo.v;
 
 		vRes += vTrans;
 		return vRes;
 	}
 
-	inline XMVECTOR XMVector3Displacement(FXMVECTOR V, CXMDUALVECTOR TransformDualQuaternion)
+	inline XMVECTOR XM_CALLCONV XMVector3Displacement(FXMVECTOR V, CXMDUALVECTOR TransformDualQuaternion)
 	{
 		return XMVector3Displacement(V, TransformDualQuaternion.r[0], TransformDualQuaternion.r[1]);
 	}
 
 	const float XM_EPSILON = 1.192092896e-7f;
 
-	inline float invsqrt(float x) {
+	inline float XMScalarReciprocalSqrtEst(float x) {
 		float xhalf = 0.5f*x;
 		int i = *(int*) &x;
 		i = 0x5f3759df - (i >> 1);
@@ -601,17 +622,12 @@ namespace DirectX
 
 	inline XMMATRIX XMMatrixZero()
 	{
-#if defined(_XM_NO_INTRINSICS_) || defined(_XM_SSE_INTRINSICS_) || defined(_XM_ARM_NEON_INTRINSICS_)
-
 		XMMATRIX M;
 		M.r[0] = XMVectorZero();
 		M.r[1] = XMVectorZero();
 		M.r[2] = XMVectorZero();
 		M.r[3] = XMVectorZero();
 		return M;
-
-#else // _XM_VMX128_INTRINSICS_
-#endif // _XM_VMX128_INTRINSICS_
 	}
 
 	template <typename _T, size_t _Align_Boundary = std::alignment_of<_T>::value>
@@ -824,75 +840,111 @@ namespace DirectX
 	typedef std::vector<Vector3> LinePath;
 	static const float g_INFINITY = 1e12f;
 
+	inline XMMATRIX XM_CALLCONV XMMatrixScalingFromCenter(FXMVECTOR scale, FXMVECTOR center)
+	{
+		XMMATRIX m = XMMatrixScalingFromVector(scale);
+		m.r[3] = XMVectorSubtract(g_XMOne.v, scale);
+		m.r[3] *= center;
+		m.r[3] = XMVectorSelect(g_XMOne.v, m.r[3], g_XMSelect1110.v);
+		return m;
+	}
 
 	//Some supporting method
 
-	inline float FindDistancePointToSegment(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
+	namespace LineSegmentTest
 	{
-		XMVECTOR s = s1 - s0;
-		XMVECTOR v = p - s0;
-		auto Ps = XMVector3Dot(v, s);
-		//p-s0 is the shortest distance
-		if (XMVector4LessOrEqual(Ps, XMVectorZero()))
-			return XMVectorGetX(XMVector3Length(v));
-
-		auto Ds = XMVector3LengthSq(s);
-		//p-s1 is the shortest distance
-		if (XMVector4Greater(Ps,Ds))
-			return XMVectorGetX(XMVector3Length(p - s1));
-		//find the projection point on line segment U
-		return XMVectorGetX(XMVector3Length(v - s * (Ps / Ds)));
-	}
-
-	// Takes a space point and space line segment , return the projection point on the line segment
-	//  A0  |		A1		  |
-	//      |s0-------------s1|
-	//      |				  |		A2
-	// where p in area of A0 returns s0 , area A2 returns s1 , point in A1 returns the really projection point 
-	inline XMVECTOR Projection(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
-	{
-		XMVECTOR s = s1 - s0;
-		XMVECTOR v = p - s0;
-		XMVECTOR Ps = XMVector3Dot(v, s);
-
-		//p-s0 is the shortest distance
-		//if (Ps<=0.0f) 
-		//	return s0;
-		if (XMVector4LessOrEqual(Ps, g_XMZero))
-			return s0;
-		XMVECTOR Ds = XMVector3LengthSq(s);
-		//p-s1 is the shortest distance
-		//if (Ps>Ds) 	
-		//	return s1;
-		if (XMVector4Less(Ds, Ps))
-			return s1;
-		//find the projection point on line segment U
-		return (s * (Ps / Ds)) + s0;
-	}
-
-	inline XMVECTOR Projection(FXMVECTOR p, const std::vector<Vector3> &path)
-	{
-		const auto N = path.size();
-		XMVECTOR vBegin = path.front();
-		XMVECTOR vEnd = path[1];
-		XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
-		XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
-		vBegin = vEnd;
-
-		for (size_t i = 2; i < N - 1; i++)
+		inline float XM_CALLCONV Distance(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
 		{
-			vEnd = path[i];
-			XMVECTOR vProj = Projection(p, vBegin, vEnd);
-			XMVECTOR vDis = XMVector3LengthSq(p - vProj);
-			if (XMVector4LessOrEqual(vDis, vMinDis))
-			{
-				vMinDis = vDis;
-				vMinProj = vProj;
-			}
-			vBegin = vEnd;
+			XMVECTOR s = s1 - s0;
+			XMVECTOR v = p - s0;
+			auto Ps = XMVector3Dot(v, s);
+			//p-s0 is the shortest distance
+			if (XMVector4LessOrEqual(Ps, XMVectorZero()))
+				return XMVectorGetX(XMVector3Length(v));
+
+			auto Ds = XMVector3LengthSq(s);
+			//p-s1 is the shortest distance
+			if (XMVector4Greater(Ps,Ds))
+				return XMVectorGetX(XMVector3Length(p - s1));
+			//find the projection point on line segment U
+			return XMVectorGetX(XMVector3Length(v - s * (Ps / Ds)));
 		}
 
-		return vMinProj;
+		// Takes a space point and space line segment , return the projection point on the line segment
+		//  A0  |		A1		  |
+		//      |s0-------------s1|
+		//      |				  |		A2
+		// where p in area of A0 returns s0 , area A2 returns s1 , point in A1 returns the really projection point 
+		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
+		{
+			XMVECTOR s = s1 - s0;
+			XMVECTOR v = p - s0;
+			XMVECTOR Ps = XMVector3Dot(v, s);
+
+			//p-s0 is the shortest distance
+			//if (Ps<=0.0f) 
+			//	return s0;
+			if (XMVector4LessOrEqual(Ps, g_XMZero))
+				return s0;
+			XMVECTOR Ds = XMVector3LengthSq(s);
+			//p-s1 is the shortest distance
+			//if (Ps>Ds) 	
+			//	return s1;
+			if (XMVector4Less(Ds, Ps))
+				return s1;
+			//find the projection point on line segment U
+			return (s * (Ps / Ds)) + s0;
+		}
+
+		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, XMFLOAT3A *path, size_t nPoint)
+		{
+			const auto N = nPoint;
+			XMVECTOR vBegin = XMLoadFloat3A(path);
+			XMVECTOR vEnd = XMLoadFloat3A(path + 1);
+			XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
+			XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
+			vBegin = vEnd;
+
+			for (size_t i = 2; i < N - 1; i++)
+			{
+				vEnd = XMLoadFloat3A(path + i);
+				XMVECTOR vProj = Projection(p, vBegin, vEnd);
+				XMVECTOR vDis = XMVector3LengthSq(p - vProj);
+				if (XMVector4LessOrEqual(vDis, vMinDis))
+				{
+					vMinDis = vDis;
+					vMinProj = vProj;
+				}
+				vBegin = vEnd;
+			}
+
+			return vMinProj;
+		}
+
+		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, XMFLOAT3 *path, size_t nPoint)
+		{
+			const auto N = nPoint;
+			XMVECTOR vBegin = XMLoadFloat3(path);
+			XMVECTOR vEnd = XMLoadFloat3(path + 1);
+			XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
+			XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
+			vBegin = vEnd;
+
+			for (size_t i = 2; i < N - 1; i++)
+			{
+				vEnd = XMLoadFloat3(path + i);
+				XMVECTOR vProj = Projection(p, vBegin, vEnd);
+				XMVECTOR vDis = XMVector3LengthSq(p - vProj);
+				if (XMVector4LessOrEqual(vDis, vMinDis))
+				{
+					vMinDis = vDis;
+					vMinProj = vProj;
+				}
+				vBegin = vEnd;
+			}
+
+			return vMinProj;
+		}
 	}
 }
 

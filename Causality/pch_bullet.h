@@ -48,9 +48,6 @@
 #include <PrimitiveBatch.h>
 #include <GeometricPrimitive.h>
 
-// PPL
-#include <ppltasks.h>
-
 // XML Parsing
 #include <tinyxml2.h>
 
@@ -63,3 +60,12 @@
 // Bullet physics
 #include <btBulletCollisionCommon.h>
 #include <btBulletDynamicsCommon.h>
+
+#ifndef _InterlockedExchangePointer
+#define _InterlockedExchangePointer(_Target, _Value) reinterpret_cast<void *>(static_cast<__w64 long>(_InterlockedExchange( \
+    static_cast<long volatile *>(reinterpret_cast<__w64 long volatile *>(static_cast<void * volatile *>(_Target))), \
+    static_cast<long>(reinterpret_cast<__w64 long>(static_cast<void *>(_Value))))))
+#endif
+// PPL
+#include <ppl.h>
+#include <ppltasks.h>

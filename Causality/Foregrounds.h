@@ -6,6 +6,8 @@
 #include <wrl\client.h>
 #include <CommonStates.h>
 #include "Common\SkyDome.h"
+#include <thread>
+#include <condition_variable>
 #include <mutex>
 #include <map>
 #include <array>
@@ -14,6 +16,7 @@
 #include <PrimitiveBatch.h>
 #include "BulletPhysics.h"
 #include <GeometricPrimitive.h>
+#include "Common\Filter.h"
 
 namespace Causality
 {
@@ -38,23 +41,33 @@ namespace Causality
 		std::shared_ptr<btCollisionShape> m_pShape;
 	};
 
+	struct ProblistiscRigidTransform : public DirectX::AffineTransform
+	{
+		using DirectX::AffineTransform::AffineTransform;
+		float Probability;
+	};
+
 	struct ProblistiscObject
 	{
 	public:
 		std::shared_ptr<DirectX::Scene::IModelNode>	Model;
-		std::map<DirectX::IRigid*,float> StatesDistribution;
+		std::vector<ProblistiscRigidTransform> StatesDistribution;
 	};
 
 	struct HandPhysicalModel : public DirectX::Scene::IModelNode
 	{
-		HandPhysicalModel(const std::shared_ptr<btDynamicsWorld> &pWorld,const Leap::Frame& frame, const Leap::Hand& hand , const DirectX::Matrix4x4& transform);
+		HandPhysicalModel(const std::shared_ptr<btDynamicsWorld> &pWorld,
+			const Leap::Hand & hand, const DirectX::Matrix4x4 & leapTransform,
+			const DirectX::AffineTransform &inheritTransform);
+
+		DirectX::XMMATRIX CaculateLocalMatrix(const Leap::Hand & hand, const DirectX::Matrix4x4 & leapTransform);
 
 		inline const std::vector<std::shared_ptr<PhysicalRigid>>& Rigids()
 		{
 			return m_HandRigids;
 		}
 
-		bool Update(const Leap::Frame& frame, const DirectX::Matrix4x4& transform);
+		bool Update(const Leap::Frame& frame, const DirectX::Matrix4x4& leapTransform);
 
 		bool IsTracked() const
 		{
@@ -72,29 +85,18 @@ namespace Causality
 		int			Id;
 		int			LostFrames;
 		Leap::Hand  m_Hand;
+		DirectX::AffineTransform m_InheritTransform;
 		std::array<std::pair<DirectX::Vector3, DirectX::Vector3>,20> m_Bones;
-		std::vector<std::shared_ptr<PhysicalRigid>>    m_HandRigids;
-		static std::unique_ptr<DirectX::GeometricPrimitive> s_pCylinder;
-		static std::unique_ptr<DirectX::GeometricPrimitive> s_pSphere;
+		std::vector<std::shared_ptr<PhysicalRigid>>			m_HandRigids;
+		//static std::unique_ptr<DirectX::GeometricPrimitive> s_pCylinder;
+		//static std::unique_ptr<DirectX::GeometricPrimitive> s_pSphere;
 	};
 
 	class CubeModel : public DirectX::Scene::IModelNode, virtual public IShaped
 	{
 	public:
-		CubeModel(const std::string& name = "Cube", DirectX::FXMVECTOR extend = DirectX::g_XMOne, DirectX::FXMVECTOR color = DirectX::Colors::White)
-		{
-			Name = name;
-			m_Color = color;
-
-			XMStoreFloat3(&BoundBox.Extents,extend);
-			XMStoreFloat3(&BoundOrientedBox.Extents, extend);
-		}
-		virtual std::shared_ptr<btCollisionShape> CreateCollisionShape() override
-		{
-			std::shared_ptr<btCollisionShape> pShape;
-			pShape.reset(new btBoxShape(vector_cast<btVector3>(BoundBox.Extents)));
-			return pShape;
-		}
+		CubeModel(const std::string& name = "Cube", DirectX::FXMVECTOR extend = DirectX::g_XMOne, DirectX::FXMVECTOR color = DirectX::Colors::White);
+		virtual std::shared_ptr<btCollisionShape> CreateCollisionShape() override;
 
 		DirectX::XMVECTOR GetColor();
 		void XM_CALLCONV SetColor(DirectX::FXMVECTOR color);
@@ -153,8 +155,13 @@ namespace Causality
 
 		// Interactive subjects
 		std::map<int, std::shared_ptr<HandPhysicalModel>>		Subjects;
-		DirectX::Matrix4x4										SubjectTransform;
+		DirectX::AffineTransform								SubjectTransform;
 
+		std::unique_ptr<std::thread>							pWorkerThread;
+		std::condition_variable									queuePending;
+		std::mutex												queueMutex;
+
+		void Evolution();
 	};
 
 	class WorldScene : public Platform::IAppComponent, public Platform::IUserHandsInteractive, public Platform::IKeybordInteractive, public DirectX::Scene::IRenderable, public DirectX::Scene::IViewable , public DirectX::Scene::ITimeAnimatable
@@ -196,8 +203,8 @@ namespace Causality
 		std::vector<ProblistiscObject> ComposeFrame();
 
 		// Forece the scene to resolve the ambiguity, compress the frame count into one
-		void ResolveaAmbiguity();
-
+		void Collapse();
+		void Fork();
 	private:
 		std::unique_ptr<DirectX::Scene::SkyDome>		pBackground;
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState>	pRSState;
@@ -225,7 +232,7 @@ namespace Causality
 		const DirectX::ILocatable*						m_pCameraLocation;
 
 		DirectX::Scene::ModelCollection					Models;
-		std::list<std::shared_ptr<StateFrame>>				m_StateFrames;
+		std::vector<std::shared_ptr<StateFrame>>			m_StateFrames;
 
 		std::shared_ptr<btConeShape>						 m_pHandConeShape;
 		std::map<int, std::shared_ptr<btCollisionObject>>	 m_pHandCones;

@@ -1,5 +1,6 @@
 #include "pch_bullet.h"
 #include <iostream>
+#include <numeric>
 #include "Foregrounds.h"
 #include "CausalityApplication.h"
 #include "Common\PrimitiveVisualizer.h"
@@ -11,11 +12,12 @@ using namespace std;
 using namespace Platform;
 using namespace Platform::Fundation;
 using namespace Eigen;
+using namespace concurrency;
 using namespace DirectX::Visualizers;
 extern wstring ResourcesDirectory;
 
-std::unique_ptr<DirectX::GeometricPrimitive> HandPhysicalModel::s_pCylinder;
-std::unique_ptr<DirectX::GeometricPrimitive> HandPhysicalModel::s_pSphere;
+//std::unique_ptr<DirectX::GeometricPrimitive> HandPhysicalModel::s_pCylinder;
+//std::unique_ptr<DirectX::GeometricPrimitive> HandPhysicalModel::s_pSphere;
 
 const static wstring SkyBoxTextures[6] = {
 	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Right.dds"),
@@ -26,12 +28,12 @@ const static wstring SkyBoxTextures[6] = {
 	ResourcesDirectory + wstring(L"Textures\\SkyBox\\GrimmNight\\Back.dds"),
 };
 
-std::unique_ptr<btBroadphaseInterface>               pBroadphase = nullptr;
-// Set up the collision configuration and dispatcher
-std::unique_ptr<btDefaultCollisionConfiguration>     pCollisionConfiguration = nullptr;
-std::unique_ptr<btCollisionDispatcher>               pDispatcher = nullptr;
-// The actual physics solver
-std::unique_ptr<btSequentialImpulseConstraintSolver> pSolver = nullptr;
+//std::unique_ptr<btBroadphaseInterface>               pBroadphase = nullptr;
+//// Set up the collision configuration and dispatcher
+//std::unique_ptr<btDefaultCollisionConfiguration>     pCollisionConfiguration = nullptr;
+//std::unique_ptr<btCollisionDispatcher>               pDispatcher = nullptr;
+//// The actual physics solver
+//std::unique_ptr<btSequentialImpulseConstraintSolver> pSolver = nullptr;
 
 
 float ShapeSimiliarity(const Eigen::VectorXf& v1, const Eigen::VectorXf& v2)
@@ -39,9 +41,9 @@ float ShapeSimiliarity(const Eigen::VectorXf& v1, const Eigen::VectorXf& v2)
 	auto v = v1 - v2;
 	//dis = sqrt(v.dot(v);
 	//1.414 - dis;
-	auto theta = acosf(v1.dot(v2) * invsqrt(v1.dot(v1) * v2.dot(v2))); // Difference in angular [0,pi/4]
-	auto rhlo = abs(sqrt(v1.dot(v1)) - sqrt(v2.dot(v2)));	// Difference in length [0,sqrt(2)]
-	return 1.0f - 0.5f * (0.3f * rhlo / sqrt(2) + 0.7f * theta / (XM_PIDIV4));
+	auto theta = XMScalarACosEst(v1.dot(v2) * XMScalarReciprocalSqrtEst(v1.dot(v1) * v2.dot(v2))); // Difference in angular [0,pi/4]
+	auto rhlo = abs(sqrt(v1.dot(v1)) - sqrtf(v2.dot(v2)));	// Difference in length [0,sqrt(2)]
+	return 1.0f - 0.5f * (0.3f * rhlo / sqrtf(2.0f) + 0.7f * theta / (XM_PIDIV4));
 }
 
 Causality::WorldScene::WorldScene(const std::shared_ptr<DirectX::DeviceResources>& pResouce, const DirectX::ILocatable* pCamera)
@@ -57,8 +59,8 @@ WorldScene::~WorldScene()
 {
 }
 
-const float fingerRadius = 0.01f;
-const float fingerLength = 0.01f;
+const float fingerRadius = 0.006f;
+const float fingerLength = 0.02f;
 
 class XmlModelLoader
 {
@@ -77,7 +79,7 @@ void StateFrame::Initialize()
 
 	// The world.
 	pDynamicsWorld.reset(new btDiscreteDynamicsWorld(pDispatcher.get(), pBroadphase.get(), pSolver.get(), pCollisionConfiguration.get()));
-	pDynamicsWorld->setGravity(btVector3(0, -9.8f, 0));
+	pDynamicsWorld->setGravity(btVector3(0, -5.0f, 0));
 }
 
 
@@ -96,12 +98,12 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 
 		{
 			lock_guard<mutex> guard(m_RenderLock);
-			for (size_t i = 0; i < 5; i++)
+			for (size_t i = 0; i < 30; i++)
 			{
 				m_StateFrames.emplace_back(new StateFrame);
 				auto pFrame = m_StateFrames.back();
 				pFrame->Initialize();
-				pFrame->SubjectTransform = XMMatrixTranslation(0, 0, i*(-150.f));
+				pFrame->SubjectTransform.Scale = XMVectorReplicate(1.0f + 0.1f * i);// XMMatrixTranslation(0, 0, i*(-150.f));
 			}
 		}
 
@@ -168,7 +170,7 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 
 					attr = node->Attribute("mass");
 					if (attr)
-						mass = atof(attr);
+						mass = (float) atof(attr);
 
 					AddObject(pModel, mass, pos, DirectX::Quaternion::Identity, DirectX::Vector3(scale));
 
@@ -183,11 +185,11 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 					//}
 				}
 			}
-			else if (!strcmp(node->Name(),"cube"))
+			else if (!strcmp(node->Name(), "cube"))
 			{
 				Vector3 extent(1.0f);
 				Vector3 pos;
-				Color color(255,255,255,255);
+				Color color(255, 255, 255, 255);
 				string name("cube");
 				float mass = 1.0f;
 				auto attr = node->Attribute("extent");
@@ -223,9 +225,9 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 
 				attr = node->Attribute("mass");
 				if (attr)
-					mass = atof(attr);
+					mass = (float) atof(attr);
 
-				auto pModel = make_shared<CubeModel>(name, extent, (XMVECTOR)color);
+				auto pModel = make_shared<CubeModel>(name, extent, (XMVECTOR) color);
 
 				XMFLOAT3 v = pModel->BoundOrientedBox.Extents;
 				v.y /= v.x;
@@ -266,7 +268,7 @@ std::vector<ProblistiscObject> Causality::WorldScene::ComposeFrame()
 		weightsSum += weights[j++] = pFrame->Liklyhood();
 	}
 
-	for (int i = 0; i < Models.size(); i++)
+	for (size_t i = 0; i < Models.size(); i++)
 	{
 		const auto& pModel = Models[i];
 		Objects[i].Model = pModel;
@@ -275,24 +277,34 @@ std::vector<ProblistiscObject> Causality::WorldScene::ComposeFrame()
 		for (const auto& pFrame : m_StateFrames)
 		{
 			auto pNew = pFrame->Objects[pModel->Name].get();
+			ProblistiscRigidTransform tNew;
+			tNew.Translation = pNew->GetPosition();
+			tNew.Rotation = pNew->GetOrientation();
+			tNew.Scale = pNew->GetScale();
+			tNew.Probability = weights[j] / weightsSum;
+
 			auto itr = std::find_if(distribution.begin(), distribution.end(),
-				[pNew](std::remove_reference_t<decltype(distribution)>::const_reference item) -> bool
-				{
-					auto pExisted = item.first;
-					Vector3 PosDiff = pExisted->GetPosition() - pNew->GetPosition();
-					DirectX::Quaternion RotDiff = pExisted->GetOrientation();
-					RotDiff.Inverse(RotDiff);
-					RotDiff *= pNew->GetOrientation();
-					float AngDiff = 2 * acosf(RotDiff.w);
-					return (PosDiff.Length() <= 0.002f && AngDiff <= 1);
-				});
+				[&tNew](std::remove_reference_t<decltype(distribution)>::const_reference trans) -> bool
+			{
+				return trans.NearEqual(tNew);
+				//auto pExisted = item.first;
+				//Vector3 PosDiff = pExisted->GetPosition() - pNew->GetPosition();
+				//DirectX::Quaternion RotDiff = pExisted->GetOrientation();
+				//RotDiff.Inverse(RotDiff);
+				//RotDiff *= pNew->GetOrientation();
+				//float AngDiff = 2 * acosf(RotDiff.w);
+				//return (PosDiff.Length() <= 0.002f && AngDiff <= 1);
+			});
+
 			if (itr == distribution.end())
 			{
-				distribution[pNew] = weights[j] / weightsSum;
+				distribution.push_back(tNew);
+				//distribution[pNew] = weights[j] / weightsSum;
 			}
 			else
 			{
-				itr->second += weights[j] / weightsSum;
+				itr->Probability += tNew.Probability;
+				//itr->second += weights[j] / weightsSum;
 			}
 			j++;
 		}
@@ -328,8 +340,8 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		{
 			for (const auto &state : obj.StatesDistribution)
 			{
-				obj.Model->LocalMatrix = state.first->GetRigidTransformMatrix();
-				obj.Model->Opticity = state.second;
+				obj.Model->LocalMatrix = state.TransformMatrix(); //.first->GetRigidTransformMatrix();
+				obj.Model->Opticity = state.Probability; //state.second;
 				obj.Model->Render(pContext, pEffect.get());
 			}
 		}
@@ -376,7 +388,7 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		g_PrimitiveDrawer.DrawTriangle({ 0,0,5.05f }, { 0,-0.05,4.95 }, { 0,0.05,4.95 }, Colors::Blue);
 
 		//g_PrimitiveDrawer.DrawQuad({ 1.0f,0,1.0f }, { -1.0f,0,1.0f }, { -1.0f,0,-1.0f }, { 1.0f,0,-1.0f }, Colors::Pink);
-		   
+
 
 		auto& fh = m_HandDescriptionFeature;
 
@@ -400,7 +412,7 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 					Color c = Color::Lerp({ 1,0,0 }, { 0,1,0 }, similarity);
 					for (size_t i = 0; i < 8; i++)
 					{
-						g_PrimitiveDrawer.DrawSphere(conners[i], 0.005 * similarity, c);
+						g_PrimitiveDrawer.DrawSphere(conners[i], 0.005f * similarity, c);
 					}
 				}
 				auto pModel = dynamic_cast<BasicModel*>(model.get());
@@ -454,25 +466,26 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		}
 
 		// NOT VALIAD!~!!!!!
-		if (m_HandTrace.size() > 0 && m_showTrace)
-		{
-			//auto pJoints = m_HandTrace.linearize();
-			m_CurrentHandBoundingBox.GetCorners(conners);
-			DrawBox(conners, Colors::LimeGreen);
-			m_HandTraceBoundingBox.GetCorners(conners);
-			DrawBox(conners, Colors::YellowGreen);
-			m_HandTraceModel.Primitives.clear();
-			for (int i = m_HandTrace.size() - 1; i >= std::max<int>(0, (int) m_HandTrace.size() - TraceLength); i--)
-			{
-				const auto& h = m_HandTrace[i];
-				float radius = (i + 1 - std::max<int>(0, m_HandTrace.size() - TraceLength)) / (std::min<float>(m_HandTrace.size(), TraceLength));
-				for (size_t j = 0; j < h.size(); j++)
-				{
-					//m_HandTraceModel.Primitives.emplace_back(h[j], 0.02f);
-					g_PrimitiveDrawer.DrawSphere(h[j], 0.005f * radius, Colors::LimeGreen);
-				}
-			}
-		}
+		//if (m_HandTrace.size() > 0 && m_showTrace)
+		//{
+		//	std::lock_guard<mutex> guard(m_RenderLock);
+		//	//auto pJoints = m_HandTrace.linearize();
+		//	m_CurrentHandBoundingBox.GetCorners(conners);
+		//	DrawBox(conners, Colors::LimeGreen);
+		//	m_HandTraceBoundingBox.GetCorners(conners);
+		//	DrawBox(conners, Colors::YellowGreen);
+		//	m_HandTraceModel.Primitives.clear();
+		//	for (int i = m_HandTrace.size() - 1; i >= std::max<int>(0, (int) m_HandTrace.size() - TraceLength); i--)
+		//	{
+		//		const auto& h = m_HandTrace[i];
+		//		float radius = (i + 1 - std::max<int>(0, m_HandTrace.size() - TraceLength)) / (std::min<float>(m_HandTrace.size(), TraceLength));
+		//		for (size_t j = 0; j < h.size(); j++)
+		//		{
+		//			//m_HandTraceModel.Primitives.emplace_back(h[j], 0.02f);
+		//			g_PrimitiveDrawer.DrawSphere(h[j], 0.005f * radius, Colors::LimeGreen);
+		//		}
+		//	}
+		//}
 	}
 	g_PrimitiveDrawer.End();
 
@@ -541,23 +554,52 @@ void XM_CALLCONV Causality::WorldScene::UpdateProjectionMatrix(DirectX::FXMMATRI
 
 void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 {
-	for (const auto& pFrame : m_StateFrames)
 	{
-		auto& subjects = pFrame->Subjects;
+		lock_guard<mutex> guard(m_RenderLock);
 
-		for (auto itr = subjects.begin(); itr != subjects.end(); )
+		float stepTime = (float) timer.GetElapsedSeconds();
+		//for (const auto& pFrame : m_StateFrames)
+		//_InterlockedExchange(NULL, NULL);
+		//_InterlockedExchangePointer(NULL, NULL);
+		concurrency::parallel_for_each(m_StateFrames.begin(), m_StateFrames.end(), [this, stepTime](const std::shared_ptr<StateFrame>& pFrame)
 		{
-			auto trans = pFrame->SubjectTransform * m_FrameTransform;
-			bool result = itr->second->Update(m_Frame, trans);
-			// Remove hands lost track for 60+ frames
-			if (!result)
+			auto& subjects = pFrame->Subjects;
+
+			for (auto itr = subjects.begin(); itr != subjects.end(); )
 			{
-				if (itr->second->LostFramesCount() > 60)
-					itr = subjects.erase(itr);
+				auto trans = m_FrameTransform;
+				bool result = itr->second->Update(m_Frame, m_FrameTransform);
+				// Remove hands lost track for 60+ frames
+				if (!result)
+				{
+					if (itr->second->LostFramesCount() > 60)
+						itr = subjects.erase(itr);
+				}
+				else
+				{
+					//const auto &pHand = itr->second;
+					//for (auto& item : pFrame->Objects)
+					//{
+					//	const auto& pObj = item.second;
+					//	if (pObj->GetBulletRigid()->isStaticObject())
+					//		continue;
+					//	//pObj->GetBulletShape()->
+					//	auto force = pHand->FieldAtPoint(pObj->GetPosition()) * 0.00001f;
+					//	pObj->GetBulletRigid()->clearForces();
+					//	//vector_cast<btVector3>(force) * 0.01f
+					//	std::cout << item.first << " : " << Vector3(force) << std::endl;
+					//	pObj->GetBulletRigid()->applyCentralForce(vector_cast<btVector3>(force));
+					//	pObj->GetBulletRigid()->activate();
+					//}
+					++itr;
+				}
 			}
-			else
-				++itr;
-		}
+
+			pFrame->pDynamicsWorld->stepSimulation(stepTime, 10);
+		});
+		//for (const auto& pFrame : m_StateFrames)
+		//{
+		//}
 	}
 
 	if (m_HandTrace.size() > 0)
@@ -631,13 +673,7 @@ void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 	//	pGroundRigid->setLinearVelocity({ 0,-1.0f,0 });
 
 
-	{
-		lock_guard<mutex> guard(m_RenderLock);
-		for (const auto& pFrame : m_StateFrames)
-		{
-			pFrame->pDynamicsWorld->stepSimulation(timer.GetElapsedSeconds(), 10);
-		}
-	}
+
 	//pDynamicsWorld->stepSimulation(timer.GetElapsedSeconds(), 10);
 
 	//for (auto& obj : Children)
@@ -696,10 +732,24 @@ void Causality::WorldScene::OnHandsTracked(const UserHandsEventArgs & e)
 		for (const auto& pFrame : m_StateFrames)
 		{
 			auto & subjects = pFrame->Subjects;
-			Matrix4x4 trans = pFrame->SubjectTransform * e.toWorldTransform;
 			if (!subjects[hand.id()])
-				subjects[hand.id()].reset(new HandPhysicalModel(pFrame->pDynamicsWorld, m_Frame, hand, trans));
-
+			{
+				subjects[hand.id()].reset(
+					new HandPhysicalModel(
+					pFrame->pDynamicsWorld,
+					hand, e.toWorldTransform,
+					pFrame->SubjectTransform)
+					);
+				//for (const auto& itm : pFrame->Objects)
+				//{
+				//	const auto& pObj = itm.second;
+				//	if (!pObj->GetBulletRigid()->isStaticOrKinematicObject())
+				//	{
+				//		for (const auto& bone : subjects[hand.id()]->Rigids())
+				//			pObj->GetBulletRigid()->setIgnoreCollisionCheck(bone.get(), false);
+				//	}
+				//}
+			}
 		}
 	}
 
@@ -868,7 +918,7 @@ void Causality::WorldScene::OnKeyUp(const KeyboardEventArgs & e)
 		m_showTrace = !m_showTrace;
 }
 
-void Causality::WorldScene::AddObject(const std::shared_ptr<IModelNode>& pModel,float mass, const DirectX::Vector3 & Position, const DirectX::Quaternion & Orientation, const Vector3 & Scale)
+void Causality::WorldScene::AddObject(const std::shared_ptr<IModelNode>& pModel, float mass, const DirectX::Vector3 & Position, const DirectX::Quaternion & Orientation, const Vector3 & Scale)
 {
 	lock_guard<mutex> guard(m_RenderLock);
 	Models.push_back(pModel);
@@ -880,6 +930,8 @@ void Causality::WorldScene::AddObject(const std::shared_ptr<IModelNode>& pModel,
 		auto pObject = std::shared_ptr<PhysicalRigid>(new PhysicalRigid());
 		pObject->InitializePhysics(pFrame->pDynamicsWorld, pShape, mass, Position, Orientation);
 		pObject->GetBulletRigid()->setFriction(1.0f);
+		pObject->GetBulletRigid()->setDamping(0.8, 0.9);
+		pObject->GetBulletRigid()->setRestitution(0.0);
 		pFrame->Objects[pModel->Name] = pObject;
 	}
 }
@@ -895,17 +947,30 @@ std::pair<DirectX::Vector3, DirectX::Quaternion> XM_CALLCONV CaculateCylinderTra
 	if (XMVector4Equal(dir, g_XMZero))
 		rot = XMQuaternionIdentity();
 	else
-		rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, dir);
+		rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1.v, dir);
 	trans.first = center;
 	trans.second = rot;
 	return trans;
 }
 
-Causality::HandPhysicalModel::HandPhysicalModel(const std::shared_ptr<btDynamicsWorld> &pWorld, const Leap::Frame & frame, const Leap::Hand & hand, const DirectX::Matrix4x4 & transform)
-	:m_Hand(hand)
+XMMATRIX Causality::HandPhysicalModel::CaculateLocalMatrix(const Leap::Hand & hand, const DirectX::Matrix4x4 & leapTransform)
+{
+	XMVECTOR palmCenter = hand.palmPosition().toVector3<Vector3>();
+	return XMMatrixScalingFromCenter(m_InheritTransform.Scale, palmCenter) * ((RigidTransform&) m_InheritTransform).TransformMatrix() * (XMMATRIX) leapTransform;
+
+}
+
+
+Causality::HandPhysicalModel::HandPhysicalModel
+(const std::shared_ptr<btDynamicsWorld> &pWorld,
+const Leap::Hand & hand, const DirectX::Matrix4x4 & leapTransform,
+const DirectX::AffineTransform &inheritTransform)
+: m_Hand(hand)
 {
 	Id = hand.id();
-	LocalMatrix = transform;
+	m_InheritTransform = inheritTransform;
+
+	LocalMatrix = CaculateLocalMatrix(hand, leapTransform);
 	XMMATRIX leap2world = LocalMatrix;
 	int j = 0;
 	for (const auto& finger : m_Hand.fingers())
@@ -915,50 +980,77 @@ Causality::HandPhysicalModel::HandPhysicalModel(const std::shared_ptr<btDynamics
 			const auto & bone = finger.bone((Leap::Bone::Type)i);
 			XMVECTOR bJ = XMVector3Transform(bone.prevJoint().toVector3<Vector3>(), leap2world);
 			XMVECTOR eJ = XMVector3Transform(bone.nextJoint().toVector3<Vector3>(), leap2world);
+			m_Bones[i + j * 4].first = bJ;
+			m_Bones[i + j * 4].second = eJ;
+
+			// Initalize rigid hand model
 			auto center = 0.5f * XMVectorAdd(bJ, eJ);
 			auto dir = XMVectorSubtract(eJ, bJ);
-			auto halfext = std::max(XMVectorGetX(XMVector3Length(dir))*0.5f, fingerLength);
+			auto height = std::max(XMVectorGetX(XMVector3Length(dir)), fingerLength);
 			XMVECTOR rot;
 			if (XMVector4Equal(dir, g_XMZero))
 				rot = XMQuaternionIdentity();
 			else
 				rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, dir);
-			shared_ptr<btCylinderShape> pShape(new btCylinderShape(btVector3(fingerRadius, halfext, fingerRadius)));
+			shared_ptr<btCapsuleShape> pShape(new btCapsuleShape(fingerRadius, height));
+
+			// Scaling in Y axis is encapsled in bJ and eJ
+			btVector3 scl = vector_cast<btVector3>(m_InheritTransform.Scale);
+			scl.setY(1.0f);
+			pShape->setLocalScaling(scl);
+
 			m_HandRigids.emplace_back(new PhysicalRigid());
 			const auto & pRigid = m_HandRigids.back();
 			//pRigid->GetBulletRigid()->setGravity({ 0,0,0 });
-			pRigid->InitializePhysics(nullptr, pShape, 10, center, rot);
-			pRigid->GetBulletRigid()->setGravity({ 0,0,0 });
+			pRigid->InitializePhysics(nullptr, pShape, 0, center, rot);
+			const auto& body = pRigid->GetBulletRigid();
+			body->setFriction(1.0f);
+			body->setRestitution(0.0f);
+			body->setCollisionFlags(body->getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+			body->setActivationState(DISABLE_DEACTIVATION);
+			//body->setAngularFactor(0.0f); // Rotation Along Y not affact
+
 			pRigid->Enable(pWorld);
-			pRigid->GetBulletRigid()->setGravity({ 0,0,0 });
-			pRigid->GetBulletRigid()->setFriction(5.0f);
 		}
 	}
+
+	//for (size_t i = 0; i < m_HandRigids.size(); i++)
+	//{
+	//	for (size_t j = 0; j < m_HandRigids.size(); j++)
+	//	{
+	//		if (i != j)
+	//			m_HandRigids[i]->GetBulletRigid()->setIgnoreCollisionCheck(m_HandRigids[j]->GetBulletRigid(), true);
+	//	}
+	//}
+
 }
 
-bool Causality::HandPhysicalModel::Update(const Leap::Frame & frame, const DirectX::Matrix4x4 & transform)
+bool Causality::HandPhysicalModel::Update(const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform)
 {
-	LocalMatrix = transform;
-	XMMATRIX leap2world = LocalMatrix;
 	m_Hand = frame.hand(Id);
 
 	if (m_Hand.isValid())
 	{
+		XMMATRIX transform = CaculateLocalMatrix(m_Hand, leapTransform);
+		LocalMatrix = transform;
+
 		LostFrames = 0;
 		int j = 0;
 		for (const auto& finger : m_Hand.fingers())
 		{
 			for (size_t i = 0; i < 4; i++)
 			{
-				auto & pRigid = m_HandRigids[j++];
-				if (!pRigid->IsEnabled())
-					pRigid->Enable();
 				const auto & bone = finger.bone((Leap::Bone::Type)i);
-				XMVECTOR bJ = XMVector3Transform(bone.prevJoint().toVector3<Vector3>(), leap2world);
-				XMVECTOR eJ = XMVector3Transform(bone.nextJoint().toVector3<Vector3>(), leap2world);
+				XMVECTOR bJ = XMVector3Transform(bone.prevJoint().toVector3<Vector3>(), transform);
+				XMVECTOR eJ = XMVector3Transform(bone.nextJoint().toVector3<Vector3>(), transform);
 				m_Bones[i + j * 4].first = bJ;
 				m_Bones[i + j * 4].second = eJ;
 
+				// Rigid hand model
+
+				auto & pRigid = m_HandRigids[i + j * 4];
+				if (!pRigid->IsEnabled())
+					pRigid->Enable();
 				auto center = 0.5f * XMVectorAdd(bJ, eJ);
 				auto dir = XMVectorSubtract(eJ, bJ);
 				XMVECTOR rot;
@@ -967,8 +1059,9 @@ bool Causality::HandPhysicalModel::Update(const Leap::Frame & frame, const Direc
 				else
 					rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, dir);
 				auto trans = btTransform(vector_cast<btQuaternion>(rot), vector_cast<btVector3>(center));
-				pRigid->GetBulletRigid()->proceedToTransform(trans);
+				pRigid->GetBulletRigid()->getMotionState()->setWorldTransform(trans);
 			}
+			j++;
 		}
 		return true;
 	}
@@ -988,19 +1081,29 @@ bool Causality::HandPhysicalModel::Update(const Leap::Frame & frame, const Direc
 void Causality::HandPhysicalModel::Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect)
 {
 	XMMATRIX leap2world = LocalMatrix;
-	auto palmPosition = XMVector3Transform(m_Hand.palmPosition().toVector3<Vector3>(), leap2world);
+	//auto palmPosition = XMVector3Transform(m_Hand.palmPosition().toVector3<Vector3>(), leap2world);
 	//g_PrimitiveDrawer.DrawSphere(palmPosition, 0.02f, Colors::YellowGreen);
 	XMVECTOR color = Colors::LimeGreen;
-	color = XMVectorSetW(color,Opticity);
+	color = XMVectorSetW(color, Opticity);
+
+	//g_PrimitiveDrawer.Begin();
+	//for (const auto& bone : m_Bones)
+	//{
+	//	//g_PrimitiveDrawer.DrawSphere(bone.second, fingerRadius, jC);
+	//	g_PrimitiveDrawer.DrawCylinder(bone.first, bone.second, fingerRadius * m_InheritTransform.Scale.x, color);
+	//}
+	//g_PrimitiveDrawer.End();
+
 	for (const auto& pRigid : m_HandRigids)
 	{
 		g_PrimitiveDrawer.DrawCylinder(
 			pRigid->GetPosition(),
 			XMVector3Rotate(g_XMIdentityR1, pRigid->GetOrientation()),
-			dynamic_cast<btCylinderShape*>(pRigid->GetBulletShape())->getHalfExtentsWithoutMargin().y(),
-			fingerRadius,
+			dynamic_cast<btCapsuleShape*>(pRigid->GetBulletShape())->getHalfHeight() * 2,
+			fingerRadius * m_InheritTransform.Scale.x,
 			color);
 	}
+
 	//for (const auto& finger : m_Hand.fingers())
 	//{
 	//	for (size_t i = 0; i < 4; i++)
@@ -1026,13 +1129,24 @@ void Causality::HandPhysicalModel::Render(ID3D11DeviceContext * pContext, Direct
 	//}
 }
 
+inline void debug_assert(bool condition)
+{
+#ifdef DEBUG
+	if (!condition)
+	{
+		_CrtDbgBreak();
+		//std::cout << "assert failed." << std::endl;
+	}
+#endif
+}
+
 // normalized feild intensity equalent charge
 XMVECTOR XM_CALLCONV FieldSegmentToPoint(FXMVECTOR P, FXMVECTOR L0, FXMVECTOR L1)
 {
 	if (XMVector4NearEqual(L0, L1, XMVectorReplicate(0.001f)))
 	{
 		XMVECTOR v = XMVectorAdd(L0, L1);
-		v = XMVectorMultiply(v,g_XMOneHalf);
+		v = XMVectorMultiply(v, g_XMOneHalf);
 		v = XMVectorSubtract(v, P);
 		XMVECTOR d = XMVector3LengthSq(v);
 		v = XMVector3Normalize(v);
@@ -1043,7 +1157,7 @@ XMVECTOR XM_CALLCONV FieldSegmentToPoint(FXMVECTOR P, FXMVECTOR L0, FXMVECTOR L1
 	XMVECTOR s = XMVectorSubtract(L1, L0);
 	XMVECTOR v0 = XMVectorSubtract(L0, P);
 	XMVECTOR v1 = XMVectorSubtract(L1, P);
-	
+
 	XMMATRIX Rot;
 	Rot.r[1] = XMVector3Normalize(s);
 	Rot.r[2] = XMVector3Cross(v0, v1);
@@ -1060,15 +1174,17 @@ XMVECTOR XM_CALLCONV FieldSegmentToPoint(FXMVECTOR P, FXMVECTOR L0, FXMVECTOR L1
 	//	|     |
 	//	      *y0
 	// Close form solution of the intergral : f(y0,y1) = <-y/(x0*sqrt(x0^2+y^2)),1/sqrt(x0^2+y^2),0> | (y0,y1)
-	XMVECTOR Ds = XMVector3Length(s);
+	XMVECTOR Ds = XMVector3ReciprocalLength(s);
 	XMVECTOR Ps = XMVector3Dot(v0, s);
-	XMVECTOR Y0 = XMVectorDivide(Ps, Ds);
+	XMVECTOR Y0 = XMVectorMultiply(Ps, Ds);
 
 	Ps = XMVector3Dot(v1, s);
-	XMVECTOR Y1 = XMVectorDivide(Ps, Ds);
+	XMVECTOR Y1 = XMVectorMultiply(Ps, Ds);
 
-	XMVECTOR X0 = XMVector3LengthSq(Ps);
+	XMVECTOR X0 = XMVector3LengthSq(v1);
+	Ps = XMVectorMultiply(Y1, Y1);
 	X0 = XMVectorSubtract(X0, Ps);
+	//debug_assert(XMVector4GreaterOrEqual(X0, XMVectorZero()));
 	XMVECTOR R0 = XMVectorMultiplyAdd(Y0, Y0, X0);
 	XMVECTOR R1 = XMVectorMultiplyAdd(Y1, Y1, X0);
 	R0 = XMVectorReciprocalSqrt(R0);
@@ -1080,18 +1196,31 @@ XMVECTOR XM_CALLCONV FieldSegmentToPoint(FXMVECTOR P, FXMVECTOR L0, FXMVECTOR L1
 	R1 = XMVectorMultiply(R1, Y1);
 	XMVECTOR Rx = XMVectorSubtract(R0, R1);
 	X0 = XMVectorReciprocalSqrt(X0);
+	//debug_assert(!XMVectorGetIntX(XMVectorIsNaN(X0)));
 	Rx = XMVectorMultiply(Rx, X0);
 	Rx = XMVectorSelect(Rx, Ry, g_XMSelect0101);
 	// Field intensity in P centered coordinate
 	Rx = XMVectorAndInt(Rx, g_XMSelect1100);
 
-	Rx = XMVectorDivide(Rx, Ds);
+	Rx = XMVectorMultiply(Rx, Ds);
 	Rx = XMVector3Transform(Rx, Rot);
+
+	//debug_assert(!XMVectorGetIntX(XMVectorIsNaN(Rx)));
 	return Rx;
 }
 
 DirectX::XMVECTOR XM_CALLCONV Causality::HandPhysicalModel::FieldAtPoint(DirectX::FXMVECTOR P)
 {
+	// Palm push force 
+	//XMVECTOR palmP = m_Hand.palmPosition().toVector3<Vector3>();
+	//XMVECTOR palmN = m_Hand.palmNormal().toVector3<Vector3>();
+	//auto dis = XMVectorSubtract(P,palmP);
+	//auto mag = XMVectorReciprocal(XMVector3LengthSq(dis));
+	//dis = XMVector3Normalize(dis);
+	//auto fac = XMVector3Dot(dis, palmN);
+	//mag = XMVectorMultiply(fac, mag);
+	//return XMVectorMultiply(dis, mag);
+
 	XMVECTOR field = XMVectorZero();
 	for (const auto& bone : m_Bones)
 	{
@@ -1104,14 +1233,30 @@ DirectX::XMVECTOR XM_CALLCONV Causality::HandPhysicalModel::FieldAtPoint(DirectX
 	return field;
 }
 
-inline void Causality::CubeModel::Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect)
+inline Causality::CubeModel::CubeModel(const std::string & name, DirectX::FXMVECTOR extend, DirectX::FXMVECTOR color)
+{
+	Name = name;
+	m_Color = color;
+
+	XMStoreFloat3(&BoundBox.Extents, extend);
+	XMStoreFloat3(&BoundOrientedBox.Extents, extend);
+}
+
+std::shared_ptr<btCollisionShape> Causality::CubeModel::CreateCollisionShape()
+{
+	std::shared_ptr<btCollisionShape> pShape;
+	pShape.reset(new btBoxShape(vector_cast<btVector3>(BoundBox.Extents)));
+	return pShape;
+}
+
+void Causality::CubeModel::Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect)
 {
 	XMVECTOR extent = XMLoadFloat3(&BoundBox.Extents);
 	XMMATRIX world = GetWorldMatrix();
-	XMVECTOR scale, pos, rot;
+	//XMVECTOR scale, pos, rot;
 	XMVECTOR color = m_Color;
 	color = XMVectorSetW(color, Opticity);
-	g_PrimitiveDrawer.DrawCube(extent,world, color);
+	g_PrimitiveDrawer.DrawCube(extent, world, color);
 }
 
 // !!!Current don't support dynamic scaling for each state now!!!

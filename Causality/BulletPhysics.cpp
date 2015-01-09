@@ -67,35 +67,28 @@ void Causality::PhysicalRigid::InitializePhysics(const std::shared_ptr<btDynamic
 
 const DirectX::Vector3 & Causality::PhysicalRigid::GetPosition() const
 {
-	Position = vector_cast<Vector3>(m_pRigidBody->getWorldTransform().getOrigin());
-	//m_pRigidBody->getMotionState()->getWorldTransform(m_Transform);
-	//Position = vector_cast<Vector3>(m_Transform.getOrigin());
+	Position = vector_cast<Vector3>(m_pRigidBody->getCenterOfMassPosition());
 	return Position;
 }
 
 void Causality::PhysicalRigid::SetPosition(const DirectX::Vector3 & p)
 {
-	m_pRigidBody->getWorldTransform().setOrigin(vector_cast<btVector3>(p));
-	//m_pRigidBody->getMotionState()->getWorldTransform(m_Transform);
-	//m_Transform.setOrigin(vector_cast<btVector3>(p));
-	//m_pRigidBody->getMotionState()->setWorldTransform(m_Transform);
+	btTransform transform = m_pRigidBody->getWorldTransform();
+	transform.setOrigin(vector_cast<btVector3>(p));
+	m_pRigidBody->setWorldTransform(transform);
 }
 
 const DirectX::Quaternion & Causality::PhysicalRigid::GetOrientation() const
 {
-	//m_pRigidBody->getMotionState()->getWorldTransform(m_Transform);
-	//Orientation = vector_cast<DirectX::Quaternion>(m_Transform.getRotation());
-	Orientation = vector_cast<DirectX::Quaternion>(m_pRigidBody->getWorldTransform().getRotation());
+	Orientation = vector_cast<DirectX::Quaternion>(m_pRigidBody->getOrientation());
 	return Orientation;
 }
 
 void Causality::PhysicalRigid::SetOrientation(const DirectX::Quaternion & q)
 {
-	m_pRigidBody->getWorldTransform().setRotation(vector_cast<btQuaternion>(q));
-	//m_pRigidBody->getMotionState()->getWorldTransform(m_Transform);
-	//m_Transform.setRotation(vector_cast<btQuaternion>(q));
-	//m_pRigidBody->getMotionState()->setWorldTransform(m_Transform);
-	//m_pRigidBody->getMotionState()->getWorldTransform(m_Transform);
+	btTransform transform = m_pRigidBody->getWorldTransform();
+	transform.setRotation(vector_cast<btQuaternion>(q));
+	m_pRigidBody->setWorldTransform(transform);
 }
 
 const DirectX::Vector3 & Causality::PhysicalRigid::GetScale() const

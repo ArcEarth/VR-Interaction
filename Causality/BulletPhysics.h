@@ -107,15 +107,13 @@ namespace Causality
 		virtual void SetScale(const DirectX::Vector3 & s) override;
 
 	protected:
-		mutable btTransform					m_Transform;
-		btTransform							m_MassCenterTransform;
 		bool								m_IsEnabled;
 		std::shared_ptr<btDynamicsWorld>	m_pWorld;
 		std::unique_ptr<btRigidBody>		m_pRigidBody;
 		std::shared_ptr<btCollisionShape>	m_pShape;
-		mutable DirectX::Vector3					Scale;
-		mutable DirectX::Vector3					Position;
-		mutable DirectX::Quaternion					Orientation;
+		mutable DirectX::Vector3			Scale;
+		mutable DirectX::Vector3			Position;
+		mutable DirectX::Quaternion			Orientation;
 	};
 
 	//class PhysicalGeometryModel : public DirectX::Scene::IGeometryModel, public DirectX::Scene::IRigidLocalMatrix , public PhysicalRigid
