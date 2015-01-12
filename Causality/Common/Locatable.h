@@ -91,8 +91,14 @@ namespace DirectX
 		}
 	};
 
+	// Composition of Translation/Rotation/Scale
 	struct AffineTransform : public RigidTransform
 	{
+		static AffineTransform Identity()
+		{
+			return AffineTransform();
+		}
+
 		Vector3 Scale;
 
 		AffineTransform()
@@ -131,6 +137,8 @@ namespace DirectX
 			return TransformMatrix();
 		}
 	};
+
+	
 
 
 	// Helper struct to implement IRigid Interface

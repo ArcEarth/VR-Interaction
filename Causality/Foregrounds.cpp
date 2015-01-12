@@ -4,6 +4,7 @@
 #include "Foregrounds.h"
 #include "CausalityApplication.h"
 #include "Common\PrimitiveVisualizer.h"
+#include "Common\Extern\cpplinq.hpp"
 
 using namespace Causality;
 using namespace DirectX;
@@ -80,6 +81,8 @@ void StateFrame::Initialize()
 	// The world.
 	pDynamicsWorld.reset(new btDiscreteDynamicsWorld(pDispatcher.get(), pBroadphase.get(), pSolver.get(), pCollisionConfiguration.get()));
 	pDynamicsWorld->setGravity(btVector3(0, -5.0f, 0));
+
+	IsEnabled = false;
 }
 
 
@@ -105,6 +108,7 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 				pFrame->Initialize();
 				pFrame->SubjectTransform.Scale = XMVectorReplicate(1.0f + 0.1f * i);// XMMatrixTranslation(0, 0, i*(-150.f));
 			}
+			m_StateFrames.front()->Enable(DirectX::AffineTransform::Identity());
 		}
 
 		auto Directory = App::Current()->GetResourcesDirectory();
@@ -258,24 +262,31 @@ void Causality::WorldScene::SetViewIdenpendntCameraPosition(const DirectX::ILoca
 
 std::vector<ProblistiscObject> Causality::WorldScene::ComposeFrame()
 {
+	using namespace cpplinq;
 	std::vector<ProblistiscObject> Objects(Models.size());
 
-	float weightsSum = 0;
-	std::vector<float> weights(m_StateFrames.size());
-	int j = 0;
-	for (const auto& pFrame : m_StateFrames)
-	{
-		weightsSum += weights[j++] = pFrame->Liklyhood();
-	}
+
+	auto activeFrames = from(m_StateFrames) >> where([](const RefStateFrame& frame) {return frame->IsEnabled; }) >> to_list();
+	auto weights = from(activeFrames) >> select([](const RefStateFrame& frame) {return frame->Liklyhood(); }) >> to_vector();
+	float weightsSum = from(weights) >> sum();
+
+	//std::vector<float> weights(m_StateFrames.size());
+	//int j = 0;
+	//for (const auto& pFrame : m_StateFrames)
+	//{
+	//	weightsSum += weights[j++] = pFrame->Liklyhood();
+	//}
 
 	for (size_t i = 0; i < Models.size(); i++)
 	{
 		const auto& pModel = Models[i];
 		Objects[i].Model = pModel;
 		auto& distribution = Objects[i].StatesDistribution;
-		j = 0;
-		for (const auto& pFrame : m_StateFrames)
+		int j = 0;
+		for (const auto& pFrame : activeFrames)
 		{
+			if (!pFrame->IsEnabled)
+				continue;
 			auto pNew = pFrame->Objects[pModel->Name].get();
 			ProblistiscRigidTransform tNew;
 			tNew.Translation = pNew->GetPosition();
@@ -313,6 +324,28 @@ std::vector<ProblistiscObject> Causality::WorldScene::ComposeFrame()
 	return Objects;
 }
 
+
+void Causality::WorldScene::CollapseStates()
+{
+	using namespace cpplinq;
+	using cref = decltype(m_StateFrames)::const_reference;
+	auto mlh = from(m_StateFrames)
+		>> where([](cref pFrame) {return pFrame->IsEnabled; })
+		>> max([](cref pFrame)->float {return pFrame->Liklyhood(); });
+
+	for (const auto & pFrame : m_StateFrames)
+	{
+		if (pFrame->Liklyhood() < mlh)
+			pFrame->Disable();
+	}
+}
+
+void Causality::WorldScene::ForkStates()
+{
+
+}
+
+
 void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 {
 	if (pBackground)
@@ -348,16 +381,19 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 
 		for (const auto& pFrame : m_StateFrames)
 		{
-			//Subjects
-			for (const auto& item : pFrame->Subjects)
+			if (pFrame->IsEnabled)
 			{
-				if (item.second)
+				//Subjects
+				for (const auto& item : pFrame->Subjects)
 				{
-					item.second->Opticity = weights[j] / weightsSum;
-					item.second->Render(pContext, nullptr);
+					if (item.second)
+					{
+						item.second->Opticity = weights[j] / weightsSum;
+						item.second->Render(pContext, nullptr);
+					}
 				}
+				j = 0;
 			}
-			j = 0;
 		}
 	}
 
@@ -556,12 +592,15 @@ void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 {
 	{
 		lock_guard<mutex> guard(m_RenderLock);
+		using namespace cpplinq;
 
 		float stepTime = (float) timer.GetElapsedSeconds();
-		//for (const auto& pFrame : m_StateFrames)
-		//_InterlockedExchange(NULL, NULL);
-		//_InterlockedExchangePointer(NULL, NULL);
-		concurrency::parallel_for_each(m_StateFrames.begin(), m_StateFrames.end(), [this, stepTime](const std::shared_ptr<StateFrame>& pFrame)
+
+		auto activeFrames = from(m_StateFrames) 
+			>> where([](const std::shared_ptr<StateFrame>& pFrame) {return pFrame->IsEnabled; })
+			>> to_vector();
+
+		auto frameAction = [this, stepTime](const std::shared_ptr<StateFrame>& pFrame)
 		{
 			auto& subjects = pFrame->Subjects;
 
@@ -596,10 +635,13 @@ void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 			}
 
 			pFrame->pDynamicsWorld->stepSimulation(stepTime, 10);
-		});
-		//for (const auto& pFrame : m_StateFrames)
-		//{
-		//}
+		};
+
+		if (activeFrames.size() >= 10)
+			concurrency::parallel_for_each(activeFrames.begin(), activeFrames.end(), frameAction);
+		else
+			for_each(activeFrames.begin(), activeFrames.end(), frameAction);
+
 	}
 
 	if (m_HandTrace.size() > 0)
@@ -770,6 +812,7 @@ void Causality::WorldScene::OnHandsTrackLost(const UserHandsEventArgs & e)
 		std::lock_guard<mutex> guard(m_HandFrameMutex);
 		m_HandTrace.clear();
 		m_TraceSamples.clear();
+		CollapseStates();
 		//for (const auto &pRigid : m_HandRigids)
 		//{
 		//	pDynamicsWorld->removeRigidBody(pRigid->GetBulletRigid());
@@ -1281,5 +1324,15 @@ inline std::shared_ptr<btCollisionShape> Causality::ShapedGeomrtricModel::Create
 	else
 	{
 		return m_pShape;
+	}
+}
+
+void Causality::StateFramePool::Initialize(int size, bool autoExpandation)
+{
+	for (size_t i = 0; i < 30; i++)
+	{
+		IdelFrames.push_back(std::make_shared<StateFrame>());
+		auto pFrame = IdelFrames.back();
+		pFrame->Initialize();
 	}
 }

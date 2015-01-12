@@ -418,6 +418,7 @@
     <ClInclude Include="Common\StepTimer.h" />
     <ClInclude Include="Common\stride_iterator.h" />
     <ClInclude Include="Common\Textures.h" />
+    <ClInclude Include="Common\tree.h" />
     <ClInclude Include="Content\OculusDisortionRenderer.h" />
     <ClInclude Include="Content\CubeScene.h" />
     <ClInclude Include="Content\SampleFpsTextRenderer.h" />

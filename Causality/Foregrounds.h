@@ -107,25 +107,42 @@ namespace Causality
 	};
 
 	class StateFrame;
-	class FramePool
+	class StateFramePool
 	{
-		std::shared_ptr<StateFrame> CreateFrame();
-		std::shared_ptr<StateFrame> CopyFrame(const StateFrame& frame);
+	public:
+		void Initialize(int size, bool autoExpandation = true);
+		std::shared_ptr<StateFrame> DemandCreate();
+	private:
+		std::vector<std::shared_ptr<StateFrame>> IdelFrames;
 	};
 
 	// One problistic frame for current state
-	class StateFrame
+	class StateFrame : std::enable_shared_from_this<StateFrame>
 	{
 	public:
 		void Initialize();
 
 		float Liklyhood() const
 		{
-			return 1;
+			if (IsEnabled)
+				return 1;
+			else
+				return 0;
 		}
 
 		StateFrame()
 		{
+		}
+
+		void Enable(const DirectX::AffineTransform& subjectTransform)
+		{
+			IsEnabled = true;
+			SubjectTransform = subjectTransform;
+		}
+
+		void Disable()
+		{
+			IsEnabled = false;
 		}
 
 		//copy sementic
@@ -140,6 +157,14 @@ namespace Causality
 			*this = std::move(other);
 		}
 		StateFrame& operator=(const StateFrame&& other);
+		
+		void Evolution();
+		std::list<std::shared_ptr<StateFrame>> CreateForkStates();
+
+		// Name of this state
+		StateFrame*												ParentState;
+
+		std::string												Name;
 
 		// Evolution caculation object
 		std::shared_ptr<btBroadphaseInterface>					pBroadphase = nullptr;
@@ -161,8 +186,13 @@ namespace Causality
 		std::condition_variable									queuePending;
 		std::mutex												queueMutex;
 
-		void Evolution();
+		bool													IsEnabled;
+
+		bool													AllowForkRequest;
+		bool													AllowCollapseRequest;
 	};
+
+	using RefStateFrame = std::shared_ptr<StateFrame>;
 
 	class WorldScene : public Platform::IAppComponent, public Platform::IUserHandsInteractive, public Platform::IKeybordInteractive, public DirectX::Scene::IRenderable, public DirectX::Scene::IViewable , public DirectX::Scene::ITimeAnimatable
 	{
@@ -202,9 +232,25 @@ namespace Causality
 
 		std::vector<ProblistiscObject> ComposeFrame();
 
+		bool IsCurrentStateUnderdeterminate() const;
+
+		int CurrentStateOverloadCount() const;
+
+		std::shared_ptr<const StateFrame> MasterFrame() const
+		{
+			return m_StateFrames.front();
+		}
+
+		const std::shared_ptr<StateFrame>& MasterFrame()
+		{
+			return m_StateFrames.front();
+		}
+
+
+
 		// Forece the scene to resolve the ambiguity, compress the frame count into one
-		void Collapse();
-		void Fork();
+		void CollapseStates();
+		void ForkStates();
 	private:
 		std::unique_ptr<DirectX::Scene::SkyDome>		pBackground;
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState>	pRSState;
@@ -232,7 +278,7 @@ namespace Causality
 		const DirectX::ILocatable*						m_pCameraLocation;
 
 		DirectX::Scene::ModelCollection					Models;
-		std::vector<std::shared_ptr<StateFrame>>			m_StateFrames;
+		std::list<std::shared_ptr<StateFrame>>			m_StateFrames;
 
 		std::shared_ptr<btConeShape>						 m_pHandConeShape;
 		std::map<int, std::shared_ptr<btCollisionObject>>	 m_pHandCones;
