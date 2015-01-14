@@ -12,11 +12,14 @@
 #include <map>
 #include <array>
 #include <deque>
+#include <queue>
+#include <stack>
 #include "Common\MetaBallModel.h"
 #include <PrimitiveBatch.h>
 #include "BulletPhysics.h"
 #include <GeometricPrimitive.h>
 #include "Common\Filter.h"
+#include "Common\tree.h"
 
 namespace Causality
 {
@@ -31,7 +34,7 @@ namespace Causality
 	public:
 		virtual std::shared_ptr<btCollisionShape> CreateCollisionShape() = 0;
 	};
-	
+
 	class ShapedGeomrtricModel : public DirectX::Scene::GeometryModel, virtual public IShaped
 	{
 	public:
@@ -41,17 +44,18 @@ namespace Causality
 		std::shared_ptr<btCollisionShape> m_pShape;
 	};
 
-	struct ProblistiscRigidTransform : public DirectX::AffineTransform
+	struct ProblistiscAffineTransform : public DirectX::AffineTransform
 	{
 		using DirectX::AffineTransform::AffineTransform;
 		float Probability;
 	};
 
-	struct ProblistiscObject
+	// A super state which encode different states with probility
+	struct ProblistiscState
 	{
 	public:
-		std::shared_ptr<DirectX::Scene::IModelNode>	Model;
-		std::vector<ProblistiscRigidTransform> StatesDistribution;
+		std::string	Name;
+		std::vector<ProblistiscAffineTransform> StatesDistribution;
 	};
 
 	struct HandPhysicalModel : public DirectX::Scene::IModelNode
@@ -86,7 +90,7 @@ namespace Causality
 		int			LostFrames;
 		Leap::Hand  m_Hand;
 		DirectX::AffineTransform m_InheritTransform;
-		std::array<std::pair<DirectX::Vector3, DirectX::Vector3>,20> m_Bones;
+		std::array<std::pair<DirectX::Vector3, DirectX::Vector3>, 20> m_Bones;
 		std::vector<std::shared_ptr<PhysicalRigid>>			m_HandRigids;
 		//static std::unique_ptr<DirectX::GeometricPrimitive> s_pCylinder;
 		//static std::unique_ptr<DirectX::GeometricPrimitive> s_pSphere;
@@ -106,21 +110,31 @@ namespace Causality
 		DirectX::Color m_Color;
 	};
 
-	class StateFrame;
-	class StateFramePool
-	{
-	public:
-		void Initialize(int size, bool autoExpandation = true);
-		std::shared_ptr<StateFrame> DemandCreate();
-	private:
-		std::vector<std::shared_ptr<StateFrame>> IdelFrames;
-	};
-
 	// One problistic frame for current state
-	class StateFrame : std::enable_shared_from_this<StateFrame>
+	class WorldBranch : public stree::tree_node<WorldBranch, false>
 	{
 	public:
-		void Initialize();
+
+		enum CollisionGroupEnum : short
+		{
+			Group_Focused_Object = 0x1,
+			Group_Unfocused_Object = 0x2,
+			Group_Subject = 0x4,
+			Mask_Focused_Object = 0x7,
+			Mask_Unfocused_Object = 0x3,
+			Mask_Subject = 0x1,
+		};
+
+	public:
+		static void InitializeBranchPool(int size, bool autoExpandation = true);
+		static std::unique_ptr<WorldBranch> DemandCreate();
+		static void Recycle(std::unique_ptr<WorldBranch>&&);
+
+	private:
+		static std::queue<std::unique_ptr<WorldBranch>> IdelFrames;
+
+	public:
+		void Reset();
 
 		float Liklyhood() const
 		{
@@ -130,9 +144,7 @@ namespace Causality
 				return 0;
 		}
 
-		StateFrame()
-		{
-		}
+		WorldBranch();
 
 		void Enable(const DirectX::AffineTransform& subjectTransform)
 		{
@@ -145,27 +157,31 @@ namespace Causality
 			IsEnabled = false;
 		}
 
-		//copy sementic
-		StateFrame(const StateFrame& other)
-		{
-			*this = other;
-		}
-		StateFrame& operator=(const StateFrame& other);
-		// move sementic
-		StateFrame(StateFrame&& other)
-		{
-			*this = std::move(other);
-		}
-		StateFrame& operator=(const StateFrame&& other);
-		
-		void Evolution();
-		std::list<std::shared_ptr<StateFrame>> CreateForkStates();
+		//copy / move sementic is deleted for use with pointer
+		WorldBranch(const WorldBranch& other) = delete;
+		WorldBranch& operator=(const WorldBranch& other) = delete;
+		WorldBranch(WorldBranch&& other) = delete;
+		WorldBranch& operator=(const WorldBranch&& other) = delete;
 
-		// Name of this state
-		StateFrame*												ParentState;
+		void AddSubjectiveObject(const Leap::Hand& hand, const DirectX::Matrix4x4& leapTransform);
+		void AddDynamicObject(const std::string &name, const std::shared_ptr<btCollisionShape> &pShape, float mass, const DirectX::Vector3 & Position, const DirectX::Quaternion & Orientation);
+		void Evolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
+		void Fork();
+		void Collapse();
+		std::vector<ProblistiscState> CaculateSuperposition();
+		void UpdateLiklyhood();
+		void NormalizeLiklyhood(float c);
 
+	public:
+		// Internal evolution algorithm as-if this branch is a "Leaf"
+		void InternalEvolution(const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
+	protected:
 		std::string												Name;
 
+		std::unique_ptr<std::thread>							pWorkerThread;
+		std::condition_variable									queuePending;
+		std::mutex												queueMutex;
+	protected:
 		// Evolution caculation object
 		std::shared_ptr<btBroadphaseInterface>					pBroadphase = nullptr;
 		// Set up the collision configuration and dispatcher
@@ -175,26 +191,21 @@ namespace Causality
 		std::shared_ptr<btSequentialImpulseConstraintSolver>	pSolver = nullptr;
 		std::shared_ptr<btDynamicsWorld>						pDynamicsWorld = nullptr;
 
+	public:
 		// Object states evolution with time and interaction subjects
 		std::map<std::string, std::shared_ptr<PhysicalRigid>>	Objects;
 
 		// Interactive subjects
 		std::map<int, std::shared_ptr<HandPhysicalModel>>		Subjects;
+
 		DirectX::AffineTransform								SubjectTransform;
 
-		std::unique_ptr<std::thread>							pWorkerThread;
-		std::condition_variable									queuePending;
-		std::mutex												queueMutex;
 
+		bool													IsDirty;
 		bool													IsEnabled;
-
-		bool													AllowForkRequest;
-		bool													AllowCollapseRequest;
 	};
 
-	using RefStateFrame = std::shared_ptr<StateFrame>;
-
-	class WorldScene : public Platform::IAppComponent, public Platform::IUserHandsInteractive, public Platform::IKeybordInteractive, public DirectX::Scene::IRenderable, public DirectX::Scene::IViewable , public DirectX::Scene::ITimeAnimatable
+	class WorldScene : public Platform::IAppComponent, public Platform::IUserHandsInteractive, public Platform::IKeybordInteractive, public DirectX::Scene::IRenderable, public DirectX::Scene::IViewable, public DirectX::Scene::ITimeAnimatable
 	{
 	public:
 		WorldScene(const std::shared_ptr<DirectX::DeviceResources> &pResouce, const DirectX::ILocatable* pCamera);
@@ -209,7 +220,7 @@ namespace Causality
 		// Inherited via IRenderable
 		virtual void Render(ID3D11DeviceContext * pContext) override;
 
-		void DrawBox(DirectX::SimpleMath::Vector3  conners[], DirectX::CXMVECTOR color);
+		void DrawBox(DirectX::SimpleMath::Vector3  conners [], DirectX::CXMVECTOR color);
 
 		// Inherited via IViewable
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) override;
@@ -230,18 +241,18 @@ namespace Causality
 
 		void AddObject(const std::shared_ptr<DirectX::Scene::IModelNode>& pModel, float mass, const DirectX::Vector3 &Position, const DirectX::Quaternion &Orientation, const DirectX::Vector3 &Scale);
 
-		std::vector<ProblistiscObject> ComposeFrame();
+		std::vector<ProblistiscState> ComposeFrame();
 
 		bool IsCurrentStateUnderdeterminate() const;
 
 		int CurrentStateOverloadCount() const;
 
-		std::shared_ptr<const StateFrame> MasterFrame() const
+		const WorldBranch* MasterFrame() const
 		{
 			return m_StateFrames.front();
 		}
 
-		const std::shared_ptr<StateFrame>& MasterFrame()
+		WorldBranch* MasterFrame()
 		{
 			return m_StateFrames.front();
 		}
@@ -257,13 +268,13 @@ namespace Causality
 		Microsoft::WRL::ComPtr<ID3D11InputLayout>		pInputLayout;
 		DirectX::CommonStates							States;
 		std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionNormal>>
-														pBatch;
+			pBatch;
 		bool											m_HaveHands;
 		Leap::Frame										m_Frame;
 		DirectX::Matrix4x4								m_FrameTransform;
 		const int TraceLength = 1;
 		std::deque<std::array<DirectX::Vector3, 25>>	m_HandTrace;
-		std::deque<std::array<DirectX::Vector3,2000>>	m_TraceSamples;
+		std::deque<std::array<DirectX::Vector3, 2000>>	m_TraceSamples;
 		std::vector<DirectX::Vector3>					m_TracePoints;
 		DirectX::BoundingOrientedBox					m_CurrentHandBoundingBox;
 		DirectX::BoundingOrientedBox					m_HandTraceBoundingBox;
@@ -278,7 +289,10 @@ namespace Causality
 		const DirectX::ILocatable*						m_pCameraLocation;
 
 		DirectX::Scene::ModelCollection					Models;
-		std::list<std::shared_ptr<StateFrame>>			m_StateFrames;
+
+		std::unique_ptr<WorldBranch>					WorldTree;
+
+		std::list<WorldBranch*>							m_StateFrames;
 
 		std::shared_ptr<btConeShape>						 m_pHandConeShape;
 		std::map<int, std::shared_ptr<btCollisionObject>>	 m_pHandCones;
@@ -286,7 +300,7 @@ namespace Causality
 		std::map<int, std::unique_ptr<btDynamicsWorld>>		 m_pDynamicsWorlds;
 
 		std::shared_ptr<btDynamicsWorld>                     pDynamicsWorld = nullptr;
-		
+
 		std::map<int, std::unique_ptr<HandPhysicalModel>>	 m_HandModels;
 
 

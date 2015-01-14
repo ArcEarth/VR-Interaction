@@ -67,7 +67,7 @@ namespace DirectX
 
 
 			// Free aligned memory.
-			static void operator delete (void* ptr)
+		static void operator delete (void* ptr)
 		{
 			_aligned_free(ptr);
 		}

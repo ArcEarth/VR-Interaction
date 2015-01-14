@@ -67,7 +67,7 @@ class XmlModelLoader
 {
 };
 
-void StateFrame::Initialize()
+WorldBranch::WorldBranch()
 {
 	pBroadphase.reset(new btDbvtBroadphase());
 
@@ -77,14 +77,12 @@ void StateFrame::Initialize()
 
 	// The actual physics solver
 	pSolver.reset(new btSequentialImpulseConstraintSolver());
-
 	// The world.
 	pDynamicsWorld.reset(new btDiscreteDynamicsWorld(pDispatcher.get(), pBroadphase.get(), pSolver.get(), pCollisionConfiguration.get()));
-	pDynamicsWorld->setGravity(btVector3(0, -5.0f, 0));
+	//pDynamicsWorld->setGravity(btVector3(0, -5.0f, 0));
 
 	IsEnabled = false;
 }
-
 
 void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 {
@@ -98,18 +96,22 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 	//ThrowIfFailed(pDevice->CreateRasterizerState(&Desc, &pRSState));
 
 	concurrency::task<void> load_models([this, pDevice]() {
+		WorldBranch::InitializeBranchPool(30);
+		WorldTree = WorldBranch::DemandCreate();
 
-		{
-			lock_guard<mutex> guard(m_RenderLock);
-			for (size_t i = 0; i < 30; i++)
-			{
-				m_StateFrames.emplace_back(new StateFrame);
-				auto pFrame = m_StateFrames.back();
-				pFrame->Initialize();
-				pFrame->SubjectTransform.Scale = XMVectorReplicate(1.0f + 0.1f * i);// XMMatrixTranslation(0, 0, i*(-150.f));
-			}
-			m_StateFrames.front()->Enable(DirectX::AffineTransform::Identity());
-		}
+		//m_pFramesPool.reset(new WorldBranchPool);
+		//m_pFramesPool->Initialize(30);
+		//{
+		//	lock_guard<mutex> guard(m_RenderLock);
+		//	for (size_t i = 0; i < 30; i++)
+		//	{
+		//		m_StateFrames.push_back(m_pFramesPool->DemandCreate());
+		//		auto pFrame = m_StateFrames.back();
+		//		//pFrame->Initialize();
+		//		pFrame->SubjectTransform.Scale = XMVectorReplicate(1.0f + 0.1f * i);// XMMatrixTranslation(0, 0, i*(-150.f));
+		//	}
+		//	m_StateFrames.front()->Enable(DirectX::AffineTransform::Identity());
+		//}
 
 		auto Directory = App::Current()->GetResourcesDirectory();
 		auto ModelDirectory = Directory / "Models";
@@ -260,91 +262,69 @@ void Causality::WorldScene::SetViewIdenpendntCameraPosition(const DirectX::ILoca
 	m_pCameraLocation = pCamera;
 }
 
-std::vector<ProblistiscObject> Causality::WorldScene::ComposeFrame()
+std::vector<ProblistiscState> Causality::WorldScene::ComposeFrame()
 {
-	using namespace cpplinq;
-	std::vector<ProblistiscObject> Objects(Models.size());
+	//using namespace cpplinq;
+	//std::vector<ProblistiscState> Objects(Models.size());
 
 
-	auto activeFrames = from(m_StateFrames) >> where([](const RefStateFrame& frame) {return frame->IsEnabled; }) >> to_list();
-	auto weights = from(activeFrames) >> select([](const RefStateFrame& frame) {return frame->Liklyhood(); }) >> to_vector();
-	float weightsSum = from(weights) >> sum();
+	//auto activeFrames = from(m_StateFrames) >> where([](const WorldBranch& frame) {return frame->IsEnabled; }) >> to_list();
+	//auto weights = from(activeFrames) >> select([](const WorldBranch& frame) {return frame->Liklyhood(); }) >> to_vector();
+	//float weightsSum = from(weights) >> sum();
 
-	//std::vector<float> weights(m_StateFrames.size());
-	//int j = 0;
-	//for (const auto& pFrame : m_StateFrames)
+	////std::vector<float> weights(m_StateFrames.size());
+	////int j = 0;
+	////for (const auto& pFrame : m_StateFrames)
+	////{
+	////	weightsSum += weights[j++] = pFrame->Liklyhood();
+	////}
+
+	//for (size_t i = 0; i < Models.size(); i++)
 	//{
-	//	weightsSum += weights[j++] = pFrame->Liklyhood();
+	//	const auto& pModel = Models[i];
+	//	Objects[i].Name = pModel->Name;
+	//	auto& distribution = Objects[i].StatesDistribution;
+	//	int j = 0;
+	//	for (const auto& pFrame : activeFrames)
+	//	{
+	//		if (!pFrame->IsEnabled)
+	//			continue;
+	//		auto pNew = pFrame->Objects[pModel->Name].get();
+	//		ProblistiscAffineTransform tNew;
+	//		tNew.Translation = pNew->GetPosition();
+	//		tNew.Rotation = pNew->GetOrientation();
+	//		tNew.Scale = pNew->GetScale();
+	//		tNew.Probability = weights[j] / weightsSum;
+
+	//		auto itr = std::find_if(distribution.begin(), distribution.end(),
+	//			[&tNew](std::remove_reference_t<decltype(distribution)>::const_reference trans) -> bool
+	//		{
+	//			return trans.NearEqual(tNew);
+	//			//auto pExisted = item.first;
+	//			//Vector3 PosDiff = pExisted->GetPosition() - pNew->GetPosition();
+	//			//DirectX::Quaternion RotDiff = pExisted->GetOrientation();
+	//			//RotDiff.Inverse(RotDiff);
+	//			//RotDiff *= pNew->GetOrientation();
+	//			//float AngDiff = 2 * acosf(RotDiff.w);
+	//			//return (PosDiff.Length() <= 0.002f && AngDiff <= 1);
+	//		});
+
+	//		if (itr == distribution.end())
+	//		{
+	//			distribution.push_back(tNew);
+	//			//distribution[pNew] = weights[j] / weightsSum;
+	//		}
+	//		else
+	//		{
+	//			itr->Probability += tNew.Probability;
+	//			//itr->second += weights[j] / weightsSum;
+	//		}
+	//		j++;
+	//	}
 	//}
 
-	for (size_t i = 0; i < Models.size(); i++)
-	{
-		const auto& pModel = Models[i];
-		Objects[i].Model = pModel;
-		auto& distribution = Objects[i].StatesDistribution;
-		int j = 0;
-		for (const auto& pFrame : activeFrames)
-		{
-			if (!pFrame->IsEnabled)
-				continue;
-			auto pNew = pFrame->Objects[pModel->Name].get();
-			ProblistiscRigidTransform tNew;
-			tNew.Translation = pNew->GetPosition();
-			tNew.Rotation = pNew->GetOrientation();
-			tNew.Scale = pNew->GetScale();
-			tNew.Probability = weights[j] / weightsSum;
-
-			auto itr = std::find_if(distribution.begin(), distribution.end(),
-				[&tNew](std::remove_reference_t<decltype(distribution)>::const_reference trans) -> bool
-			{
-				return trans.NearEqual(tNew);
-				//auto pExisted = item.first;
-				//Vector3 PosDiff = pExisted->GetPosition() - pNew->GetPosition();
-				//DirectX::Quaternion RotDiff = pExisted->GetOrientation();
-				//RotDiff.Inverse(RotDiff);
-				//RotDiff *= pNew->GetOrientation();
-				//float AngDiff = 2 * acosf(RotDiff.w);
-				//return (PosDiff.Length() <= 0.002f && AngDiff <= 1);
-			});
-
-			if (itr == distribution.end())
-			{
-				distribution.push_back(tNew);
-				//distribution[pNew] = weights[j] / weightsSum;
-			}
-			else
-			{
-				itr->Probability += tNew.Probability;
-				//itr->second += weights[j] / weightsSum;
-			}
-			j++;
-		}
-	}
-
-	return Objects;
+	//return Objects;
 }
-
-
-void Causality::WorldScene::CollapseStates()
-{
-	using namespace cpplinq;
-	using cref = decltype(m_StateFrames)::const_reference;
-	auto mlh = from(m_StateFrames)
-		>> where([](cref pFrame) {return pFrame->IsEnabled; })
-		>> max([](cref pFrame)->float {return pFrame->Liklyhood(); });
-
-	for (const auto & pFrame : m_StateFrames)
-	{
-		if (pFrame->Liklyhood() < mlh)
-			pFrame->Disable();
-	}
-}
-
-void Causality::WorldScene::ForkStates()
-{
-
-}
-
 
 void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 {
@@ -367,24 +347,26 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		}
 		j = 0;
 
-		auto DistrubModel = ComposeFrame();
+		auto DistrubModel = WorldTree->CaculateSuperposition();//ComposeFrame();
 
+		using namespace cpplinq;
 		for (const auto & obj : DistrubModel)
 		{
+			auto& model = from(Models) >> first([&obj](ModelCollection::const_reference model) {return model->Name == obj.Name; });
 			for (const auto &state : obj.StatesDistribution)
 			{
-				obj.Model->LocalMatrix = state.TransformMatrix(); //.first->GetRigidTransformMatrix();
-				obj.Model->Opticity = state.Probability; //state.second;
-				obj.Model->Render(pContext, pEffect.get());
+				model->LocalMatrix = state.TransformMatrix(); //.first->GetRigidTransformMatrix();
+				model->Opticity = state.Probability; //state.second;
+				model->Render(pContext, pEffect.get());
 			}
 		}
 
-		for (const auto& pFrame : m_StateFrames)
+		for (const auto& branch : *WorldTree)
 		{
-			if (pFrame->IsEnabled)
+			if (branch.is_leaf())
 			{
 				//Subjects
-				for (const auto& item : pFrame->Subjects)
+				for (const auto& item : branch.Subjects)
 				{
 					if (item.second)
 					{
@@ -593,54 +575,9 @@ void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 	{
 		lock_guard<mutex> guard(m_RenderLock);
 		using namespace cpplinq;
-
+		using namespace std::placeholders;
 		float stepTime = (float) timer.GetElapsedSeconds();
 
-		auto activeFrames = from(m_StateFrames) 
-			>> where([](const std::shared_ptr<StateFrame>& pFrame) {return pFrame->IsEnabled; })
-			>> to_vector();
-
-		auto frameAction = [this, stepTime](const std::shared_ptr<StateFrame>& pFrame)
-		{
-			auto& subjects = pFrame->Subjects;
-
-			for (auto itr = subjects.begin(); itr != subjects.end(); )
-			{
-				auto trans = m_FrameTransform;
-				bool result = itr->second->Update(m_Frame, m_FrameTransform);
-				// Remove hands lost track for 60+ frames
-				if (!result)
-				{
-					if (itr->second->LostFramesCount() > 60)
-						itr = subjects.erase(itr);
-				}
-				else
-				{
-					//const auto &pHand = itr->second;
-					//for (auto& item : pFrame->Objects)
-					//{
-					//	const auto& pObj = item.second;
-					//	if (pObj->GetBulletRigid()->isStaticObject())
-					//		continue;
-					//	//pObj->GetBulletShape()->
-					//	auto force = pHand->FieldAtPoint(pObj->GetPosition()) * 0.00001f;
-					//	pObj->GetBulletRigid()->clearForces();
-					//	//vector_cast<btVector3>(force) * 0.01f
-					//	std::cout << item.first << " : " << Vector3(force) << std::endl;
-					//	pObj->GetBulletRigid()->applyCentralForce(vector_cast<btVector3>(force));
-					//	pObj->GetBulletRigid()->activate();
-					//}
-					++itr;
-				}
-			}
-
-			pFrame->pDynamicsWorld->stepSimulation(stepTime, 10);
-		};
-
-		if (activeFrames.size() >= 10)
-			concurrency::parallel_for_each(activeFrames.begin(), activeFrames.end(), frameAction);
-		else
-			for_each(activeFrames.begin(), activeFrames.end(), frameAction);
 
 	}
 
@@ -769,29 +706,30 @@ void Causality::WorldScene::OnHandsTracked(const UserHandsEventArgs & e)
 	//}
 
 	m_Frame = e.sender.frame();
-	for (const auto& hand : m_Frame.hands())
+	for (auto& branch : WorldTree->leaves())
 	{
-		for (const auto& pFrame : m_StateFrames)
+		for (const auto& hand : m_Frame.hands())
 		{
-			auto & subjects = pFrame->Subjects;
-			if (!subjects[hand.id()])
-			{
-				subjects[hand.id()].reset(
-					new HandPhysicalModel(
-					pFrame->pDynamicsWorld,
-					hand, e.toWorldTransform,
-					pFrame->SubjectTransform)
-					);
-				//for (const auto& itm : pFrame->Objects)
-				//{
-				//	const auto& pObj = itm.second;
-				//	if (!pObj->GetBulletRigid()->isStaticOrKinematicObject())
-				//	{
-				//		for (const auto& bone : subjects[hand.id()]->Rigids())
-				//			pObj->GetBulletRigid()->setIgnoreCollisionCheck(bone.get(), false);
-				//	}
-				//}
-			}
+			auto & subjects = branch.Subjects;
+			branch.AddSubjectiveObject(hand,e.toWorldTransform);
+			//if (!subjects[hand.id()])
+			//{
+			//	subjects[hand.id()].reset(
+			//		new HandPhysicalModel(
+			//		pFrame->pDynamicsWorld,
+			//		hand, e.toWorldTransform,
+			//		pFrame->SubjectTransform)
+			//		);
+			//	//for (const auto& itm : pFrame->Objects)
+			//	//{
+			//	//	const auto& pObj = itm.second;
+			//	//	if (!pObj->GetBulletRigid()->isStaticOrKinematicObject())
+			//	//	{
+			//	//		for (const auto& bone : subjects[hand.id()]->Rigids())
+			//	//			pObj->GetBulletRigid()->setIgnoreCollisionCheck(bone.get(), false);
+			//	//	}
+			//	//}
+			//}
 		}
 	}
 
@@ -968,15 +906,17 @@ void Causality::WorldScene::AddObject(const std::shared_ptr<IModelNode>& pModel,
 	auto pShaped = dynamic_cast<IShaped*>(pModel.get());
 	auto pShape = pShaped->CreateCollisionShape();
 	pShape->setLocalScaling(vector_cast<btVector3>(Scale));
-	for (const auto& pFrame : m_StateFrames)
-	{
-		auto pObject = std::shared_ptr<PhysicalRigid>(new PhysicalRigid());
-		pObject->InitializePhysics(pFrame->pDynamicsWorld, pShape, mass, Position, Orientation);
-		pObject->GetBulletRigid()->setFriction(1.0f);
-		pObject->GetBulletRigid()->setDamping(0.8, 0.9);
-		pObject->GetBulletRigid()->setRestitution(0.0);
-		pFrame->Objects[pModel->Name] = pObject;
-	}
+
+	WorldTree->AddDynamicObject(pModel->Name, pShape, mass, Position, Orientation);
+	//for (const auto& pFrame : m_StateFrames)
+	//{
+	//	auto pObject = std::shared_ptr<PhysicalRigid>(new PhysicalRigid());
+	//	pObject->InitializePhysics(pFrame->pDynamicsWorld, pShape, mass, Position, Orientation);
+	//	pObject->GetBulletRigid()->setFriction(1.0f);
+	//	pObject->GetBulletRigid()->setDamping(0.8, 0.9);
+	//	pObject->GetBulletRigid()->setRestitution(0.0);
+	//	pFrame->Objects[pModel->Name] = pObject;
+	//}
 }
 
 std::pair<DirectX::Vector3, DirectX::Quaternion> XM_CALLCONV CaculateCylinderTransform(FXMVECTOR P1, FXMVECTOR P2)
@@ -1327,12 +1267,214 @@ inline std::shared_ptr<btCollisionShape> Causality::ShapedGeomrtricModel::Create
 	}
 }
 
-void Causality::StateFramePool::Initialize(int size, bool autoExpandation)
+void Causality::WorldBranch::InitializeBranchPool(int size, bool autoExpandation)
 {
 	for (size_t i = 0; i < 30; i++)
 	{
-		IdelFrames.push_back(std::make_shared<StateFrame>());
-		auto pFrame = IdelFrames.back();
-		pFrame->Initialize();
+		IdelFrames.emplace(new WorldBranch());
 	}
+}
+
+void Causality::WorldBranch::Reset()
+{
+	for (const auto& pair : Objects)
+	{
+		pair.second->Disable();
+	}
+	Objects.clear();
+}
+
+void Causality::WorldBranch::Collapse()
+{
+	//using namespace cpplinq;
+	//using cref = decltype(m_StateFrames)::const_reference;
+	//auto mlh = from(m_StateFrames)
+	//	>> where([](cref pFrame) {return pFrame->IsEnabled; })
+	//	>> max([](cref pFrame)->float {return pFrame->Liklyhood(); });
+	//WordBranch master_frame;
+	////for (auto & pFrame : m_StateFrames)
+	////{
+	////	if (pFrame->Liklyhood() < mlh)
+	////	{
+	////		pFrame->Disable();
+	////		m_pFramesPool->Recycle(std::move(pFrame));
+	////	}
+	////	else
+	////	{
+	////		master_frame = std::move(pFrame);
+	////	}
+	////}
+	//m_StateFrames.clear();
+	//m_StateFrames.push_back(std::move(master_frame));
+}
+
+inline std::vector<ProblistiscState> Causality::WorldBranch::CaculateSuperposition()
+{
+	using namespace cpplinq;
+	std::vector<ProblistiscState> SuperStates(Objects.size());
+
+	auto itr = this->begin();
+	auto eitr = this->end();
+	auto leaves = from_iterators(itr, eitr) >> where([](const WorldBranch& branch) {return branch.is_leaf(); }) >> select([](const WorldBranch& branch) {return &branch; }) >> to_list();
+	auto weights = from(leaves) >> select([](const WorldBranch* frame) {return frame->Liklyhood(); }) >> to_vector();
+	float weightsSum = std::accumulate(weights.begin(), weights.end(),0);
+
+	//std::vector<float> weights(m_StateFrames.size());
+	//int j = 0;
+	//for (const auto& pFrame : m_StateFrames)
+	//{
+	//	weightsSum += weights[j++] = pFrame->Liklyhood();
+	//}
+
+	auto pObj = Objects.begin();
+	for (size_t i = 0; i < Objects.size(); i++,++pObj)
+	{
+		const auto& pModel = pObj->second;
+		auto& state = SuperStates[i];
+		state.Name = pObj->first;
+		auto& distribution = state.StatesDistribution;
+		int j = 0;
+
+		for (const auto& pBranch : leaves)
+		{
+			if (!pBranch->IsEnabled)
+				continue;
+
+			auto itrObj = pBranch->Objects.find(state.Name);
+
+			if (itrObj == pBranch->Objects.end())
+				continue;
+			auto pNew = itrObj->second;
+
+			ProblistiscAffineTransform tNew;
+			tNew.Translation = pNew->GetPosition();
+			tNew.Rotation = pNew->GetOrientation();
+			tNew.Scale = pNew->GetScale();
+			tNew.Probability = weights[j] / weightsSum;
+
+			auto itr = std::find_if(distribution.begin(), distribution.end(),
+				[&tNew](std::remove_reference_t<decltype(distribution)>::const_reference trans) -> bool
+			{
+				return trans.NearEqual(tNew);
+			});
+
+			if (itr == distribution.end())
+			{
+				distribution.push_back(tNew);
+			}
+			else
+			{
+				itr->Probability += tNew.Probability;
+			}
+			j++;
+		}
+	}
+
+	return SuperStates;
+}
+
+void Causality::WorldBranch::InternalEvolution(const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform)
+{
+	auto& subjects = Subjects;
+
+	for (auto itr = subjects.begin(); itr != subjects.end(); )
+	{
+		bool result = itr->second->Update(frame, leapTransform);
+		// Remove hands lost track for 60+ frames
+		if (!result)
+		{
+			if (itr->second->LostFramesCount() > 60)
+				itr = subjects.erase(itr);
+		}
+		else
+		{
+			//const auto &pHand = itr->second;
+			//for (auto& item : pFrame->Objects)
+			//{
+			//	const auto& pObj = item.second;
+			//	if (pObj->GetBulletRigid()->isStaticObject())
+			//		continue;
+			//	//pObj->GetBulletShape()->
+			//	auto force = pHand->FieldAtPoint(pObj->GetPosition()) * 0.00001f;
+			//	pObj->GetBulletRigid()->clearForces();
+			//	//vector_cast<btVector3>(force) * 0.01f
+			//	std::cout << item.first << " : " << Vector3(force) << std::endl;
+			//	pObj->GetBulletRigid()->applyCentralForce(vector_cast<btVector3>(force));
+			//	pObj->GetBulletRigid()->activate();
+			//}
+			++itr;
+		}
+	}
+}
+
+void Causality::WorldBranch::AddSubjectiveObject(const Leap::Hand & hand, const DirectX::Matrix4x4& leapTransform)
+{
+	if (!Subjects[hand.id()])
+	{
+		Subjects[hand.id()].reset(
+			new HandPhysicalModel(
+			pDynamicsWorld,
+			hand, leapTransform,
+			SubjectTransform)
+			);
+		//for (const auto& itm : pFrame->Objects)
+		//{
+		//	const auto& pObj = itm.second;
+		//	if (!pObj->GetBulletRigid()->isStaticOrKinematicObject())
+		//	{
+		//		for (const auto& bone : subjects[hand.id()]->Rigids())
+		//			pObj->GetBulletRigid()->setIgnoreCollisionCheck(bone.get(), false);
+		//	}
+		//}
+	}
+}
+
+void Causality::WorldBranch::AddDynamicObject(const std::string &name, const std::shared_ptr<btCollisionShape> &pShape, float mass, const DirectX::Vector3 & Position, const DirectX::Quaternion & Orientation)
+{
+	for (auto& branch : nodes_in_tree())
+	{
+		auto pObject = std::shared_ptr<PhysicalRigid>(new PhysicalRigid());
+		pObject->InitializePhysics(branch.pDynamicsWorld, pShape, mass, Position, Orientation);
+		pObject->GetBulletRigid()->setFriction(1.0f);
+		pObject->GetBulletRigid()->setDamping(0.8, 0.9);
+		pObject->GetBulletRigid()->setRestitution(0.0);
+		branch.Objects[name] = pObject;
+	}
+}
+
+void Causality::WorldBranch::Evolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform)
+{
+	using namespace cpplinq;
+	auto leaves = from(*this) >> 
+		where([](const WorldBranch& branch) {return branch.is_leaf(); }) >> 
+		select([](const WorldBranch& branch) {return &branch; }) >> to_vector();
+
+	auto branchEvolution = std::bind(&WorldBranch::InternalEvolution, placeholders::_1, frame, leapTransform);
+
+	if (leaves.size() >= 10)
+		concurrency::parallel_for_each(leaves.begin(), leaves.end(), branchEvolution);
+	else
+		for_each(leaves.begin(), leaves.end(), branchEvolution);
+}
+
+void Causality::WorldBranch::Fork()
+{
+}
+
+std::unique_ptr<WorldBranch> Causality::WorldBranch::DemandCreate()
+{
+	if (!IdelFrames.empty())
+	{
+		auto frame = std::move(IdelFrames.front());
+		IdelFrames.pop();
+		return frame;
+	}
+	else
+		return nullptr;
+}
+
+void Causality::WorldBranch::Recycle(std::unique_ptr<WorldBranch>&& pFrame)
+{
+	pFrame->Reset();
+	IdelFrames.push(std::move(pFrame));
 }
