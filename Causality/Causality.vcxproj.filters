@@ -63,9 +63,6 @@
     <ClCompile Include="Content\CubeScene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Foregrounds.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="CausalityApplication.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -113,6 +110,9 @@
     </ClCompile>
     <ClCompile Include="Common\DXGIFormatHelper.cpp">
       <Filter>DirectX</Filter>
+    </ClCompile>
+    <ClCompile Include="Foregrounds.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

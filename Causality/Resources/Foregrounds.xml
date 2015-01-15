@@ -1,12 +1,14 @@
-<scene>
+<scene gravity="0,-0.1,0">
 	<camera position="0,0,1.5" focus="0,0,0" up="0,1,0"></camera>
 	<skydome background="SkyBox\GrimmNight"/>
   <cube position="0,-0.001,0" extent="10,0.001,10" name="floor" color="200,200,200" mass="0"></cube>
   <cube position="0,0.5,-0.3" extent="0.5,0.5,0.02" name="wall" color="200,200,200" mass="0"></cube>
-	<obj src="baseball_bat.obj" position="2.0,1.5.0,0.0" scale="0.1"></obj>
-	<obj src="ConfederatePistolf.obj" position="5.0,5.0,4.0" scale = "0.0075"></obj>
- 	<obj src="NBA_BASKETBALL.obj" position="2.5,1.0,0.0" scale="0.005"></obj>
-  <cube position="-0.6,1.0,0.0" extent="0.05,0.05,0.05" name="cube_front" color="35,255,35"></cube>
-  <cube position="-0.2,1.0,0.0" extent="0.05,0.05,0.05" name="cube_back" color="225,35,225"></cube>
- 	<!--<obj src="sibenik_n.obj" position="0,13,46.2" scale="10.0"></obj>-->
+  <cube position="-0.6,0.05,0.0" extent="0.05,0.05,0.05" name="cube_fl" color="35,255,35"></cube>
+  <cube position="-0.2,0.05.0,0.0" extent="0.05,0.05,0.05" name="cube_bl" color="225,35,225"></cube>
+  <cube position="-0.6,0.05,0.4" extent="0.05,0.05,0.05" name="cube_fr" color="35,255,35"></cube>
+  <cube position="-0.2,0.05.0,0.4" extent="0.05,0.05,0.05" name="cube_br" color="225,35,225"></cube>
+  <obj src="baseball_bat.obj" position="2.0,1.5.0,0.0" scale="0.1"></obj>
+  <!--<obj src="ConfederatePistolf.obj" position="5.0,5.0,4.0" scale = "0.0075"></obj>-->
+  <obj src="NBA_BASKETBALL.obj" position="2.5,1.0,0.0" scale="0.005"></obj>
+  <!--<obj src="sibenik_n.obj" position="0,13,46.2" scale="10.0"></obj>-->
 </scene>

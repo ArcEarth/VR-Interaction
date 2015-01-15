@@ -36,6 +36,8 @@ const static wstring SkyBoxTextures[6] = {
 //// The actual physics solver
 //std::unique_ptr<btSequentialImpulseConstraintSolver> pSolver = nullptr;
 
+std::queue<std::unique_ptr<WorldBranch>> WorldBranch::BranchPool;
+
 
 float ShapeSimiliarity(const Eigen::VectorXf& v1, const Eigen::VectorXf& v2)
 {
@@ -79,7 +81,7 @@ WorldBranch::WorldBranch()
 	pSolver.reset(new btSequentialImpulseConstraintSolver());
 	// The world.
 	pDynamicsWorld.reset(new btDiscreteDynamicsWorld(pDispatcher.get(), pBroadphase.get(), pSolver.get(), pCollisionConfiguration.get()));
-	//pDynamicsWorld->setGravity(btVector3(0, -5.0f, 0));
+	pDynamicsWorld->setGravity(btVector3(0, -1.0f, 0));
 
 	IsEnabled = false;
 }
@@ -96,8 +98,12 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 	//ThrowIfFailed(pDevice->CreateRasterizerState(&Desc, &pRSState));
 
 	concurrency::task<void> load_models([this, pDevice]() {
-		WorldBranch::InitializeBranchPool(30);
-		WorldTree = WorldBranch::DemandCreate();
+		{
+			lock_guard<mutex> guard(m_RenderLock);
+			WorldBranch::InitializeBranchPool(30);
+			WorldTree = WorldBranch::DemandCreate();
+			WorldTree->Enable(DirectX::AffineTransform::Identity());
+		}
 
 		//m_pFramesPool.reset(new WorldBranchPool);
 		//m_pFramesPool->Initialize(30);
@@ -262,70 +268,6 @@ void Causality::WorldScene::SetViewIdenpendntCameraPosition(const DirectX::ILoca
 	m_pCameraLocation = pCamera;
 }
 
-std::vector<ProblistiscState> Causality::WorldScene::ComposeFrame()
-{
-	//using namespace cpplinq;
-	//std::vector<ProblistiscState> Objects(Models.size());
-
-
-	//auto activeFrames = from(m_StateFrames) >> where([](const WorldBranch& frame) {return frame->IsEnabled; }) >> to_list();
-	//auto weights = from(activeFrames) >> select([](const WorldBranch& frame) {return frame->Liklyhood(); }) >> to_vector();
-	//float weightsSum = from(weights) >> sum();
-
-	////std::vector<float> weights(m_StateFrames.size());
-	////int j = 0;
-	////for (const auto& pFrame : m_StateFrames)
-	////{
-	////	weightsSum += weights[j++] = pFrame->Liklyhood();
-	////}
-
-	//for (size_t i = 0; i < Models.size(); i++)
-	//{
-	//	const auto& pModel = Models[i];
-	//	Objects[i].Name = pModel->Name;
-	//	auto& distribution = Objects[i].StatesDistribution;
-	//	int j = 0;
-	//	for (const auto& pFrame : activeFrames)
-	//	{
-	//		if (!pFrame->IsEnabled)
-	//			continue;
-	//		auto pNew = pFrame->Objects[pModel->Name].get();
-	//		ProblistiscAffineTransform tNew;
-	//		tNew.Translation = pNew->GetPosition();
-	//		tNew.Rotation = pNew->GetOrientation();
-	//		tNew.Scale = pNew->GetScale();
-	//		tNew.Probability = weights[j] / weightsSum;
-
-	//		auto itr = std::find_if(distribution.begin(), distribution.end(),
-	//			[&tNew](std::remove_reference_t<decltype(distribution)>::const_reference trans) -> bool
-	//		{
-	//			return trans.NearEqual(tNew);
-	//			//auto pExisted = item.first;
-	//			//Vector3 PosDiff = pExisted->GetPosition() - pNew->GetPosition();
-	//			//DirectX::Quaternion RotDiff = pExisted->GetOrientation();
-	//			//RotDiff.Inverse(RotDiff);
-	//			//RotDiff *= pNew->GetOrientation();
-	//			//float AngDiff = 2 * acosf(RotDiff.w);
-	//			//return (PosDiff.Length() <= 0.002f && AngDiff <= 1);
-	//		});
-
-	//		if (itr == distribution.end())
-	//		{
-	//			distribution.push_back(tNew);
-	//			//distribution[pNew] = weights[j] / weightsSum;
-	//		}
-	//		else
-	//		{
-	//			itr->Probability += tNew.Probability;
-	//			//itr->second += weights[j] / weightsSum;
-	//		}
-	//		j++;
-	//	}
-	//}
-
-	//return Objects;
-}
-
 void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 {
 	if (pBackground)
@@ -337,23 +279,13 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		pContext->PSSetSamplers(0, 1, &pAWrap);
 		pContext->RSSetState(pRSState.Get());
 		std::lock_guard<mutex> guard(m_RenderLock);
-		float weightsSum = 0;
-		std::vector<float> weights(m_StateFrames.size());
-
-		int j = 0;
-		for (const auto& pFrame : m_StateFrames)
-		{
-			weightsSum += weights[j++] = pFrame->Liklyhood();
-		}
-		j = 0;
-
-		auto DistrubModel = WorldTree->CaculateSuperposition();//ComposeFrame();
-
+		//auto DistrubModel = WorldTree->CaculateSuperposition();//ComposeFrame();
+		
 		using namespace cpplinq;
-		for (const auto & obj : DistrubModel)
+		for (const auto& model : Models)
 		{
-			auto& model = from(Models) >> first([&obj](ModelCollection::const_reference model) {return model->Name == obj.Name; });
-			for (const auto &state : obj.StatesDistribution)
+			auto superposition = ModelStates[model->Name];
+			for (const auto& state : superposition)
 			{
 				model->LocalMatrix = state.TransformMatrix(); //.first->GetRigidTransformMatrix();
 				model->Opticity = state.Probability; //state.second;
@@ -361,21 +293,17 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 			}
 		}
 
-		for (const auto& branch : *WorldTree)
+		for (const auto& branch : WorldTree->leaves())
 		{
-			if (branch.is_leaf())
-			{
 				//Subjects
 				for (const auto& item : branch.Subjects)
 				{
 					if (item.second)
 					{
-						item.second->Opticity = weights[j] / weightsSum;
+						item.second->Opticity = branch.Liklyhood();
 						item.second->Render(pContext, nullptr);
 					}
 				}
-				j = 0;
-			}
 		}
 	}
 
@@ -388,23 +316,7 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 	BoundingBox box;
 	{
 		//Draw axias
-		g_PrimitiveDrawer.DrawSphere({ 0,0,0,0.02 }, Colors::Red);
-		g_PrimitiveDrawer.DrawLine({ -5,0,0 }, { 5,0,0 }, Colors::Red);
-		g_PrimitiveDrawer.DrawLine({ 0,-5,0 }, { 0,5,0 }, Colors::Green);
-		g_PrimitiveDrawer.DrawLine({ 0,0,-5 }, { 0,0,5 }, Colors::Blue);
-		g_PrimitiveDrawer.DrawTriangle({ 5.05f,0,0 }, { 4.95,0.05,0 }, { 4.95,-0.05,0 }, Colors::Red);
-		g_PrimitiveDrawer.DrawTriangle({ 5.05f,0,0 }, { 4.95,-0.05,0 }, { 4.95,0.05,0 }, Colors::Red);
-		g_PrimitiveDrawer.DrawTriangle({ 5.05f,0,0 }, { 4.95,0,0.05 }, { 4.95,0,-0.05 }, Colors::Red);
-		g_PrimitiveDrawer.DrawTriangle({ 5.05f,0,0 }, { 4.95,0,-0.05 }, { 4.95,0,0.05 }, Colors::Red);
-		g_PrimitiveDrawer.DrawTriangle({ 0,5.05f,0 }, { -0.05,4.95,0 }, { 0.05,4.95,0 }, Colors::Green);
-		g_PrimitiveDrawer.DrawTriangle({ 0,5.05f,0 }, { 0.05,4.95,0 }, { -0.05,4.95,0 }, Colors::Green);
-		g_PrimitiveDrawer.DrawTriangle({ 0,5.05f,0 }, { 0.0,4.95,-0.05 }, { 0,4.95,0.05 }, Colors::Green);
-		g_PrimitiveDrawer.DrawTriangle({ 0,5.05f,0 }, { 0.0,4.95,0.05 }, { 0,4.95,-0.05 }, Colors::Green);
-		g_PrimitiveDrawer.DrawTriangle({ 0,0,5.05f }, { 0.05,0,4.95 }, { -0.05,0,4.95 }, Colors::Blue);
-		g_PrimitiveDrawer.DrawTriangle({ 0,0,5.05f }, { -0.05,0,4.95 }, { 0.05,0,4.95 }, Colors::Blue);
-		g_PrimitiveDrawer.DrawTriangle({ 0,0,5.05f }, { 0,0.05,4.95 }, { 0,-0.05,4.95 }, Colors::Blue);
-		g_PrimitiveDrawer.DrawTriangle({ 0,0,5.05f }, { 0,-0.05,4.95 }, { 0,0.05,4.95 }, Colors::Blue);
-
+		DrawAxis();
 		//g_PrimitiveDrawer.DrawQuad({ 1.0f,0,1.0f }, { -1.0f,0,1.0f }, { -1.0f,0,-1.0f }, { 1.0f,0,-1.0f }, Colors::Pink);
 
 
@@ -528,6 +440,27 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 
 }
 
+void Causality::WorldScene::DrawAxis()
+{
+	g_PrimitiveDrawer.DrawSphere({ 0,0,0,0.02 }, Colors::Red);
+	g_PrimitiveDrawer.DrawLine({ -5,0,0 }, { 5,0,0 }, Colors::Red);
+	g_PrimitiveDrawer.DrawLine({ 0,-5,0 }, { 0,5,0 }, Colors::Green);
+	g_PrimitiveDrawer.DrawLine({ 0,0,-5 }, { 0,0,5 }, Colors::Blue);
+	g_PrimitiveDrawer.DrawTriangle({ 5.05f,0,0 }, { 4.95,0.05,0 }, { 4.95,-0.05,0 }, Colors::Red);
+	g_PrimitiveDrawer.DrawTriangle({ 5.05f,0,0 }, { 4.95,-0.05,0 }, { 4.95,0.05,0 }, Colors::Red);
+	g_PrimitiveDrawer.DrawTriangle({ 5.05f,0,0 }, { 4.95,0,0.05 }, { 4.95,0,-0.05 }, Colors::Red);
+	g_PrimitiveDrawer.DrawTriangle({ 5.05f,0,0 }, { 4.95,0,-0.05 }, { 4.95,0,0.05 }, Colors::Red);
+	g_PrimitiveDrawer.DrawTriangle({ 0,5.05f,0 }, { -0.05,4.95,0 }, { 0.05,4.95,0 }, Colors::Green);
+	g_PrimitiveDrawer.DrawTriangle({ 0,5.05f,0 }, { 0.05,4.95,0 }, { -0.05,4.95,0 }, Colors::Green);
+	g_PrimitiveDrawer.DrawTriangle({ 0,5.05f,0 }, { 0.0,4.95,-0.05 }, { 0,4.95,0.05 }, Colors::Green);
+	g_PrimitiveDrawer.DrawTriangle({ 0,5.05f,0 }, { 0.0,4.95,0.05 }, { 0,4.95,-0.05 }, Colors::Green);
+	g_PrimitiveDrawer.DrawTriangle({ 0,0,5.05f }, { 0.05,0,4.95 }, { -0.05,0,4.95 }, Colors::Blue);
+	g_PrimitiveDrawer.DrawTriangle({ 0,0,5.05f }, { -0.05,0,4.95 }, { 0.05,0,4.95 }, Colors::Blue);
+	g_PrimitiveDrawer.DrawTriangle({ 0,0,5.05f }, { 0,0.05,4.95 }, { 0,-0.05,4.95 }, Colors::Blue);
+	g_PrimitiveDrawer.DrawTriangle({ 0,0,5.05f }, { 0,-0.05,4.95 }, { 0,0.05,4.95 }, Colors::Blue);
+
+}
+
 void Causality::WorldScene::DrawBox(DirectX::SimpleMath::Vector3  conners [], DirectX::CXMVECTOR color)
 {
 	g_PrimitiveDrawer.DrawLine(conners[0], conners[1], color);
@@ -577,8 +510,8 @@ void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 		using namespace cpplinq;
 		using namespace std::placeholders;
 		float stepTime = (float) timer.GetElapsedSeconds();
-
-
+		WorldTree->Evolution(stepTime, m_Frame, m_FrameTransform);
+		ModelStates = WorldTree->CaculateSuperposition();
 	}
 
 	if (m_HandTrace.size() > 0)
@@ -750,7 +683,7 @@ void Causality::WorldScene::OnHandsTrackLost(const UserHandsEventArgs & e)
 		std::lock_guard<mutex> guard(m_HandFrameMutex);
 		m_HandTrace.clear();
 		m_TraceSamples.clear();
-		CollapseStates();
+		WorldTree->Collapse();
 		//for (const auto &pRigid : m_HandRigids)
 		//{
 		//	pDynamicsWorld->removeRigidBody(pRigid->GetBulletRigid());
@@ -766,7 +699,7 @@ void Causality::WorldScene::OnHandsMove(const UserHandsEventArgs & e)
 	XMMATRIX leap2world = m_FrameTransform;
 	//std::array<DirectX::Vector3, 25> joints;
 	std::vector<DirectX::BoundingOrientedBox> handBoxes;
-	float fingerStdev = 0.02;
+	float fingerStdev = 0.02f;
 	std::random_device rd;
 	std::mt19937 gen(rd());
 	std::normal_distribution<float> normalDist(0, fingerStdev);
@@ -1271,17 +1204,17 @@ void Causality::WorldBranch::InitializeBranchPool(int size, bool autoExpandation
 {
 	for (size_t i = 0; i < 30; i++)
 	{
-		IdelFrames.emplace(new WorldBranch());
+		BranchPool.emplace(new WorldBranch());
 	}
 }
 
 void Causality::WorldBranch::Reset()
 {
-	for (const auto& pair : Objects)
+	for (const auto& pair : Items)
 	{
 		pair.second->Disable();
 	}
-	Objects.clear();
+	Items.clear();
 }
 
 void Causality::WorldBranch::Collapse()
@@ -1308,41 +1241,32 @@ void Causality::WorldBranch::Collapse()
 	//m_StateFrames.push_back(std::move(master_frame));
 }
 
-inline std::vector<ProblistiscState> Causality::WorldBranch::CaculateSuperposition()
+SuperpositionMap Causality::WorldBranch::CaculateSuperposition()
 {
 	using namespace cpplinq;
-	std::vector<ProblistiscState> SuperStates(Objects.size());
+	SuperpositionMap SuperStates;
 
 	auto itr = this->begin();
 	auto eitr = this->end();
-	auto leaves = from_iterators(itr, eitr) >> where([](const WorldBranch& branch) {return branch.is_leaf(); }) >> select([](const WorldBranch& branch) {return &branch; }) >> to_list();
-	auto weights = from(leaves) >> select([](const WorldBranch* frame) {return frame->Liklyhood(); }) >> to_vector();
-	float weightsSum = std::accumulate(weights.begin(), weights.end(),0);
 
-	//std::vector<float> weights(m_StateFrames.size());
-	//int j = 0;
-	//for (const auto& pFrame : m_StateFrames)
-	//{
-	//	weightsSum += weights[j++] = pFrame->Liklyhood();
-	//}
+	NormalizeLiklyhood(CaculateLiklyhood());
 
-	auto pObj = Objects.begin();
-	for (size_t i = 0; i < Objects.size(); i++,++pObj)
+	auto pItem = Items.begin();
+	for (size_t i = 0; i < Items.size(); i++,++pItem)
 	{
-		const auto& pModel = pObj->second;
-		auto& state = SuperStates[i];
-		state.Name = pObj->first;
-		auto& distribution = state.StatesDistribution;
+		const auto& pModel = pItem->second;
+		auto& distribution = SuperStates[pItem->first];
+		//auto&  = state.StatesDistribution;
 		int j = 0;
 
-		for (const auto& pBranch : leaves)
+		for (const auto& branch : leaves())
 		{
-			if (!pBranch->IsEnabled)
+			if (!branch.IsEnabled)
 				continue;
 
-			auto itrObj = pBranch->Objects.find(state.Name);
+			auto itrObj = branch.Items.find(pItem->first);
 
-			if (itrObj == pBranch->Objects.end())
+			if (itrObj == branch.Items.end())
 				continue;
 			auto pNew = itrObj->second;
 
@@ -1350,7 +1274,7 @@ inline std::vector<ProblistiscState> Causality::WorldBranch::CaculateSuperpositi
 			tNew.Translation = pNew->GetPosition();
 			tNew.Rotation = pNew->GetOrientation();
 			tNew.Scale = pNew->GetScale();
-			tNew.Probability = weights[j] / weightsSum;
+			tNew.Probability = branch.Liklyhood();
 
 			auto itr = std::find_if(distribution.begin(), distribution.end(),
 				[&tNew](std::remove_reference_t<decltype(distribution)>::const_reference trans) -> bool
@@ -1373,7 +1297,7 @@ inline std::vector<ProblistiscState> Causality::WorldBranch::CaculateSuperpositi
 	return SuperStates;
 }
 
-void Causality::WorldBranch::InternalEvolution(const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform)
+void Causality::WorldBranch::InternalEvolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform)
 {
 	auto& subjects = Subjects;
 
@@ -1404,6 +1328,36 @@ void Causality::WorldBranch::InternalEvolution(const Leap::Frame & frame, const 
 			//}
 			++itr;
 		}
+	}
+	pDynamicsWorld->stepSimulation(timeStep, 10);
+}
+
+float Causality::WorldBranch::CaculateLiklyhood()
+{
+	if (is_leaf())
+	{
+		if (IsEnabled)
+			_Liklyhood = 1;
+		else
+			_Liklyhood = 0;
+		return _Liklyhood;
+	}
+	else
+	{
+		_Liklyhood = 0;
+		for (auto& branch : children())
+		{
+			_Liklyhood += branch.CaculateLiklyhood();
+		}
+		return _Liklyhood;
+	}
+}
+
+void Causality::WorldBranch::NormalizeLiklyhood(float total)
+{
+	for (auto& branch : nodes_in_tree())
+	{
+		branch._Liklyhood /= total;
 	}
 }
 
@@ -1436,20 +1390,23 @@ void Causality::WorldBranch::AddDynamicObject(const std::string &name, const std
 		auto pObject = std::shared_ptr<PhysicalRigid>(new PhysicalRigid());
 		pObject->InitializePhysics(branch.pDynamicsWorld, pShape, mass, Position, Orientation);
 		pObject->GetBulletRigid()->setFriction(1.0f);
-		pObject->GetBulletRigid()->setDamping(0.8, 0.9);
+		pObject->GetBulletRigid()->setDamping(0.8f, 0.9f);
 		pObject->GetBulletRigid()->setRestitution(0.0);
-		branch.Objects[name] = pObject;
+		branch.Items[name] = pObject;
 	}
 }
 
 void Causality::WorldBranch::Evolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform)
 {
 	using namespace cpplinq;
-	auto leaves = from(*this) >> 
-		where([](const WorldBranch& branch) {return branch.is_leaf(); }) >> 
-		select([](const WorldBranch& branch) {return &branch; }) >> to_vector();
+	vector<reference_wrapper<WorldBranch>> leaves;
+	auto levr = this->leaves();
+	copy(this->leaves_begin(), leaves_end(), back_inserter(leaves));
 
-	auto branchEvolution = std::bind(&WorldBranch::InternalEvolution, placeholders::_1, frame, leapTransform);
+	auto branchEvolution = [timeStep, &frame, &leapTransform](WorldBranch& branch) {
+		branch.InternalEvolution(timeStep,frame, leapTransform);
+	};
+	//auto branchEvolution = std::bind(&WorldBranch::InternalEvolution, placeholders::_1, frame, leapTransform);
 
 	if (leaves.size() >= 10)
 		concurrency::parallel_for_each(leaves.begin(), leaves.end(), branchEvolution);
@@ -1463,10 +1420,10 @@ void Causality::WorldBranch::Fork()
 
 std::unique_ptr<WorldBranch> Causality::WorldBranch::DemandCreate()
 {
-	if (!IdelFrames.empty())
+	if (!BranchPool.empty())
 	{
-		auto frame = std::move(IdelFrames.front());
-		IdelFrames.pop();
+		auto frame = std::move(BranchPool.front());
+		BranchPool.pop();
 		return frame;
 	}
 	else
@@ -1476,5 +1433,5 @@ std::unique_ptr<WorldBranch> Causality::WorldBranch::DemandCreate()
 void Causality::WorldBranch::Recycle(std::unique_ptr<WorldBranch>&& pFrame)
 {
 	pFrame->Reset();
-	IdelFrames.push(std::move(pFrame));
+	BranchPool.push(std::move(pFrame));
 }

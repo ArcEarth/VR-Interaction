@@ -51,12 +51,12 @@ namespace Causality
 	};
 
 	// A super state which encode different states with probility
-	struct ProblistiscState
-	{
-	public:
-		std::string	Name;
-		std::vector<ProblistiscAffineTransform> StatesDistribution;
-	};
+	//struct ProblistiscState
+	//{
+	//public:
+	//	std::string	Name;
+	//	std::vector<ProblistiscAffineTransform> StatesDistribution;
+	//};
 
 	struct HandPhysicalModel : public DirectX::Scene::IModelNode
 	{
@@ -110,6 +110,7 @@ namespace Causality
 		DirectX::Color m_Color;
 	};
 
+	typedef std::map<std::string, std::vector<ProblistiscAffineTransform>> SuperpositionMap;
 	// One problistic frame for current state
 	class WorldBranch : public stree::tree_node<WorldBranch, false>
 	{
@@ -131,17 +132,14 @@ namespace Causality
 		static void Recycle(std::unique_ptr<WorldBranch>&&);
 
 	private:
-		static std::queue<std::unique_ptr<WorldBranch>> IdelFrames;
+		static std::queue<std::unique_ptr<WorldBranch>> BranchPool;
 
 	public:
 		void Reset();
 
 		float Liklyhood() const
 		{
-			if (IsEnabled)
-				return 1;
-			else
-				return 0;
+			return _Liklyhood;
 		}
 
 		WorldBranch();
@@ -168,15 +166,17 @@ namespace Causality
 		void Evolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
 		void Fork();
 		void Collapse();
-		std::vector<ProblistiscState> CaculateSuperposition();
-		void UpdateLiklyhood();
-		void NormalizeLiklyhood(float c);
+		SuperpositionMap CaculateSuperposition();
 
+	protected:
+		float CaculateLiklyhood();
+		void NormalizeLiklyhood(float total);
 	public:
 		// Internal evolution algorithm as-if this branch is a "Leaf"
-		void InternalEvolution(const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
+		void InternalEvolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
 	protected:
 		std::string												Name;
+		float													_Liklyhood;
 
 		std::unique_ptr<std::thread>							pWorkerThread;
 		std::condition_variable									queuePending;
@@ -193,7 +193,7 @@ namespace Causality
 
 	public:
 		// Object states evolution with time and interaction subjects
-		std::map<std::string, std::shared_ptr<PhysicalRigid>>	Objects;
+		std::map<std::string, std::shared_ptr<PhysicalRigid>>	Items;
 
 		// Interactive subjects
 		std::map<int, std::shared_ptr<HandPhysicalModel>>		Subjects;
@@ -220,6 +220,8 @@ namespace Causality
 		// Inherited via IRenderable
 		virtual void Render(ID3D11DeviceContext * pContext) override;
 
+				void DrawAxis();
+
 		void DrawBox(DirectX::SimpleMath::Vector3  conners [], DirectX::CXMVECTOR color);
 
 		// Inherited via IViewable
@@ -241,27 +243,6 @@ namespace Causality
 
 		void AddObject(const std::shared_ptr<DirectX::Scene::IModelNode>& pModel, float mass, const DirectX::Vector3 &Position, const DirectX::Quaternion &Orientation, const DirectX::Vector3 &Scale);
 
-		std::vector<ProblistiscState> ComposeFrame();
-
-		bool IsCurrentStateUnderdeterminate() const;
-
-		int CurrentStateOverloadCount() const;
-
-		const WorldBranch* MasterFrame() const
-		{
-			return m_StateFrames.front();
-		}
-
-		WorldBranch* MasterFrame()
-		{
-			return m_StateFrames.front();
-		}
-
-
-
-		// Forece the scene to resolve the ambiguity, compress the frame count into one
-		void CollapseStates();
-		void ForkStates();
 	private:
 		std::unique_ptr<DirectX::Scene::SkyDome>		pBackground;
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState>	pRSState;
@@ -292,7 +273,9 @@ namespace Causality
 
 		std::unique_ptr<WorldBranch>					WorldTree;
 
-		std::list<WorldBranch*>							m_StateFrames;
+		SuperpositionMap								ModelStates;
+
+		//std::list<WorldBranch*>							m_StateFrames;
 
 		std::shared_ptr<btConeShape>						 m_pHandConeShape;
 		std::map<int, std::shared_ptr<btCollisionObject>>	 m_pHandCones;

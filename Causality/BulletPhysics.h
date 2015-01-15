@@ -116,6 +116,24 @@ namespace Causality
 		mutable DirectX::Quaternion			Orientation;
 	};
 
+	class RigidObject : btRigidBody, DirectX::AlignedNew<RigidObject>
+	{
+	public:
+		RigidObject(const std::shared_ptr<btCollisionShape>& pShape, float mass, const DirectX::Vector3 & Pos = DirectX::Vector3::Zero, const DirectX::Quaternion & Rot = DirectX::Quaternion::Identity);
+		bool Disable();
+		bool Enable();
+
+		DirectX::Vector3 GetPosition() const ;
+		DirectX::Quaternion GetOrientation() const ;
+		DirectX::Vector3 GetScale() const ;
+		DirectX::AffineTransform GetWorldTransform() const;
+		DirectX::XMMATRIX GetWorldTransformMatrix() const;
+
+	private:
+		std::shared_ptr<btCollisionShape>	m_pShape;
+	};
+
+
 	//class PhysicalGeometryModel : public DirectX::Scene::IGeometryModel, public DirectX::Scene::IRigidLocalMatrix , public PhysicalRigid
 	//{
 	//	void InitializePhysicalRigid(float mass = 1.0f);

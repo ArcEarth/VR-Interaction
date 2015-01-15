@@ -96,8 +96,8 @@ namespace stree
 		{
 			rhs.for_all_children([&](const tree_node& SrcNode)
 			{
-				tree_node *pNode = new tree_node(SrcNode);
-				this->_insert_as_child_back(pNode);
+				tree_node *current = new tree_node(SrcNode);
+				this->_insert_as_child_back(current);
 			});
 		}
 
@@ -108,8 +108,8 @@ namespace stree
 			this->_sibling = nullptr;
 			rhs.for_all_children([&](tree_node& SrcNode)
 			{
-				tree_node *pNode = new tree_node(SrcNode);
-				this->children_append_front(pNode);
+				tree_node *current = new tree_node(SrcNode);
+				this->children_append_front(current);
 			});
 		}
 		tree_node& operator = (tree_node&& rhs)
@@ -185,21 +185,21 @@ namespace stree
 			typedef int difference_type;
 		protected:
 			const_iterator_base() {}
-			const_iterator_base(const pointer ptr) : pNode(ptr) {}
-			pointer pNode;
+			const_iterator_base(const pointer ptr) : current(ptr) {}
+			pointer current;
 		public:
 			pointer get() const {
-				return pNode;
+				return current;
 			}
 
 			bool is_valid() const
 			{
-				return pNode;
+				return current;
 			}
 
 			template <class _TItr>
 			bool equal(const _TItr & rhs) const {
-				return pNode == rhs.pNode;
+				return current == rhs.current;
 			}
 		};
 
@@ -211,22 +211,22 @@ namespace stree
 			typedef value_type* pointer;
 			typedef int difference_type;
 		protected:
-			pointer pNode;
+			pointer current;
 			mutable_iterator_base() {}
-			mutable_iterator_base(const pointer ptr) : pNode(ptr) {}
+			mutable_iterator_base(const pointer ptr) : current(ptr) {}
 		public:
 			pointer get() const {
-				return pNode;
+				return current;
 			}
 
 			bool is_valid() const
 			{
-				return pNode;
+				return current;
 			}
 
 			template <class _TItr>
 			bool equal(const _TItr & rhs) const {
-				return pNode == rhs.pNode;
+				return current == rhs.current;
 			}
 		};
 
@@ -245,7 +245,7 @@ namespace stree
 				: base_type(ptr){}
 
 			self_type operator ++(int) {
-				self_type other(pNode);
+				self_type other(current);
 				++(*this);
 				return other;
 			}
@@ -257,53 +257,53 @@ namespace stree
 
 			void move_to_next()
 			{
-				if (!pNode) return;
-				if (pNode->_child)
+				if (!current) return;
+				if (current->_child)
 				{
-					pNode = pNode->_child;
+					current = current->_child;
 				}
-				else if (pNode->_sibling) pNode = pNode->_sibling;
+				else if (current->_sibling) current = current->_sibling;
 				else
 				{
-					while ((pNode->_parent) && (!pNode->_parent->_sibling || pNode->_parent->_sibling == pNode))
-						pNode = pNode->_parent;
-					if (pNode->_parent)
-						pNode = pNode->_parent->_sibling;
+					// move_to_next_from_this_subtree
+					while ((current->_parent) && (!current->_parent->_sibling || current->_parent->_sibling == current))
+						current = current->_parent;
+					if (current->_parent)
+						current = current->_parent->_sibling;
 					else
-						pNode = nullptr;
+						current = nullptr;
 				}
 			}
 
-			void move_to_subtree_end()
+			inline void move_to_next_from_this_subtree()
 			{
-				if (pNode->_sibling)
-					pNode = pNode->_sibling;
+				if (current->_sibling)
+					current = current->_sibling;
 				else {
-					pNode = pNode->child;
-					while ((pNode->_parent) && (!pNode->_parent->_sibling || pNode->_parent->_sibling == pNode))
-						pNode = pNode->_parent;
-					if (pNode->_parent)
-						pNode = pNode->_parent->_sibling;
+					while ((current->_parent) && (!current->_parent->_sibling || current->_parent->_sibling == current))
+						current = current->_parent;
+					if (current->_parent)
+						current = current->_parent->_sibling;
 					else
-						pNode = nullptr;
+						current = nullptr;
 				}
 			}
 
 			reference operator * () const {
-				return *pNode;
+				return *current;
 			}
 			pointer operator -> () const {
-				return pNode;
+				return current;
 			}
 
 			template <class _TItr>
 			bool operator == (const _TItr & rhs) const {
-				return pNode == rhs.get();
+				return current == rhs.get();
 			}
 
 			template <class _TItr>
 			bool operator != (const _TItr & rhs) const {
-				return pNode != rhs.get();
+				return current != rhs.get();
 			}
 		};
 		template <typename _TBase>
@@ -318,12 +318,12 @@ namespace stree
 
 			explicit leaf_iterator(const pointer ptr)
 				: base_type(ptr) {
-				while (pNode && pNode->_child)
-					pNode = pNode->_child;
+				while (current && current->_child)
+					current = current->_child;
 			}
 
 			self_type operator ++(int) {
-				self_type other(pNode);
+				self_type other(current);
 				++(*this);
 				return other;
 			}
@@ -335,56 +335,64 @@ namespace stree
 
 			void move_to_next()
 			{
-				if (!pNode) return;
+				if (!current) return;
 
-				if (pNode->_child)
+				if (current->_child)
 				{
-					pNode = pNode->_child;
-					while(pNode->_child)
-						pNode = pNode->_child;
+					current = current->_child;
+					while(current->_child)
+						current = current->_child;
 				}
 				else 
-					move_out();
+					move_to_next_from_this_subtree();
 			}
 
-			void move_out()
+			// when all the desendants of this node is visited
+			inline void move_to_next_from_this_subtree()
 			{
-				if (pNode->_sibling)
+				if (current->_sibling)
 				{
-					pNode = pNode->_sibling;
-					if (pNode->_child)
-						move_to_next();
+					current = current->_sibling;
+					// move to next
+					//if (current->_child)
+					//	move_to_next();
+					while (current->_child)
+						current = current->_child;
 				}
 				else
 				{
-					while ((pNode->_parent) && (!pNode->_parent->_sibling || pNode->_parent->_sibling == pNode))
-						pNode = pNode->_parent;
-					if (pNode->_parent)
+					while ((current->_parent) && (!current->_parent->_sibling || current->_parent->_sibling == current))
+						current = current->_parent;
+					if (current->_parent) //  && current->_parent->_sibling && current->_parent->_sibling != current
 					{
-						pNode = pNode->_parent->_sibling;
-						if (pNode && pNode->_child)
-							move_to_next();
+						current = current->_parent->_sibling;
+						// move to next
+						//if (current && current->_child)
+						//	move_to_next();
+						while (current->_child)
+							current = current->_child;
+
 					}
 					else
-						pNode = nullptr;
+						current = nullptr;
 				}
 			}
 
 			reference operator * () const {
-				return *pNode;
+				return *current;
 			}
 			pointer operator -> () const {
-				return pNode;
+				return current;
 			}
 
 			template <class _TItr>
 			bool operator == (const _TItr & rhs) const {
-				return pNode == rhs.get();
+				return current == rhs.get();
 			}
 
 			template <class _TItr>
 			bool operator != (const _TItr & rhs) const {
-				return pNode != rhs.get();
+				return current != rhs.get();
 			}
 		};
 
@@ -403,7 +411,7 @@ namespace stree
 				: base_type(nullptr)
 			{}
 
-			// When ignore_root_sibling is set to True, the BFS-travel will ingore the siblings of pNode
+			// When ignore_root_sibling is set to True, the BFS-travel will ingore the siblings of current
 			explicit breadth_first_iterator(const pointer ptr, bool ignore_root_sibling = false)
 				: base_type(ptr), ignore_sibling(ignore_root_sibling)
 			{
@@ -423,17 +431,17 @@ namespace stree
 			self_type& operator=(const self_type& rhs)
 			{
 				node_queue = rhs;
-				pNode = rhs.pNode;
+				current = rhs.current;
 			}
 			self_type& operator=(self_type&& rhs)
 			{
 				node_queue = std::move(rhs);
-				pNode = rhs.pNode;
+				current = rhs.current;
 			}
 
 			// Copy and bfs-iterator is expensive!
 			self_type operator ++(int) {
-				self_type other(pNode);
+				self_type other(current);
 				++(*this);
 				return other;
 			}
@@ -444,40 +452,40 @@ namespace stree
 
 			void move_to_next()
 			{
-				if (!pNode) return;
+				if (!current) return;
 				if (ignore_sibling)
 				{
-					pNode = pNode->_child;
+					current = current->_child;
 					ignore_sibling = false;
 				}
-				if (pNode->_sibling)
+				if (current->_sibling)
 				{
-					node_queue.push(pNode->_child);
-					pNode = pNode->_sibling;
+					node_queue.push(current->_child);
+					current = current->_sibling;
 				}
 				else if (!node_queue.empty())
 				{
-					pNode = node_queue.front();
+					current = node_queue.front();
 					node_queue.pop();
 				}
-				pNode = nullptr;
+				current = nullptr;
 			}
 
 			reference operator * () const {
-				return *pNode;
+				return *current;
 			}
 			pointer operator -> () const {
-				return pNode;
+				return current;
 			}
 
 			template <class _TItr>
 			bool operator == (const _TItr & rhs) const {
-				return pNode == rhs.get();
+				return current == rhs.get();
 			}
 
 			template <class _TItr>
 			bool operator != (const _TItr & rhs) const {
-				return pNode != rhs.get();
+				return current != rhs.get();
 			}
 		};
 
@@ -499,43 +507,43 @@ namespace stree
 			{}
 
 			self_type operator ++(int) {
-				self_type other(pNode);
+				self_type other(current);
 				++(*this);
 				return other;
 			}
 
 			self_type& operator ++() {
-				if (!pNode) return;
-				pNode = pNode->_sibling;
+				if (!current) return *this;
+				current = current->_sibling;
 				return *this;
 			}
 			self_type operator --(int) {
-				self_type other(pNode);
+				self_type other(current);
 				--(*this);
 				return other;
 			}
 
 			self_type& operator --() {
-				if (!pNode) return;
-				pNode = pNode->prev_sibling();
+				if (!current) return;
+				current = current->prev_sibling();
 				return *this;
 			}
 
 			reference operator * () const  {
-				return *pNode;
+				return *current;
 			}
 			pointer operator -> () const  {
-				return pNode;
+				return current;
 			}
 
 			template <class _TItr>
 			bool operator == (const _TItr & rhs) const {
-				return pNode == rhs.get();
+				return current == rhs.get();
 			}
 
 			template <class _TItr>
 			bool operator != (const _TItr & rhs) const {
-				return pNode != rhs.get();
+				return current != rhs.get();
 			}
 		};
 
@@ -577,7 +585,7 @@ namespace stree
 		const_leaf_iterator leaves_end() const
 		{
 			auto itr = const_leaf_iterator(static_cast<const_pointer>(this));
-			itr.move_to_subtree_end();
+			itr.move_to_next_from_this_subtree();
 			return itr;
 		}
 
@@ -603,7 +611,7 @@ namespace stree
 		// Depth first end iterator to all nodes inside this sub-tree
 		const_depth_first_iterator end() const {
 			auto itr = const_depth_first_iterator(static_cast<const_pointer>(this));
-			itr.move_to_subtree_end();
+			itr.move_to_next_from_this_subtree();
 			return itr;
 		}
 		// breadth_first_iterator can self determine if it has meet the end
@@ -640,7 +648,7 @@ namespace stree
 		mutable_leaf_iterator leaves_end() 
 		{
 			auto itr = mutable_leaf_iterator(static_cast<pointer>(this));
-			itr.move_to_subtree_end();
+			itr.move_to_next_from_this_subtree();
 			return itr;
 		}
 		// Depth first descendants begin iterator
@@ -666,7 +674,7 @@ namespace stree
 		// end iterator to all nodes inside this sub-tree
 		mutable_depth_first_iterator end() {
 			auto itr = mutable_depth_first_iterator(static_cast<pointer>(this));
-			itr.move_to_subtree_end();
+			itr.move_to_next_from_this_subtree();
 			return itr;
 		}
 		// breadth_first_iterator can self determine if it has meet the end
