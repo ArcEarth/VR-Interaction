@@ -66,7 +66,7 @@ namespace Causality
 
 		DirectX::XMMATRIX CaculateLocalMatrix(const Leap::Hand & hand, const DirectX::Matrix4x4 & leapTransform);
 
-		inline const std::vector<std::shared_ptr<PhysicalRigid>>& Rigids()
+		inline const std::vector<std::unique_ptr<PhysicalRigid>>& Rigids()
 		{
 			return m_HandRigids;
 		}
@@ -82,6 +82,9 @@ namespace Causality
 		virtual void Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect) override;
 
 		DirectX::XMVECTOR XM_CALLCONV FieldAtPoint(DirectX::FXMVECTOR P);
+
+		const DirectX::BoundingFrustum& OperatingFrustum() const;
+
 	public:
 		float		Opticity;
 
@@ -91,7 +94,10 @@ namespace Causality
 		Leap::Hand  m_Hand;
 		DirectX::AffineTransform m_InheritTransform;
 		std::array<std::pair<DirectX::Vector3, DirectX::Vector3>, 20> m_Bones;
-		std::vector<std::shared_ptr<PhysicalRigid>>			m_HandRigids;
+		std::vector<std::unique_ptr<PhysicalRigid>>			m_HandRigids;
+
+		//std::unique_ptr<Bullet::GhostObject>				m_HandFrustrum;
+		DirectX::BoundingFrustum							m_HandFrustum;
 		//static std::unique_ptr<DirectX::GeometricPrimitive> s_pCylinder;
 		//static std::unique_ptr<DirectX::GeometricPrimitive> s_pSphere;
 	};
@@ -111,6 +117,23 @@ namespace Causality
 	};
 
 	typedef std::map<std::string, std::vector<ProblistiscAffineTransform>> SuperpositionMap;
+
+	class CollisionShape : public DirectX::IBoundable
+	{
+	};
+
+	class WorldOject
+	{
+		DirectX::Scene::IModelNode* RenderModel;
+		CollisionModel* CollsionModel;
+	};
+
+	class IOperationBranch
+	{
+	public:
+		virtual bool Update(/*param*/);
+	};
+
 	// One problistic frame for current state
 	class WorldBranch : public stree::tree_node<WorldBranch, false>
 	{
@@ -128,7 +151,7 @@ namespace Causality
 
 	public:
 		static void InitializeBranchPool(int size, bool autoExpandation = true);
-		static std::unique_ptr<WorldBranch> DemandCreate();
+		static std::unique_ptr<WorldBranch> DemandCreate(const string& branchName);
 		static void Recycle(std::unique_ptr<WorldBranch>&&);
 
 	private:
@@ -164,7 +187,7 @@ namespace Causality
 		void AddSubjectiveObject(const Leap::Hand& hand, const DirectX::Matrix4x4& leapTransform);
 		void AddDynamicObject(const std::string &name, const std::shared_ptr<btCollisionShape> &pShape, float mass, const DirectX::Vector3 & Position, const DirectX::Quaternion & Orientation);
 		void Evolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
-		void Fork();
+		void Fork(const std::vector<PhysicalRigid*> focusObjects);
 		void Collapse();
 		SuperpositionMap CaculateSuperposition();
 
@@ -174,8 +197,11 @@ namespace Causality
 	public:
 		// Internal evolution algorithm as-if this branch is a "Leaf"
 		void InternalEvolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
-	protected:
+
+	public:
 		std::string												Name;
+
+	protected:
 		float													_Liklyhood;
 
 		std::unique_ptr<std::thread>							pWorkerThread;
@@ -225,8 +251,8 @@ namespace Causality
 		void DrawBox(DirectX::SimpleMath::Vector3  conners [], DirectX::CXMVECTOR color);
 
 		// Inherited via IViewable
-		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) override;
-		virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override;
+		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
+		//virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override;
 
 		// Inherited via ITimeAnimatable
 		virtual void UpdateAnimation(DirectX::StepTimer const & timer) override;
@@ -286,6 +312,8 @@ namespace Causality
 
 		std::map<int, std::unique_ptr<HandPhysicalModel>>	 m_HandModels;
 
+
+		DirectX::BoundingFrustum						 ViewFrutum;
 
 		bool m_showTrace;
 		bool m_loadingComplete;

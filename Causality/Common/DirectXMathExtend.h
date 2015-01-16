@@ -7,6 +7,12 @@
 #error Bullet physics can not be include before DirectX Math headers.
 #endif
 
+// Disable bullet to overload operators on _m128
+#ifndef BT_NO_SIMD_OPERATOR_OVERLOADS
+#define BT_NO_SIMD_OPERATOR_OVERLOADS
+#endif
+
+
 #include <DirectXMath.h>
 #include <DirectXCollision.h>
 #include <SimpleMath.h>

@@ -3,7 +3,7 @@
 #include "Common\Model.h"
 #include <btBulletCollisionCommon.h>
 #include <btBulletDynamicsCommon.h>
-
+#include <BulletCollision\CollisionDispatch\btGhostObject.h>
 
 namespace Causality
 {
@@ -116,22 +116,93 @@ namespace Causality
 		mutable DirectX::Quaternion			Orientation;
 	};
 
-	class RigidObject : btRigidBody, DirectX::AlignedNew<RigidObject>
+	namespace Bullet
 	{
-	public:
-		RigidObject(const std::shared_ptr<btCollisionShape>& pShape, float mass, const DirectX::Vector3 & Pos = DirectX::Vector3::Zero, const DirectX::Quaternion & Rot = DirectX::Quaternion::Identity);
-		bool Disable();
-		bool Enable();
+		class RigidObject : public btRigidBody
+		{
+		public:
+			RigidObject(const std::shared_ptr<btCollisionShape>& pShape, float mass, const DirectX::Vector3 & Pos = DirectX::Vector3::Zero, const DirectX::Quaternion & Rot = DirectX::Quaternion::Identity);
+			bool Disable();
+			bool Enable();
 
-		DirectX::Vector3 GetPosition() const ;
-		DirectX::Quaternion GetOrientation() const ;
-		DirectX::Vector3 GetScale() const ;
-		DirectX::AffineTransform GetWorldTransform() const;
-		DirectX::XMMATRIX GetWorldTransformMatrix() const;
+			DirectX::Vector3 GetPosition() const;
+			DirectX::Quaternion GetOrientation() const;
+			DirectX::Vector3 GetScale() const;
+			DirectX::AffineTransform GetWorldTransform() const;
+			DirectX::XMMATRIX GetWorldTransformMatrix() const;
 
-	private:
-		std::shared_ptr<btCollisionShape>	m_pShape;
-	};
+		private:
+			btDynamicsWorld	*pWorld;
+			std::shared_ptr<btCollisionShape>	m_pShape;
+		};
+
+		class DynamicObject : RigidObject
+		{
+		};
+
+		class KinmeticObject : RigidObject
+		{
+			//void SetTransform(const DirectX::RigidTransform& transform)
+			//{
+			//	btTransform btrans;
+			//	btrans.setOrigin(transform.Translation);
+			//	btrans.setRotation(transform.Rotation);
+			//	getMotionState()->setWorldTransform()
+			//}
+			//void SetPosition(const DirectX::Vector3& pos)
+			//{
+			//}
+			//void SetOrientation(const DirectX::Quaternion orientation)
+			//{}
+		};
+
+		class GhostObject : public btPairCachingGhostObject
+		{
+			std::vector<btBroadphasePair*> GetCollisionPairs() {
+				std::vector<btBroadphasePair*> collisionPairs;
+				btManifoldArray   manifoldArray;
+				btBroadphasePairArray& pairArray = this->getOverlappingPairCache()->getOverlappingPairArray();
+				int numPairs = pairArray.size();
+				for (int i = 0; i < numPairs; i++)
+				{
+					manifoldArray.clear();
+
+					const btBroadphasePair& pair = pairArray[i];
+
+					//unless we manually perform collision detection on this pair, the contacts are in the dynamics world paircache:
+					btBroadphasePair* collisionPair = pWorld->getPairCache()->findPair(pair.m_pProxy0, pair.m_pProxy1);
+					if (!collisionPair)
+						continue;
+
+					// Details to check the contactiong points
+					if (collisionPair->m_algorithm)
+						collisionPair->m_algorithm->getAllContactManifolds(manifoldArray);
+
+					if (manifoldArray.size() > 0)
+						collisionPairs.push_back(collisionPair);
+
+					//for (int j = 0; j < manifoldArray.size(); j++)
+					//{
+					//	btPersistentManifold* manifold = manifoldArray[j];
+					//	btScalar directionSign = (manifold->getBody0() == this) ? btScalar(-1.0) : btScalar(1.0);
+					//	for (int p = 0; p < manifold->getNumContacts(); p++)
+					//	{
+					//		const btManifoldPoint&pt = manifold->getContactPoint(p);
+					//		if (pt.getDistance() < 0.f)
+					//		{
+					//			const btVector3& ptA = pt.getPositionWorldOnA();;
+					//			const btVector3& ptB = pt.getPositionWorldOnB();
+					//			const btVector3& normalOnB = pt.m_normalWorldOnB;
+					//			/// work here
+					//		}
+					//	}
+					//}
+				}
+				return collisionPairs;
+			}
+			btCollisionWorld	*pWorld;
+		};
+	}
 
 
 	//class PhysicalGeometryModel : public DirectX::Scene::IGeometryModel, public DirectX::Scene::IRigidLocalMatrix , public PhysicalRigid

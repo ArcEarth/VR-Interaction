@@ -66,15 +66,16 @@ void CubeScene::CreateWindowSizeDependentResources()
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(XMMatrixLookAtRH(eye, at, up)));
 }
 
-void XM_CALLCONV CubeScene::UpdateViewMatrix(DirectX::FXMMATRIX view)
+void XM_CALLCONV CubeScene::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 	XMStoreFloat4x4(&m_constantBufferData.view, XMMatrixTranspose(view));
-}
-
-void XM_CALLCONV CubeScene::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
-{
 	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(projection));
 }
+
+//void XM_CALLCONV CubeScene::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
+//{
+//	XMStoreFloat4x4(&m_constantBufferData.projection, XMMatrixTranspose(projection));
+//}
 
 // Called once per frame, rotates the cube and calculates the model and view matrices.
 void CubeScene::UpdateAnimation(DirectX::StepTimer const& timer)

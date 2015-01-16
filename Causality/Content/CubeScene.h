@@ -23,8 +23,8 @@ namespace Causality
 		void Render(ID3D11DeviceContext *pContext) override;
 
 		// IViewable
-		void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) override;
-		void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override;
+		void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
+		//void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override;
 
 
 		void StartTracking();

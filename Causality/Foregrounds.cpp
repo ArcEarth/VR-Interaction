@@ -5,6 +5,7 @@
 #include "CausalityApplication.h"
 #include "Common\PrimitiveVisualizer.h"
 #include "Common\Extern\cpplinq.hpp"
+#include <boost\format.hpp>
 
 using namespace Causality;
 using namespace DirectX;
@@ -281,15 +282,24 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		std::lock_guard<mutex> guard(m_RenderLock);
 		//auto DistrubModel = WorldTree->CaculateSuperposition();//ComposeFrame();
 		
+		BoundingOrientedBox modelBox;
 		using namespace cpplinq;
+
+		// Render models
 		for (const auto& model : Models)
 		{
 			auto superposition = ModelStates[model->Name];
 			for (const auto& state : superposition)
 			{
+				auto mat = state.TransformMatrix();
 				model->LocalMatrix = state.TransformMatrix(); //.first->GetRigidTransformMatrix();
 				model->Opticity = state.Probability; //state.second;
-				model->Render(pContext, pEffect.get());
+
+				model->BoundOrientedBox.Transform(modelBox, mat);
+				// Render if in the view frustum
+
+				if (ViewFrutum.Intersects(modelBox))
+					model->Render(pContext, pEffect.get());
 			}
 		}
 
@@ -480,13 +490,20 @@ void Causality::WorldScene::DrawBox(DirectX::SimpleMath::Vector3  conners [], Di
 
 }
 
-void XM_CALLCONV Causality::WorldScene::UpdateViewMatrix(DirectX::FXMMATRIX view)
+void XM_CALLCONV Causality::WorldScene::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 	if (pEffect)
+	{
 		pEffect->SetView(view);
+		pEffect->SetProjection(projection);
+	}
 	if (pBackground)
-		pBackground->UpdateViewMatrix(view);
+	{
+		pBackground->UpdateViewMatrix(view,projection);
+	}
 	g_PrimitiveDrawer.SetView(view);
+	g_PrimitiveDrawer.SetProjection(projection);
+	BoundingFrustum::CreateFromMatrix(ViewFrutum, view * projection);
 	//for (const auto& item : m_HandModels)
 	//{
 	//	if (item.second)
@@ -494,14 +511,15 @@ void XM_CALLCONV Causality::WorldScene::UpdateViewMatrix(DirectX::FXMMATRIX view
 	//}
 }
 
-void XM_CALLCONV Causality::WorldScene::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
-{
-	if (pEffect)
-		pEffect->SetProjection(projection);
-	if (pBackground)
-		pBackground->UpdateProjectionMatrix(projection);
-	g_PrimitiveDrawer.SetProjection(projection);
-}
+//void XM_CALLCONV Causality::WorldScene::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
+//{
+//	if (pEffect)
+//		pEffect->SetProjection(projection);
+//	if (pBackground)
+//		pBackground->UpdateProjectionMatrix(projection);
+//	
+//	g_PrimitiveDrawer.SetProjection(projection);
+//}
 
 void Causality::WorldScene::UpdateAnimation(StepTimer const & timer)
 {
@@ -1301,6 +1319,9 @@ void Causality::WorldBranch::InternalEvolution(float timeStep, const Leap::Frame
 {
 	auto& subjects = Subjects;
 
+	BoundingSphere sphere;
+
+	//if (!is_leaf()) return;
 	for (auto itr = subjects.begin(); itr != subjects.end(); )
 	{
 		bool result = itr->second->Update(frame, leapTransform);
@@ -1312,6 +1333,22 @@ void Causality::WorldBranch::InternalEvolution(float timeStep, const Leap::Frame
 		}
 		else
 		{
+			std::vector<PhysicalRigid*> collideObjects;
+			for (auto& item : Items)
+			{
+				btVector3 c;
+				float r;
+				item.second->GetBulletShape()->getBoundingSphere(c, r);
+				sphere.Center = vector_cast<Vector3>(sphere.Radius);
+				if (itr->second->OperatingFrustum().Intersects(sphere))
+				{
+					collideObjects.push_back(item);
+				}
+			}
+			if (collideObjects.size() > 0)
+			{
+				Fork(collideObjects);
+			}
 			//const auto &pHand = itr->second;
 			//for (auto& item : pFrame->Objects)
 			//{
@@ -1400,6 +1437,9 @@ void Causality::WorldBranch::Evolution(float timeStep, const Leap::Frame & frame
 {
 	using namespace cpplinq;
 	vector<reference_wrapper<WorldBranch>> leaves;
+
+
+
 	auto levr = this->leaves();
 	copy(this->leaves_begin(), leaves_end(), back_inserter(leaves));
 
@@ -1414,16 +1454,21 @@ void Causality::WorldBranch::Evolution(float timeStep, const Leap::Frame & frame
 		for_each(leaves.begin(), leaves.end(), branchEvolution);
 }
 
-void Causality::WorldBranch::Fork()
+void Causality::WorldBranch::Fork(const std::vector<PhysicalRigid*> focusObjects)
 {
+	for (const auto& obj : focusObjects)
+	{
+		auto branch = DemandCreate(boost::format("%s/%s") % obj->Na
+	}
 }
 
-std::unique_ptr<WorldBranch> Causality::WorldBranch::DemandCreate()
+std::unique_ptr<WorldBranch> Causality::WorldBranch::DemandCreate(const string& branchName)
 {
 	if (!BranchPool.empty())
 	{
 		auto frame = std::move(BranchPool.front());
 		BranchPool.pop();
+		frame->Name = branchName;
 		return frame;
 	}
 	else

@@ -191,8 +191,8 @@ void XM_CALLCONV Causality::App::RenderToView(DirectX::FXMMATRIX view, DirectX::
 		auto pViewable = dynamic_cast<IViewable*>(pScene.get());
 		if (pViewable)
 		{
-			pViewable->UpdateViewMatrix(view);
-			pViewable->UpdateProjectionMatrix(projection);
+			pViewable->UpdateViewMatrix(view,projection);
+			//pViewable->UpdateProjectionMatrix(projection);
 		}
 		auto pRenderable = pScene->As<IRenderable>();
 		if (pRenderable)

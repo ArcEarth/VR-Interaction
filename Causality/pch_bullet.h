@@ -58,6 +58,10 @@
 #include <Leap.h>
 
 // Bullet physics
+#ifndef BT_NO_SIMD_OPERATOR_OVERLOADS
+#define BT_NO_SIMD_OPERATOR_OVERLOADS
+#endif
+
 #include <btBulletCollisionCommon.h>
 #include <btBulletDynamicsCommon.h>
 

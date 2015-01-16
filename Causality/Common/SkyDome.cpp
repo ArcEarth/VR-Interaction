@@ -148,18 +148,19 @@ namespace DirectX
 		{
 		}
 
-		void XM_CALLCONV SkyDome::UpdateViewMatrix(DirectX::FXMMATRIX view)
+		void XM_CALLCONV SkyDome::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 		{
 			XMMATRIX View = view;
 			// Last column of View Inverse is camera's position
 			View.r[3] = g_XMIdentityR3;
 			m_pEffect->SetView(View);
+			m_pEffect->SetProjection(projection);		
 		}
 
-		void XM_CALLCONV SkyDome::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
-		{
-			m_pEffect->SetProjection(projection);
-		}
+		//void XM_CALLCONV SkyDome::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
+		//{
+
+		//}
 
 		std::unique_ptr<CommonStates> pStates;
 

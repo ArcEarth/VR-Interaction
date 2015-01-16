@@ -29,8 +29,8 @@ namespace DirectX
 
 			virtual void Render(ID3D11DeviceContext* pDeviceContext) override;
 			// Inherited via IViewable
-			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) override;
-			virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override;
+			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
+			//virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override;
 
 			~SkyDome(void);
 

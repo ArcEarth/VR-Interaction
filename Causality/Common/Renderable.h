@@ -20,8 +20,8 @@ namespace DirectX{
 		class IViewable abstract
 		{
 		public:
-			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) = 0;
-			virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) = 0;
+			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) = 0;
+			//virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) = 0;
 		};
 
 		// Interface for Time-dependent Animation
@@ -73,14 +73,15 @@ namespace DirectX{
 		{
 		public:
 			// Inherited via IViewable
-			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view) override
+			virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override
 			{
 				ViewMatrix = view;
-			}
-			virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override
-			{
 				ProjectionMatrix = projection;
 			}
+			//virtual void XM_CALLCONV UpdateProjectionMatrix(DirectX::FXMMATRIX projection) override
+			//{
+			//	ProjectionMatrix = projection;
+			//}
 			Matrix4x4	ViewMatrix;
 			Matrix4x4	ProjectionMatrix;
 		};

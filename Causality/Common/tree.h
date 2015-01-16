@@ -754,63 +754,63 @@ namespace stree
 			this->_sibling = nullptr;
 		}
 
-		inline void append_children_front(tree_node* pForest)
+		inline void append_children_front(pointer node)
 		{
-			assert(pForest && !pForest->_parent);
-			auto rptr = pForest;
+			assert(node && !node->_parent);
+			auto rptr = node;
 			while (rptr->_sibling)
 				rptr = rptr->_sibling;
 			if (rptr)
 				rptr->_sibling = this->_child;
 			if (this->_child)
 				this->_child->_parent = rptr;
-			this->_child = pForest;
-			pForest->_parent = this;
+			this->_child = node;
+			node->_parent = static_cast<pointer>(this);
 		}
 
-		inline void append_children_back(tree_node* pForest)
+		inline void append_children_back(pointer node)
 		{
-			assert(pForest && !pForest->_parent);
-			tree_node* p = this->_child;
-			if (p == nullptr) {
-				this->_child = ptr;
-				ptr->_parent = this;
+			assert(node && !node->_parent);
+			node = this->_child;
+			if (node == nullptr) {
+				this->_child = node;
+				node->_parent = static_cast<pointer>(this);
 			}
 			else {
-				while (p->_sibling != nullptr)
-					p = p->_sibling;
-				p->_sibling = ptr;
-				ptr->_parent = p;
+				while (node->_sibling != nullptr)
+					node = node->_sibling;
+				node->_sibling = node;
+				node->_parent = node;
 			}
 		}
 
-		inline void insert_as_siblings_after(tree_node* pForest)
+		inline void insert_as_siblings_after(pointer node)
 		{
-			assert(pForest && !pForest->_parent);
-			pForest->_parent = this;
+			assert(node && !node->_parent);
+			node->_parent = this;
 			if (_sibling)
 			{
-				auto rptr = pForest;
+				auto rptr = node;
 				while (rptr->_sibling)
 					rptr = rptr->_sibling;
 				rptr->_sibling = this->_sibling;
 			}
-			this->_sibling = pForest;
+			this->_sibling = node;
 		}
 
-		inline void insert_as_siblings_before(tree_node* pForest)
+		inline void insert_as_siblings_before(pointer node)
 		{
-			assert(pForest && !pForest->_parent);
-			auto rptr = pForest;
+			assert(node && !node->_parent);
+			auto rptr = node;
 			while (rptr->_sibling)
 				rptr = rptr->_sibling;
 
 			if (!this->_parent)
 			{
 				rptr->_sibling = this;
-				this->_parent = pForest;
+				this->_parent = node;
 			} else {
-				pForest->_parent = this->_parent;
+				node->_parent = this->_parent;
 				rptr->_sibling = this;
 				if (this->_parent->_sibling == this)
 					this->_parent->sibling = pTree;
