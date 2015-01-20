@@ -259,7 +259,7 @@ void ModelCollection::push_back(value_type&& _Val)
 void DirectX::Scene::ModelCollection::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
 {
 	int count = size();
-	for (size_t i = 0; i < count; i++)
+	for (size_t i = 0; (int)i < count; i++)
 	{
 		auto& model = at(i);
 		model->Render(pContext, pEffect);

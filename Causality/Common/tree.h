@@ -33,8 +33,8 @@ namespace stree
 			_end = std::move(rhs._end);
 		}
 
-		_TItr begin() { return std::move(_begin); }
-		_TItr end() { return std::move(_end); }
+		_TItr& begin() { return _begin; }
+		_TItr& end() { return _end; }
 
 	};
 
@@ -316,10 +316,27 @@ namespace stree
 		public:
 			leaf_iterator(void) {}
 
-			explicit leaf_iterator(const pointer ptr)
-				: base_type(ptr) {
-				while (current && current->_child)
-					current = current->_child;
+			//explicit leaf_iterator(const pointer ptr)
+			//	: base_type(ptr) {
+			//	while (current && current->_child)
+			//		current = current->_child;
+			//}
+
+			static self_type create_end(const pointer ptr)
+			{
+				leaf_iterator itr;
+				itr.current = ptr;
+				itr.move_to_next_from_this_subtree();
+				return itr;
+			}
+
+			static self_type create_begin(const pointer ptr)
+			{
+				leaf_iterator itr;
+				itr.current = ptr;
+				while (itr.current && itr.current->_child)
+					itr.current = itr.current->_child;
+				return itr;
 			}
 
 			self_type operator ++(int) {
@@ -580,13 +597,11 @@ namespace stree
 		}
 		const_leaf_iterator leaves_begin() const
 		{
-			return const_leaf_iterator(static_cast<const_pointer>(this));
+			return const_leaf_iterator::create_begin(static_cast<const_pointer>(this));
 		}
 		const_leaf_iterator leaves_end() const
 		{
-			auto itr = const_leaf_iterator(static_cast<const_pointer>(this));
-			itr.move_to_next_from_this_subtree();
-			return itr;
+			return const_leaf_iterator::create_end(static_cast<const_pointer>(this));
 		}
 
 		const_depth_first_iterator descendants_begin() const {
@@ -643,13 +658,11 @@ namespace stree
 		}
 		mutable_leaf_iterator leaves_begin() 
 		{
-			return mutable_leaf_iterator(static_cast<pointer>(this));
+			return mutable_leaf_iterator::create_begin(static_cast<pointer>(this));
 		}
 		mutable_leaf_iterator leaves_end() 
 		{
-			auto itr = mutable_leaf_iterator(static_cast<pointer>(this));
-			itr.move_to_next_from_this_subtree();
-			return itr;
+			return mutable_leaf_iterator::create_end(static_cast<pointer>(this));
 		}
 		// Depth first descendants begin iterator
 		mutable_depth_first_iterator descendants_begin() {

@@ -230,7 +230,7 @@ inline Causality::KeyboardMouseLogic::KeyboardMouseLogic(DirectX::Scene::ICamera
 
 void Causality::KeyboardMouseLogic::UpdateAnimation(StepTimer const & timer)
 {
-	m_pCamera->Move(XMVector3Normalize(CameraVeclocity) * (Speed * timer.GetElapsedSeconds()));
+	m_pCamera->Move(XMVector3Normalize(CameraVeclocity) * (Speed * (float) timer.GetElapsedSeconds()));
 }
 
 void Causality::KeyboardMouseLogic::OnKeyDown(const KeyboardEventArgs & e)

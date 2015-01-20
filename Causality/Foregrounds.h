@@ -83,7 +83,10 @@ namespace Causality
 
 		DirectX::XMVECTOR XM_CALLCONV FieldAtPoint(DirectX::FXMVECTOR P);
 
-		const DirectX::BoundingFrustum& OperatingFrustum() const;
+		const DirectX::BoundingFrustum& OperatingFrustum() const
+		{
+			return m_HandFrustum;
+		}
 
 	public:
 		float		Opticity;
@@ -125,7 +128,7 @@ namespace Causality
 	class WorldOject
 	{
 		DirectX::Scene::IModelNode* RenderModel;
-		CollisionModel* CollsionModel;
+		CollisionShape* CollsionModel;
 	};
 
 	class IOperationBranch
@@ -151,7 +154,7 @@ namespace Causality
 
 	public:
 		static void InitializeBranchPool(int size, bool autoExpandation = true);
-		static std::unique_ptr<WorldBranch> DemandCreate(const string& branchName);
+		static std::unique_ptr<WorldBranch> DemandCreate(const std::string& branchName);
 		static void Recycle(std::unique_ptr<WorldBranch>&&);
 
 	private:
@@ -187,7 +190,8 @@ namespace Causality
 		void AddSubjectiveObject(const Leap::Hand& hand, const DirectX::Matrix4x4& leapTransform);
 		void AddDynamicObject(const std::string &name, const std::shared_ptr<btCollisionShape> &pShape, float mass, const DirectX::Vector3 & Position, const DirectX::Quaternion & Orientation);
 		void Evolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
-		void Fork(const std::vector<PhysicalRigid*> focusObjects);
+		void Fork(const std::vector<PhysicalRigid*>& focusObjects);
+		void Fork(const std::vector<DirectX::AffineTransform>& subjectTransform);
 		void Collapse();
 		SuperpositionMap CaculateSuperposition();
 

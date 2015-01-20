@@ -855,6 +855,57 @@ namespace DirectX
 		return m;
 	}
 
+	namespace BoundingFrustumExtension
+	{
+		inline void CreateFromMatrixRH(BoundingFrustum& Out, CXMMATRIX Projection)
+		{
+			// Corners of the projection frustum in homogenous space.
+			static XMVECTORF32 HomogenousPoints[6] =
+			{
+				{ 1.0f,  0.0f, -1.0f, 1.0f },   // right (at far plane)
+				{ -1.0f,  0.0f, -1.0f, 1.0f },   // left
+				{ 0.0f,  1.0f, -1.0f, 1.0f },   // top
+				{ 0.0f, -1.0f, -1.0f, 1.0f },   // bottom
+
+				{ 0.0f, 0.0f, 1.0f, 1.0f },    // far
+				{ 0.0f, 0.0f, 0.0f, 1.0f }     // near
+			};
+
+			XMVECTOR Determinant;
+			XMMATRIX matInverse = XMMatrixInverse(&Determinant, Projection);
+
+			// Compute the frustum corners in world space.
+			XMVECTOR Points[6];
+
+			for (size_t i = 0; i < 6; ++i)
+			{
+				// Transform point.
+				Points[i] = XMVector4Transform(HomogenousPoints[i], matInverse);
+			}
+
+			Out.Origin = XMFLOAT3(0.0f, 0.0f, 0.0f);
+			Out.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+
+			// Compute the slopes.
+			Points[0] = Points[0] * XMVectorReciprocal(XMVectorSplatZ(Points[0]));
+			Points[1] = Points[1] * XMVectorReciprocal(XMVectorSplatZ(Points[1]));
+			Points[2] = Points[2] * XMVectorReciprocal(XMVectorSplatZ(Points[2]));
+			Points[3] = Points[3] * XMVectorReciprocal(XMVectorSplatZ(Points[3]));
+
+			Out.RightSlope = XMVectorGetX(Points[0]);
+			Out.LeftSlope = XMVectorGetX(Points[1]);
+			Out.TopSlope = XMVectorGetY(Points[2]);
+			Out.BottomSlope = XMVectorGetY(Points[3]);
+
+			// Compute near and far.
+			Points[4] = Points[4] * XMVectorReciprocal(XMVectorSplatW(Points[4]));
+			Points[5] = Points[5] * XMVectorReciprocal(XMVectorSplatW(Points[5]));
+
+			Out.Near = XMVectorGetZ(Points[4]);
+			Out.Far = XMVectorGetZ(Points[5]);
+		}
+	}
+
 	//Some supporting method
 
 	namespace LineSegmentTest

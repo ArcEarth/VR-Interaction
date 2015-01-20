@@ -102,7 +102,16 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 		{
 			lock_guard<mutex> guard(m_RenderLock);
 			WorldBranch::InitializeBranchPool(30);
-			WorldTree = WorldBranch::DemandCreate();
+			WorldTree = WorldBranch::DemandCreate("Root");
+
+			std::vector<AffineTransform> subjectTrans(30);
+			subjectTrans.resize(20);
+			for (size_t i = 0; i < 20; i++)
+			{
+				subjectTrans[i].Scale = XMVectorReplicate(1.1f + 0.15f * i);// XMMatrixTranslation(0, 0, i*(-150.f));
+			}
+
+			WorldTree->Fork(subjectTrans);
 			WorldTree->Enable(DirectX::AffineTransform::Identity());
 		}
 
@@ -280,7 +289,6 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 		pContext->PSSetSamplers(0, 1, &pAWrap);
 		pContext->RSSetState(pRSState.Get());
 		std::lock_guard<mutex> guard(m_RenderLock);
-		//auto DistrubModel = WorldTree->CaculateSuperposition();//ComposeFrame();
 		
 		BoundingOrientedBox modelBox;
 		using namespace cpplinq;
@@ -298,7 +306,7 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 				model->BoundOrientedBox.Transform(modelBox, mat);
 				// Render if in the view frustum
 
-				if (ViewFrutum.Intersects(modelBox))
+				if (ViewFrutum.Contains(modelBox) != ContainmentType::DISJOINT)
 					model->Render(pContext, pEffect.get());
 			}
 		}
@@ -322,6 +330,9 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 	g_PrimitiveDrawer.Begin();
 
 	Vector3 conners[8];
+
+	ViewFrutum.GetCorners(conners);
+	DrawBox(conners, Colors::Pink);
 	BoundingOrientedBox obox;
 	BoundingBox box;
 	{
@@ -340,8 +351,12 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 			for (size_t i = 0; i < s; i++)
 			{
 				const auto& model = Models[i];
-				model->GetOrientedBoundingBox().GetCorners(conners);
-				DrawBox(conners, DirectX::Colors::DarkGreen);
+				obox = model->GetOrientedBoundingBox();
+				if (ViewFrutum.Contains(obox) != ContainmentType::DISJOINT)
+				{
+					obox.GetCorners(conners);
+					DrawBox(conners, DirectX::Colors::DarkGreen);
+				}
 				if (m_HaveHands)
 				{
 					auto fm = m_ModelFeatures[model->Name];
@@ -362,8 +377,11 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 					for (const auto& part : pModel->Parts)
 					{
 						part->BoundOrientedBox.Transform(obox, transform);
-						obox.GetCorners(conners);
-						DrawBox(conners, DirectX::Colors::Orange);
+						if (ViewFrutum.Intersects(obox))
+						{
+							obox.GetCorners(conners);
+							DrawBox(conners, DirectX::Colors::Orange);
+						}
 					}
 				}
 			}
@@ -502,8 +520,34 @@ void XM_CALLCONV Causality::WorldScene::UpdateViewMatrix(DirectX::FXMMATRIX view
 		pBackground->UpdateViewMatrix(view,projection);
 	}
 	g_PrimitiveDrawer.SetView(view);
-	g_PrimitiveDrawer.SetProjection(projection);
-	BoundingFrustum::CreateFromMatrix(ViewFrutum, view * projection);
+	g_PrimitiveDrawer.SetProjection( projection);
+	
+	// BoundingFrustum is assumpt Left-Handed
+	BoundingFrustumExtension::CreateFromMatrixRH(ViewFrutum, projection);
+	//BoundingFrustum::CreateFromMatrix(ViewFrutum, projection);
+	// Fix the RH-projection matrix
+	//XMStoreFloat4((XMFLOAT4*) &ViewFrutum.RightSlope, -XMLoadFloat4((XMFLOAT4*) &ViewFrutum.RightSlope));
+	//XMStoreFloat2((XMFLOAT2*) &ViewFrutum.Near, -XMLoadFloat2((XMFLOAT2*) &ViewFrutum.Near));
+	//ViewFrutum.LeftSlope = -ViewFrutum.LeftSlope;
+	//ViewFrutum.RightSlope = -ViewFrutum.RightSlope;
+	//ViewFrutum.TopSlope = -ViewFrutum.TopSlope;
+	//ViewFrutum.BottomSlope = -ViewFrutum.BottomSlope;
+	//ViewFrutum.Near = -ViewFrutum.Near;
+	//ViewFrutum.Far = -ViewFrutum.Far;
+	XMVECTOR det;
+	auto invView = view;
+	//invView.r[2] = -invView.r[2];
+	invView = XMMatrixInverse(&det, invView);
+	//invView.r[2] = -invView.r[2];
+	//XMVECTOR temp = invView.r[2];
+	//invView.r[2] = invView.r[1];
+	//invView.r[1] = temp;
+	ViewFrutum.Transform(ViewFrutum,invView);
+	// Fix the RH-inv-view-matrix to LH-equalulent by swap row-y with row-z
+	//XMStoreFloat3(&ViewFrutum.Origin, invView.r[3]);
+
+	//XMStoreFloat4(&ViewFrutum.Orientation, XMQuaternionRotationMatrix(invView));;
+
 	//for (const auto& item : m_HandModels)
 	//{
 	//	if (item.second)
@@ -1333,22 +1377,24 @@ void Causality::WorldBranch::InternalEvolution(float timeStep, const Leap::Frame
 		}
 		else
 		{
-			std::vector<PhysicalRigid*> collideObjects;
-			for (auto& item : Items)
-			{
-				btVector3 c;
-				float r;
-				item.second->GetBulletShape()->getBoundingSphere(c, r);
-				sphere.Center = vector_cast<Vector3>(sphere.Radius);
-				if (itr->second->OperatingFrustum().Intersects(sphere))
-				{
-					collideObjects.push_back(item);
-				}
-			}
-			if (collideObjects.size() > 0)
-			{
-				Fork(collideObjects);
-			}
+			//std::vector<PhysicalRigid*> collideObjects;
+
+			//for (auto& item : Items)
+			//{
+			//	btVector3 c;
+			//	item.second->GetBulletShape()->getBoundingSphere(c, sphere.Radius);
+			//	sphere.Center = vector_cast<Vector3>(sphere.Center);
+			//	if (itr->second->OperatingFrustum().Contains(sphere) != ContainmentType::DISJOINT)
+			//	{
+			//		collideObjects.push_back(item.second.get());
+			//	}
+			//}
+			//if (collideObjects.size() > 0)
+			//{
+			//	Fork(collideObjects);
+			//}
+
+
 			//const auto &pHand = itr->second;
 			//for (auto& item : pFrame->Objects)
 			//{
@@ -1440,7 +1486,7 @@ void Causality::WorldBranch::Evolution(float timeStep, const Leap::Frame & frame
 
 
 
-	auto levr = this->leaves();
+	//auto levr = this->leaves();
 	copy(this->leaves_begin(), leaves_end(), back_inserter(leaves));
 
 	auto branchEvolution = [timeStep, &frame, &leapTransform](WorldBranch& branch) {
@@ -1454,14 +1500,26 @@ void Causality::WorldBranch::Evolution(float timeStep, const Leap::Frame & frame
 		for_each(leaves.begin(), leaves.end(), branchEvolution);
 }
 
-void Causality::WorldBranch::Fork(const std::vector<PhysicalRigid*> focusObjects)
+void Causality::WorldBranch::Fork(const std::vector<PhysicalRigid*>& focusObjects)
 {
-	for (const auto& obj : focusObjects)
-	{
-		auto branch = DemandCreate(boost::format("%s/%s") % obj->Na
-	}
+	//int i = 0;
+	//for (const auto& obj : focusObjects)
+	//{
+	//	auto branch = DemandCreate((boost::format("%s/%d") % this->Name % i++).str());
+	//}
 }
 
+void Causality::WorldBranch::Fork(const std::vector<DirectX::AffineTransform>& subjectTransforms)
+{
+	for (int i = subjectTransforms.size() - 1; i >= 0; --i)
+	{
+		const auto& trans = subjectTransforms[i];
+		auto branch = DemandCreate((boost::format("%s/%d") % this->Name % i).str());
+		branch->Enable(trans);
+		append_children_front(branch.release());
+		//branch->SubjectTransform = trans;
+	}
+}
 std::unique_ptr<WorldBranch> Causality::WorldBranch::DemandCreate(const string& branchName)
 {
 	if (!BranchPool.empty())
