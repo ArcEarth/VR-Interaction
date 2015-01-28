@@ -90,6 +90,7 @@ namespace Causality
 
 	public:
 		float		Opticity;
+		DirectX::Color Color;
 
 	private:
 		int			Id;
@@ -233,6 +234,25 @@ namespace Causality
 
 		bool													IsDirty;
 		bool													IsEnabled;
+	};
+
+	class MasterBranch : WorldBranch
+	{
+	};
+
+	class FocusItemBranch : WorldBranch
+	{
+
+	};
+
+	class OpenConstriantBranch : WorldBranch
+	{
+
+	};
+
+	class CloseConstraintBranch : WorldBranch
+	{
+
 	};
 
 	class WorldScene : public Platform::IAppComponent, public Platform::IUserHandsInteractive, public Platform::IKeybordInteractive, public DirectX::Scene::IRenderable, public DirectX::Scene::IViewable, public DirectX::Scene::ITimeAnimatable

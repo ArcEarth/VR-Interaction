@@ -49,7 +49,7 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	pConsole->Initialize(ref new String(L"CausalityDebug"), 800, 600, false);
 
 	pWindow = make_shared<Platform::NativeWindow>();
-	pWindow->Initialize(ref new String(L"Causality"), 1280U, 720, false);
+	pWindow->Initialize(ref new String(L"Causality"), 1920, 1080, false);
 
 	// Initialize DirectX
 	pDeviceResources = make_shared<DirectX::DeviceResources>();

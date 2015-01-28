@@ -118,6 +118,10 @@ namespace Causality
 
 	namespace Bullet
 	{
+		class CollisionShape
+		{
+
+		};
 		class RigidObject : public btRigidBody
 		{
 		public:

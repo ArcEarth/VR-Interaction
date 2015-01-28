@@ -15,7 +15,7 @@ DirectX::XMMATRIX PlayerAttachedCamera::GetViewMatrix(size_t view) const
 		auto eye = (DirectX::Scene::EyesEnum) view;
 		auto pose = m_pRift->EyePoses(eye);
 		XMVECTOR loc = (XMVECTOR) GetPosition() + DirectX::XMVector3Rotate((XMVECTOR) pose.Position, pose.Orientation);
-		XMVECTOR rot = GetOrientation() * pose.Orientation;
+		XMVECTOR rot = pose.Orientation * GetOrientation();
 		XMVECTOR foward = XMVector3Rotate(Foward, rot);
 		XMVECTOR up = XMVector3Rotate(Up, rot);
 		return XMMatrixLookToRH(loc, foward, up);
@@ -100,15 +100,15 @@ void PlayerAttachedCamera::SetOrientation(const Platform::Fundation::Quaternion 
 
 void PlayerAttachedCamera::BeginFrame()
 {
-	if (m_pRift)
+	if (IsStereoEnabled())
 	{
 		m_pRift->BeginFrame();
 	} else
 	{
 		auto context = m_pDeviceResources->GetD3DDeviceContext();
 		// Reset the viewport to target the whole screen.
-		auto viewport = m_pDeviceResources->GetScreenViewport();
-		context->RSSetViewports(1, &viewport);
+		//auto viewport = m_pDeviceResources->GetScreenViewport();
+		//context->RSSetViewports(1, &viewport);
 		ID3D11RenderTargetView *const targets[1] = { m_pDeviceResources->GetBackBufferRenderTargetView() };
 		context->OMSetRenderTargets(1, targets, m_pDeviceResources->GetDepthStencilView());
 		context->ClearRenderTargetView(m_pDeviceResources->GetBackBufferRenderTargetView(), DirectX::Colors::White);
@@ -118,7 +118,7 @@ void PlayerAttachedCamera::BeginFrame()
 
 void PlayerAttachedCamera::EndFrame()
 {
-	if (m_pRift)
+	if (IsStereoEnabled())
 	{
 		m_pRift->EndFrame();
 	}
@@ -130,9 +130,20 @@ void PlayerAttachedCamera::EndFrame()
 
 void PlayerAttachedCamera::SetView(size_t view)
 {
-	if (m_pRift)
+	if (IsStereoEnabled())
 	{
 		m_pRift->EyeTexture((DirectX::Scene::EyesEnum) view).SetAsRenderTarget(m_pDeviceResources->GetD3DDeviceContext(), m_pRift->DepthStencilBuffer());
+	}
+	else
+	{
+		auto context = m_pDeviceResources->GetD3DDeviceContext();
+		auto viewport = m_pDeviceResources->GetScreenViewport();
+		//viewport.Width /= 2;
+		//if (view == 1)
+		//{
+		//	viewport.TopLeftX = viewport.Width;
+		//}
+		context->RSSetViewports(1, &viewport);
 	}
 }
 

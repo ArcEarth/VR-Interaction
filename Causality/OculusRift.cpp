@@ -3,7 +3,7 @@
 #include <OVR.h>
 #define OVR_D3D_VERSION 11
 #include <../Src/OVR_CAPI_D3D.h> // God dame this to put a important header inside here!
-
+#include <SpriteBatch.h>
 using namespace Platform::Devices;
 using namespace Platform::Fundation;
 using namespace DirectX::Scene;
@@ -192,12 +192,13 @@ void OculusRift::DissmisHealthWarnning()
 
 void OculusRift::BeginFrame()
 {
-	EyeTexture(Eye_Left).Clear(pImpl->pDeviceContext, DirectX::Colors::White);
+	EyeTexture(Eye_Left).Clear(pImpl->pDeviceContext, DirectX::Colors::Green);
 	pImpl->DepthStencilBuffer.Clear(pImpl->pDeviceContext);
 	pImpl->OvrFrameTiming = ovrHmd_BeginFrame(pImpl->HMD, 0);
 }
 void OculusRift::EndFrame()
 {
+
 	ovrHmd_EndFrame(pImpl->HMD, pImpl->OvrEyePose, &pImpl->OvrEyeTextures->Texture);
 
 }

@@ -63,8 +63,8 @@ DirectX::DeviceResources::DeviceResources() :
 	m_dpiScaleY(1.0f),
 	m_deviceNotify(nullptr)
 {
-	m_multiSampleLevel = 4;
-	m_multiSampleQuality = 1;
+	m_multiSampleLevel = 8;
+	m_multiSampleQuality = 4;
 	CreateDeviceIndependentResources();
 	CreateDeviceResources();
 }

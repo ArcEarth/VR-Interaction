@@ -248,6 +248,12 @@
     <ClInclude Include="Common\tree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WorldTreeBranch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\OculusDisortionPixelShader.hlsl" />

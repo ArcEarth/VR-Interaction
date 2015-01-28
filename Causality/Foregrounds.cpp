@@ -945,6 +945,9 @@ const Leap::Hand & hand, const DirectX::Matrix4x4 & leapTransform,
 const DirectX::AffineTransform &inheritTransform)
 : m_Hand(hand)
 {
+	Color.G(0.5f);
+	Color.B(0.5f);
+
 	Id = hand.id();
 	m_InheritTransform = inheritTransform;
 
@@ -1011,7 +1014,7 @@ bool Causality::HandPhysicalModel::Update(const Leap::Frame & frame, const Direc
 	{
 		XMMATRIX transform = CaculateLocalMatrix(m_Hand, leapTransform);
 		LocalMatrix = transform;
-
+		Color.R(m_Hand.grabStrength());
 		LostFrames = 0;
 		int j = 0;
 		for (const auto& finger : m_Hand.fingers())
@@ -1061,8 +1064,9 @@ void Causality::HandPhysicalModel::Render(ID3D11DeviceContext * pContext, Direct
 	XMMATRIX leap2world = LocalMatrix;
 	//auto palmPosition = XMVector3Transform(m_Hand.palmPosition().toVector3<Vector3>(), leap2world);
 	//g_PrimitiveDrawer.DrawSphere(palmPosition, 0.02f, Colors::YellowGreen);
-	XMVECTOR color = Colors::LimeGreen;
-	color = XMVectorSetW(color, Opticity);
+	Color.A(Opticity);
+	XMVECTOR color = Color;
+	//color = XMVectorSetW(color, Opticity);
 
 	//g_PrimitiveDrawer.Begin();
 	//for (const auto& bone : m_Bones)
