@@ -1,0 +1,510 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Editing Tools">
+      <UniqueIdentifier>{458a08da-a439-4b09-be66-9d08d156bb93}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Geometrics">
+      <UniqueIdentifier>{a984c1b0-a54e-4c77-929f-b1a0ee481e18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Comman Headers">
+      <UniqueIdentifier>{6d084b33-7b86-4385-ad5f-aa521e24439a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Interfaces">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Warppers">
+      <UniqueIdentifier>{004d131e-0036-49c1-a84d-38f0e3de4b5c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics">
+      <UniqueIdentifier>{ccd6f63d-0fa7-4679-8a33-abe1e580bc3c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\Shaders">
+      <UniqueIdentifier>{c431f91b-1bed-4950-88df-3161ccf868c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\Models">
+      <UniqueIdentifier>{a19e33b8-ae2f-40f9-9fc4-1c829c1a873f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\Parts">
+      <UniqueIdentifier>{ba12be6a-d6b1-4d88-a652-95eacb5a1621}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Input Control">
+      <UniqueIdentifier>{d9cbdd8e-0179-41ad-ad51-5040d7e3b357}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Editing Tools\Painting">
+      <UniqueIdentifier>{f319634c-781b-45d6-9958-d92dc96b1de5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Kinematics">
+      <UniqueIdentifier>{70366794-f088-4e08-b31c-f16a03055844}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Input Control\Nui">
+      <UniqueIdentifier>{a935f490-eb45-4676-9f62-4371ccab5084}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\Effects">
+      <UniqueIdentifier>{c17108d7-31ae-41ee-add7-e7da902cde9b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="KinectFilter.cpp">
+      <Filter>Input Control</Filter>
+    </ClCompile>
+    <ClCompile Include="graphicsclass.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="d3dunity.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="InputControler.cpp">
+      <Filter>Input Control</Filter>
+    </ClCompile>
+    <ClCompile Include="Carmera.cpp">
+      <Filter>Graphics\Parts</Filter>
+    </ClCompile>
+    <ClCompile Include="KinectControler.cpp">
+      <Filter>Input Control</Filter>
+    </ClCompile>
+    <ClCompile Include="DragManager.cpp">
+      <Filter>Editing Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="SkinMesh.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="FreeCursor.cpp">
+      <Filter>Editing Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="BitMap.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Polygonizer.cpp">
+      <Filter>Geometrics</Filter>
+    </ClCompile>
+    <ClCompile Include="MetaBallModel.cpp">
+      <Filter>Geometrics</Filter>
+    </ClCompile>
+    <ClCompile Include="KinematicsSkeleton.cpp">
+      <Filter>Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="HumanSkeleton.cpp">
+      <Filter>Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="AttachMap.cpp">
+      <Filter>Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="DynamicMetaBallModel.cpp">
+      <Filter>Geometrics</Filter>
+    </ClCompile>
+    <ClCompile Include="systemclass.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="DXMathExtend.cpp">
+      <Filter>Comman Headers</Filter>
+    </ClCompile>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Comman Headers</Filter>
+    </ClCompile>
+    <ClCompile Include="TIMER.cpp">
+      <Filter>Comman Headers</Filter>
+    </ClCompile>
+    <ClCompile Include="NaiveWarpper.cpp">
+      <Filter>Warppers</Filter>
+    </ClCompile>
+    <ClCompile Include="StaticModel.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="GrowManager.cpp">
+      <Filter>Editing Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="Visualizers.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="GeometricsModifyTool.cpp">
+      <Filter>Editing Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="DriveManager.cpp">
+      <Filter>Editing Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="VolumeSculptManager.cpp">
+      <Filter>Editing Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="CutManager.cpp">
+      <Filter>Editing Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="PaintManager.cpp">
+      <Filter>Editing Tools\Painting</Filter>
+    </ClCompile>
+    <ClCompile Include="ColorPalette.cpp">
+      <Filter>Editing Tools\Painting</Filter>
+    </ClCompile>
+    <ClCompile Include="RectangleDrawer.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="Player.cpp" />
+    <ClCompile Include="NuiSkeletonStream.cpp">
+      <Filter>Input Control\Nui</Filter>
+    </ClCompile>
+    <ClCompile Include="NuiStream.cpp">
+      <Filter>Input Control\Nui</Filter>
+    </ClCompile>
+    <ClCompile Include="NuiActivityWatcher.cpp">
+      <Filter>Input Control\Nui</Filter>
+    </ClCompile>
+    <ClCompile Include="NuiImageBuffer.cpp">
+      <Filter>Input Control\Nui</Filter>
+    </ClCompile>
+    <ClCompile Include="KinectAudioStream.cpp">
+      <Filter>Input Control\Nui</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerSkeletonUpdater.cpp">
+      <Filter>Input Control</Filter>
+    </ClCompile>
+    <ClCompile Include="MultiMouseControler.cpp">
+      <Filter>Input Control</Filter>
+    </ClCompile>
+    <ClCompile Include="SkyBox.cpp">
+      <Filter>Graphics\Parts</Filter>
+    </ClCompile>
+    <ClCompile Include="EvirnmentModel.cpp">
+      <Filter>Graphics\Parts</Filter>
+    </ClCompile>
+    <ClCompile Include="Shadower.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="AvatarSkinEffect.cpp">
+      <Filter>Graphics\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Textures.cpp">
+      <Filter>Graphics\Parts</Filter>
+    </ClCompile>
+    <ClCompile Include="DXGIFormatHelper.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="TextureBrush.cpp">
+      <Filter>Editing Tools\Painting</Filter>
+    </ClCompile>
+    <ClCompile Include="FloatingText.cpp" />
+    <ClCompile Include="SpeechCommandStream.cpp">
+      <Filter>Input Control\Nui</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugVisualizer.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="ManipulationManager.cpp">
+      <Filter>Editing Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="SweepManager.cpp">
+      <Filter>Editing Tools</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="KinectFilter.h">
+      <Filter>Input Control</Filter>
+    </ClInclude>
+    <ClInclude Include="graphicsclass.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="FW1FontWrapper.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="d3dunity.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="InputControler.h">
+      <Filter>Input Control</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelInterface.h">
+      <Filter>Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="Carmera.h">
+      <Filter>Graphics\Parts</Filter>
+    </ClInclude>
+    <ClInclude Include="KinectControler.h">
+      <Filter>Input Control</Filter>
+    </ClInclude>
+    <ClInclude Include="SpaceWarpperInterface.h">
+      <Filter>Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="DragManager.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="DXBaseModel.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="SkinMesh.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="FreeCursor.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="BitMap.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Polygonizer.h">
+      <Filter>Geometrics</Filter>
+    </ClInclude>
+    <ClInclude Include="MetaBallModel.h">
+      <Filter>Geometrics</Filter>
+    </ClInclude>
+    <ClInclude Include="KinematicsSkeleton.h">
+      <Filter>Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="HumanSkeleton.h">
+      <Filter>Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="AttachMap.h">
+      <Filter>Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="DynamicMetaBallModel.h">
+      <Filter>Geometrics</Filter>
+    </ClInclude>
+    <ClInclude Include="SpeechCommands.h">
+      <Filter>Input Control</Filter>
+    </ClInclude>
+    <ClInclude Include="tree.h">
+      <Filter>Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="Lights.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="DXMathExtend.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="MathHelper.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="SafeDelete.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="StaticModel.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="TIMER.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="NaiveWarpper.h">
+      <Filter>Warppers</Filter>
+    </ClInclude>
+    <ClInclude Include="systemclass.h" />
+    <ClInclude Include="GrowManager.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="Visualizers.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="CompositeFlag.h">
+      <Filter>Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometricsModifyTool.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="DriveManager.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="PhongLighting.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="SystemControler_Fundition.h" />
+    <ClInclude Include="VolumeSculptManager.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="CutManager.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="PaintManager.h">
+      <Filter>Editing Tools\Painting</Filter>
+    </ClInclude>
+    <ClInclude Include="ColorPalette.h">
+      <Filter>Editing Tools\Painting</Filter>
+    </ClInclude>
+    <ClInclude Include="RectangleDrawer.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="Player.h">
+      <Filter>Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="NuiSkeletonStream.h">
+      <Filter>Input Control\Nui</Filter>
+    </ClInclude>
+    <ClInclude Include="NuiStream.h">
+      <Filter>Input Control\Nui</Filter>
+    </ClInclude>
+    <ClInclude Include="NuiUtility.h">
+      <Filter>Input Control\Nui</Filter>
+    </ClInclude>
+    <ClInclude Include="NuiStreamViewer.h">
+      <Filter>Input Control\Nui</Filter>
+    </ClInclude>
+    <ClInclude Include="NuiActivityWatcher.h">
+      <Filter>Input Control\Nui</Filter>
+    </ClInclude>
+    <ClInclude Include="NuiImageBuffer.h">
+      <Filter>Input Control\Nui</Filter>
+    </ClInclude>
+    <ClInclude Include="StaticMediaBuffer.h">
+      <Filter>Input Control\Nui</Filter>
+    </ClInclude>
+    <ClInclude Include="KinectAudioStream.h">
+      <Filter>Input Control\Nui</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerSkeletonUpdater.h">
+      <Filter>Input Control</Filter>
+    </ClInclude>
+    <ClInclude Include="SkeletonStreamBufferViewer.h">
+      <Filter>Input Control</Filter>
+    </ClInclude>
+    <ClInclude Include="MultiMouseControler.h">
+      <Filter>Input Control</Filter>
+    </ClInclude>
+    <ClInclude Include="ConstantBuffer.h">
+      <Filter>Graphics\Parts</Filter>
+    </ClInclude>
+    <ClInclude Include="DirectXHelper.h">
+      <Filter>Graphics\Parts</Filter>
+    </ClInclude>
+    <ClInclude Include="PostProcesser.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="SkyBox.h">
+      <Filter>Graphics\Parts</Filter>
+    </ClInclude>
+    <ClInclude Include="EvirnmentModel.h">
+      <Filter>Graphics\Parts</Filter>
+    </ClInclude>
+    <ClInclude Include="AlignedVector4.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="AlignedNew.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Shadower.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="AvatarSkinEffect.h">
+      <Filter>Graphics\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="BaseEffect.h">
+      <Filter>Graphics\Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="Textures.h">
+      <Filter>Graphics\Parts</Filter>
+    </ClInclude>
+    <ClInclude Include="Serialization.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="DXGIFormatHelper.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="TextureBrush.h">
+      <Filter>Editing Tools\Painting</Filter>
+    </ClInclude>
+    <ClInclude Include="EditingToolsInterface.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="FloatingText.h">
+      <Filter>Interfaces</Filter>
+    </ClInclude>
+    <ClInclude Include="SpeechCommandStream.h">
+      <Filter>Input Control\Nui</Filter>
+    </ClInclude>
+    <ClInclude Include="SnapFilter.h">
+      <Filter>Comman Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="TriangleMesh.h">
+      <Filter>Geometrics</Filter>
+    </ClInclude>
+    <ClInclude Include="BezierClip.h">
+      <Filter>Geometrics</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugVisualizer.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="MotionAdaptor.h">
+      <Filter>Geometrics</Filter>
+    </ClInclude>
+    <ClInclude Include="ManipulationManager.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="SweepManager.h">
+      <Filter>Editing Tools</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="FW1FontWrapper.dll">
+      <Filter>Graphics</Filter>
+    </None>
+    <None Include="Shaders\Common.hlsli">
+      <Filter>Graphics\Shaders</Filter>
+    </None>
+    <None Include="Shaders\Structures.hlsli">
+      <Filter>Graphics\Shaders</Filter>
+    </None>
+    <None Include="ClassDiagram.cd" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\PS_ColorTexture_PixelLights.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PS_Post_Blur.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PS_Post_Compose.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PS_Post_Present.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PS_PosTex.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PS_Shadowing.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PS_VertexColor.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VS_AttachIndicate.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VS_Quad.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VS_Shadowing.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VS_Skinning.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VS_SkyBox.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\PS_RenderToUV.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VS_RenderToUV.hlsl">
+      <Filter>Graphics\Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="AvatarEngine.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="data\BodyAvatarCommandGrammar.grxml">
+      <Filter>Resource Files</Filter>
+    </Xml>
+  </ItemGroup>
+</Project>

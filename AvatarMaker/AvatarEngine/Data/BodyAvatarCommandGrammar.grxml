@@ -1,0 +1,148 @@
+﻿<grammar version="1.0" xml:lang="en-US" root="rootRule" tag-format="semantics/1.0-literals" xmlns="http://www.w3.org/2001/06/grammar">
+  <rule id="rootRule">
+    <one-of>
+      <item>
+        <tag>SAVE</tag>
+        <one-of>
+          <item> save </item>
+          <item> saving </item>
+          <item> save it </item>
+          <item> save avatar </item>
+          <item> save file </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>LOAD</tag>
+        <one-of>
+          <item> load </item>
+          <item> loading </item>
+          <item> load file </item>
+          <item> load avatar </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>SPATIAL</tag>
+        <one-of>
+          <item> spatial </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>REFERENCE</tag>
+        <one-of>
+          <item> reference </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>SMALLER</tag>
+        <one-of>
+          <item> smaller </item>
+          <item> small </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>BIGGER</tag>
+        <one-of>
+          <item> greater </item>
+          <item> larger </item>
+          <item> bigger </item>
+          <item> big </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>EDIT</tag>
+        <one-of>
+          <item> edit </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>SCAN</tag>
+        <one-of>
+          <item> scan </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>SAVE</tag>
+        <one-of>
+          <item> finish </item>
+          <item> save </item>
+          <item> saving </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>LONGER</tag>
+        <one-of>
+          <item> longer </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>SHORTER</tag>
+        <one-of>
+          <item> shorter </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>HIGHER</tag>
+        <one-of>
+          <item> higher </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>LOWER</tag>
+        <one-of>
+          <item> lower </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>STRONGER</tag>
+        <one-of>
+          <item> stronger </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>FATTER</tag>
+        <one-of>
+          <item> fatter </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>THINNER</tag>
+        <one-of>
+          <item> thinner </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>CANCEL</tag>
+        <one-of>
+          <item> cancel </item>
+          <item> abort </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>PAINT</tag>
+        <one-of>
+          <item> paint </item>
+          <item> draw </item>
+          <item> painting </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>ATTACH</tag>
+        <one-of>
+          <item> attach </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>DETACH</tag>
+        <one-of>
+          <item> detach </item>
+        </one-of>
+      </item>
+      <item>
+        <tag>RESET</tag>
+        <one-of>
+          <item> reset </item>
+        </one-of>
+      </item>
+    </one-of>
+  </rule>
+</grammar>
