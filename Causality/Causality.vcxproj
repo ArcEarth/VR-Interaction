@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="packages\directxtk_desktop_2013.2014.11.24.2\build\native\directxtk_desktop_2013.props" Condition="Exists('packages\directxtk_desktop_2013.2014.11.24.2\build\native\directxtk_desktop_2013.props')" />
+  <Import Project="packages\directxtk_desktop_2013.2015.1.26.1\build\native\directxtk_desktop_2013.props" Condition="Exists('packages\directxtk_desktop_2013.2015.1.26.1\build\native\directxtk_desktop_2013.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -71,27 +71,31 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros">
-    <NuGetPackageImportStamp>25f1bf3c</NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>f289f8e4</NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);..\..\bullet3\src;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);..\..\bullet3\src;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;C:\Users\Yupeng\Documents\GitHub\Bullet3\bullet3\src;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);..\..\bullet3\src;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(EXTERNAL_LIBRARY_DIR)\eigen-3.2.2;$(FBX_SDK_ROOT)\include;$(EXTERNAL_LIBRARY_DIR)\boost_1_56_0;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)/Lib/$(Platform)/$(PlatformToolsetVersion)/;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);..\..\bullet3\src;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -109,7 +113,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>leapd.lib;libovrd.lib;d2d1.lib;d3d11.lib;dxgi.lib;ole32.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;ole32.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;leapd.lib;libovrd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
@@ -135,7 +139,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>leapd.lib;libovr64d.lib;d2d1.lib;d3d11.lib;dxgi.lib;ole32.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;ole32.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;leapd.lib;libovr64d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
@@ -167,7 +171,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>leap.lib;libovr.lib;d2d1.lib;d3d11.lib;dxgi.lib;ole32.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;ole32.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;leap.lib;libovr.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
@@ -198,7 +202,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>leap.lib;libovr64.lib;d2d1.lib;d3d11.lib;dxgi.lib;ole32.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;ole32.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;leap.lib;libovr64.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
@@ -522,13 +526,13 @@
     </Xml>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\BulletCollision.vcxproj">
+    <ProjectReference Include="..\..\bullet3\build3\vs2013\BulletCollision.vcxproj">
       <Project>{8937c279-5097-eb49-b459-ce535897a306}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\BulletDynamics.vcxproj">
+    <ProjectReference Include="..\..\bullet3\build3\vs2013\BulletDynamics.vcxproj">
       <Project>{f3e7f78e-18aa-cb43-84bc-0b1c979f0993}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\Bullet3\bullet3\build3\vs2010\LinearMath.vcxproj">
+    <ProjectReference Include="..\..\bullet3\build3\vs2013\LinearMath.vcxproj">
       <Project>{94240b48-9226-514f-b232-8d06ae1cd252}</Project>
     </ProjectReference>
   </ItemGroup>
@@ -536,8 +540,8 @@
   <ImportGroup Label="ExtensionTargets">
     <Import Project="packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets" Condition="Exists('packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets')" />
     <Import Project="packages\tinyxml2.2.1.0\build\native\tinyxml2.targets" Condition="Exists('packages\tinyxml2.2.1.0\build\native\tinyxml2.targets')" />
+    <Import Project="packages\directxtk_desktop_2013.2015.1.26.1\build\native\directxtk_desktop_2013.targets" Condition="Exists('packages\directxtk_desktop_2013.2015.1.26.1\build\native\directxtk_desktop_2013.targets')" />
     <Import Project="packages\Eigen.3.2.3\build\native\Eigen.targets" Condition="Exists('packages\Eigen.3.2.3\build\native\Eigen.targets')" />
-    <Import Project="packages\directxtk_desktop_2013.2014.11.24.2\build\native\directxtk_desktop_2013.targets" Condition="Exists('packages\directxtk_desktop_2013.2014.11.24.2\build\native\directxtk_desktop_2013.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -545,8 +549,8 @@
     </PropertyGroup>
     <Error Condition="!Exists('packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets'))" />
     <Error Condition="!Exists('packages\tinyxml2.2.1.0\build\native\tinyxml2.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\tinyxml2.2.1.0\build\native\tinyxml2.targets'))" />
+    <Error Condition="!Exists('packages\directxtk_desktop_2013.2015.1.26.1\build\native\directxtk_desktop_2013.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\directxtk_desktop_2013.2015.1.26.1\build\native\directxtk_desktop_2013.props'))" />
+    <Error Condition="!Exists('packages\directxtk_desktop_2013.2015.1.26.1\build\native\directxtk_desktop_2013.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\directxtk_desktop_2013.2015.1.26.1\build\native\directxtk_desktop_2013.targets'))" />
     <Error Condition="!Exists('packages\Eigen.3.2.3\build\native\Eigen.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Eigen.3.2.3\build\native\Eigen.targets'))" />
-    <Error Condition="!Exists('packages\directxtk_desktop_2013.2014.11.24.2\build\native\directxtk_desktop_2013.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\directxtk_desktop_2013.2014.11.24.2\build\native\directxtk_desktop_2013.props'))" />
-    <Error Condition="!Exists('packages\directxtk_desktop_2013.2014.11.24.2\build\native\directxtk_desktop_2013.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\directxtk_desktop_2013.2014.11.24.2\build\native\directxtk_desktop_2013.targets'))" />
   </Target>
 </Project>

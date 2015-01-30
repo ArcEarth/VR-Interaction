@@ -42,7 +42,7 @@ inline void Platform::Application::Exit()
 
 void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 {
-	ResourceDirectory = filesystem::current_path().parent_path() / "Resources";
+	ResourceDirectory = filesystem::current_path() / "Resources";
 
 	// Initialize Windows
 	pConsole = make_shared<DebugConsole>();
