@@ -101,17 +101,17 @@ void Causality::WorldScene::LoadAsync(ID3D11Device* pDevice)
 	concurrency::task<void> load_models([this, pDevice]() {
 		{
 			lock_guard<mutex> guard(m_RenderLock);
-			WorldBranch::InitializeBranchPool(30);
+			WorldBranch::InitializeBranchPool(1);
 			WorldTree = WorldBranch::DemandCreate("Root");
 
-			std::vector<AffineTransform> subjectTrans(30);
-			subjectTrans.resize(20);
-			for (size_t i = 0; i < 20; i++)
-			{
-				subjectTrans[i].Scale = XMVectorReplicate(1.1f + 0.15f * i);// XMMatrixTranslation(0, 0, i*(-150.f));
-			}
+			//std::vector<AffineTransform> subjectTrans(30);
+			//subjectTrans.resize(20);
+			//for (size_t i = 0; i < 20; i++)
+			//{
+			//	subjectTrans[i].Scale = XMVectorReplicate(1.1f + 0.15f * i);// XMMatrixTranslation(0, 0, i*(-150.f));
+			//}
+			//WorldTree->Fork(subjectTrans);
 
-			WorldTree->Fork(subjectTrans);
 			WorldTree->Enable(DirectX::AffineTransform::Identity());
 		}
 
@@ -1541,4 +1541,9 @@ void Causality::WorldBranch::Recycle(std::unique_ptr<WorldBranch>&& pFrame)
 {
 	pFrame->Reset();
 	BranchPool.push(std::move(pFrame));
+}
+
+inline void Causality::SkeletonModel::Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect)
+{
+	g_PrimitiveDrawer.DrawCylinder(Joints[0],Joints[1].Position)
 }

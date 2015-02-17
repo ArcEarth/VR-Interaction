@@ -75,26 +75,26 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);..\..\bullet3\src;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;..\..\bullet3\src;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);..\..\bullet3\src;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;..\..\bullet3\src;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);..\..\bullet3\src;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;..\..\bullet3\src;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);..\..\bullet3\src;$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;..\..\bullet3\src;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -346,6 +346,7 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">-Zm113 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">-Zm113 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
+    <ClCompile Include="Kinect.cpp" />
     <ClCompile Include="LeapMotion.cpp" />
     <ClCompile Include="NativeWindow.cpp" />
     <ClCompile Include="OculusRift.cpp">
@@ -392,6 +393,7 @@
     </ClCompile>
     <ClCompile Include="PrimaryCamera.cpp" />
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="Skeleton.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BulletPhysics.h" />
@@ -429,6 +431,7 @@
     <ClInclude Include="Content\ShaderStructures.h" />
     <ClInclude Include="Foregrounds.h" />
     <ClInclude Include="Interactive.h" />
+    <ClInclude Include="Kinect.h" />
     <ClInclude Include="LeapMotion.h" />
     <ClInclude Include="NativeWindow.h" />
     <ClInclude Include="OculusRift.h" />
@@ -439,6 +442,7 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneObject.h" />
+    <ClInclude Include="Skeleton.h" />
     <ClInclude Include="WorldTreeBranch.h" />
   </ItemGroup>
   <ItemGroup>

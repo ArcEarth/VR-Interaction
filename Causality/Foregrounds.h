@@ -120,6 +120,20 @@ namespace Causality
 		DirectX::Color m_Color;
 	};
 
+	class SkeletonModel : public DirectX::Scene::IModelNode
+	{
+		virtual void Render(ID3D11DeviceContext *pContext, DirectX::IEffect* pEffect) override;
+
+		void Update(IBody* pBody)
+		{
+			pBody->GetJoints(25, Joints);
+		}
+
+	private:
+		Joint Joints[25];
+		std::array<DirectX::Quaternion,25> JointsOrientations;
+	};
+
 	typedef std::map<std::string, std::vector<ProblistiscAffineTransform>> SuperpositionMap;
 
 	class CollisionShape : public DirectX::IBoundable

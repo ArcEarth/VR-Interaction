@@ -1,6 +1,7 @@
 #pragma once
 #include "Common\DirectXMathExtend.h"
 #include <Leap.h>
+#include <Kinect.h>
 
 namespace Platform
 {
@@ -118,8 +119,9 @@ namespace Platform
 	//public:
 	//};
 
-	class IUserSkeletonInteractive abstract
+	class IUserBodyInteractive abstract
 	{
 	public:
+		virtual void OnBodyFrameUpdated(INT64 nTime, int nBodyCount, IBody** ppBodies);
 	};
 }

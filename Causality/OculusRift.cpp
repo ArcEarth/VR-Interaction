@@ -44,10 +44,17 @@ public:
 	{
 		if (InstanceCount == 0)
 		{
-			ovr_Initialize();
+			if (!ovr_Initialize())
+				return;
 		}
-		InstanceCount++;
+
+		HMD = ovrHmd_Create(HMDIndex);
+
+		if (HMD)
+			InstanceCount++;
 	}
+
+	bool IsOk() const { return HMD; }
 
 	~Impl()
 	{
@@ -64,8 +71,6 @@ public:
 	{
 		ovrBool Result;
 		pDeviceContext = pDeviceResource->GetD3DDeviceContext();
-		HMD = ovrHmd_Create(HMDIndex);
-
 		if (!HMD)
 		{
 			//MessageBoxA(NULL, "Oculus Rift not detected.", "", MB_OK);
@@ -77,11 +82,8 @@ public:
 			return(E_FAIL);
 		}
 		//Setup Window and Graphics - use window frame if relying on Oculus driver
-		const int backBufferMultisample = 1;
+		const int backBufferMultisample = pDeviceResource->GetMultiSampleCount();
 
-		Result = ovrHmd_AttachToWindow(HMD, hWnd, NULL, NULL);
-		if (!Result)
-			return (E_FAIL);
 		//Configure Stereo settings.
 		auto recommenedTex0Size = ovrHmd_GetFovTextureSize(HMD, ovrEye_Left, HMD->DefaultEyeFov[0], 1.0f);
 		auto recommenedTex1Size = ovrHmd_GetFovTextureSize(HMD, ovrEye_Right, HMD->DefaultEyeFov[1], 1.0f);
@@ -123,10 +125,12 @@ public:
 		// The viewport sizes are re-computed in case RenderTargetSize changed due to HW limitations.
 		ovrFovPort eyeFov[2] = { HMD->DefaultEyeFov[0], HMD->DefaultEyeFov[1] };
 
+		auto outputsize = pDeviceResource->GetOutputSize();
+
 		// Configure d3d11.
 		ovrD3D11Config d3d11cfg;
 		d3d11cfg.D3D11.Header.API = ovrRenderAPI_D3D11;
-		d3d11cfg.D3D11.Header.BackBufferSize = OVR::Sizei(HMD->Resolution.w, HMD->Resolution.h);
+		d3d11cfg.D3D11.Header.BackBufferSize = OVR::Sizei(outputsize.Width, outputsize.Height);
 		d3d11cfg.D3D11.Header.Multisample = backBufferMultisample;
 		d3d11cfg.D3D11.pDevice = pDeviceResource->GetD3DDevice();
 		d3d11cfg.D3D11.pDeviceContext = pDeviceResource->GetD3DDeviceContext();
@@ -134,8 +138,7 @@ public:
 		d3d11cfg.D3D11.pSwapChain = pDeviceResource->GetSwapChain();
 
 		Result = ovrHmd_ConfigureRendering(HMD, &d3d11cfg.Config,
-			ovrDistortionCap_Chromatic | ovrDistortionCap_TimeWarp | 
-			ovrDistortionCap_Vignette | ovrDistortionCap_Overdrive | ovrDistortionCap_HqDistortion,
+			ovrDistortionCap_Chromatic | ovrDistortionCap_HqDistortion,
 			eyeFov, EyeRenderDesc);
 
 		HmdToEyeViewOffset[0] = EyeRenderDesc[0].HmdToEyeViewOffset;
@@ -146,6 +149,10 @@ public:
 			//MessageBoxA(NULL, "Oculus Rift Rendering failed to config.", "", MB_OK);
 			return(E_FAIL);
 		}
+
+		Result = ovrHmd_AttachToWindow(HMD, hWnd, NULL, NULL);
+		if (!Result)
+			return (E_FAIL);
 
 		ovrHmd_SetEnabledCaps(HMD, ovrHmdCap_LowPersistence | ovrHmdCap_DynamicPrediction);
 
@@ -176,12 +183,29 @@ DirectX::XMMATRIX OculusRift::EyeProjection(EyesEnum eye) const
 
 
 OculusRift::OculusRift()
-	: pImpl(new Impl)
 {
 }
+
 OculusRift::~OculusRift()
 {
 
+}
+
+std::shared_ptr<OculusRift> Platform::Devices::OculusRift::Create(int hmdIdx)
+{
+	auto pRift = std::make_shared<OculusRift>();
+	pRift->pImpl = std::make_unique<OculusRift::Impl>(hmdIdx);
+	if (!pRift->pImpl->IsOk())
+		return nullptr;
+	else 
+		return pRift;
+}
+
+bool Platform::Devices::OculusRift::Initialize(void)
+{
+	if (!ovr_InitializeRenderingShim())
+		return false;
+	return (bool)ovr_Initialize();
 }
 
 void OculusRift::DissmisHealthWarnning()
@@ -202,14 +226,30 @@ void OculusRift::EndFrame()
 	ovrHmd_EndFrame(pImpl->HMD, pImpl->OvrEyePose, &pImpl->OvrEyeTextures->Texture);
 
 }
-void OculusRift::Initialize(HWND hWnd, DirectX::DeviceResources* pDeviceResource)
+bool OculusRift::InitializeGraphics(HWND hWnd, DirectX::DeviceResources* pDeviceResource)
 {
 	HRESULT hr = pImpl->Initialize(hWnd, pDeviceResource);
 	if (FAILED(hr))
 	{
 		pImpl = nullptr;
-		throw std::runtime_error("Failed to initialize Oculus Rift");
+		return false;
 	}
+	return true;
+}
+
+DirectX::Vector2 Platform::Devices::OculusRift::Resoulution() const
+{
+	return Vector2(pImpl->HMD->Resolution.w, pImpl->HMD->Resolution.h);
+}
+
+DirectX::Vector2 Platform::Devices::OculusRift::DesktopWindowPosition() const
+{
+	return Vector2(pImpl->HMD->WindowsPos.x, pImpl->HMD->WindowsPos.y);
+}
+
+const char * Platform::Devices::OculusRift::DisplayDeviceName() const
+{
+	return pImpl->HMD->DisplayDeviceName;
 }
 
 DirectX::RenderTargetTexture2D& OculusRift::EyeTexture(EyesEnum eye)

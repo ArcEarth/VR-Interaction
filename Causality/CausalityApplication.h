@@ -17,6 +17,7 @@
 #include "OculusRift.h"
 #include "PrimaryCamera.h"
 #include "LeapMotion.h"
+#include "Kinect.h"
 #include <boost\filesystem.hpp>
 
 //extern std::unique_ptr<Causality::DXAppMain> m_main;
@@ -94,6 +95,7 @@ namespace Causality
 
 		// Extern Devices
 		std::shared_ptr<Platform::Devices::OculusRift>	pRift;
+		std::unique_ptr<Platform::Devices::Kinect>		pKinect;
 
 		// Primary Camera
 		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pPrimaryCamera;

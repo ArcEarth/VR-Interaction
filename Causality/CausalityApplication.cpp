@@ -48,8 +48,17 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	pConsole = make_shared<DebugConsole>();
 	pConsole->Initialize(ref new String(L"CausalityDebug"), 800, 600, false);
 
+	pRift = Platform::Devices::OculusRift::Create();
+
 	pWindow = make_shared<Platform::NativeWindow>();
-	pWindow->Initialize(ref new String(L"Causality"), 1920, 1080, false);
+	if (!pRift)
+		pWindow->Initialize(ref new String(L"Causality"), 1920, 1080, false);
+	else
+	{
+		auto res = pRift->Resoulution();
+		pWindow->Initialize(ref new String(L"Causality"), res.x, res.y, false);
+	}
+	//bool useOvr = Platform::Devices::OculusRift::Initialize();
 
 	// Initialize DirectX
 	pDeviceResources = make_shared<DirectX::DeviceResources>();
@@ -59,15 +68,12 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 	Visualizers::g_PrimitiveDrawer.Initialize(pDeviceResources->GetD3DDeviceContext());
 
 	// Oculus Rift
-	pRift = std::make_shared<Platform::Devices::OculusRift>();
-	try
+	if (pRift)
 	{
-		pRift->Initialize(pWindow->Handle(), pDeviceResources.get());
-		pRift->DissmisHealthWarnning();
-	}
-	catch (std::runtime_error exception)
-	{
-		pRift = nullptr;
+		if (!pRift->InitializeGraphics(pWindow->Handle(), pDeviceResources.get()))
+			pRift = nullptr;
+		//else
+		//	pRift->DissmisHealthWarnning();
 	}
 
 	// Primary Camera setup
@@ -84,6 +90,8 @@ void Causality::App::OnStartup(Platform::Array<Platform::String^>^ args)
 
 	pLeap = std::make_shared<Platform::Devices::LeapMotion>(false,false);
 	pLeap->SetMotionProvider(pPlayer.get(), pPlayer.get());
+
+	pKinect = Platform::Devices::Kinect::CreateDefault();
 
 	m_pPrimaryCamera = std::move(pPlayer);
 
@@ -142,7 +150,29 @@ void Causality::App::OnIdle()
 {
 	// Processing & Distribute Extra Input
 	pLeap->PullFrame();
+	ComPtr<IBodyFrame> pBodyFrame;
+	HRESULT hr = pKinect->BodyFrameReader()->AcquireLatestFrame(&pBodyFrame);
+	if (SUCCEEDED(hr))
+	{
+		IBody *pBodys[6];
+		hr = pBodyFrame->GetAndRefreshBodyData(6, pBodys);
+		INT64 nTime = 0;
+		hr = pBodyFrame->get_RelativeTime(&nTime);
 
+		int count = 0;
+		while (pBodys[count] != nullptr && count < 6)
+			count++;
+
+		if (hr)
+			for (const auto& pComponent : Components)
+			{
+				auto pBodyInteractive = pComponent->As<IUserBodyInteractive>();
+				if (pBodyInteractive)
+				{
+					pBodyInteractive->OnBodyFrameUpdated(nTime, count, pBodys);
+				}
+			}
+	}
 	// Time Aware update
 	m_timer.Tick([&]()
 	{
@@ -159,7 +189,7 @@ void Causality::App::OnIdle()
 		pRenderControl->SetView(view);
 		auto v = m_pPrimaryCamera->GetViewMatrix(view);
 		auto p = m_pPrimaryCamera->GetProjectionMatrix(view);
-		RenderToView(v, p);
+		//RenderToView(v, p);
 	}
 	pRenderControl->EndFrame();
 

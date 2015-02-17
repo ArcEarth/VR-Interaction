@@ -114,6 +114,12 @@
     <ClCompile Include="Foregrounds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Kinect.cpp">
+      <Filter>Platform.Devices</Filter>
+    </ClCompile>
+    <ClCompile Include="Skeleton.cpp">
+      <Filter>Platform.Devices</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -253,6 +259,12 @@
     </ClInclude>
     <ClInclude Include="SceneObject.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Kinect.h">
+      <Filter>Platform.Devices</Filter>
+    </ClInclude>
+    <ClInclude Include="Skeleton.h">
+      <Filter>Platform.Devices</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

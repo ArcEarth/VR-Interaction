@@ -10,5 +10,12 @@
   <obj src="baseball_bat.obj" position="2.0,1.5.0,0.0" scale="0.1"></obj>
   <!--<obj src="ConfederatePistolf.obj" position="5.0,5.0,4.0" scale = "0.0075"></obj>-->
   <obj src="NBA_BASKETBALL.obj" position="2.5,1.0,0.0" scale="0.005"></obj>
+
+  <skinmodel src="Bird.obj">
+    <joint id="0" name="SPIN" displacement="0,0,0" rotation="0,0,0,1">
+      <joint id="1" name="HIP_LEFT" ></joint>
+      <joint id="2" name="HIP_RIGHT"></joint>
+    </joint>
+  </skinmodel>
   <!--<obj src="sibenik_n.obj" position="0,13,46.2" scale="10.0"></obj>-->
 </scene>

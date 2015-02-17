@@ -198,6 +198,9 @@
     <ClCompile Include="SweepManager.cpp">
       <Filter>Editing Tools</Filter>
     </ClCompile>
+    <ClCompile Include="Kinect2Controler.cpp">
+      <Filter>Input Control</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="KinectFilter.h">
@@ -438,6 +441,9 @@
     </ClInclude>
     <ClInclude Include="SweepManager.h">
       <Filter>Editing Tools</Filter>
+    </ClInclude>
+    <ClInclude Include="Kinect2Controler.h">
+      <Filter>Input Control</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

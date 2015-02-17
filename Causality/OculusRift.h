@@ -23,7 +23,15 @@ namespace Platform
 			OculusRift();
 			~OculusRift();
 
-			void Initialize(HWND hWnd, DirectX::DeviceResources* pDeviceResource);
+			static std::shared_ptr<OculusRift> Create(int hmdIdx = 0);
+
+			static bool Initialize(void);
+
+			bool InitializeGraphics(HWND hWnd, DirectX::DeviceResources* pDeviceResource);
+
+			DirectX::Vector2 Resoulution() const;
+			DirectX::Vector2 DesktopWindowPosition() const;
+			const char* DisplayDeviceName() const;
 
 			// Rendering Methods and Properties
 			void DissmisHealthWarnning();

@@ -14,6 +14,9 @@
 
 
 #include <DirectXMath.h>
+#include <DirectXMathSSE3.h>
+#include <DirectXMathSSE4.h>
+#include <DirectXMathAVX.h>
 #include <DirectXCollision.h>
 #include <SimpleMath.h>
 #include <smmintrin.h>
@@ -22,16 +25,47 @@
 #include <Eigen\Sparse>
 #include <boost\operators.hpp>
 
-
+#ifndef XM_ALIGN16
+#define XM_ALIGN16 _MM_ALIGN16
+#endif
 namespace DirectX
 {
 	using VectorX = Eigen::VectorXf;
 	template <int _Rows, int _Columns>
 	using Matrix = Eigen::Matrix<float, _Rows, _Columns>;
 
+	namespace AlignedVector
+	{
+		XM_ALIGN16
+		struct Vector3A : XMFLOAT3A
+		{
+			Vector3A() : XMFLOAT3A(0.f, 0.f, 0.f) {}
+			Vector3A( FXMVECTOR V ) { XMStoreFloat3A(this, V); }
+
+			inline operator XMVECTOR() const { return XMLoadFloat3A(this); }
+
+			inline Vector3A& XM_CALLCONV operator=(FXMVECTOR V) { XMStoreFloat3A(this, V); }
+		};
+
+		struct Vector4A : XMFLOAT4A
+		{
+			Vector4A() : XMFLOAT4A (0.f, 0.f, 0.f, 0.f) {}
+			Vector4A(FXMVECTOR V) { XMStoreFloat4A(this, V); }
+
+			inline operator XMVECTOR() const { return XMLoadFloat4A(this); }
+
+			inline Vector4A& XM_CALLCONV operator=(FXMVECTOR V) { XMStoreFloat4A(this, V); }
+		};
+	}
+
 	using SimpleMath::Vector2;
 	using SimpleMath::Vector3;
+
+//#ifndef _Vector4_
+//#define _Vector4_
 	using SimpleMath::Vector4;
+//#endif // _Vector4_
+
 	using SimpleMath::Quaternion;
 	using SimpleMath::Color;
 	using SimpleMath::Plane;
@@ -264,6 +298,10 @@ namespace DirectX
 #elif defined(XM_NO_MISALIGNED_VECTOR_ACCESS)
 #endif // _XM_VMX128_INTRINSICS_
 	}
+
+#ifdef _MSC_VER
+#pragma region XMDUALVECTOR
+#endif
 
 	struct XMDUALVECTOR;
 	// Calling convetion
@@ -615,6 +653,10 @@ namespace DirectX
 		return XMVector3Displacement(V, TransformDualQuaternion.r[0], TransformDualQuaternion.r[1]);
 	}
 
+#ifdef _MSC_VER
+#pragma endregion
+#endif
+
 	const float XM_EPSILON = 1.192092896e-7f;
 
 	inline float XMScalarReciprocalSqrtEst(float x) {
@@ -855,6 +897,98 @@ namespace DirectX
 		return m;
 	}
 
+	// No Matrix Multiply inside, significant faster than affine transform
+	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationOrigin, FXMVECTOR RotationQuaterion, FXMVECTOR Translation)
+	{
+		XMVECTOR VTranslation = XMVector3Rotate(RotationOrigin, RotationQuaterion); 
+		VTranslation = XMVectorAdd(VTranslation, RotationOrigin);
+		VTranslation = XMVectorAdd(VTranslation, VTranslation);
+		VTranslation = XMVectorSelect(g_XMSelect1110.v, Translation, g_XMSelect1110.v);
+		XMMATRIX M = XMMatrixRotationQuaternion(RotationQuaterion);
+		M.r[3] = XMVectorAdd(M.r[3], VTranslation);
+		return M;
+	}
+
+	// Composition of Translation and Rotation
+	struct RigidTransform
+	{
+	public:
+		Quaternion  Rotation;
+		Vector3		Translation;
+
+		RigidTransform()
+		{}
+
+		// Extract the Matrix Representation of this rigid transform
+		inline XMMATRIX TransformMatrix() const
+		{
+			XMMATRIX M = XMMatrixRotationQuaternion(Rotation);
+			XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, Translation, g_XMSelect1110.v);
+			M.r[3] = XMVectorAdd(M.r[3], VTranslation);
+			return M;
+		}
+
+		// Extract the Dual-Quaternion Representation of this rigid transform
+		inline XMDUALVECTOR TransformDualQuaternion() const
+		{
+			return XMDualQuaternionRotationTranslation(Rotation, Translation);
+		}
+
+		bool NearEqual(const RigidTransform& rhs, float tEpsilon = 0.002f, float rEpsilon = 0.5f) const
+		{
+			Vector3 PosDiff = Translation - rhs.Translation;
+			XMVECTOR RotDiff = Rotation;
+			RotDiff = XMQuaternionInverse(RotDiff);
+			RotDiff = XMQuaternionMultiply(RotDiff, rhs.Rotation);
+			float AngDiff = 2 * acosf(XMVectorGetW(RotDiff));
+			return (PosDiff.LengthSquared() <= tEpsilon*tEpsilon && AngDiff <= rEpsilon);
+		}
+	};
+
+	// Composition of Translation/Rotation/Scale
+	struct AffineTransform : public RigidTransform
+	{
+		static AffineTransform Identity()
+		{
+			return AffineTransform();
+		}
+
+		Vector3 Scale;
+
+		AffineTransform()
+			: Scale(1.0f)
+		{}
+
+		inline explicit AffineTransform(CXMMATRIX transform)
+		{
+			FromTransformMatrix(transform);
+		}
+
+		inline void XM_CALLCONV FromTransformMatrix(FXMMATRIX transform)
+		{
+			XMVECTOR scl, rot, tra;
+			XMMatrixDecompose(&scl, &rot, &tra, transform);
+			Scale = scl;
+			Rotation = rot;
+			Translation = tra;
+		}
+
+		inline XMMATRIX TransformMatrix() const
+		{
+			XMMATRIX M = XMMatrixScalingFromVector(Scale);
+			M *= XMMatrixRotationQuaternion(Rotation);
+			XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, Translation, g_XMSelect1110.v);
+			M.r[3] = XMVectorAdd(M.r[3], VTranslation);
+			return M;
+		}
+
+		explicit operator XMMATRIX() const
+		{
+			return TransformMatrix();
+		}
+	};
+
+
 	namespace BoundingFrustumExtension
 	{
 		inline void CreateFromMatrixRH(BoundingFrustum& Out, CXMMATRIX Projection)
@@ -1012,14 +1146,14 @@ namespace DirectX
 
 namespace std
 {
-	inline std::ostream& operator << (std::ostream& lhs, const DirectX::Vector2& rhs)
+	inline std::ostream& operator << (std::ostream& lhs, const DirectX::XMFLOAT2& rhs)
 	{
 		lhs << '(' << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.x
 			<< "," << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.y << ')';
 		return lhs;
 	};
 
-	inline std::ostream& operator << (std::ostream& lhs, const DirectX::Vector3& rhs)
+	inline std::ostream& operator << (std::ostream& lhs, const DirectX::XMFLOAT3& rhs)
 	{
 		lhs << '(' << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.x
 			<< "," << std::setw(6) << setiosflags(std::ios::fixed) << std::setprecision(3) << rhs.y

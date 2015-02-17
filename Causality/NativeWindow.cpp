@@ -327,7 +327,7 @@ void DebugConsole::Initialize(Platform::String ^ title, unsigned int width, unsi
 	if (!AllocConsole())
 		return;
 	HWND hWnd = GetConsoleWindow();
-	MoveWindow(hWnd, 1920, 800, width, height, 1);
+	MoveWindow(hWnd, 0, 0, width, height, TRUE);
 
 #pragma warning( push )
 #pragma warning( disable: 4996 )
