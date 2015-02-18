@@ -1,12 +1,13 @@
 #pragma once
 #include "Common\tree.h"
 #include "Common\DirectXMathExtend.h"
+#include "Common\BasicClass.h"
 #include <unordered_map>
 #include <memory>
 
-
 namespace Kinematics
 {
+	class SkeletonBase;
 
 	class BoneState
 	{
@@ -41,7 +42,7 @@ namespace Kinematics
 	};
 
 	// A Joint descript the structure information of a joint, the state information could be retrived by using it's ID
-	class Joint : public stree::tree_node<Joint,false>
+	class Joint : public stree::foward_tree_node<Joint,false>
 	{
 	public:
 		int ID; // The Index for this joint (&it's the bone ending with it)
@@ -59,7 +60,15 @@ namespace Kinematics
 		}
 	};
 
-	class StateFrame : std::vector<BoneState>
+	typedef double TimeScalarType;
+
+	struct AnimationFrame
+	{
+	public:
+		TimeScalarType Time;
+	};
+
+	class BoneAnimationFrame : public AnimationFrame, public std::vector<BoneState>
 	{
 	public:
 		typedef std::vector<BoneState> BaseType;
@@ -67,19 +76,19 @@ namespace Kinematics
 		using BaseType::operator=;
 		std::string Name;
 		// Which skeleton this state fram apply for
-		SkeletonBase* Skeleton;
+		SkeletonBase* TargetSkeleton;
 
-		// Interpolate the local-rotation and scaling
-		void CreateFromInterpolate(const StateFrame &lhs, const StateFrame &rhs, float t)
+		// Interpolate the local-rotation and scaling, "interpolate in Time"
+		void Interpolate(const BoneAnimationFrame &lhs, const BoneAnimationFrame &rhs, float t)
 		{
-			assert((Skeleton == lhs.Skeleton) && (lhs.Skeleton == rhs.Skeleton));
+			assert((TargetSkeleton == lhs.TargetSkeleton) && (lhs.TargetSkeleton == rhs.TargetSkeleton));
 			for (size_t i = 0; i < lhs.size(); i++)
 			{
 				(*this)[i].LocalOrientation = DirectX::XMQuaternionSlerp(lhs[i].LocalOrientation, rhs[i].LocalOrientation, t);
 				(*this)[i].Scaling = DirectX::XMVectorLerp(lhs[i].Scaling, rhs[i].Scaling, t);
-				if (Skeleton->ParentsMap[i] >= 0)
+				if (TargetSkeleton->ParentsMap[i] >= 0)
 				{
-					(*this)[i].UpdateGlobalData((*this)[Skeleton->ParentsMap[i]]);
+					(*this)[i].UpdateGlobalData((*this)[TargetSkeleton->ParentsMap[i]]);
 				}
 			}
 			//for (auto& joint : Skeleton->Root()->descendants())
@@ -90,39 +99,121 @@ namespace Kinematics
 			//}
 		}
 
+		// Blend Two Animation Frame, "Interpolate in Space"
+		void Blend(const BoneAnimationFrame &lhs, const BoneAnimationFrame &rhs, float* BlendWeights);
+
 		//void BlendMatrixFrom(DirectX::XMFLOAT3X4* pOut, const StateFrame &from)
 		//{
 
 		//}
 	};
 
-	template <typename FrameType, typename TimeScalarType = float>
-	class KeyframeAnimation
+	class LinearFrame
+	{};
+	class SpineFrame
+	{};
+	class DicredFrame
+	{};
+
+	class AnimationManager
+	{
+
+	};
+
+	class IFrameAnimation
+	{
+
+	};
+
+	class LinearWarp
+	{
+	public:
+		TimeScalarType operator()(TimeScalarType t)
+		{
+			return t;
+		}
+	};
+
+
+	// The underline resources of an animation, not for "Play" Control
+	// Handles Interpolations and warps in Time
+	template <typename FrameType>
+	class KeyframeAnimation : public IFrameAnimation
 	{
 	public:
 		std::vector<FrameType> KeyFrames;
 
+		// A function map : (BeginTime,EndTime) -> (BeginTime,EndTime),  that handels the easing effect between frames
+		// Restriction : TimeWarp(KeyFrameTime(i)) must equals to it self
+		std::function<TimeScalarType(TimeScalarType)> TimeWarpFunction;
+
 		// Frame operations
+	public:
 		bool InsertKeyFrame(TimeScalarType time, const FrameType& frame);
-		bool InsertKeyFrame(TimeScalarType time, FrameType&& frame);
+		//bool InsertKeyFrame(TimeScalarType time, FrameType&& frame);
 		bool InsertKeyFrame(int idx, const FrameType& frame);
-		bool InsertKeyFrame(int idx, FrameType&& frame);
+		//bool InsertKeyFrame(int idx, FrameType&& frame);
 		bool RemoveKeyFrame(int idx);
 		const FrameType& GetKeyFrame(int idx) const;
 		bool ReplaceKeyFrame(int idx, const FrameType& frame);
 		bool Clear();
 
-		// Time seeking
-		float CurrentTime() const;
-		float AdvanceTimeBy(TimeScalarType time);
-		float SeekTimeTo(TimeScalarType time);
-
+	public:
 		// Frame Retrival
-		const FrameType& CurrentFrame() const;
-		bool GetFrameAt(FrameType& outFrame, float time) const;
+		bool GetFrameAt(FrameType& outFrame, TimeScalarType time) const;
 
+	public:
 		// Optimization
-		bool PreInterpolateFrames(float frameRate);
+		bool PreInterpolateFrames(double frameRate);
+	};
+
+	enum AnimationPlayState
+	{
+		Stopped = 0,
+		Active = 1,
+		Paused = 2,
+	};
+
+	enum AnimationRepeatBehavior
+	{
+		NotRepeat = 0,
+		AlwaysRepeat = 1,
+	};
+
+	class StoryBoard
+	{
+	public:
+		// Play Control
+		void Begin();
+		void Stop();
+		void Pause();
+		void Resume();
+
+		// Play properties
+		AnimationRepeatBehavior GetRepeatBehavior() const;
+		void SetRepeatBehavior(AnimationRepeatBehavior behavior);
+
+		double GetSpeedRatio() const;
+		void SetSpeedRatio(double ratio) const;
+
+		// Timeline basic
+		TimeScalarType GetBeginTime() const;
+		void SetBeginTime(TimeScalarType time);
+		TimeScalarType GetEndTime() const;
+		void SetEndTime(TimeScalarType time);
+		TimeScalarType GetDuration();
+
+		// Time seeking
+		AnimationPlayState GetCurrentState() const;
+		TimeScalarType GetCurrentTime() const; // Shit! Name Collision with Windows Header!!! Dame te outdated C-style header!!!
+		void AdvanceTimeBy(TimeScalarType time);
+		void Seek(TimeScalarType time);
+
+		Platform::Fundation::TypedEvent<StoryBoard> Completed;
+
+		std::vector<IFrameAnimation*> ChildrenAnimation;
+	protected:
+		AnimationPlayState CurrentState;
 	};
 
 	class SkeletonBase
@@ -130,6 +221,11 @@ namespace Kinematics
 	public:
 		virtual ~SkeletonBase() {}
 		virtual Joint* at(int index) = 0;
+
+		// We say one Skeleton is compatiable with another Skeleton rhs
+		// if and only if rhs is a "base tree" of "this" in the sense of "edge shrink"
+		bool IsCompatiableWith(SkeletonBase* rhs) const;
+
 		const Joint* at(int index) const
 		{
 			return const_cast<Joint*>(const_cast<SkeletonBase*>(this)->at(index));
@@ -147,7 +243,7 @@ namespace Kinematics
 		{
 			return const_cast<Joint*>(const_cast<SkeletonBase*>(this)->Root());
 		}
-		StateFrame RestFrame;
+		BoneAnimationFrame RestFrame;
 		std::vector<int> ParentsMap;
 	};
 
@@ -188,4 +284,9 @@ namespace Kinematics
 	protected:
 		Joint* _root;
 	};
+
+	class SkeletonOverSkeleton
+	{
+	};
+
 }

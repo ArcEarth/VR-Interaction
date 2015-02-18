@@ -169,5 +169,5 @@ namespace Platform
 	//NOTE:I really, really tried to make this a template function, but got stuck in template hell and did not
 	//have time to make it work.  This is actually fairly robust, so we'll use it untill someone more familiar
 	//with Eigen has the time to sort this out. --WG
-#define ProjectVector(_outDim, data) data.block<_outDim,1>(0,0)
+	//#define ProjectVector(_outDim, data) data.block<_outDim,1>(0,0)
 }

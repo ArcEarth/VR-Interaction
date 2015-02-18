@@ -153,7 +153,7 @@ namespace Causality
 	};
 
 	// One problistic frame for current state
-	class WorldBranch : public stree::tree_node<WorldBranch, false>
+	class WorldBranch : public stree::foward_tree_node<WorldBranch, false>
 	{
 	public:
 

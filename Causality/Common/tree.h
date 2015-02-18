@@ -10,7 +10,7 @@ namespace stree
 	struct tree_node_relation_descants_ownership {};
 	struct tree_node_relation_no_decants_ownership {};
 	// Use and only it as the base of your tree node like:
-	// class Ty : public tree_node<Ty>
+	// class Ty : public foward_tree_node<Ty>
 
 	template <class _TItr>
 	class iterator_range
@@ -39,8 +39,9 @@ namespace stree
 	};
 
 
+	// Left-Child, Right-Sibling Method Storaged tree node base (Only 3 pointer overhaul for each node), efficent in memery usage, but bad in "upward traveling" or "reverse order tranveling"
 	template<typename _Ty, bool _DescendabtsOwnership = true>
-	class tree_node
+	class foward_tree_node
 	{
 	public:
 		typedef _Ty value_type;
@@ -59,7 +60,7 @@ namespace stree
 		// Physical parent node of this node in data structure
 		// May be Logical Parent or Prev Sibling
 		pointer _parent;
-		//		tree_node *_next;
+		//		foward_tree_node *_next;
 
 	private:
 		template <typename T>
@@ -74,15 +75,15 @@ namespace stree
 			pData = nullptr;
 		}
 
-	// Basic Properties
+		// Basic Properties
 	public:
 
-		tree_node()
+		foward_tree_node()
 			: _parent(nullptr), _sibling(nullptr), _child(nullptr)
 		{
 		}
 
-		~tree_node()
+		~foward_tree_node()
 		{
 			delete_s<_Ty>(_sibling);
 			delete_s<_Ty>(_child);
@@ -91,28 +92,28 @@ namespace stree
 #endif
 		}
 
-		tree_node(const tree_node& rhs)
-			: Entity(rhs.Entity), _parent(nullptr), _sibling(nullptr), _child(nullptr)
-		{
-			rhs.for_all_children([&](const tree_node& SrcNode)
-			{
-				tree_node *current = new tree_node(SrcNode);
-				this->_insert_as_child_back(current);
-			});
-		}
+		//foward_tree_node(const foward_tree_node& rhs)
+		//	: Entity(rhs.Entity), _parent(nullptr), _sibling(nullptr), _child(nullptr)
+		//{
+		//	rhs.for_all_children([&](const foward_tree_node& SrcNode)
+		//	{
+		//		foward_tree_node *current = new foward_tree_node(SrcNode);
+		//		this->_insert_as_child_back(current);
+		//	});
+		//}
 
-		tree_node& operator = (const tree_node& rhs)
+		foward_tree_node& operator = (const foward_tree_node& rhs)
 		{
 			this->Entity = rhs.Entity;
 			this->_parent = nullptr;
 			this->_sibling = nullptr;
-			rhs.for_all_children([&](tree_node& SrcNode)
+			rhs.for_all_children([&](foward_tree_node& SrcNode)
 			{
-				tree_node *current = new tree_node(SrcNode);
+				foward_tree_node *current = new foward_tree_node(SrcNode);
 				this->children_append_front(current);
 			});
 		}
-		tree_node& operator = (tree_node&& rhs)
+		foward_tree_node& operator = (foward_tree_node&& rhs)
 		{
 			this->_parent = rhs._parent;
 			this->_sibling = rhs._sibling;
@@ -172,7 +173,7 @@ namespace stree
 			return !_parent && _sibling;
 		}
 
-	// Iterators and Ranges
+		// Iterators and Ranges
 	public:
 
 		struct const_iterator_base
@@ -242,7 +243,7 @@ namespace stree
 			depth_first_iterator(void) {}
 
 			explicit depth_first_iterator(const pointer ptr)
-				: base_type(ptr){}
+				: base_type(ptr) {}
 
 			self_type operator ++(int) {
 				self_type other(current);
@@ -250,7 +251,7 @@ namespace stree
 				return other;
 			}
 
-			self_type& operator ++(){
+			self_type& operator ++() {
 				move_to_next();
 				return *this;
 			}
@@ -357,10 +358,10 @@ namespace stree
 				if (current->_child)
 				{
 					current = current->_child;
-					while(current->_child)
+					while (current->_child)
 						current = current->_child;
 				}
-				else 
+				else
 					move_to_next_from_this_subtree();
 			}
 
@@ -437,7 +438,7 @@ namespace stree
 
 			// Copy and bfs-iterator is expensive!
 			breadth_first_iterator(const self_type& rhs)
-				: base_type(ptr) , node_queue(rhs)
+				: base_type(ptr), node_queue(rhs)
 			{}
 
 			breadth_first_iterator(self_type&& rhs)
@@ -546,10 +547,10 @@ namespace stree
 				return *this;
 			}
 
-			reference operator * () const  {
+			reference operator * () const {
 				return *current;
 			}
-			pointer operator -> () const  {
+			pointer operator -> () const {
 				return current;
 			}
 
@@ -588,11 +589,11 @@ namespace stree
 		}
 
 		// Iterator though all it's direct children
-		const_sibling_iterator children_begin() const{
+		const_sibling_iterator children_begin() const {
 			return const_sibling_iterator(static_cast<const_pointer>(this)->_child);
 		}
 
-		const_sibling_iterator children_end() const{
+		const_sibling_iterator children_end() const {
 			return const_sibling_iterator(nullptr);
 		}
 		const_leaf_iterator leaves_begin() const
@@ -631,7 +632,7 @@ namespace stree
 		}
 		// breadth_first_iterator can self determine if it has meet the end
 		const_breadth_first_iterator breadth_first_begin() const {
-			return const_breadth_first_iterator(static_cast<const_pointer>(this),true);
+			return const_breadth_first_iterator(static_cast<const_pointer>(this), true);
 		}
 		// just an null-iterator
 		const_sibling_iterator breath_first_end() const {
@@ -641,11 +642,11 @@ namespace stree
 		// Mutable ranges
 
 		// iterator throught this and all it's "next" siblings 
-		mutable_sibling_iterator siblings_begin()  {
+		mutable_sibling_iterator siblings_begin() {
 			return mutable_sibling_iterator(static_cast<pointer>(this));
 		}
 
-		mutable_sibling_iterator siblings_end()  {
+		mutable_sibling_iterator siblings_end() {
 			return mutable_sibling_iterator(nullptr);
 		}
 		// List-like iterator over children
@@ -656,11 +657,11 @@ namespace stree
 		mutable_sibling_iterator children_end() {
 			return mutable_sibling_iterator(nullptr);
 		}
-		mutable_leaf_iterator leaves_begin() 
+		mutable_leaf_iterator leaves_begin()
 		{
 			return mutable_leaf_iterator::create_begin(static_cast<pointer>(this));
 		}
-		mutable_leaf_iterator leaves_end() 
+		mutable_leaf_iterator leaves_end()
 		{
 			return mutable_leaf_iterator::create_end(static_cast<pointer>(this));
 		}
@@ -691,11 +692,11 @@ namespace stree
 			return itr;
 		}
 		// breadth_first_iterator can self determine if it has meet the end
-		mutable_breadth_first_iterator breadth_first_begin()  {
+		mutable_breadth_first_iterator breadth_first_begin() {
 			return const_breadth_first_iterator(static_cast<pointer>(this), true);
 		}
 		// just an null-iterator
-		mutable_sibling_iterator breath_first_end()  {
+		mutable_sibling_iterator breath_first_end() {
 			return mutable_sibling_iterator(nullptr);
 		}
 
@@ -822,7 +823,8 @@ namespace stree
 			{
 				rptr->_sibling = this;
 				this->_parent = node;
-			} else {
+			}
+			else {
 				node->_parent = this->_parent;
 				rptr->_sibling = this;
 				if (this->_parent->_sibling == this)
@@ -834,4 +836,200 @@ namespace stree
 		}
 	};
 
+	// Each node contains Left-Sibling, Right-Sibling
+	template<typename _Ty, bool _DescendabtsOwnership = true>
+	class tree_node
+	{
+	public:
+		typedef _Ty value_type;
+		typedef value_type& reference;
+		typedef value_type* pointer;
+		typedef value_type const & const_reference;
+		typedef value_type const * const_pointer;
+
+	protected:
+		pointer _prev_sibling;
+		pointer _next_sibling;
+		// First child node
+		pointer _first_child;
+		pointer _last_child;
+		// Physical parent node of this node in data structure
+		// May be Logical Parent or Prev Sibling
+		pointer _parent;
+		//Properties
+	public:
+		tree_node()
+			: _prev_sibling(nullptr), _next_sibling(nullptr), _first_child(nullptr), _last_child(nullptr), _parent(nullptr)
+		{
+		}
+
+		~tree_node()
+		{
+		}
+
+		tree_node(const tree_node& rhs)
+			: Entity(rhs.Entity), _parent(nullptr), _sibling(nullptr), _child(nullptr)
+		{
+			rhs.for_all_children([&](const foward_tree_node& SrcNode)
+			{
+				foward_tree_node *current = new foward_tree_node(SrcNode);
+				this->_insert_as_child_back(current);
+			});
+		}
+
+		tree_node& operator = (const tree_node& rhs)
+		{
+			this->Entity = rhs.Entity;
+			this->_parent = nullptr;
+			this->_sibling = nullptr;
+			rhs.for_all_children([&](foward_tree_node& SrcNode)
+			{
+				foward_tree_node *current = new foward_tree_node(SrcNode);
+				this->children_append_front(current);
+			});
+		}
+		tree_node& operator = (tree_node&& rhs)
+		{
+			this->_parent = rhs._parent;
+			this->_sibling = rhs._sibling;
+		}
+
+		// Logical Parent for this node
+		const_pointer parent() const {
+			pointer p = this;
+			while (p->_parent && p->_parent->_child != p)
+				p = p->_parent;
+			return p->_parent;
+		}
+		// Logical Parent for this node
+		pointer parent() {
+			pointer = this;
+			while (p->_parent && p->_parent->_child != p)
+				p = p->_parent;
+			return p->_parent;
+		}
+
+		pointer next_sibling()
+		{
+			return _next_sibling;
+		}
+		const_pointer next_sibling() const
+		{
+			return _next_sibling;
+		}
+		pointer prev_sibling()
+		{
+			return _prev_sibling;
+		}
+		const_pointer prev_sibling() const
+		{
+			return _prev_sibling;
+		}
+
+		// check if the node is a LOGICAL root node of a tree
+		bool has_child() const { return _first_child; }
+		bool is_leaf() const { return !_first_child; }
+		// if this node is Logical Root
+		bool is_root() const {
+			return (!this->_parent);
+		}
+
+		// Modifiers
+	public:
+		// use this method to extract this node (and all of its sub node) as a sub-tree 
+		// and remove it from the oringinal parent
+		// this method ensure the rest of tree structure is not affected
+		void isolate() {
+		}
+
+		void append_child_front(pointer node)
+		{
+		}
+
+		void append_child_back(pointer node)
+		{
+		}
+
+		void insert_child_after(pointer place, pointer node)
+		{
+		}
+
+		pointer remove_child(pointer child)
+		{
+			child->isolate();
+			return child;
+		}
+
+
+		// Interators and ranges
+		public:
+			// iterator throught this and all it's "next" siblings 
+			const_sibling_iterator next_siblings_begin() const {
+				return const_sibling_iterator(static_cast<const_pointer>(this));
+			}
+
+			const_sibling_iterator next_siblings_end() const {
+				return const_sibling_iterator(nullptr);
+			}
+			// iterator throught this and all it's "next" siblings 
+			const_sibling_iterator prev_siblings_begin() const {
+				return const_sibling_iterator(static_cast<const_pointer>(this));
+			}
+
+			const_sibling_iterator prev_siblings_end() const {
+				return const_sibling_iterator(nullptr);
+			}
+
+			// Iterator though all it's direct children
+			const_sibling_iterator children_begin() const {
+				return const_sibling_iterator(static_cast<const_pointer>(this)->_child);
+			}
+
+			const_sibling_iterator children_end() const {
+				return const_sibling_iterator(nullptr);
+			}
+
+			const_leaf_iterator leaves_begin() const
+			{
+				return const_leaf_iterator::create_begin(static_cast<const_pointer>(this));
+			}
+			const_leaf_iterator leaves_end() const
+			{
+				return const_leaf_iterator::create_end(static_cast<const_pointer>(this));
+			}
+
+			const_depth_first_iterator descendants_begin() const {
+				return const_depth_first_iterator(static_cast<const_pointer>(this)->_child);
+			}
+
+			const_depth_first_iterator descendants_end() const {
+				return const_depth_first_iterator(static_cast<const_pointer>(this));
+			}
+			// breadth_first_iterator can self determine if it has meet the end
+			const_breadth_first_iterator descendants_breadth_first_begin() const {
+				return const_breadth_first_iterator(static_cast<const_pointer>(this)->_child);
+			}
+			// just an null-iterator
+			const_sibling_iterator descendants_breath_first_end() const {
+				return const_sibling_iterator(nullptr);
+			}
+			// Depth first begin iterator to all nodes inside this sub-tree
+			const_depth_first_iterator begin() const {
+				return const_depth_first_iterator(static_cast<const_pointer>(this));
+			}
+			// Depth first end iterator to all nodes inside this sub-tree
+			const_depth_first_iterator end() const {
+				auto itr = const_depth_first_iterator(static_cast<const_pointer>(this));
+				itr.move_to_next_from_this_subtree();
+				return itr;
+			}
+			// breadth_first_iterator can self determine if it has meet the end, iterate through sub-tree
+			const_breadth_first_iterator breadth_first_begin() const {
+				return const_breadth_first_iterator(static_cast<const_pointer>(this), true);
+			}
+			// just an null-iterator
+			const_sibling_iterator breath_first_end() const {
+				return const_sibling_iterator(nullptr);
+			}
+	};
 }

@@ -1,5 +1,5 @@
+#include <Kinect.h>
 #include "Kinect.h"
-
 using namespace Platform::Devices;
 
 JointType Kinect::JointsParent[JointType_Count]{
