@@ -1,7 +1,7 @@
 #pragma once
 #include "Common\DirectXMathExtend.h"
 #include <Leap.h>
-#include <Kinect.h>
+#include "Kinect.h"
 
 namespace Platform
 {
@@ -114,14 +114,9 @@ namespace Platform
 		virtual void OnHandsMove(const UserHandsEventArgs& e) = 0;
 	};
 
-	//class IUserHeadInteractive abstract
-	//{
-	//public:
-	//};
-
-	class IUserBodyInteractive abstract
+	class IUserPoseInteractive abstract
 	{
 	public:
-		virtual void OnBodyFrameUpdated(INT64 nTime, int nBodyCount, IBody** ppBodies);
+		virtual void OnPoseChanged(Devices::TrackedPlayer*);
 	};
 }

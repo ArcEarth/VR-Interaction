@@ -5,10 +5,11 @@
 #include <unordered_map>
 #include <memory>
 
-namespace Kinematics
+namespace Armatures
 {
-	class SkeletonBase;
+	class ArmatureBase;
 
+	// The "Dynamic" data for a bone
 	class BoneState
 	{
 	public:
@@ -76,7 +77,7 @@ namespace Kinematics
 		using BaseType::operator=;
 		std::string Name;
 		// Which skeleton this state fram apply for
-		SkeletonBase* TargetSkeleton;
+		ArmatureBase* TargetSkeleton;
 
 		// Interpolate the local-rotation and scaling, "interpolate in Time"
 		void Interpolate(const BoneAnimationFrame &lhs, const BoneAnimationFrame &rhs, float t)
@@ -216,19 +217,19 @@ namespace Kinematics
 		AnimationPlayState CurrentState;
 	};
 
-	class SkeletonBase
+	class ArmatureBase
 	{
 	public:
-		virtual ~SkeletonBase() {}
+		virtual ~ArmatureBase() {}
 		virtual Joint* at(int index) = 0;
 
 		// We say one Skeleton is compatiable with another Skeleton rhs
 		// if and only if rhs is a "base tree" of "this" in the sense of "edge shrink"
-		bool IsCompatiableWith(SkeletonBase* rhs) const;
+		bool IsCompatiableWith(ArmatureBase* rhs) const;
 
 		const Joint* at(int index) const
 		{
-			return const_cast<Joint*>(const_cast<SkeletonBase*>(this)->at(index));
+			return const_cast<Joint*>(const_cast<ArmatureBase*>(this)->at(index));
 		}
 		Joint* operator[](int idx)
 		{
@@ -241,14 +242,15 @@ namespace Kinematics
 		virtual Joint* Root() = 0;
 		Joint* Root() const
 		{
-			return const_cast<Joint*>(const_cast<SkeletonBase*>(this)->Root());
+			return const_cast<Joint*>(const_cast<ArmatureBase*>(this)->Root());
 		}
-		BoneAnimationFrame RestFrame;
+
+		BoneAnimationFrame RestFrame; // Should this one be here???????????
 		std::vector<int> ParentsMap;
 	};
 
 	// The Skeleton which won't change it's structure in runtime
-	class StaticSkeleton : public SkeletonBase
+	class StaticSkeleton : public ArmatureBase
 	{
 	public:
 		StaticSkeleton(size_t JointCount, int *JointsParentIndices);
@@ -256,7 +258,7 @@ namespace Kinematics
 		virtual Joint* at(int index) override {
 			return &Joints[index];
 		}
-		using SkeletonBase::operator[];
+		using ArmatureBase::operator[];
 
 	private:
 		std::vector<Joint> Joints;
@@ -264,7 +266,7 @@ namespace Kinematics
 
 	class DynamicSkeleton
 	{
-		void CopyFrom(SkeletonBase* pSkeleton);
+		void CopyFrom(ArmatureBase* pSkeleton);
 
 		void ChangeRoot(Joint* pNewRoot);
 		void RemoveJoint(unsigned int jointID);
