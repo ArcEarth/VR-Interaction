@@ -24,7 +24,7 @@ namespace Causality
 	typedef std::map<unsigned, std::vector<ProblistiscAffineTransform>> SuperpositionMap;
 
 	// One problistic frame for current state
-	class WorldBranch : public stree::foward_tree_node<WorldBranch, false>
+	class WorldBranch : public stdx::foward_tree_node<WorldBranch, false>
 	{
 	public:
 

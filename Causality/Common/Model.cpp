@@ -2,7 +2,7 @@
 #define NOMINMAX
 #include "Model.h"
 #include <string>
-#include "stride_iterator.h"
+#include "stride_range.h"
 #include <sstream>
 #include <WICTextureLoader.h>
 #include <DDSTextureLoader.h>
@@ -14,6 +14,7 @@
 using namespace DirectX::Scene;
 using namespace DirectX;
 using namespace std;
+using namespace stdx;
 using namespace boost::filesystem;
 
 void DirectX::Scene::Mesh::Draw(ID3D11DeviceContext *pContext) const

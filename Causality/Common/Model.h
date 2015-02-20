@@ -1,5 +1,5 @@
 #pragma once
-#include "stride_iterator.h"
+#include "stride_range.h"
 #include "DirectXHelper.h"
 #include "DXGIFormatHelper.h"
 #include <vector>
@@ -230,9 +230,9 @@ namespace DirectX
 		public:
 			std::vector<VertexPositionNormalTexture>			Vertices;
 			std::vector<FacetPrimitives::Triangle<uint16_t>>	Facets;
-			stride_range<Vector3>	Positions;
-			stride_range<Vector3>	Normals;
-			stride_range<Vector2>	TexCoords;
+			stdx::stride_range<Vector3>	Positions;
+			stdx::stride_range<Vector3>	Normals;
+			stdx::stride_range<Vector2>	TexCoords;
 		};
 
 	}

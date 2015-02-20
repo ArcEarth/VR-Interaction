@@ -19,12 +19,6 @@
     <Filter Include="DirectX">
       <UniqueIdentifier>{f24f9c7e-0490-4734-93ea-9aa8f494d0af}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Platform.Fundation">
-      <UniqueIdentifier>{8c285820-7e0b-4424-8e37-813bda8f91e4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Platform.Devices">
-      <UniqueIdentifier>{6ffe4126-f094-4295-adf6-79684fe63ecb}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\SkyBox">
       <UniqueIdentifier>{2a691754-e34e-4273-8bc7-b5354528fb65}</UniqueIdentifier>
     </Filter>
@@ -33,6 +27,15 @@
     </Filter>
     <Filter Include="DirectX\Extern">
       <UniqueIdentifier>{05dbf451-bb45-45f2-9739-0e29d673a86a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="StdX">
+      <UniqueIdentifier>{dc52f287-d8be-4f4f-abbf-c96965a4a763}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Platform\Platform.Devices">
+      <UniqueIdentifier>{6ffe4126-f094-4295-adf6-79684fe63ecb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Platform\Platform.Fundation">
+      <UniqueIdentifier>{8c285820-7e0b-4424-8e37-813bda8f91e4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -58,7 +61,7 @@
       <Filter>Platform</Filter>
     </ClCompile>
     <ClCompile Include="OculusRift.cpp">
-      <Filter>Platform.Devices</Filter>
+      <Filter>Platform\Platform.Devices</Filter>
     </ClCompile>
     <ClCompile Include="Content\CubeScene.cpp">
       <Filter>Source Files</Filter>
@@ -70,7 +73,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="LeapMotion.cpp">
-      <Filter>Platform.Devices</Filter>
+      <Filter>Platform\Platform.Devices</Filter>
     </ClCompile>
     <ClCompile Include="BulletPhysics.cpp">
       <Filter>Source Files</Filter>
@@ -115,10 +118,13 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Kinect.cpp">
-      <Filter>Platform.Devices</Filter>
+      <Filter>Platform\Platform.Devices</Filter>
     </ClCompile>
-    <ClCompile Include="Skeleton.cpp">
-      <Filter>Platform.Devices</Filter>
+    <ClCompile Include="TrackedPlayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Armature.cpp">
+      <Filter>Platform\Platform.Devices</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -129,10 +135,10 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\CompositeFlag.h">
-      <Filter>Platform.Fundation</Filter>
+      <Filter>Platform\Platform.Fundation</Filter>
     </ClInclude>
     <ClInclude Include="Common\BasicClass.h">
-      <Filter>Platform.Fundation</Filter>
+      <Filter>Platform\Platform.Fundation</Filter>
     </ClInclude>
     <ClInclude Include="NativeWindow.h">
       <Filter>Platform</Filter>
@@ -168,10 +174,10 @@
       <Filter>DirectX</Filter>
     </ClInclude>
     <ClInclude Include="OculusRift.h">
-      <Filter>Platform.Devices</Filter>
+      <Filter>Platform\Platform.Devices</Filter>
     </ClInclude>
     <ClInclude Include="Content\OculusDisortionRenderer.h">
-      <Filter>Platform.Devices</Filter>
+      <Filter>Platform\Platform.Devices</Filter>
     </ClInclude>
     <ClInclude Include="Content\CubeScene.h">
       <Filter>Header Files</Filter>
@@ -186,9 +192,6 @@
       <Filter>DirectX</Filter>
     </ClInclude>
     <ClInclude Include="Common\DirectXMathExtend.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\stride_iterator.h">
       <Filter>DirectX</Filter>
     </ClInclude>
     <ClInclude Include="Foregrounds.h">
@@ -213,7 +216,7 @@
       <Filter>DirectX</Filter>
     </ClInclude>
     <ClInclude Include="LeapMotion.h">
-      <Filter>Platform.Devices</Filter>
+      <Filter>Platform\Platform.Devices</Filter>
     </ClInclude>
     <ClInclude Include="Common\MetaBallModel.h">
       <Filter>DirectX</Filter>
@@ -251,9 +254,6 @@
     <ClInclude Include="PrimaryCamera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Common\tree.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="WorldTreeBranch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -261,10 +261,16 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Kinect.h">
-      <Filter>Platform.Devices</Filter>
+      <Filter>Platform\Platform.Devices</Filter>
     </ClInclude>
-    <ClInclude Include="Skeleton.h">
-      <Filter>Platform.Devices</Filter>
+    <ClInclude Include="Common\tree.h">
+      <Filter>StdX</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\stride_range.h">
+      <Filter>StdX</Filter>
+    </ClInclude>
+    <ClInclude Include="Armature.h">
+      <Filter>Platform\Platform.Devices</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -150,29 +150,30 @@ void Causality::App::OnIdle()
 {
 	// Processing & Distribute Extra Input
 	pLeap->PullFrame();
-	ComPtr<IBodyFrame> pBodyFrame;
-	HRESULT hr = pKinect->BodyFrameReader()->AcquireLatestFrame(&pBodyFrame);
-	if (SUCCEEDED(hr))
-	{
-		IBody *pBodys[6];
-		hr = pBodyFrame->GetAndRefreshBodyData(6, pBodys);
-		INT64 nTime = 0;
-		hr = pBodyFrame->get_RelativeTime(&nTime);
+	pKinect->ProcessFrame();
+	//ComPtr<IBodyFrame> pBodyFrame;
+	//HRESULT hr = pKinect->BodyFrameReader()->AcquireLatestFrame(&pBodyFrame);
+	//if (SUCCEEDED(hr))
+	//{
+	//	IBody *pBodys[6];
+	//	hr = pBodyFrame->GetAndRefreshBodyData(6, pBodys);
+	//	INT64 nTime = 0;
+	//	hr = pBodyFrame->get_RelativeTime(&nTime);
 
-		int count = 0;
-		while (pBodys[count] != nullptr && count < 6)
-			count++;
+	//	int count = 0;
+	//	while (pBodys[count] != nullptr && count < 6)
+	//		count++;
 
-		if (hr)
-			for (const auto& pComponent : Components)
-			{
-				auto pBodyInteractive = pComponent->As<IUserBodyInteractive>();
-				if (pBodyInteractive)
-				{
-					pBodyInteractive->OnBodyFrameUpdated(nTime, count, pBodys);
-				}
-			}
-	}
+	//	if (hr)
+	//		for (const auto& pComponent : Components)
+	//		{
+	//			auto pBodyInteractive = pComponent->As<IUserBodyInteractive>();
+	//			if (pBodyInteractive)
+	//			{
+	//				pBodyInteractive->OnBodyFrameUpdated(nTime, count, pBodys);
+	//			}
+	//		}
+	//}
 	// Time Aware update
 	m_timer.Tick([&]()
 	{
@@ -189,7 +190,7 @@ void Causality::App::OnIdle()
 		pRenderControl->SetView(view);
 		auto v = m_pPrimaryCamera->GetViewMatrix(view);
 		auto p = m_pPrimaryCamera->GetProjectionMatrix(view);
-		//RenderToView(v, p);
+		RenderToView(v, p);
 	}
 	pRenderControl->EndFrame();
 

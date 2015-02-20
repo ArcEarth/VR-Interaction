@@ -21,6 +21,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{E065D1
 		.nuget\packages.config = .nuget\packages.config
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConsoleUtility", "..\ConsoleUtility\ConsoleUtility.vcxproj", "{D1230A92-A36E-4BFF-AE03-D136BC25AC62}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -61,6 +63,12 @@ Global
 		{94240B48-9226-514F-B232-8D06AE1CD252}.Release|Win32.Build.0 = Release|Win32
 		{94240B48-9226-514F-B232-8D06AE1CD252}.Release|x64.ActiveCfg = Release|x64
 		{94240B48-9226-514F-B232-8D06AE1CD252}.Release|x64.Build.0 = Release|x64
+		{D1230A92-A36E-4BFF-AE03-D136BC25AC62}.Debug|Win32.ActiveCfg = Debug|Win32
+		{D1230A92-A36E-4BFF-AE03-D136BC25AC62}.Debug|Win32.Build.0 = Debug|Win32
+		{D1230A92-A36E-4BFF-AE03-D136BC25AC62}.Debug|x64.ActiveCfg = Debug|Win32
+		{D1230A92-A36E-4BFF-AE03-D136BC25AC62}.Release|Win32.ActiveCfg = Release|Win32
+		{D1230A92-A36E-4BFF-AE03-D136BC25AC62}.Release|Win32.Build.0 = Release|Win32
+		{D1230A92-A36E-4BFF-AE03-D136BC25AC62}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

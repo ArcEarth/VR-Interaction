@@ -9,7 +9,8 @@ namespace Armatures
 {
 	class ArmatureBase;
 
-	// The "Dynamic" data for a bone
+	// Pure pose and Dynamic data for a bone
+	// "Structure" information is not stored here
 	class BoneState
 	{
 	public:
@@ -23,11 +24,16 @@ namespace Armatures
 		DirectX::Vector3	EndPostion;
 		//DirectX::XMVECTOR EndJointPosition() const;
 
+		bool DirtyFlag;
+		// Update from Hirachy or Global
 		// FK Caculation
 		void UpdateGlobalData(const BoneState& refernece);
 		// Easy-IK Caculation with No-Yaw-Rotation-Constraint and bone length will be modified if the transform is not isometric
-		void SetGlobalPosition(const BoneState& reference);
-
+		void UpdateLocalDataByPositionOnly(const BoneState& reference);
+		// Assuming Global position & orientation is known
+		void UpdateLocalData(const BoneState& reference);
+	public:
+		// Static helper methods for caculate transform matrix
 		// Caculate the Transform Matrix from "FromState" to "ToState"
 		static DirectX::XMMATRIX TransformMatrix(const BoneState& from, const BoneState& to);
 		// Ingnore the Scaling transform, have better performence than TransformMatrix
@@ -42,8 +48,18 @@ namespace Armatures
 		JointConstraint_Hinge,
 	};
 
-	// A Joint descript the structure information of a joint, the state information could be retrived by using it's ID
-	class Joint : public stree::foward_tree_node<Joint,false>
+	struct JointData
+	{
+		int ID; // The Index for this joint (&it's the bone ending with it)
+		int ParentID;
+		std::string Name;
+		JointConstriantType ConstraintType;
+	};
+
+	// A Joint descript the structure information of a joint
+	// Also represent the "bone" "end" with it
+	// the state information could be retrived by using it's ID
+	class Joint : public stdx::foward_tree_node<Joint,false>
 	{
 	public:
 		int ID; // The Index for this joint (&it's the bone ending with it)
@@ -77,28 +93,10 @@ namespace Armatures
 		using BaseType::operator=;
 		std::string Name;
 		// Which skeleton this state fram apply for
-		ArmatureBase* TargetSkeleton;
+		ArmatureBase* TargetArmature;
 
 		// Interpolate the local-rotation and scaling, "interpolate in Time"
-		void Interpolate(const BoneAnimationFrame &lhs, const BoneAnimationFrame &rhs, float t)
-		{
-			assert((TargetSkeleton == lhs.TargetSkeleton) && (lhs.TargetSkeleton == rhs.TargetSkeleton));
-			for (size_t i = 0; i < lhs.size(); i++)
-			{
-				(*this)[i].LocalOrientation = DirectX::XMQuaternionSlerp(lhs[i].LocalOrientation, rhs[i].LocalOrientation, t);
-				(*this)[i].Scaling = DirectX::XMVectorLerp(lhs[i].Scaling, rhs[i].Scaling, t);
-				if (TargetSkeleton->ParentsMap[i] >= 0)
-				{
-					(*this)[i].UpdateGlobalData((*this)[TargetSkeleton->ParentsMap[i]]);
-				}
-			}
-			//for (auto& joint : Skeleton->Root()->descendants())
-			//{
-			//	auto pParent = joint.parent();
-			//	if (pParent)
-			//		(*this)[joint.ID].UpdateGlobalData((*this)[pParent->ID]);
-			//}
-		}
+		void Interpolate(const BoneAnimationFrame &lhs, const BoneAnimationFrame &rhs, float t);
 
 		// Blend Two Animation Frame, "Interpolate in Space"
 		void Blend(const BoneAnimationFrame &lhs, const BoneAnimationFrame &rhs, float* BlendWeights);
@@ -225,7 +223,11 @@ namespace Armatures
 
 		// We say one Skeleton is compatiable with another Skeleton rhs
 		// if and only if rhs is a "base tree" of "this" in the sense of "edge shrink"
-		bool IsCompatiableWith(ArmatureBase* rhs) const;
+		//bool IsCompatiableWith(ArmatureBase* rhs) const;
+		inline size_t size() const
+		{
+			return ParentsMap.size();
+		}
 
 		const Joint* at(int index) const
 		{
@@ -239,41 +241,42 @@ namespace Armatures
 		{
 			return at(idx);
 		}
-		virtual Joint* Root() = 0;
-		Joint* Root() const
+		virtual Joint* root() = 0;
+		const Joint* root() const
 		{
-			return const_cast<Joint*>(const_cast<ArmatureBase*>(this)->Root());
+			return const_cast<ArmatureBase*>(this)->root();
 		}
 
-		BoneAnimationFrame RestFrame; // Should this one be here???????????
+		std::vector<size_t> TopologyOrder;
 		std::vector<int> ParentsMap;
 	};
 
 	// The Skeleton which won't change it's structure in runtime
-	class StaticSkeleton : public ArmatureBase
+	class StaticArmature : public ArmatureBase
 	{
 	public:
-		StaticSkeleton(size_t JointCount, int *JointsParentIndices);
-		void GetBlendMatrices(_Out_ DirectX::XMFLOAT4X4* pOut);
-		virtual Joint* at(int index) override {
-			return &Joints[index];
-		}
+		StaticArmature(size_t JointCount, int *JointsParentIndices);
+		~StaticArmature();
+		//void GetBlendMatrices(_Out_ DirectX::XMFLOAT4X4* pOut);
+		virtual Joint* at(int index) override;
+		virtual Joint* root() override;
 		using ArmatureBase::operator[];
 
 	private:
+		size_t rootIdx;
 		std::vector<Joint> Joints;
 	};
 
-	class DynamicSkeleton
+	class DynamicArmature : public ArmatureBase
 	{
-		void CopyFrom(ArmatureBase* pSkeleton);
+		void CopyFrom(ArmatureBase* pSrc);
 
 		void ChangeRoot(Joint* pNewRoot);
 		void RemoveJoint(unsigned int jointID);
 		void RemoveJoint(Joint* pJoint);
 		void AppendJoint(Joint* pTargetJoint, Joint* pSrcJoint);
 
-		std::map<int, int> AppendSkeleton(Joint* pTargetJoint, DynamicSkeleton* pSkeleton, bool IsCoordinateRelative = false);
+		std::map<int, int> AppendSkeleton(Joint* pTargetJoint, DynamicArmature* pSkeleton, bool IsCoordinateRelative = false);
 
 		//  This method adjust Joint Index automaticly
 		// Anyway , lets just return the value since we have Rvalue && move sementic now
@@ -285,10 +288,6 @@ namespace Armatures
 
 	protected:
 		Joint* _root;
-	};
-
-	class SkeletonOverSkeleton
-	{
 	};
 
 }

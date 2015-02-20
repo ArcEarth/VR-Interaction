@@ -3,7 +3,7 @@
 //{
 //public:
 //	// Skeleton Structure and basic body parameter
-//	Kinematics::SkeletonBase* Skeleton;
+//	Kinematics::ArmatureBase* Skeleton;
 //
 //	// Current pose data
 //	Kinematics::BoneAnimationFrame CurrentFrame;

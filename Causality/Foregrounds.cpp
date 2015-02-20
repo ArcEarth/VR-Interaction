@@ -1543,7 +1543,7 @@ void Causality::WorldBranch::Recycle(std::unique_ptr<WorldBranch>&& pFrame)
 	BranchPool.push(std::move(pFrame));
 }
 
-inline void Causality::SkeletonModel::Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect)
-{
-	g_PrimitiveDrawer.DrawCylinder(Joints[0],Joints[1].Position)
-}
+//inline void Causality::SkeletonModel::Render(ID3D11DeviceContext * pContext, DirectX::IEffect * pEffect)
+//{
+//	g_PrimitiveDrawer.DrawCylinder(Joints[0],Joints[1].Position)
+//}

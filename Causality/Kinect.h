@@ -8,7 +8,7 @@
 #include <wrl\client.h>
 #include <memory>
 #include "Common\DirectXMathExtend.h"
-#include "Skeleton.h"
+#include "Armature.h"
 
 
 
@@ -16,17 +16,18 @@ namespace Platform
 {
 	namespace Devices
 	{
-#ifndef _HandEnum_
-#define _HandEnum_
-		enum _HandEnum
-		{
-			HandEnum_Left = 0,
-			HandEnum_Right = 1,
-			HandEnum_Count = HandEnum_Right + 1,
-		};
-		typedef _HandEnum HandEnum;
+#ifndef _HandType_
+#define _HandType_
+		typedef enum _HandType HandType;
 
-#endif // _HandEnum_
+
+		enum _HandType
+		{
+			HandType_NONE = 0,
+			HandType_LEFT = (HandType_NONE + 1),
+			HandType_RIGHT = (HandType_LEFT + 1)
+		};
+#endif // _HandType_
 #ifndef _HandState_
 #define _HandState_
 		typedef enum _HandState HandState;
@@ -81,25 +82,34 @@ namespace Platform
 		struct TrackedPlayer
 		{
 		public:
+			TrackedPlayer();
 			// Skeleton Structure and basic body parameter
-			Kinematics::SkeletonBase* Skeleton;
+			// Shared through all players since they have same structure
+			static std::unique_ptr<Armatures::ArmatureBase> PlayerArmature;
 
-			Kinematics::BoneAnimationFrame& RestFrame;
+			// Default pose data, should we use this ?
+			// Armatures::BoneAnimationFrame RestFrame;
+
 			// Current pose data
-			Kinematics::BoneAnimationFrame CurrentFrame;
+			Armatures::BoneAnimationFrame CurrentFrame;
 
 			// Hand States
-			HandState HandStates[HandEnum_Count];
+			HandState HandStates[2];
 
-			LONGLONG PlayerID;
+			uint64_t PlayerID;
 
 			bool IsCurrentTracked;
+
+			Platform::Fundation::Event<const TrackedPlayer&, HandType, HandState> OnHandStateChanged;
+			Platform::Fundation::Event<const TrackedPlayer&> OnPoseChanged;
 		};
 
 		// An aggregate of Kinect Resources
 		class Kinect
 		{
 		public:
+			~Kinect();
+
 			HRESULT Initalize();
 
 			bool IsConnected() const;
@@ -107,26 +117,21 @@ namespace Platform
 			// Player Event event interface!
 			Platform::Fundation::Event<const TrackedPlayer&> OnPlayerTracked;
 			Platform::Fundation::Event<const TrackedPlayer&> OnPlayerLost;
-			Platform::Fundation::Event<const TrackedPlayer&> OnPlayerPoseChanged;
-			Platform::Fundation::Event<const TrackedPlayer&, HandEnum, HandState> OnPlayerHandStateChanged;
+			//Platform::Fundation::Event<const TrackedPlayer&> OnPlayerPoseChanged;
+			//Platform::Fundation::Event<const TrackedPlayer&, HandEnum, HandState> OnPlayerHandStateChanged;
 
-			// Pull Interface!
-			bool HasNewFrame() const;
-			const std::list<TrackedPlayer*> &GetLatestFrame();
+			// Process frame and trigger the events
+			void ProcessFrame();
+
+			const std::map<uint64_t, TrackedPlayer*> &GetLatestPlayerFrame();
 
 			// Static Constructors!!!
-			static std::unique_ptr<Kinect> CreateDefault()
-			{
-				std::unique_ptr<Kinect> pKinect(new Kinect);
-				if (SUCCEEDED(pKinect->Initalize()))
-					return pKinect;
-				else
-					return nullptr;
-			}
+			static std::unique_ptr<Kinect> CreateDefault();
 		protected:
 
 			Kinect();
 
+		public:
 			static JointType JointsParent[JointType_Count];
 
 		private:

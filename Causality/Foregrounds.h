@@ -120,19 +120,19 @@ namespace Causality
 		DirectX::Color m_Color;
 	};
 
-	class SkeletonModel : public DirectX::Scene::IModelNode
-	{
-		virtual void Render(ID3D11DeviceContext *pContext, DirectX::IEffect* pEffect) override;
+	//class SkeletonModel : public DirectX::Scene::IModelNode
+	//{
+	//	virtual void Render(ID3D11DeviceContext *pContext, DirectX::IEffect* pEffect) override;
 
-		void Update(IBody* pBody)
-		{
-			pBody->GetJoints(25, Joints);
-		}
+	//	void Update(IBody* pBody)
+	//	{
+	//		pBody->GetJoints(25, Joints);
+	//	}
 
-	private:
-		Joint Joints[25];
-		std::array<DirectX::Quaternion,25> JointsOrientations;
-	};
+	//private:
+	//	Joint Joints[25];
+	//	std::array<DirectX::Quaternion,25> JointsOrientations;
+	//};
 
 	typedef std::map<std::string, std::vector<ProblistiscAffineTransform>> SuperpositionMap;
 
@@ -153,7 +153,7 @@ namespace Causality
 	};
 
 	// One problistic frame for current state
-	class WorldBranch : public stree::foward_tree_node<WorldBranch, false>
+	class WorldBranch : public stdx::foward_tree_node<WorldBranch, false>
 	{
 	public:
 
