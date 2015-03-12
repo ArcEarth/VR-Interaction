@@ -99,11 +99,11 @@ namespace Causality
 		void InitializePhysics(const std::shared_ptr<btDynamicsWorld> &pWorld, const std::shared_ptr<btCollisionShape>& pShape, float mass, const DirectX::Vector3 & Pos = DirectX::Vector3::Zero, const DirectX::Quaternion & Rot = DirectX::Quaternion::Identity);
 
 		// Inherited via IRigid
-		virtual const DirectX::Vector3 & GetPosition() const override;
+		virtual DirectX::Vector3 GetPosition() const override;
 		virtual void SetPosition(const DirectX::Vector3 & p) override;
-		virtual const DirectX::Quaternion & GetOrientation() const override;
+		virtual DirectX::Quaternion GetOrientation() const override;
 		virtual void SetOrientation(const DirectX::Quaternion & q) override;
-		virtual const DirectX::Vector3 & GetScale() const override;
+		virtual DirectX::Vector3 GetScale() const override;
 		virtual void SetScale(const DirectX::Vector3 & s) override;
 
 	protected:

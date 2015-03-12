@@ -1,5 +1,5 @@
 #pragma once
-#include "Common\BasicClass.h"
+#include "Common\bcl.h"
 #include <memory>
 #include "Common\Textures.h"
 #include "Common\DeviceResources.h"
@@ -39,6 +39,7 @@ namespace Platform
 			void EndFrame();
 			void SetView(DirectX::Scene::EyesEnum eye);
 
+			DirectX::RenderTarget& ViewTarget(DirectX::Scene::EyesEnum eye);
 			DirectX::RenderTargetTexture2D& EyeTexture(DirectX::Scene::EyesEnum eye);
 			DirectX::DepthStencilBuffer& DepthStencilBuffer();
 

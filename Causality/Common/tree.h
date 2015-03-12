@@ -1084,7 +1084,7 @@ namespace stdx
 		public:
 			typedef _TBase base_type;
 			typedef depth_first_iterator self_type;
-			typedef std::forward_iterator_tag iterator_category;
+			typedef std::bidirectional_iterator_tag iterator_category;
 		public:
 			depth_first_iterator(void) {}
 
@@ -1118,14 +1118,14 @@ namespace stdx
 				if (!current) return;
 				if (current->_first_child)
 					current = current->_first_child;
-				else if (current->_next_sibling) 
+				else if (current->_next_sibling)
 					current = current->_next_sibling;
 				else // move_to_next_from_this_subtree
 				{
 					while (current->_parent && !current->_parent->_next_sibling)
 						current = current->_parent;
 					if (current->_parent)
-						current = current->_parent->_next_sibling
+						current = current->_parent->_next_sibling;
 					else
 						current = nullptr;
 				}
@@ -1154,9 +1154,9 @@ namespace stdx
 					while (current->_parent && !current->_parent->_next_sibling)
 						current = current->_parent;
 					if (current->_parent)
-						current = current->_parent->_next_sibling
+						current = current->_parent->_next_sibling;
 					else
-					current = nullptr;
+						current = nullptr;
 				}
 			}
 		public:
@@ -1168,7 +1168,7 @@ namespace stdx
 			{
 				self_type itr(ptr);
 				itr.move_to_next_from_this_subtree();
-				return end;
+				return itr;
 			}
 			static inline self_type create_rbegin(const pointer ptr)
 			{
@@ -1241,6 +1241,7 @@ namespace stdx
 				node_queue = rhs;
 				current = rhs.current;
 			}
+
 			self_type& operator=(self_type&& rhs)
 			{
 				node_queue = std::move(rhs);
@@ -1366,76 +1367,175 @@ namespace stdx
 			}
 		};
 
+		typedef depth_first_iterator<mutable_iterator_base>		mutable_depth_first_iterator;
+		typedef breadth_first_iterator<mutable_iterator_base>	mutable_breadth_first_iterator;
+		typedef sibling_iterator<mutable_iterator_base>			mutable_sibling_iterator;
+		typedef depth_first_iterator<const_iterator_base>		const_depth_first_iterator;
+		typedef breadth_first_iterator<const_iterator_base>		const_breadth_first_iterator;
+		typedef sibling_iterator<const_iterator_base>			const_sibling_iterator;
+
+		typedef const_depth_first_iterator const_iterator;
+		typedef mutable_depth_first_iterator iterator;
 
 		//// Interators and ranges
-		//public:
-		//	// iterator throught this and all it's "next" siblings 
-		//	const_sibling_iterator next_siblings_begin() const {
-		//		return const_sibling_iterator(static_cast<const_pointer>(this));
-		//	}
+	public:
+		// iterator throught this and all it's "next" siblings 
+		const_sibling_iterator next_siblings_begin() const {
+			return const_sibling_iterator(static_cast<const_pointer>(this));
+		}
 
-		//	const_sibling_iterator next_siblings_end() const {
-		//		return const_sibling_iterator(nullptr);
-		//	}
-		//	// iterator throught this and all it's "next" siblings 
-		//	const_sibling_iterator prev_siblings_begin() const {
-		//		return const_sibling_iterator(static_cast<const_pointer>(this));
-		//	}
+		const_sibling_iterator next_siblings_end() const {
+			return const_sibling_iterator(nullptr);
+		}
+		// iterator throught this and all it's "next" siblings 
+		const_sibling_iterator prev_siblings_begin() const {
+			return const_sibling_iterator(static_cast<const_pointer>(this));
+		}
 
-		//	const_sibling_iterator prev_siblings_end() const {
-		//		return const_sibling_iterator(nullptr);
-		//	}
+		const_sibling_iterator prev_siblings_end() const {
+			return const_sibling_iterator(nullptr);
+		}
+		// Iterator though all it's direct children
+		const_sibling_iterator children_begin() const {
+			return const_sibling_iterator(static_cast<const_pointer>(this)->_child);
+		}
 
-		//	// Iterator though all it's direct children
-		//	const_sibling_iterator children_begin() const {
-		//		return const_sibling_iterator(static_cast<const_pointer>(this)->_child);
-		//	}
+		const_sibling_iterator children_end() const {
+			return const_sibling_iterator(nullptr);
+		}
+		// Iterator all descendants nodes in this sub-tree
+		const_depth_first_iterator descendants_begin() const {
+			return const_depth_first_iterator(static_cast<const_pointer>(this)->_child);
+		}
 
-		//	const_sibling_iterator children_end() const {
-		//		return const_sibling_iterator(nullptr);
-		//	}
+		const_depth_first_iterator descendants_end() const {
+			return const_depth_first_iterator::create_end(static_cast<const_pointer>(this));
+		}
+		// breadth_first_iterator can self determine if it has meet the end
+		const_breadth_first_iterator descendants_breadth_first_begin() const {
+			return const_breadth_first_iterator(static_cast<const_pointer>(this)->_child);
+		}
+		// just an null-iterator
+		const_sibling_iterator descendants_breadth_first_end() const {
+			return const_sibling_iterator(nullptr);
+		}
+		// Depth first begin iterator to all nodes inside this sub-tree
+		const_depth_first_iterator nodes_begin() const {
+			return const_depth_first_iterator(static_cast<const_pointer>(this));
+		}
+		// Depth first end iterator to all nodes inside this sub-tree
+		const_depth_first_iterator nodes_end() const {
+			auto itr = const_depth_first_iterator::create_end(static_cast<const_pointer>(this));
+		}
+		// breadth_first_iterator can self determine if it has meet the end, iterate through sub-tree
+		const_breadth_first_iterator nodes_breadth_first_begin() const {
+			return const_breadth_first_iterator(static_cast<const_pointer>(this), true);
+		}
+		// just an null-iterator
+		const_sibling_iterator nodes_breadth_first_end() const {
+			return const_sibling_iterator(nullptr);
+		}
 
-		//	const_leaf_iterator leaves_begin() const
-		//	{
-		//		return const_leaf_iterator::create_begin(static_cast<const_pointer>(this));
-		//	}
-		//	const_leaf_iterator leaves_end() const
-		//	{
-		//		return const_leaf_iterator::create_end(static_cast<const_pointer>(this));
-		//	}
+		// Mutable ranges
 
-		//	const_depth_first_iterator descendants_begin() const {
-		//		return const_depth_first_iterator(static_cast<const_pointer>(this)->_child);
-		//	}
+		// iterator throught this and all it's "next" siblings 
+		mutable_sibling_iterator siblings_begin() {
+			return mutable_sibling_iterator(static_cast<pointer>(this));
+		}
 
-		//	const_depth_first_iterator descendants_end() const {
-		//		return const_depth_first_iterator(static_cast<const_pointer>(this));
-		//	}
-		//	// breadth_first_iterator can self determine if it has meet the end
-		//	const_breadth_first_iterator descendants_breadth_first_begin() const {
-		//		return const_breadth_first_iterator(static_cast<const_pointer>(this)->_child);
-		//	}
-		//	// just an null-iterator
-		//	const_sibling_iterator descendants_breath_first_end() const {
-		//		return const_sibling_iterator(nullptr);
-		//	}
-		//	// Depth first begin iterator to all nodes inside this sub-tree
-		//	const_depth_first_iterator begin() const {
-		//		return const_depth_first_iterator(static_cast<const_pointer>(this));
-		//	}
-		//	// Depth first end iterator to all nodes inside this sub-tree
-		//	const_depth_first_iterator end() const {
-		//		auto itr = const_depth_first_iterator(static_cast<const_pointer>(this));
-		//		itr.move_to_next_from_this_subtree();
-		//		return itr;
-		//	}
-		//	// breadth_first_iterator can self determine if it has meet the end, iterate through sub-tree
-		//	const_breadth_first_iterator breadth_first_begin() const {
-		//		return const_breadth_first_iterator(static_cast<const_pointer>(this), true);
-		//	}
-		//	// just an null-iterator
-		//	const_sibling_iterator breath_first_end() const {
-		//		return const_sibling_iterator(nullptr);
-		//	}
+		mutable_sibling_iterator siblings_end() {
+			return mutable_sibling_iterator(nullptr);
+		}
+		// List-like iterator over children
+		mutable_sibling_iterator children_begin() {
+			return mutable_sibling_iterator(static_cast<pointer>(this)->_child);
+		}
+		// List-like iterator over children
+		mutable_sibling_iterator children_end() {
+			return mutable_sibling_iterator(nullptr);
+		}
+		// Depth first descendants begin iterator
+		mutable_depth_first_iterator descendants_begin() {
+			return mutable_depth_first_iterator(static_cast<pointer>(this)->_child);
+		}
+		// Depth first descendants end iterator
+		mutable_depth_first_iterator descendants_end() {
+			return mutable_depth_first_iterator::create_end(static_cast<pointer>(this));
+		}
+		// Breadth first descendants iterator can self determine if it has meet the end
+		mutable_breadth_first_iterator descendants_breadth_first_begin() {
+			return mutable_breadth_first_iterator(static_cast<pointer>(this)->_child);
+		}
+		// just an null-iterator
+		mutable_sibling_iterator descendants_breadth_first_end() {
+			return mutable_sibling_iterator(nullptr);
+		}
+		// begin iterator to all nodes inside this sub-tree
+		mutable_depth_first_iterator nodes_begin() {
+			return mutable_depth_first_iterator(static_cast<pointer>(this));
+		}
+		// end iterator to all nodes inside this sub-tree
+		mutable_depth_first_iterator nodes_end() {
+			return mutable_depth_first_iterator::create_end(static_cast<pointer>(this));
+		}
+		// breadth_first_iterator can self determine if it has meet the end
+		mutable_breadth_first_iterator nodes_breadth_first_begin() {
+			return const_breadth_first_iterator(static_cast<pointer>(this), true);
+		}
+		// just an null-iterator
+		mutable_sibling_iterator nodes_breadth_first_end() {
+			return mutable_sibling_iterator(nullptr);
+		}
+
+		iterator_range<const_sibling_iterator>
+			children() const
+		{
+			return iterator_range<const_sibling_iterator>(children_begin(), children_end());
+		}
+		iterator_range<const_depth_first_iterator>
+			nodes() const
+		{
+			return iterator_range<const_depth_first_iterator>(nodes_begin(), nodes_end());
+		}
+		iterator_range<const_depth_first_iterator>
+			descendants() const
+		{
+			return iterator_range<const_depth_first_iterator>(descendants_begin(), descendants_end());
+		}
+		iterator_range<const_depth_first_iterator>
+			nodes_breadth_first() const
+		{
+			return iterator_range<const_depth_first_iterator>(nodes_breadth_first_begin(), nodes_breadth_first_end());
+		}
+		iterator_range<const_depth_first_iterator>
+			descendants_breadth_first() const
+		{
+			return iterator_range<const_depth_first_iterator>(descendants_breadth_first_begin(), descendants_breadth_first_end());
+		}
+		iterator_range<mutable_sibling_iterator>
+			children()
+		{
+			return iterator_range<mutable_sibling_iterator>(children_begin(), children_end());
+		}
+		iterator_range<mutable_depth_first_iterator>
+			nodes()
+		{
+			return iterator_range<mutable_depth_first_iterator>(nodes_begin(), nodes_end());
+		}
+		iterator_range<mutable_depth_first_iterator>
+			descendants()
+		{
+			return iterator_range<mutable_depth_first_iterator>(descendants_begin(), descendants_end());
+		}
+		iterator_range<mutable_depth_first_iterator>
+			nodes_breadth_first()
+		{
+			return iterator_range<mutable_depth_first_iterator>(nodes_breadth_first_begin(), nodes_breadth_first_end());
+		}
+		iterator_range<mutable_depth_first_iterator>
+			descendants_breadth_first()
+		{
+			return iterator_range<mutable_depth_first_iterator>(descendants_breadth_first_begin(), descendants_breadth_first_end());
+		}
 	};
 }

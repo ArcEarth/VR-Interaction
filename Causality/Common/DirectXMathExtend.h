@@ -21,8 +21,6 @@
 #include <SimpleMath.h>
 #include <smmintrin.h>
 #include <type_traits>
-#include <Eigen\Dense>
-#include <Eigen\Sparse>
 #include <boost\operators.hpp>
 
 #ifndef XM_ALIGN16
@@ -30,10 +28,6 @@
 #endif
 namespace DirectX
 {
-	using VectorX = Eigen::VectorXf;
-	template <int _Rows, int _Columns>
-	using Matrix = Eigen::Matrix<float, _Rows, _Columns>;
-
 	namespace AlignedVector
 	{
 		XM_ALIGN16
@@ -928,6 +922,25 @@ namespace DirectX
 			return M;
 		}
 
+		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
+		{
+			XMVECTOR scl, rot, tra;
+			XMMatrixDecompose(&scl, &rot, &tra, transform);
+			Rotation = rot;
+			Translation = tra;
+		}
+
+		template <typename _TTransform>
+		RigidTransform& operator *=(const _TTransform& transform)
+		{
+			XMMATRIX mat = TransformMatrix();
+			XMMATRIX mat2 = transform.TransformMatrix();
+			mat *= mat2;
+			SetFromTransformMatrix(mat);
+			return *this;
+		}
+
+
 		// Extract the Dual-Quaternion Representation of this rigid transform
 		inline XMDUALVECTOR TransformDualQuaternion() const
 		{
@@ -961,16 +974,26 @@ namespace DirectX
 
 		inline explicit AffineTransform(CXMMATRIX transform)
 		{
-			FromTransformMatrix(transform);
+			SetFromTransformMatrix(transform);
 		}
 
-		inline void XM_CALLCONV FromTransformMatrix(FXMMATRIX transform)
+		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
 		{
 			XMVECTOR scl, rot, tra;
 			XMMatrixDecompose(&scl, &rot, &tra, transform);
 			Scale = scl;
 			Rotation = rot;
 			Translation = tra;
+		}
+
+		template <typename _TTransform>
+		AffineTransform& operator *=(const _TTransform& transform)
+		{
+			XMMATRIX mat = TransformMatrix();
+			XMMATRIX mat2 = transform.TransformMatrix();
+			mat *= mat2;
+			SetFromTransformMatrix(mat);
+			return *this;
 		}
 
 		inline XMMATRIX TransformMatrix() const
@@ -988,6 +1011,41 @@ namespace DirectX
 		}
 	};
 
+	struct MatrixTransform : public Matrix4x4
+	{
+		using Matrix4x4::operator();
+		using Matrix4x4::operator+=;
+		using Matrix4x4::operator-=;
+		using Matrix4x4::operator*=;
+		using Matrix4x4::operator/=;
+		using Matrix4x4::operator-;
+		using Matrix4x4::operator DirectX::XMMATRIX;
+
+		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
+		{
+			*this = transform;
+		}
+
+		MatrixTransform& operator=(const Matrix4x4& rhs)
+		{
+			Matrix4x4::operator=(rhs);
+		}
+
+		template <typename _TTransform>
+		MatrixTransform& operator *=(const _TTransform& transform)
+		{
+			XMMATRIX mat = TransformMatrix();
+			XMMATRIX mat2 = transform.TransformMatrix();
+			mat *= mat2;
+			SetFromTransformMatrix(mat);
+			return *this;
+		}
+
+		inline XMMATRIX TransformMatrix() const
+		{
+			return XMLoadFloat4x4(this);
+		}
+	};
 
 	namespace BoundingFrustumExtension
 	{
@@ -1070,14 +1128,14 @@ namespace DirectX
 		{
 			XMVECTOR s = s1 - s0;
 			XMVECTOR v = p - s0;
-			XMVECTOR Ps = XMVector3Dot(v, s);
+			XMVECTOR Ps = SSE4::XMVector3Dot(v, s);
 
 			//p-s0 is the shortest distance
 			//if (Ps<=0.0f) 
 			//	return s0;
-			if (XMVector4LessOrEqual(Ps, g_XMZero))
+			if (XMVector4LessOrEqual(Ps, g_XMZero.v))
 				return s0;
-			XMVECTOR Ds = XMVector3LengthSq(s);
+			XMVECTOR Ds = SSE4::XMVector3LengthSq(s);
 			//p-s1 is the shortest distance
 			//if (Ps>Ds) 	
 			//	return s1;
@@ -1087,54 +1145,111 @@ namespace DirectX
 			return (s * (Ps / Ds)) + s0;
 		}
 
-		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, XMFLOAT3A *path, size_t nPoint)
+		//inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, XMFLOAT3A *path, size_t nPoint)
+		//{
+		//	const auto N = nPoint;
+		//	XMVECTOR vBegin = XMLoadFloat3A(path);
+		//	XMVECTOR vEnd = XMLoadFloat3A(path + 1);
+		//	XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
+		//	XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
+		//	vBegin = vEnd;
+
+		//	for (size_t i = 2; i < N - 1; i++)
+		//	{
+		//		vEnd = XMLoadFloat3A(path + i);
+		//		XMVECTOR vProj = Projection(p, vBegin, vEnd);
+		//		XMVECTOR vDis = XMVector3LengthSq(p - vProj);
+		//		if (XMVector4LessOrEqual(vDis, vMinDis))
+		//		{
+		//			vMinDis = vDis;
+		//			vMinProj = vProj;
+		//		}
+		//		vBegin = vEnd;
+		//	}
+
+		//	return vMinProj;
+		//}
+
+		//inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, XMFLOAT3 *path, size_t nPoint)
+		//{
+		//	const auto N = nPoint;
+		//	XMVECTOR vBegin = XMLoadFloat3(path);
+		//	XMVECTOR vEnd = XMLoadFloat3(path + 1);
+		//	XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
+		//	XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
+		//	vBegin = vEnd;
+
+		//	for (size_t i = 2; i < N - 1; i++)
+		//	{
+		//		vEnd = XMLoadFloat3(path + i);
+		//		XMVECTOR vProj = Projection(p, vBegin, vEnd);
+		//		XMVECTOR vDis = XMVector3LengthSq(p - vProj);
+		//		if (XMVector4LessOrEqual(vDis, vMinDis))
+		//		{
+		//			vMinDis = vDis;
+		//			vMinProj = vProj;
+		//		}
+		//		vBegin = vEnd;
+		//	}
+
+		//	return vMinProj;
+		//}
+
+		template <typename T>
+		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, const T *path, size_t nPoint, size_t strideInByte = sizeof(T))
 		{
-			const auto N = nPoint;
-			XMVECTOR vBegin = XMLoadFloat3A(path);
-			XMVECTOR vEnd = XMLoadFloat3A(path + 1);
-			XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
-			XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
-			vBegin = vEnd;
-
-			for (size_t i = 2; i < N - 1; i++)
+			if (!(strideInByte % 16) && !(reinterpret_cast<intptr_t>(path) & 0x16))
 			{
-				vEnd = XMLoadFloat3A(path + i);
-				XMVECTOR vProj = Projection(p, vBegin, vEnd);
-				XMVECTOR vDis = XMVector3LengthSq(p - vProj);
-				if (XMVector4LessOrEqual(vDis, vMinDis))
-				{
-					vMinDis = vDis;
-					vMinProj = vProj;
-				}
+				const auto N = nPoint;
+				auto p = reinterpret_cast<const char*>(path) + strideInByte;
+				XMVECTOR vBegin = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(path));
+				XMVECTOR vEnd = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(p));
+				XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
+				XMVECTOR vMinDis = SSE4::XMVector3LengthSq(p - vMinProj);
 				vBegin = vEnd;
+
+				for (size_t i = 2; i < N - 1; i++)
+				{
+					p += strideInByte;
+					vEnd = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(path));
+					XMVECTOR vProj = Projection(p, vBegin, vEnd);
+					XMVECTOR vDis = SSE4::XMVector3LengthSq(p - vProj);
+					if (XMVector4LessOrEqual(vDis, vMinDis))
+					{
+						vMinDis = vDis;
+						vMinProj = vProj;
+					}
+					vBegin = vEnd;
+				}
+
+				return vMinProj;
 			}
-
-			return vMinProj;
-		}
-
-		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, XMFLOAT3 *path, size_t nPoint)
-		{
-			const auto N = nPoint;
-			XMVECTOR vBegin = XMLoadFloat3(path);
-			XMVECTOR vEnd = XMLoadFloat3(path + 1);
-			XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
-			XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
-			vBegin = vEnd;
-
-			for (size_t i = 2; i < N - 1; i++)
+			else
 			{
-				vEnd = XMLoadFloat3(path + i);
-				XMVECTOR vProj = Projection(p, vBegin, vEnd);
-				XMVECTOR vDis = XMVector3LengthSq(p - vProj);
-				if (XMVector4LessOrEqual(vDis, vMinDis))
-				{
-					vMinDis = vDis;
-					vMinProj = vProj;
-				}
+				const auto N = nPoint;
+				XMVECTOR vBegin = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(path));
+				XMVECTOR vEnd = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(p));
+				XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
+				XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
 				vBegin = vEnd;
-			}
 
-			return vMinProj;
+				auto p = reinterpret_cast<const char*>(path) + strideInByte;
+				for (size_t i = 2; i < N - 1; i++)
+				{
+					p += strideInByte;
+					vEnd = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(path));
+					XMVECTOR vProj = Projection(p, vBegin, vEnd);
+					XMVECTOR vDis = XMVector3LengthSq(p - vProj);
+					if (XMVector4LessOrEqual(vDis, vMinDis))
+					{
+						vMinDis = vDis;
+						vMinProj = vProj;
+					}
+					vBegin = vEnd;
+				}
+
+				return vMinProj;
+			}
 		}
 	}
 }

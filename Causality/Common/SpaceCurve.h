@@ -53,4 +53,5 @@ namespace Geometrics
 		// The data we stored is actually aligned on 16-byte boundary , so , use it as a XMFLOAT4A
 		std::vector<XMFLOAT4A, DirectX::AlignedAllocator<XMFLOAT4A>> Anchors;
 	};
+
 }

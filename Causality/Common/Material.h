@@ -3,11 +3,13 @@
 #include <vector>
 #include <wrl\client.h>
 #include <memory>
+#include "Textures.h"
 
 namespace DirectX
 {
 	namespace Scene
 	{
+		// Abstraction for the requirement about Pixel shader process
 		class IMaterial abstract
 		{
 		public:

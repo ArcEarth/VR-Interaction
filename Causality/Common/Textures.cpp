@@ -1,3 +1,4 @@
+#include "pch_directX.h"
 #include "Textures.h"
 #include "DirectXHelper.h"
 #include "DXGIFormatHelper.h"
@@ -10,13 +11,13 @@
 using namespace DirectX;
 using namespace std;
 
-ITexture::ITexture(ITexture&& Src)
+Texture::Texture(Texture&& Src)
 	: m_pResource(std::move(Src.m_pResource))
 	, m_pShaderResourceView(std::move(Src.ShaderResourceView()))
 {
 }
 
-ITexture& ITexture::operator = (ITexture&& Src)
+Texture& Texture::operator = (Texture&& Src)
 {
 	m_pResource = std::move(Src.m_pResource);
 	m_pShaderResourceView = std::move(Src.ShaderResourceView());
@@ -24,7 +25,7 @@ ITexture& ITexture::operator = (ITexture&& Src)
 }
 
 Texture2D::Texture2D(Texture2D &&Src)
-	:ITexture(std::move(Src))
+	:DirectX::Texture(std::move(static_cast<DirectX::Texture&>(Src)))
 	, m_pTexture(std::move(Src.m_pTexture))
 	, m_TextureDescription(Src.m_TextureDescription)
 {
@@ -32,7 +33,7 @@ Texture2D::Texture2D(Texture2D &&Src)
 
 Texture2D& Texture2D::operator = (Texture2D &&Src)
 {
-	ITexture::operator=(std::move(Src));
+	Texture::operator=(std::move(Src));
 	m_pTexture = Src.m_pTexture;
 	m_TextureDescription = Src.m_TextureDescription;
 	return *this;
@@ -220,10 +221,16 @@ DepthStencilBuffer::DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width
 	DirectX::ThrowIfFailed(hr);
 }
 
-ITexture::ITexture()
+Texture::Texture()
 {}
 
-ITexture::~ITexture()
+DirectX::Texture::Texture(ID3D11Resource * pResource, ID3D11ShaderResourceView * pResourceView)
+{
+	m_pResource = pResource;
+	m_pShaderResourceView = pResourceView;
+}
+
+Texture::~Texture()
 {}
 
 Texture2D::Texture2D()
@@ -240,7 +247,7 @@ RenderTargetTexture2D::~RenderTargetTexture2D()
 DepthStencilBuffer::~DepthStencilBuffer()
 {}
 
-std::unique_ptr<ITexture> ITexture::CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName,
+Texture Texture::CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName,
 	_In_opt_ size_t maxsize,
 	_In_opt_ D3D11_USAGE usage,
 	_In_opt_ unsigned int bindFlags,
@@ -259,6 +266,14 @@ std::unique_ptr<ITexture> ITexture::CreateFromDDSFile(_In_ ID3D11Device* pDevice
 	if (exName == L"DDS")
 	{
 		hr = DirectX::CreateDDSTextureFromFileEx(pDevice, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &pResource, &pView);
+
+		// It's an cube texture
+		if (miscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE)
+		{
+			CubeTexture texture(pResource, pView);
+			return texture;
+		}
+
 		D3D11_RESOURCE_DIMENSION dimension;
 		pResource->GetType(&dimension);
 
@@ -268,12 +283,11 @@ std::unique_ptr<ITexture> ITexture::CreateFromDDSFile(_In_ ID3D11Device* pDevice
 			break;
 		case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
 		{
-			Texture2D* pTexture2D = new Texture2D(pResource, pView);
+			Texture2D texture2D (pResource, pView);
 			pResource->Release();
 			pView->Release();
-			return unique_ptr<ITexture>(pTexture2D);
+			return texture2D;
 		}
-
 			break;
 		case D3D11_RESOURCE_DIMENSION_TEXTURE3D:
 			break;
@@ -286,13 +300,13 @@ std::unique_ptr<ITexture> ITexture::CreateFromDDSFile(_In_ ID3D11Device* pDevice
 	return nullptr;
 }
 
-void ITexture::SaveAsDDSFile(_In_ ID3D11DeviceContext *pDeviceContext, _In_z_ const wchar_t* szFileName)
+void Texture::SaveAsDDSFile(_In_ ID3D11DeviceContext *pDeviceContext, _In_z_ const wchar_t* szFileName)
 {
 	HRESULT hr = SaveDDSTextureToFile(pDeviceContext, m_pResource.Get(), szFileName);
 	ThrowIfFailed(hr);
 }
 
-std::unique_ptr<Texture2D> Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevice,
+Texture2D Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevice,
 	_In_ ID3D11DeviceContext* pDeviceContext,
 	_In_z_ const wchar_t* szFileName,
 	_In_opt_ size_t maxsize,
@@ -307,18 +321,18 @@ std::unique_ptr<Texture2D> Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevi
 	wstring exName(szFileName);
 	exName = exName.substr(exName.find_last_of(L'.') + 1);
 	std::transform(exName.begin(), exName.end(), exName.begin(), ::towupper);
-	std::unique_ptr<Texture2D> pTexture;
+	Texture2D texture;
 	if (exName == L"DDS")
 	{
-		hr = DirectX::CreateDDSTextureFromFileEx(pDevice, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &pTexture->m_pResource, &pTexture->m_pShaderResourceView);
+		hr = DirectX::CreateDDSTextureFromFileEx(pDevice, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &texture.m_pResource, &texture.m_pShaderResourceView);
 		ThrowIfFailed(hr);
 		D3D11_RESOURCE_DIMENSION dimension;
-		pTexture->m_pResource->GetType(&dimension);
+		texture.m_pResource->GetType(&dimension);
 		if (dimension == D3D11_RESOURCE_DIMENSION::D3D11_RESOURCE_DIMENSION_TEXTURE2D)
 		{
 			ID3D11Texture2D* pTexInterface;
-			pTexture->Resource()->QueryInterface<ID3D11Texture2D>(&pTexInterface);
-			pTexInterface->GetDesc(&pTexture->m_TextureDescription);
+			texture.Resource()->QueryInterface<ID3D11Texture2D>(&pTexInterface);
+			pTexInterface->GetDesc(&texture.m_TextureDescription);
 		}
 		else
 		{
@@ -327,18 +341,18 @@ std::unique_ptr<Texture2D> Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevi
 	}
 	else
 	{
-		hr = DirectX::CreateWICTextureFromFileEx(pDevice, pDeviceContext, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &pTexture->m_pResource, &pTexture->m_pShaderResourceView);
+		hr = DirectX::CreateWICTextureFromFileEx(pDevice, pDeviceContext, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &texture.m_pResource, &texture.m_pShaderResourceView);
 		ThrowIfFailed(hr);
 		ID3D11Texture2D* pTexInterface;
-		pTexture->Resource()->QueryInterface<ID3D11Texture2D>(&pTexInterface);
-		pTexInterface->GetDesc(&pTexture->m_TextureDescription);
-		return pTexture;
+		texture.Resource()->QueryInterface<ID3D11Texture2D>(&pTexInterface);
+		pTexInterface->GetDesc(&texture.m_TextureDescription);
+		return texture;
 	}
-	return nullptr;
+	return texture;
 }
 
 
-std::unique_ptr<Texture2D> Texture2D::CreateFromWICMemory(_In_ ID3D11Device* pDevice,
+Texture2D Texture2D::CreateFromWICMemory(_In_ ID3D11Device* pDevice,
 	_In_ ID3D11DeviceContext* pDeviceContext,
 	_In_reads_bytes_(wicDataSize) const uint8_t* wicData,
 	_In_ size_t wicDataSize,
@@ -350,7 +364,7 @@ std::unique_ptr<Texture2D> Texture2D::CreateFromWICMemory(_In_ ID3D11Device* pDe
 	_In_opt_ bool forceSRGB
 	)
 {
-	return nullptr;
+	return Texture2D();
 }
 
 //--------------------------------------------------------------------------------------
@@ -613,10 +627,118 @@ StagingTexture2D::StagingTexture2D(ID3D11Texture2D* pTexture)
 {
 }
 
-void DirectX::CubeTexture::Initialize(ID3D11Device * pDevice, const std::wstring(&TextureFiles)[6])
+DirectX::RenderTarget::RenderTarget() {}
+
+DirectX::RenderTarget::RenderTarget(RenderTargetTexture2D & colorBuffer, DepthStencilBuffer & dsBuffer, const D3D11_VIEWPORT & viewPort)
+	: m_ColorBuffer(colorBuffer), m_DepthStencilBuffer(dsBuffer), m_Viewport(viewPort)
+{}
+
+DirectX::RenderTarget::RenderTarget(ID3D11Device * pDevice, size_t width, size_t height)
+	: m_ColorBuffer(pDevice, width, height), m_DepthStencilBuffer(pDevice, width, height)
+{
+	m_Viewport.TopLeftX = 0;
+	m_Viewport.TopLeftY = 0;
+	m_Viewport.Width = (float) width;
+	m_Viewport.Height = (float) height;
+	m_Viewport.MinDepth = D3D11_MIN_DEPTH;
+	m_Viewport.MaxDepth = D3D11_MAX_DEPTH;
+}
+
+RenderTarget DirectX::RenderTarget::Subview(const D3D11_VIEWPORT * pViewport)
+{
+	RenderTarget target(m_ColorBuffer, m_DepthStencilBuffer, *pViewport);
+	return target;
+}
+
+/// <summary>
+/// return a Const reference to the ViewPort binding this render target texture for RS stage.
+/// </summary>
+/// <returns> the return value is default to be (0,0) at left-top corner , while min-max depth is (0,1000) </returns>
+
+const D3D11_VIEWPORT & DirectX::RenderTarget::ViewPort() const
+{
+	return m_Viewport;
+}
+
+void DirectX::RenderTarget::Clear(ID3D11DeviceContext * pContext, FXMVECTOR Color)
+{
+	m_ColorBuffer.Clear(pContext, Color);
+	m_DepthStencilBuffer.Clear(pContext);
+}
+
+/// <summary>
+/// return a Reference to the ViewPort binding this render target texture for RS stage.
+/// </summary>
+/// <returns> the return value is default to be (0,0) at left-top corner , while min-max depth is (0,1000) </returns>
+
+D3D11_VIEWPORT & DirectX::RenderTarget::ViewPort()
+{
+	return m_Viewport;
+}
+
+RenderTargetTexture2D & DirectX::RenderTarget::ColorBuffer()
+{
+	return m_ColorBuffer;
+}
+
+const RenderTargetTexture2D & DirectX::RenderTarget::ColorBuffer() const
+{
+	return m_ColorBuffer;
+}
+
+DepthStencilBuffer & DirectX::RenderTarget::DepthBuffer()
+{
+	return m_DepthStencilBuffer;
+}
+
+const DepthStencilBuffer & DirectX::RenderTarget::DepthBuffer() const
+{
+	return m_DepthStencilBuffer;
+}
+
+/// <summary>
+/// Sets as render target with default no DepthStencil.
+/// </summary>
+/// <param name="pDeviceContext">The pointer to device context.</param>
+/// <param name="pDepthStencil">The pointer to depth stencil view.</param>
+
+void DirectX::RenderTarget::SetAsRenderTarget(ID3D11DeviceContext * pDeviceContext)
+{
+	auto pTargetView = m_ColorBuffer.RenderTargetView();
+	pDeviceContext->RSSetViewports(1, &m_Viewport);
+	pDeviceContext->OMSetRenderTargets(1, &pTargetView, m_DepthStencilBuffer);
+}
+
+inline DirectX::CubeTexture::CubeTexture(ID3D11Resource * pResource, ID3D11ShaderResourceView * pResourceView)
+	: Texture(pResource, pResourceView)
+{
+}
+
+inline void DirectX::CubeTexture::Initialize(ID3D11Device * pDevice, const std::wstring(&TextureFiles)[6])
 {
 	for (int i = 0; i < 6; i++)
 	{
-		ThrowIfFailed(DirectX::CreateDDSTextureFromFile(pDevice, TextureFiles[i].c_str(), &(m_pTextures[i]), &(m_pTextureView[i])));
+		DirectX::ThrowIfFailed(DirectX::CreateDDSTextureFromFile(pDevice, TextureFiles[i].c_str(), &(m_pTextures[i]), &(m_pTextureView[i])));
 	}
+}
+
+inline DirectX::CubeTexture::CubeTexture(ID3D11Device * pDevice, const std::wstring(&TextureFiles)[6])
+{
+	Initialize(pDevice, TextureFiles);
+}
+
+inline DirectX::CubeTexture::CubeTexture()
+{}
+
+inline DirectX::CubeTexture::~CubeTexture()
+{}
+
+inline ID3D11ShaderResourceView * DirectX::CubeTexture::at(unsigned int face)
+{
+	return m_pTextureView[face];
+}
+
+inline ID3D11ShaderResourceView * const * DirectX::CubeTexture::ResourcesView()
+{
+	return m_pTextureView;
 }

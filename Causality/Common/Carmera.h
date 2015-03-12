@@ -11,6 +11,7 @@
 
 #include <DirectXMath.h>
 #include "Locatable.h"
+#include "Textures.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Class name: Camera
@@ -69,6 +70,16 @@ namespace DirectX
 			virtual void EndFrame() = 0;
 			// Called in advance of per-view rendering
 			virtual void SetView(size_t view) = 0;
+		};
+
+		class DefaultCameraRenderControl : public virtual ICameraRenderControl
+		{
+		public: 
+			void BeginFrame() override;
+			void EndFrame() override;
+			void SetView(size_t view) override;
+
+			DirectX::RenderTarget Target;
 		};
 
 		class IMonolithCamera abstract : public ICameraBase , virtual public ICameraParameters

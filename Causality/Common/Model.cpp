@@ -17,7 +17,7 @@ using namespace std;
 using namespace stdx;
 using namespace boost::filesystem;
 
-void DirectX::Scene::Mesh::Draw(ID3D11DeviceContext *pContext) const
+void DirectX::Scene::MeshBuffer::Draw(ID3D11DeviceContext *pContext) const
 {
 	if (pInputLayout)
 		pContext->IASetInputLayout(pInputLayout.Get());
@@ -58,7 +58,7 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 	auto dir = file.parent_path();
 	auto result = tinyobj::LoadObj(shapes, materis, file.string().c_str(), (dir.string() + "\\").c_str());
 
-	std::vector<std::shared_ptr<Mesh>> Meshs;
+	std::vector<std::shared_ptr<MeshBuffer>> Meshs;
 	std::vector<std::shared_ptr<PhongMaterial>> Materials;
 
 	boost::filesystem::path lookup(textureDir);
@@ -134,7 +134,7 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 		}
 
 
-		auto mesh = std::make_shared<Mesh>();
+		auto mesh = std::make_shared<MeshBuffer>();
 		Parts.emplace_back(new ModelPart);
 		Parts.back()->Name = shape.name;
 		Parts.back()->pMesh = mesh;

@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.props" Condition="Exists('..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -39,7 +40,10 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <NuGetPackageImportStamp>6288eab2</NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>0f0469d8</NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <IncludePath>$(BOOST_ROOT);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -75,6 +79,8 @@
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\Causality\packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets" Condition="Exists('..\Causality\packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets')" />
     <Import Project="..\Causality\packages\tinyxml2.2.1.0\build\native\tinyxml2.targets" Condition="Exists('..\Causality\packages\tinyxml2.2.1.0\build\native\tinyxml2.targets')" />
+    <Import Project="..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.targets" Condition="Exists('..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.targets')" />
+    <Import Project="..\Causality\packages\Eigen.3.2.4\build\native\Eigen.targets" Condition="Exists('..\Causality\packages\Eigen.3.2.4\build\native\Eigen.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -82,5 +88,8 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\Causality\packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets'))" />
     <Error Condition="!Exists('..\Causality\packages\tinyxml2.2.1.0\build\native\tinyxml2.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\tinyxml2.2.1.0\build\native\tinyxml2.targets'))" />
+    <Error Condition="!Exists('..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.props')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.props'))" />
+    <Error Condition="!Exists('..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.targets'))" />
+    <Error Condition="!Exists('..\Causality\packages\Eigen.3.2.4\build\native\Eigen.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\Eigen.3.2.4\build\native\Eigen.targets'))" />
   </Target>
 </Project>

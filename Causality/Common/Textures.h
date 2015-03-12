@@ -10,15 +10,38 @@
 namespace DirectX{
 
 
-	class ITexture
+	class Texture
 	{
+		enum TextureType
+		{
+			Texture_1D,
+			Texture_1D_Array,
+			Texture_2D,
+			Texture_2D_Array,
+			Texture_3D,
+			TextureCube,
+		};
+
 	public:
-		ITexture(ITexture&& Src);
-		ITexture& operator=(ITexture&& Src);
+		Texture(Texture&& Src);
+		Texture(const Texture& rhs)
+		{
+			*this = rhs;
+		}
+		Texture& operator= (Texture&&);
+		Texture& operator= (const Texture& rhs)
+		{
+			m_pResource = rhs.m_pResource;
+			m_pShaderResourceView = rhs.m_pShaderResourceView;
+			return *this;
+		}
+		Texture(ID3D11Resource* pResource, ID3D11ShaderResourceView* pResourceView);
 
-		virtual ~ITexture();
+		virtual ~Texture();
 
-		static std::unique_ptr<ITexture> CreateFromDDSFile( _In_ ID3D11Device* pDevice , _In_z_ const wchar_t* szFileName ,
+		TextureType Type() const;
+
+		static Texture CreateFromDDSFile( _In_ ID3D11Device* pDevice , _In_z_ const wchar_t* szFileName ,
 			_In_opt_ size_t maxsize = 0, 
 			_In_opt_ D3D11_USAGE usage = D3D11_USAGE_DEFAULT,
 			_In_opt_ unsigned int bindFlags = D3D11_BIND_SHADER_RESOURCE,
@@ -29,7 +52,7 @@ namespace DirectX{
 
 		void SaveAsDDSFile(_In_ ID3D11DeviceContext *pDeviceContext , _In_z_ const wchar_t* szFileName);
 
-		//static std::unique_ptr<ITexture> CreateFromDDSMemory(_In_ ID3D11Device* pDevice,
+		//static std::unique_ptr<Texture> CreateFromDDSMemory(_In_ ID3D11Device* pDevice,
 		//	_In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
 		//	_In_ size_t ddsDataSize,
 		//	_In_opt_ size_t maxsize = 0, 
@@ -40,6 +63,20 @@ namespace DirectX{
 		//	_In_opt_ bool forceSRGB = false
 		//	);
 
+		operator bool() const
+		{
+			return m_pResource != nullptr;
+		}
+
+		bool operator != (nullptr_t) const
+		{
+			return m_pResource != nullptr;
+		}
+
+		bool operator == (nullptr_t) const
+		{
+			return m_pResource == nullptr;
+		}
 
 		DXGI_FORMAT Format() const
 		{
@@ -105,19 +142,32 @@ namespace DirectX{
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>	m_pShaderResourceView;
 
 	protected:
-		ITexture();
-	private:
-		ITexture(const ITexture&);
-		void operator= (const ITexture&);
+		Texture();
+		Texture(nullptr_t)
+		{}
 	};
 
 	class Texture2D
-		: public ITexture
+		: public Texture
 	{
 	public:
 		Texture2D(Texture2D &&);
+		Texture2D(const Texture2D& rhs)
+		{
+			*this = rhs;
+		}
+
+		Texture2D& operator=(const Texture2D & rhs)
+		{
+			Texture::operator=(rhs);
+			m_pTexture = rhs.m_pTexture;
+			m_TextureDescription = rhs.m_TextureDescription;
+			return *this;
+		}
+
 		Texture2D& operator=(Texture2D &&);
-		static std::unique_ptr<Texture2D> CreateFromWICFile( _In_ ID3D11Device* pDevice ,
+
+		static Texture2D CreateFromWICFile( _In_ ID3D11Device* pDevice ,
 			_In_ ID3D11DeviceContext* pDeviceContext ,
 			_In_z_ const wchar_t* szFileName ,
 			_In_opt_ size_t maxsize = 0, 
@@ -128,7 +178,7 @@ namespace DirectX{
 			_In_opt_ bool forceSRGB = false
 			);
 
-		static std::unique_ptr<Texture2D> CreateFromWICMemory(_In_ ID3D11Device* pDevice,
+		static Texture2D CreateFromWICMemory(_In_ ID3D11Device* pDevice,
 			_In_ ID3D11DeviceContext* pDeviceContext ,
 			_In_reads_bytes_(wicDataSize) const uint8_t* wicData,
 			_In_ size_t wicDataSize,
@@ -186,6 +236,11 @@ namespace DirectX{
 			return m_pShaderResourceView.Get();
 		}
 
+		operator ID3D11Texture2D* ()
+		{
+			return m_pTexture.Get();
+		}
+
 		size_t SizeInByte() const;
 
 		void CopyFrom(ID3D11DeviceContext *pContext,const Texture2D* pSource);
@@ -211,11 +266,7 @@ namespace DirectX{
 		Microsoft::WRL::ComPtr<ID3D11Texture2D>	m_pTexture;
 		D3D11_TEXTURE2D_DESC					m_TextureDescription;
 
-	private:
-		Texture2D(const Texture2D&);
-		void operator= (const Texture2D&);
-
-		friend ITexture;
+		friend class Texture;
 	};
 
 	class DynamicTexture2D
@@ -252,6 +303,17 @@ namespace DirectX{
 		RenderTargetTexture2D();
 		RenderTargetTexture2D(RenderTargetTexture2D &&);
 		RenderTargetTexture2D& operator=(RenderTargetTexture2D &&);
+		RenderTargetTexture2D(const RenderTargetTexture2D & rhs)
+		{
+			*this = rhs;
+		}
+		RenderTargetTexture2D& operator=(const RenderTargetTexture2D &rhs)
+		{
+			Texture2D::operator=(rhs);
+			m_pRenderTargetView = rhs.m_pRenderTargetView;
+			return *this;
+		}
+
 		RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
 			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM , _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0, _In_opt_ bool Shared = false);
 		RenderTargetTexture2D( ID3D11Texture2D* pTexture , ID3D11RenderTargetView* pRenderTargetView , ID3D11ShaderResourceView* pShaderResouceView , const D3D11_VIEWPORT *pViewport = nullptr);
@@ -266,6 +328,11 @@ namespace DirectX{
 		operator ID3D11ShaderResourceView* ()
 		{
 			return m_pShaderResourceView.Get();
+		}
+
+		operator ID3D11Texture2D* ()
+		{
+			return m_pTexture.Get();
 		}
 
 		ID3D11RenderTargetView* RenderTargetView()
@@ -289,29 +356,6 @@ namespace DirectX{
 		inline D3D11_VIEWPORT& ViewPort()
 		{
 			return m_Viewport;
-		}
-
-		/// <summary>
-		/// return the Same Render Target as this , but with different Viewport.
-		/// </summary>
-		/// <returns> the return value is default to be (0,0) at left-top corner , while min-max depth is (0,1000) </returns>
-		RenderTargetTexture2D Subtexture(const D3D11_VIEWPORT *pViewport)
-		{
-			Microsoft::WRL::ComPtr<ID3D11Texture2D> pTexture;
-			m_pResource.As<ID3D11Texture2D>(&pTexture);
-			return RenderTargetTexture2D(pTexture.Get(), m_pRenderTargetView.Get(), m_pShaderResourceView.Get(), pViewport);
-		}
-
-		/// <summary>
-		/// Sets as render target with default no DepthStencil.
-		/// </summary>
-		/// <param name="pDeviceContext">The pointer to device context.</param>
-		/// <param name="pDepthStencil">The pointer to depth stencil view.</param>
-		void SetAsRenderTarget(ID3D11DeviceContext* pDeviceContext, ID3D11DepthStencilView* pDepthStencil = nullptr)
-		{
-			auto pTargetView = RenderTargetView();
-			pDeviceContext->RSSetViewports(1,&m_Viewport);
-			pDeviceContext->OMSetRenderTargets(1,&pTargetView,pDepthStencil);
 		}
 
 		void Clear(ID3D11DeviceContext *pDeviceContext , FXMVECTOR Color = g_XMIdentityR3)
@@ -347,7 +391,6 @@ namespace DirectX{
 		StagingTexture2D(ID3D11Texture2D* pTexture);
 	};
 
-
 	class DepthStencilBuffer
 		: public Texture2D
 	{
@@ -355,6 +398,17 @@ namespace DirectX{
 		DepthStencilBuffer();
 		DepthStencilBuffer(DepthStencilBuffer&&);
 		DepthStencilBuffer& operator = (DepthStencilBuffer&&);
+		DepthStencilBuffer(const DepthStencilBuffer& rhs)
+		{
+			*this = rhs;
+		}
+		DepthStencilBuffer& operator = (const DepthStencilBuffer& rhs)
+		{
+			Texture2D::operator=(rhs);
+			m_pDepthStencilView = rhs.m_pDepthStencilView;
+			return *this;
+		}
+
 		DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_D24_UNORM_S8_UINT);
 		~DepthStencilBuffer();
 
@@ -373,14 +427,74 @@ namespace DirectX{
 			pDeviceContext->ClearDepthStencilView(m_pDepthStencilView.Get(),ClearFlag,Depth,Stencil);
 		}
 
-	protected:
-		operator ID3D11ShaderResourceView* ();
-		ID3D11ShaderResourceView* ShaderResourceView();
+		operator ID3D11ShaderResourceView* () = delete;
+		ID3D11ShaderResourceView* ShaderResourceView() = delete;
 
+	protected:
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView>			m_pDepthStencilView;
 	};
 
-	class CubeTexture
+	class IRenderTarget
+	{
+		virtual void SetAsRenderTarget(ID3D11DeviceContext* pDeviceContext) = 0;
+	};
+	// Render Target is a collection of Depth Buffer, Color Buffer, Viewport
+	class RenderTarget : public IRenderTarget
+	{
+	public:
+		RenderTarget();
+
+		RenderTarget(RenderTargetTexture2D& colorBuffer, DepthStencilBuffer& dsBuffer, const D3D11_VIEWPORT& viewPort);
+
+		RenderTarget(ID3D11Device* pDevice, size_t width, size_t height);
+
+		RenderTarget Subview(const D3D11_VIEWPORT *pViewport);
+		/// <summary>
+		/// return a Const reference to the ViewPort binding this render target texture for RS stage.
+		/// </summary>
+		/// <returns> the return value is default to be (0,0) at left-top corner , while min-max depth is (0,1000) </returns>
+		inline const D3D11_VIEWPORT& ViewPort() const;
+
+		void Clear(ID3D11DeviceContext* pContext, FXMVECTOR Color = g_XMIdentityR3);
+
+		/// <summary>
+		/// return a Reference to the ViewPort binding this render target texture for RS stage.
+		/// </summary>
+		/// <returns> the return value is default to be (0,0) at left-top corner , while min-max depth is (0,1000) </returns>
+		inline D3D11_VIEWPORT& ViewPort();
+
+		RenderTargetTexture2D& ColorBuffer();
+
+		const RenderTargetTexture2D& ColorBuffer() const;
+
+		DepthStencilBuffer& DepthBuffer();
+
+		const DepthStencilBuffer& DepthBuffer() const;
+
+		/// <summary>
+		/// Sets as render target with default no DepthStencil.
+		/// </summary>
+		/// <param name="pDeviceContext">The pointer to device context.</param>
+		/// <param name="pDepthStencil">The pointer to depth stencil view.</param>
+		void SetAsRenderTarget(ID3D11DeviceContext* pDeviceContext) override;
+
+	private:
+		RenderTargetTexture2D									m_ColorBuffer;
+		DepthStencilBuffer										m_DepthStencilBuffer;
+		D3D11_VIEWPORT											m_Viewport;
+	};
+
+	//class SimultaneousRenderTarget : public IRenderTarget
+	//{
+	//	void SetAsRenderTarget(ID3D11DeviceContext* pDeviceContext) override
+	//	{
+	//	}
+
+	//	std::vector<D3D11_VIEWPORT>								m_Viewports;
+	//	DepthStencilBuffer										m_DepthStencilBuffer;
+	//};
+
+	class CubeTexture : public Texture
 	{
 	public:
 		enum Faces
@@ -399,32 +513,25 @@ namespace DirectX{
 			Bottom = 3,
 		};
 
+		CubeTexture(ID3D11Resource* pResource, ID3D11ShaderResourceView* pResourceView);
+
+		static CubeTexture CreateFromFile();
+
 		void Initialize(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6]);
 
-		CubeTexture(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6])
-		{
-			Initialize(pDevice, TextureFiles);
-		}
+		CubeTexture(ID3D11Device* pDevice, const std::wstring(&TextureFiles)[6]);
 
-		CubeTexture()
-		{}
+		CubeTexture();
 
-		~CubeTexture()
-		{}
+		~CubeTexture();
 
 		ID3D11ShaderResourceView* operator[] (unsigned int face)
 		{
 			return m_pTextureView[face];
 		}
 
-		ID3D11ShaderResourceView* at(unsigned int face)
-		{
-			return m_pTextureView[face];
-		}
-		ID3D11ShaderResourceView* const* ResourcesView()
-		{
-			return m_pTextureView;
-		}
+		ID3D11ShaderResourceView* at(unsigned int face);
+		ID3D11ShaderResourceView* const* ResourcesView();
 
 
 		ID3D11Resource* m_pTextures[6];

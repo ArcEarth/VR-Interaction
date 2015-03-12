@@ -30,8 +30,8 @@ public:
 	int				   HMDIndex;
 	ovrHmd             HMD;
 	ID3D11DeviceContext			   *pDeviceContext;
-	DirectX::RenderTargetTexture2D EyeTextures[2];
-	DirectX::DepthStencilBuffer	   DepthStencilBuffer;
+	DirectX::RenderTarget			EyeTextures[2];
+	//DirectX::DepthStencilBuffer	   DepthStencilBuffer;
 	ovrTrackingState   OvrTrackingState;
 	ovrD3D11Texture	   OvrEyeTextures[2];
 	ovrPosef		   OvrEyePose[2];
@@ -93,10 +93,10 @@ public:
 
 		const int eyeRenderMultisample = 1;
 		{
-			DirectX::RenderTargetTexture2D target(pDeviceResource->GetD3DDevice(), RenderTargetSize.w, RenderTargetSize.h);
-			DepthStencilBuffer = DirectX::DepthStencilBuffer(pDeviceResource->GetD3DDevice(), RenderTargetSize.w, RenderTargetSize.h);
-			auto w = target.Width();
-			auto h = target.Height();
+			DirectX::RenderTarget target(pDeviceResource->GetD3DDevice(), RenderTargetSize.w, RenderTargetSize.h);
+			//DepthStencilBuffer = DirectX::DepthStencilBuffer(pDeviceResource->GetD3DDevice(), RenderTargetSize.w, RenderTargetSize.h);
+			auto w = target.ViewPort().Width;
+			auto h = target.ViewPort().Height;
 			D3D11_VIEWPORT viewport;
 			ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
 			viewport.TopLeftX = 0;
@@ -104,16 +104,16 @@ public:
 			viewport.Width = (float)w / 2;
 			viewport.Height = (float)h;
 
-			EyeTextures[0] = target.Subtexture(&viewport);
+			EyeTextures[0] = target.Subview(&viewport);
 			viewport.TopLeftX = (float)w / 2;
-			EyeTextures[1] = target.Subtexture(&viewport);
+			EyeTextures[1] = target.Subview(&viewport);
 
 			// Query D3D texture data.
 			OvrEyeTextures[0].D3D11.Header.API = ovrRenderAPI_D3D11;
 			OvrEyeTextures[0].D3D11.Header.TextureSize = RenderTargetSize;
 			OvrEyeTextures[0].D3D11.Header.RenderViewport = OVR::Recti(0, 0, w / 2, h);
-			OvrEyeTextures[0].D3D11.pTexture = EyeTextures[0].Texture();
-			OvrEyeTextures[0].D3D11.pSRView = EyeTextures[0];
+			OvrEyeTextures[0].D3D11.pTexture = EyeTextures[0].ColorBuffer();
+			OvrEyeTextures[0].D3D11.pSRView = EyeTextures[0].ColorBuffer();
 
 			// Right eye uses the same texture, but different rendering viewport.
 			OvrEyeTextures[1] = OvrEyeTextures[0];
@@ -216,8 +216,8 @@ void OculusRift::DissmisHealthWarnning()
 
 void OculusRift::BeginFrame()
 {
-	EyeTexture(Eye_Left).Clear(pImpl->pDeviceContext, DirectX::Colors::Green);
-	pImpl->DepthStencilBuffer.Clear(pImpl->pDeviceContext);
+	pImpl->EyeTextures[0].Clear(pImpl->pDeviceContext, DirectX::Colors::Green);
+	pImpl->EyeTextures[0].Clear(pImpl->pDeviceContext);
 	pImpl->OvrFrameTiming = ovrHmd_BeginFrame(pImpl->HMD, 0);
 }
 void OculusRift::EndFrame()
@@ -252,14 +252,19 @@ const char * Platform::Devices::OculusRift::DisplayDeviceName() const
 	return pImpl->HMD->DisplayDeviceName;
 }
 
-DirectX::RenderTargetTexture2D& OculusRift::EyeTexture(EyesEnum eye)
+DirectX::RenderTarget& OculusRift::ViewTarget(EyesEnum eye)
 {
 	return pImpl->EyeTextures[(size_t) eye];
 }
 
+DirectX::RenderTargetTexture2D& OculusRift::EyeTexture(EyesEnum eye)
+{
+	return pImpl->EyeTextures[(size_t) eye].ColorBuffer();
+}
+
 DirectX::DepthStencilBuffer& OculusRift::DepthStencilBuffer()
 {
-	return pImpl->DepthStencilBuffer;
+	return pImpl->EyeTextures[0].DepthBuffer();
 }
 
 const StaticPose& OculusRift::EyePoses(EyesEnum eye) const

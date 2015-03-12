@@ -178,7 +178,7 @@ namespace DirectX
 			//ThrowIfFailed(
 			//	pDevice->CreateDepthStencilState(&dpsDesc, &m_pDepthStenticlState)
 			//	);
-			Mesh::CreateDeviceResources<VertexType,IndexType>(pDevice, CubeVertices, VerticesCount+1, CubeIndices, IndicesCount);
+			MeshBuffer::CreateDeviceResources<VertexType,IndexType>(pDevice, CubeVertices, VerticesCount+1, CubeIndices, IndicesCount);
 		}
 
 		//template <class VertexType , class IndexType>

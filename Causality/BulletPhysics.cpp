@@ -65,7 +65,7 @@ void Causality::PhysicalRigid::InitializePhysics(const std::shared_ptr<btDynamic
 	Enable();
 }
 
-const DirectX::Vector3 & Causality::PhysicalRigid::GetPosition() const
+DirectX::Vector3 Causality::PhysicalRigid::GetPosition() const
 {
 	Position = vector_cast<Vector3>(m_pRigidBody->getCenterOfMassPosition());
 	return Position;
@@ -78,7 +78,7 @@ void Causality::PhysicalRigid::SetPosition(const DirectX::Vector3 & p)
 	m_pRigidBody->setWorldTransform(transform);
 }
 
-const DirectX::Quaternion & Causality::PhysicalRigid::GetOrientation() const
+DirectX::Quaternion Causality::PhysicalRigid::GetOrientation() const
 {
 	Orientation = vector_cast<DirectX::Quaternion>(m_pRigidBody->getOrientation());
 	return Orientation;
@@ -91,7 +91,7 @@ void Causality::PhysicalRigid::SetOrientation(const DirectX::Quaternion & q)
 	m_pRigidBody->setWorldTransform(transform);
 }
 
-const DirectX::Vector3 & Causality::PhysicalRigid::GetScale() const
+DirectX::Vector3 Causality::PhysicalRigid::GetScale() const
 {
 	Scale = vector_cast<Vector3>(m_pShape->getLocalScaling());
 	return Scale;

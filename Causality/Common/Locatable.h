@@ -8,7 +8,7 @@ namespace DirectX
 	class ILocatable abstract
 	{
 	public:
-		virtual const Vector3& GetPosition() const = 0;
+		virtual Vector3 GetPosition() const = 0;
 		virtual void  SetPosition(const Vector3 &p) = 0;
 	};
 
@@ -16,7 +16,7 @@ namespace DirectX
 	class IOriented abstract
 	{
 	public:
-		virtual const Quaternion& GetOrientation() const = 0;
+		virtual Quaternion GetOrientation() const = 0;
 		virtual void  SetOrientation(const Quaternion &q) = 0;
 	};
 
@@ -25,7 +25,7 @@ namespace DirectX
 	class IScalable abstract
 	{
 	public:
-		virtual const Vector3& GetScale() const = 0;
+		virtual Vector3 GetScale() const = 0;
 		virtual void SetScale(const Vector3& s) = 0;
 	};
 
@@ -34,9 +34,14 @@ namespace DirectX
 	class IBoundable abstract
 	{
 	public:
-		virtual BoundingOrientedBox GetOrientedBoundingBox() const = 0;
+		//virtual BoundingOrientedBox GetOrientedBoundingBox() const = 0;
+		//virtual BoundingSphere		GetBoundingSphere() const = 0;
+
+		// Efficent interface, but less friendly
+		//virtual HRESULT GetBoundingBox(BoundingBox& out) const = 0;
+		//virtual const Vector3& GetExtent() const = 0;
+
 		virtual BoundingBox			GetBoundingBox() const = 0;
-		virtual BoundingSphere		GetBoundingSphere() const = 0;
 	};
 
 	// Interface for object with the ability to Move / Rotate / Isotropic-Scale
@@ -52,44 +57,38 @@ namespace DirectX
 	};
 
 	// Helper struct to implement IRigid Interface
-	struct RigidBase : virtual public IRigid
+	class BasicTransform : virtual public IRigid , public AffineTransform
 	{
 	public:
-		RigidBase()
-			: Position(),Orientation(),Scale(1.f, 1.f, 1.f)
-		{
-		}
-
 		// Inherited via IRigid
-		virtual const Vector3 & GetPosition() const
+		virtual Vector3 GetPosition() const
 		{
-			return Position;
+			return AffineTransform::Translation;
 		}
 		virtual void SetPosition(const Vector3 &p) override
 		{
-			Position = p;
+			AffineTransform::Translation = p;
 		}
-		virtual const Quaternion & GetOrientation() const override
+		virtual Quaternion GetOrientation() const override
 		{
-			return Orientation;
+			return AffineTransform::Rotation;
 		}
 		virtual void SetOrientation(const Quaternion &q) override
 		{
-			Orientation = q;
+			AffineTransform::Rotation = q;
 		}
-		virtual const Vector3 & GetScale() const override
+		virtual Vector3 GetScale() const override
 		{
-			return static_cast<const Vector3&>(Scale);
+			return AffineTransform::Scale;
 		}
 		virtual void SetScale(const Vector3 & s) override
 		{
-			Scale = s;
+			AffineTransform::Scale = s;
 		}
 
-	public:
-		Vector3		Position;
-		Quaternion	Orientation;
-		Vector3		Scale;
+		//Vector3 GetForward() const;
+		//Vector3 GetUp() const;
+		//Vector3 GetRight() const;
 	};
 
 }

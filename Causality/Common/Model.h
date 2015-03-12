@@ -11,6 +11,7 @@
 #include <DirectXCollision.h>
 #include "Textures.h"
 #include "Material.h"
+#include "ConstantBuffer.h"
 
 namespace DirectX
 {
@@ -48,20 +49,24 @@ namespace DirectX
 			};
 		}
 
-		class IMesh abstract
+		class IMeshBuffer abstract
 		{
 		public:
-			virtual ~IMesh() {}
+			virtual ~IMeshBuffer() {}
 			// Setup Vertex/Index Buffer and Call the Draw command
 			virtual void Draw(ID3D11DeviceContext* pContext) const = 0;
 		};
 
 		// A Container of Vertex and Indices holding geometry information with Identical effect to render
+		// Abstraction of mesh's vertex information on GPU
 		// Should be use with std::shared_ptr
-		struct Mesh : public IMesh
+		// Holding the information of 
+		// Vertex Buffer, Index Buffer, Input Layout 
+		// The abstraction for IA and Draw commands
+		struct MeshBuffer : public IMeshBuffer
 		{
 		public:
-			~Mesh(){}
+			~MeshBuffer(){}
 
 			template<class _TVertex, class _TIndex>
 			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount, const _TIndex* indices, unsigned int IndicesCount, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, size_t VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0 , const std::shared_ptr<IEffect> &pEffect = nullptr)
@@ -91,8 +96,7 @@ namespace DirectX
 				PrimitiveType = primitiveTopology;
 			}
 
-			typedef std::vector<std::unique_ptr<Mesh>> Collection;
-
+			typedef std::vector<std::unique_ptr<MeshBuffer>> Collection;
 
 			uint32_t                                                IndexCount;
 			uint32_t												VertexCount;
@@ -102,18 +106,18 @@ namespace DirectX
 			D3D_PRIMITIVE_TOPOLOGY                                  PrimitiveType;
 			DXGI_FORMAT                                             IndexFormat;
 			InputDescription										pInputDescription;
+
 			Microsoft::WRL::ComPtr<ID3D11InputLayout>               pInputLayout;
 			Microsoft::WRL::ComPtr<ID3D11Buffer>                    pIndexBuffer;
 			Microsoft::WRL::ComPtr<ID3D11Buffer>                    pVertexBuffer;
-			bool                                                    IsAlpha;
 
 			// Setup the Vertex/Index Buffer and call the draw command
 			void Draw(ID3D11DeviceContext *pContext) const;
 		};
 
-		// MeshPart with static vertex typeing
+		// Strong typed mesh buffer with static vertex typeing
 		template<class _TVertex, class _TIndex, D3D_PRIMITIVE_TOPOLOGY Primative_Topology = D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST>
-		struct TypedMesh : public Mesh
+		struct TypedMeshBuffer : public MeshBuffer
 		{
 		public:
 			static_assert(std::is_integral<_TIndex>::value, "IndexType is not integer");
@@ -124,7 +128,7 @@ namespace DirectX
 				pEffect = pRenderEffect;
 			}
 
-			typedef TypedMesh	SelfType;
+			typedef TypedMeshBuffer	SelfType;
 			typedef _TVertex	VertexType;
 			typedef _TIndex		IndexType;
 		};
@@ -140,12 +144,40 @@ namespace DirectX
 		{ 
 		public:
 			std::string	Name;
-			std::shared_ptr<Mesh>			pMesh;
+			std::shared_ptr<MeshBuffer>		pMesh;
 			std::shared_ptr<PhongMaterial>	pMaterial;
 			DirectX::BoundingBox			BoundBox;
 			DirectX::BoundingOrientedBox	BoundOrientedBox;
 			void Render(ID3D11DeviceContext *pContext, IEffect* pEffect);
 		};
+
+		class SkinningModelPart : public ModelPart
+		{
+			static const unsigned int VERTEX_BLEND_BONES = 4U;
+			static const unsigned int MAX_BLEND_MATRIX_COUNT = 255U;
+
+			struct MatrixBlendBuffer
+			{
+				DirectX::XMFLOAT3X4 BlendMatrices[MAX_BLEND_MATRIX_COUNT];
+			};
+
+			struct DualQuaternionBlendBuffer
+			{
+				DirectX::DualQuaternion BlendMatrices[MAX_BLEND_MATRIX_COUNT];
+			};
+
+			struct VertexPositionNormalTextureWeights
+			{
+				DirectX::XMFLOAT4 Position;
+				DirectX::XMFLOAT3 Normal;
+				DirectX::XMFLOAT2 TexCoord;
+				DirectX::XMUINT4  Indices;
+				DirectX::XMFLOAT4 Weights;
+				static const UINT InputElementCount = 5;
+				static const D3D11_INPUT_ELEMENT_DESC InputElements[InputElementCount];
+			};
+		};
+
 
 		class LocalMatrixHolder : virtual public ILocalMatrix
 		{
@@ -174,11 +206,11 @@ namespace DirectX
 			virtual XMMATRIX GetWorldMatrix() const;
 			//virtual XMMATRIX GetModelMatrix() const override;
 			// Transformed OrientedBounding Box
-			virtual BoundingOrientedBox GetOrientedBoundingBox() const override;
+			virtual BoundingOrientedBox GetOrientedBoundingBox() const;
 			// Transformed Bounding Box
 			virtual BoundingBox GetBoundingBox() const override;
 			// Transformed Bounding Sphere
-			virtual BoundingSphere GetBoundingSphere() const override;
+			virtual BoundingSphere GetBoundingSphere() const;
 
 			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
 

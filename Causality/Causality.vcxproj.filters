@@ -37,6 +37,9 @@
     <Filter Include="Platform\Platform.Fundation">
       <UniqueIdentifier>{8c285820-7e0b-4424-8e37-813bda8f91e4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{44012883-1899-4613-af3f-9e2f51e4d141}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -274,10 +277,18 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Content\OculusDisortionPixelShader.hlsl" />
-    <FxCompile Include="Content\OculusDisortionVertexShader.hlsl" />
-    <FxCompile Include="Content\SamplePixelShader.hlsl" />
-    <FxCompile Include="Content\SampleVertexShader.hlsl" />
+    <FxCompile Include="Content\OculusDisortionPixelShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\OculusDisortionVertexShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\SamplePixelShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\SampleVertexShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

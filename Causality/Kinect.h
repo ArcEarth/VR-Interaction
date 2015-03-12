@@ -85,20 +85,24 @@ namespace Platform
 			TrackedPlayer();
 			// Skeleton Structure and basic body parameter
 			// Shared through all players since they have same structure
-			static std::unique_ptr<Armatures::ArmatureBase> PlayerArmature;
+			static std::unique_ptr<Causality::StaticArmature> PlayerArmature;
 
 			// Default pose data, should we use this ?
-			// Armatures::BoneAnimationFrame RestFrame;
+			// Causality::BoneDisplacementFrame RestFrame;
 
 			// Current pose data
-			Armatures::BoneAnimationFrame CurrentFrame;
+			Causality::BoneDisplacementFrame PoseFrame;
+
+			bool IsOnAir() const;
 
 			// Hand States
 			HandState HandStates[2];
 
 			uint64_t PlayerID;
-
 			bool IsCurrentTracked;
+			
+			time_t  LastTrackedTime;
+			int		LostFrameCount;
 
 			Platform::Fundation::Event<const TrackedPlayer&, HandType, HandState> OnHandStateChanged;
 			Platform::Fundation::Event<const TrackedPlayer&> OnPoseChanged;
@@ -110,8 +114,6 @@ namespace Platform
 		public:
 			~Kinect();
 
-			HRESULT Initalize();
-
 			bool IsConnected() const;
 
 			// Player Event event interface!
@@ -119,6 +121,12 @@ namespace Platform
 			Platform::Fundation::Event<const TrackedPlayer&> OnPlayerLost;
 			//Platform::Fundation::Event<const TrackedPlayer&> OnPlayerPoseChanged;
 			//Platform::Fundation::Event<const TrackedPlayer&, HandEnum, HandState> OnPlayerHandStateChanged;
+
+			// DeviceCoordinate Matrix will be use to transform all input data every frame
+			// If Kinect is moving, this function should be called every frame
+			// Should be valiad before the call to Process Frame
+			void SetDeviceCoordinate(const DirectX::Matrix4x4& mat);
+			const DirectX::Matrix4x4& GetDeviceCoordinate();
 
 			// Process frame and trigger the events
 			void ProcessFrame();

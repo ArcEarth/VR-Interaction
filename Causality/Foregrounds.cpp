@@ -12,7 +12,6 @@ using namespace DirectX;
 using namespace DirectX::Scene;
 using namespace std;
 using namespace Platform;
-using namespace Platform::Fundation;
 using namespace Eigen;
 using namespace concurrency;
 using namespace DirectX::Visualizers;

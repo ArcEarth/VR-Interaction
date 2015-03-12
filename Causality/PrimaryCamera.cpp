@@ -1,6 +1,7 @@
 #include "PrimaryCamera.h"
 #include <DirectXColors.h>
 using namespace DirectX;
+using namespace Causality;
 
 size_t PlayerAttachedCamera::ViewCount() const
 {
@@ -67,22 +68,22 @@ void XM_CALLCONV DirectX::Scene::ICameraBase::Move(FXMVECTOR p) { SetPosition((X
 
 void XM_CALLCONV DirectX::Scene::ICameraBase::Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(q, GetOrientation())); }
 
-const Platform::Fundation::Vector3 & PlayerAttachedCamera::GetPosition() const
+Vector3 PlayerAttachedCamera::GetPosition() const
 {
 	return m_BodyPose.Position;
 }
 
-void PlayerAttachedCamera::SetPosition(const Platform::Fundation::Vector3 &p)
+void PlayerAttachedCamera::SetPosition(const Vector3 &p)
 {
 	m_BodyPose.Position = p;
 }
 
-const Platform::Fundation::Quaternion & PlayerAttachedCamera::GetOrientation() const
+Quaternion PlayerAttachedCamera::GetOrientation() const
 {
 	return m_BodyPose.Orientation;
 }
 
-void PlayerAttachedCamera::SetOrientation(const Platform::Fundation::Quaternion &q)
+void PlayerAttachedCamera::SetOrientation(const Quaternion &q)
 {
 	m_BodyPose.Orientation = q;
 }
@@ -132,7 +133,8 @@ void PlayerAttachedCamera::SetView(size_t view)
 {
 	if (IsStereoEnabled())
 	{
-		m_pRift->EyeTexture((DirectX::Scene::EyesEnum) view).SetAsRenderTarget(m_pDeviceResources->GetD3DDeviceContext(), m_pRift->DepthStencilBuffer());
+		m_pRift->ViewTarget((DirectX::Scene::EyesEnum)view).SetAsRenderTarget(m_pDeviceResources->GetD3DDeviceContext());
+		//m_pRift->EyeTexture((DirectX::Scene::EyesEnum) view).SetAsRenderTarget(m_pDeviceResources->GetD3DDeviceContext(), m_pRift->DepthStencilBuffer());
 	}
 	else
 	{

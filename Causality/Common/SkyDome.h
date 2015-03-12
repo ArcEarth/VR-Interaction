@@ -15,9 +15,9 @@ namespace DirectX
 
 	namespace Scene
 	{
-		class SkyDome : public IRenderable , public IViewable , protected TypedMesh<VertexPositionTexture, uint16_t>
+		class SkyDome : public IRenderable , public IViewable , protected TypedMeshBuffer<VertexPositionTexture, uint16_t>
 		{
-			typedef TypedMesh<VertexPositionTexture, uint16_t> BaseType;
+			typedef TypedMeshBuffer<VertexPositionTexture, uint16_t> BaseType;
 			typedef VertexPositionTexture VertexType;
 			typedef uint16_t IndexType;
 			const static unsigned int VerticesCount = 24;
@@ -35,7 +35,7 @@ namespace DirectX
 			~SkyDome(void);
 
 		protected:
-			//std::shared_ptr<Mesh>			m_pMesh;
+			//std::shared_ptr<MeshBuffer>			m_pMesh;
 			std::shared_ptr<BasicEffect>	m_pEffect;
 			std::shared_ptr<CubeTexture>	m_pCubeTexture;
 			Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_pDepthStenticlState;
@@ -54,7 +54,7 @@ namespace DirectX
 		};
 
 		//class FloorPlane
-		//	: public TypedMesh<VertexPositionNormalTexture, uint16_t, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST>
+		//	: public TypedMeshBuffer<VertexPositionNormalTexture, uint16_t, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST>
 		//{
 		//public:
 		//	const static unsigned int VerticesCount = 4;

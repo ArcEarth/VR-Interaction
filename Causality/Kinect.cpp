@@ -2,6 +2,8 @@
 #include "Kinect.h"
 #include <boost\range.hpp>
 #include <boost\range\adaptors.hpp>
+#include <iostream>
+#include <chrono>
 using namespace Platform::Devices;
 using namespace Microsoft::WRL;
 
@@ -14,6 +16,14 @@ inline void SafeRelease(T*& pCom)
 		pCom = nullptr;
 	}
 }
+
+template< typename ContainerT, typename PredicateT >
+void erase_if(ContainerT& items, const PredicateT& predicate) {
+	for (auto it = items.begin(); it != items.end(); ) {
+		if (predicate(*it)) it = items.erase(it);
+		else ++it;
+	}
+};
 
 JointType Kinect::JointsParent[JointType_Count] = {
 	JointType_SpineBase, // JointType_SpineBase, Root
@@ -43,10 +53,26 @@ JointType Kinect::JointsParent[JointType_Count] = {
 	JointType_HandRight,  //JointType_ThumbRight
 };
 
-std::unique_ptr<Armatures::ArmatureBase> TrackedPlayer::PlayerArmature;
+std::unique_ptr<Causality::StaticArmature> TrackedPlayer::PlayerArmature;
 
 class Kinect::Impl
 {
+
+
+public:
+	size_t											LostThreshold = 60U;
+	time_t											LastFrameTime = 0;
+	Kinect*											pWrapper;
+	DirectX::Plane									FloorPlane;
+	DirectX::Matrix4x4								LocalMatrix;
+	// Current Kinect
+	Microsoft::WRL::ComPtr<IKinectSensor>          m_pKinectSensor;
+	Microsoft::WRL::ComPtr<ICoordinateMapper>      m_pCoordinateMapper;
+	// Body reader
+	Microsoft::WRL::ComPtr<IBodyFrameReader>       m_pBodyFrameReader;
+
+	std::map<uint64_t, TrackedPlayer*>	m_Players;
+
 public:
 	bool IsActive() const
 	{
@@ -55,11 +81,12 @@ public:
 
 	HRESULT Initalize()
 	{
+
 		if (TrackedPlayer::PlayerArmature == nullptr)
 		{
 			int parents[JointType_Count];
 			std::copy_n(Kinect::JointsParent,(int)JointType_Count, parents);
-			TrackedPlayer::PlayerArmature = std::make_unique<Armatures::StaticArmature>(JointType_Count, parents);
+			TrackedPlayer::PlayerArmature = std::make_unique<Causality::StaticArmature>(JointType_Count, parents);
 		}
 		using namespace Microsoft::WRL;
 		using namespace std;
@@ -107,6 +134,7 @@ public:
 		m_pKinectSensor = move(pKinectSensor);
 		m_pCoordinateMapper = move(pCoordinateMapper);
 		m_pBodyFrameReader = move(pBodyFrameReader);
+		std::cout << "[DEBUG] Kinect is intialized succuessfuly!" << std::endl;
 		return hr;
 	}
 
@@ -138,15 +166,36 @@ public:
 
 		if (SUCCEEDED(hr))
 		{
-			INT64 nTime = 0;
+			time_t nTime = 0;
 
 			hr = pBodyFrame->get_RelativeTime(&nTime);
+			//auto t = std::chrono::system_clock::from_time_t(nTime);
+			//t.time_since_epoch
+			if (LastFrameTime >= nTime) // Not an new frame
+			{
+				return false;
+			}
+
+			LastFrameTime = nTime;
 
 			IBody* ppBodies[BODY_COUNT] = { 0 };
 
 			if (SUCCEEDED(hr))
 			{
 				hr = pBodyFrame->GetAndRefreshBodyData(_countof(ppBodies), ppBodies);
+			}
+
+			for (auto itr = m_Players.begin(), end = m_Players.end(); itr != end;)
+			{
+				itr->second->IsCurrentTracked = false;
+				if (++(itr->second->LostFrameCount) >= LostThreshold)
+				{
+					pWrapper->OnPlayerLost(*itr->second);
+					std::cout << "Player Lost : ID = " << itr->second->PlayerID << std::endl;
+					itr = m_Players.erase(itr);
+				}
+				else
+					++itr;
 			}
 
 			for (int i = 0; i < _countof(ppBodies); ++i)
@@ -160,12 +209,16 @@ public:
 				BOOLEAN isTracked;
 				pBody->get_IsTracked(&isTracked);
 
+				if (Id == 0) // This data is invaliad
+					break;
+
 
 				bool isNew = false;
 				auto& player = m_Players[Id];
 				if (player == nullptr)
 				{
 					player = new TrackedPlayer;
+					std::cout << "New Player Tracked : ID = " << Id << std::endl;
 					isNew = true;
 				}
 
@@ -174,34 +227,48 @@ public:
 					if (!isNew && player->IsCurrentTracked) // Maybe wait for couple of frames?
 					{
 						pWrapper->OnPlayerLost(*player);
+						std::cout << "Player Lost : ID = " << Id << std::endl;
 					}
-					player->IsCurrentTracked = isTracked;
+					player->IsCurrentTracked = false;
+				}
+				else
+				{
+					player->IsCurrentTracked = true;
+					player->LostFrameCount = 0;
 				}
 
 				pBody->GetJoints(ARRAYSIZE(joints), joints);
 				pBody->GetJointOrientations(ARRAYSIZE(oris), oris);
 
-				auto& frame = player->CurrentFrame;
+				auto& frame = player->PoseFrame;
+
+				// WARNING!!! This may be ill-formed if transform contains shear or other non-rigid transformation
+				DirectX::XMVECTOR junk,rotation;
+				DirectX::XMMATRIX transform = LocalMatrix;
+				DirectX::XMMatrixDecompose(&junk, &rotation, &junk, transform);
+
 				for (int j = 0; j < JointType_Count; j++)
 				{
-					frame[j].EndPostion = reinterpret_cast<DirectX::Vector3&>(joints[j].Position);
-					frame[j].GlobalOrientation = reinterpret_cast<DirectX::Quaternion&>(oris[j].Orientation);
+					DirectX::XMVECTOR ep = DirectX::XMLoadFloat3(reinterpret_cast<DirectX::Vector3*>(&joints[j].Position));
+					frame[j].EndPostion = DirectX::XMVector3TransformCoord(ep,transform);
+					ep = DirectX::XMLoadFloat4(reinterpret_cast<DirectX::Quaternion*>(&oris[j].Orientation));
+					frame[j].GlobalOrientation = DirectX::XMQuaternionMultiply(ep, rotation);
 				}
 
 				auto& sk = *TrackedPlayer::PlayerArmature;
-				for (const auto& jId : sk.TopologyOrder)
+				for (const auto& jId : sk.joint_indices())
 				{
 					if (jId < JointType_Count)
-						frame[jId].UpdateLocalData(frame[sk.ParentsMap[jId]]);
+						frame[jId].UpdateLocalData(frame[sk[jId]->ParentID()]);
 					else
 						// Update 'intermediate" joints if not presented in Kinect
-						frame[jId].UpdateGlobalData(frame[sk.ParentsMap[jId]]);
-
+						frame[jId].UpdateGlobalData(frame[sk[jId]->ParentID()]);
 				}
 
 				if (isNew)
 				{
 					pWrapper->OnPlayerTracked(*player);
+					std::cout << "New Player Tracked : ID = " << Id << std::endl;
 				}
 				else
 				{
@@ -231,7 +298,7 @@ public:
 		return true;
 	}
 
-	//static void FillFrameWithIBody(Kinematics::BoneAnimationFrame& frame, IBody* pBody)
+	//static void FillFrameWithIBody(Kinematics::BoneDisplacementFrame& frame, IBody* pBody)
 	//{
 	//	Joint joints[JointType_Count];
 	//	JointOrientation oris[JointType_Count];
@@ -246,30 +313,25 @@ public:
 	//	using namespace boost::adaptors;
 	//	return m_Players | map_values;
 	//}
-
-public:
-	Kinect*											pWrapper;
-	// Current Kinect
-	Microsoft::WRL::ComPtr<IKinectSensor>          m_pKinectSensor;
-	Microsoft::WRL::ComPtr<ICoordinateMapper>      m_pCoordinateMapper;
-	// Body reader
-	Microsoft::WRL::ComPtr<IBodyFrameReader>       m_pBodyFrameReader;
-
-	std::map<uint64_t, TrackedPlayer*>	m_Players;
 };
 
 Platform::Devices::Kinect::~Kinect()
 {
 }
 
-HRESULT Platform::Devices::Kinect::Initalize()
-{
-	return pImpl->Initalize();
-}
-
 bool Platform::Devices::Kinect::IsConnected() const
 {
 	return pImpl->IsActive();
+}
+
+void Platform::Devices::Kinect::SetDeviceCoordinate(const DirectX::Matrix4x4 & mat)
+{
+	pImpl->LocalMatrix = mat;
+}
+
+const DirectX::Matrix4x4 & Platform::Devices::Kinect::GetDeviceCoordinate()
+{
+	return pImpl->LocalMatrix;
 }
 
 void Platform::Devices::Kinect::ProcessFrame()
@@ -287,7 +349,7 @@ const std::map<uint64_t, TrackedPlayer*>& Platform::Devices::Kinect::GetLatestPl
 std::unique_ptr<Kinect> Platform::Devices::Kinect::CreateDefault()
 {
 	std::unique_ptr<Kinect> pKinect(new Kinect);
-	if (SUCCEEDED(pKinect->Initalize()))
+	if (SUCCEEDED(pKinect->pImpl->Initalize()))
 		return pKinect;
 	else
 		return nullptr;
@@ -301,5 +363,5 @@ Platform::Devices::Kinect::Kinect()
 
 Platform::Devices::TrackedPlayer::TrackedPlayer()
 {
-	CurrentFrame.resize(PlayerArmature->size());
+	PoseFrame.resize(PlayerArmature->size());
 }
