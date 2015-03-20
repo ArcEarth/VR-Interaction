@@ -132,7 +132,7 @@ void SpaceCurve::LaplaianSmoothing(std::vector<Vector3>& Curve, unsigned Iterati
 	}
 }
 
-float DistanceSegmentToSegment(const LineSegement &S1, const LineSegement &S2);
+//float DistanceSegmentToSegment(const LineSegement &S1, const LineSegement &S2);
 float DistanceSegmentToSegment(FXMVECTOR S0P0, FXMVECTOR S0P1, FXMVECTOR S1P0, GXMVECTOR S1P1);
 //inline float Length(const LineSegement& Ls){
 //	return Distance(Ls.first,Ls.second);

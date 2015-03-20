@@ -1,0 +1,405 @@
+#include "Scene.h"
+#include "Common\Model.h"
+#include <boost\filesystem.hpp>
+#include <tinyxml2.h>
+#include "Common\SkyDome.h"
+
+using namespace tinyxml2;
+using namespace Causality;
+using namespace DirectX::Scene;
+using namespace std;
+
+void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device);
+void ParseRenderableObjectAttributes(RenderableSceneObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
+void ParseCreatureAttributes(KinematicSceneObject *pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
+void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node);
+void ParseSceneAssets(AssetDictionary& assets, XMLElement* node);
+
+AssetDictionary::mesh_type & ParseMeshAsset(AssetDictionary & assets, XMLElement * node);
+
+AssetDictionary::texture_type & ParseTextureAsset(AssetDictionary & assets, XMLElement * node);
+
+AssetDictionary::audio_clip_type & ParseAudioAsset(AssetDictionary & assets, XMLElement * node);
+
+AssetDictionary::armature_type & ParseArmatureAsset(AssetDictionary & assets, XMLElement * node);
+
+AssetDictionary::animation_clip_type ParseAnimationClip(XMLElement * node);
+
+AssetDictionary::behavier_type & ParseBehavierAsset(AssetDictionary & assets, XMLElement * node);
+
+std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node);
+
+
+std::unique_ptr<Scene> Scene::LoadSceneFromXML(const string& xml_file)
+{
+	using namespace DirectX;
+	tinyxml2::XMLDocument sceneDoc;
+	sceneDoc.LoadFile(xml_file.c_str());
+
+	uptr<Scene> pScene = make_unique<Scene>();
+
+	auto nScene = sceneDoc.FirstChildElement("scene");
+	auto nAssets = nScene->FirstChildElement("scene.assets");
+
+	ParseSceneAssets(pScene->Assets(), nAssets);
+
+	auto nContent = nScene->FirstChildElement("scene.content");
+	pScene->content = ParseSceneObject(*pScene, nContent);
+	return pScene;
+}
+
+void ParseSceneAssets(AssetDictionary& assets, XMLElement* node)
+{
+	node = node->FirstChildElement();
+	while (node)
+	{
+		if (!strcmp(node->Name(), "mesh"))
+			ParseMeshAsset(assets, node);
+		else if (!strcmp(node->Name(), "texture"))
+			ParseTextureAsset(assets, node);
+		else if (!strcmp(node->Name(), "audio_clip"))
+			ParseAudioAsset(assets, node);
+		else if (!strcmp(node->Name(), "armature"))
+			ParseArmatureAsset(assets, node);
+		else if (!strcmp(node->Name(), "behavier"))
+			ParseBehavierAsset(assets, node);
+		else if (!strcmp(node->Name(), "animation_clip"))
+			ParseAudioAsset(assets, node);
+		node = node->NextSiblingElement();
+	}
+}
+
+AssetDictionary::mesh_type& ParseMeshAsset(AssetDictionary& assets, XMLElement* node)
+{
+	if (!strcmp(node->Name(), "box"))
+	{
+	}
+	else if (!strcmp(node->Name(), "cylinder"))
+	{ 
+	}
+	else if (!strcmp(node->Name(), "sphere"))
+	{ 
+	}
+	else if (!strcmp(node->Name(), "mesh"))
+	{
+		auto src = node->Attribute("src");
+		if (src != nullptr && strlen(src) != 0)
+		{
+			boost::filesystem::path ref(src);
+			if (ref.extension() == "obj")
+			{
+				//auto task = assets.LoadMeshAsync(src);
+				//task.wait();
+				//return task.get();
+				return assets.LoadMesh(src);
+			}
+			else
+			{
+				// throw;
+			}
+		}
+	}
+	return assets.GetMesh("default");
+}
+
+AssetDictionary::texture_type& ParseTextureAsset(AssetDictionary& assets, XMLElement* node)
+{
+	if (!strcmp(node->Name(), "texture"))
+	{
+		return assets.GetAsset<AssetDictionary::texture_type>(node->Attribute("src"));
+	}
+	return assets.GetTexture("default");
+}
+
+AssetDictionary::audio_clip_type& ParseAudioAsset(AssetDictionary& assets, XMLElement* node)
+{
+	return assets.GetAudio("default");
+}
+
+AssetDictionary::armature_type& ParseArmatureAsset(AssetDictionary& assets, XMLElement* node)
+{
+	using armature_type = AssetDictionary::armature_type;
+	string src = node->Attribute("src");
+	auto name = node->Attribute("name");
+	if (name != nullptr)
+	{
+		std::ifstream stream(src);
+		if (stream.is_open())
+		{
+			auto pArmature = new armature_type(stream);
+			assets.AddAsset(name, pArmature);
+			return *pArmature;
+		}
+	}
+	else // no file armature define
+	{
+		node->FirstChildElement("joint");
+	}
+	return assets.GetAsset<armature_type>("default");
+}
+
+AssetDictionary::animation_clip_type ParseAnimationClip(XMLElement* node)
+{
+	using clip_type = AssetDictionary::animation_clip_type;
+	string src = node->Attribute("src");
+	std::ifstream stream(src);
+	if (stream.is_open())
+	{
+		clip_type clip(stream);
+		clip.Name = node->Attribute("name");
+		return clip;
+	}
+	return clip_type();
+}
+
+AssetDictionary::behavier_type& ParseBehavierAsset(AssetDictionary& assets, XMLElement* node)
+{
+	using behavier_type = AssetDictionary::behavier_type;
+	if (!strcmp(node->Name(), "behavier"))
+	{
+		auto& behavier = assets.AddAsset(node->Attribute("name"),new behavier_type);
+		auto attr = node->Attribute("armature");
+		if (attr[0] == '{')
+		{
+			string key(attr, attr + strlen(attr) - 1);
+			auto& armature = assets.GetAsset<AssetDictionary::armature_type>(key);
+			behavier.SetArmature(armature);
+		}
+		auto clip = node->FirstChildElement("animation_clip");
+		while (clip)
+		{
+			auto aniClip = ParseAnimationClip(clip);
+			aniClip.SetArmature(behavier.Armature());
+			behavier.AddAnimationClip(clip->Attribute("name"), move(aniClip));
+			clip = node->NextSiblingElement("animation_clip");
+		}
+		return behavier;
+	}
+	return assets.GetAsset<behavier_type>("default");
+}
+
+template <typename T>
+void GetAttribute(_In_ XMLElement* node,_In_ const char* attr, _Inout_ T& value)
+{
+}
+
+template <>
+void GetAttribute<Vector3>(_In_ XMLElement* node, _In_  const char* attr, _Inout_ Vector3& value)
+{
+	auto attrval = node->Attribute(attr);
+	if (attrval != nullptr)
+	{
+		stringstream ss(attrval);
+		char ch;
+		ss >> value.x >> ch >> value.y >> ch >> value.z;
+	}
+}
+
+template <>
+void GetAttribute<DirectX::XMFLOAT4>(_In_ XMLElement* node, _In_  const char* attr, _Inout_ DirectX::XMFLOAT4& value)
+{
+	auto attrval = node->Attribute(attr);
+	if (attrval != nullptr)
+	{
+		stringstream ss(attrval);
+		char ch;
+		ss >> value.x >> ch >> value.y >> ch >> value.z >> ch >> value.w;
+	}
+}
+
+template <>
+void GetAttribute<bool>(_In_ XMLElement* node, _In_  const char* attr, _Inout_ bool& value)
+{
+	node->QueryBoolAttribute(attr, &value);
+}
+
+template <>
+void GetAttribute<float>(_In_ XMLElement* node, _In_  const char* attr, _Inout_ float& value)
+{
+	node->QueryFloatAttribute(attr, &value);
+}
+
+template <>
+void GetAttribute<int>(_In_ XMLElement* node, _In_  const char* attr, _Inout_ int& value)
+{
+	node->QueryIntAttribute(attr, &value);
+}
+
+template <>
+void GetAttribute<unsigned>(_In_ XMLElement* node, _In_  const char* attr, _Inout_ unsigned& value)
+{
+	node->QueryUnsignedAttribute(attr, &value);
+}
+
+template <>
+void GetAttribute<string>(_In_ XMLElement* node, _In_  const char* attr, _Inout_ string& value)
+{
+	auto attrval = node->Attribute(attr);
+	if (attrval != nullptr)
+	{
+		value = attrval;
+	}
+}
+
+
+void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node)
+{
+	GetAttribute(node, "name", pObj->Name);
+	GetAttribute(node, "tag", pObj->Tag);
+
+	Vector3 scale(1.0f);
+	Vector3 pos;
+	Vector3 eular;
+
+	GetAttribute(node, "position", pos);
+	GetAttribute(node, "scale", scale);
+	GetAttribute(node, "orientation", eular);
+
+	pObj->SetPosition(pos);
+	pObj->SetScale(scale);
+	pObj->SetOrientation(Quaternion::CreateFromYawPitchRoll(eular.x, eular.y, eular.z));
+}
+
+std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node)
+{
+	using namespace DirectX;
+
+	auto& assets = scene.Assets();
+	RenderDevice device;
+	uptr<SceneObject> pObj;
+
+	// parent property
+	if (*std::find(node->Name(), node->Name() + strlen(node->Name()), '.'))
+		return nullptr;
+
+	if (!strcmp(node->Name(), "object"))
+	{
+		auto pEntity = make_unique<RenderableSceneObject>();
+		ParseRenderableObjectAttributes(pEntity.get(), node, assets);
+		pObj = move(pEntity);
+	}
+	else if (!strcmp(node->Name(), "camera"))
+	{
+		auto pCamera = make_unique<Camera>();
+		ParseCameraAttributes(pCamera.get(), node, scene, device);
+		pObj = move(pCamera);
+	}
+	else if (!strcmp(node->Name(), "skydome"))
+	{
+		//auto pSky = make_unique<SkyDome>();
+	}
+	else if (!strcmp(node->Name(), "creature"))
+	{
+		auto pCreature = make_unique<KinematicSceneObject>();
+		ParseCreatureAttributes(pCreature.get(), node, assets);
+
+		pObj = move(pCreature);
+	}
+	else
+	{
+		pObj = make_unique<SceneObject>();
+		ParseSceneObjectAttributes(pObj.get(), node);
+	}
+
+	node = node->FirstChildElement();
+	while (node)
+	{
+		pObj->AddChild(ParseSceneObject(scene, node));
+		node = node->NextSiblingElement();
+	}
+	return pObj;
+}
+
+void ParseCreatureAttributes(KinematicSceneObject* pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
+{
+	ParseRenderableObjectAttributes(pCreature, node, assets);
+
+	auto path = node->Attribute("behavier");
+	if (path != nullptr && strlen(path) != 0)
+	{
+		if (path[0] == '{') // asset reference
+		{
+			const std::string key(path + 1, path + strlen(path) - 1);
+			pCreature->SetBehavier(assets.GetAsset<AnimationSpace>(key));
+		}
+	}
+	else
+	{
+		auto inlineBehave = node->FirstChildElement("creature.behavier");
+		if (inlineBehave)
+		{
+			inlineBehave = inlineBehave->FirstChildElement();
+			auto& behavier = ParseBehavierAsset(assets, inlineBehave);
+			pCreature->SetBehavier(behavier);
+		}
+	}
+}
+
+void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device)
+{
+	using namespace DirectX;
+	ParseSceneObjectAttributes(pCamera, node);
+	auto rtnode = node->FirstChildElement("camera.render_target");
+	bool enable_stereo;
+	node->QueryBoolAttribute("enable_stereo", &enable_stereo);
+	float fov = 70, aspect = 1, hfov, wfov;
+	float _near = 0.01f, _far = 100.0f;
+	Vector3 focus = (XMVECTOR) pCamera->GetPosition() + XMVector3Rotate(Camera::Foward, pCamera->GetOrientation());
+
+	GetAttribute(node, "fov", fov);
+	GetAttribute(node, "near", _near);
+	GetAttribute(node, "far", _far);
+	GetAttribute(node, "focus", _far);
+	GetAttribute(node, "aspect", aspect);
+	if (fov != 0)
+	{
+		pCamera->SetPerspective(fov*XMConvertToRadians(fov), aspect);
+	}
+	else
+	{
+		GetAttribute(node, "hfov", hfov);
+		GetAttribute(node, "wfov", wfov);
+		pCamera->SetOrthographic(wfov, hfov);
+	}
+
+	if (!rtnode)
+	{
+		pCamera->SetRenderTarget(scene.RenderTarget());
+	}
+	else
+	{
+		int width, height;
+		rtnode = rtnode->FirstChildElement("render_target");
+		GetAttribute(rtnode, "width", width);
+		GetAttribute(rtnode, "height", height);
+		pCamera->SetRenderTarget(RenderTarget(device, width, height));
+	}
+}
+
+void ParseRenderableObjectAttributes(RenderableSceneObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
+{
+	ParseSceneObjectAttributes(pObj, node);
+
+	float mass = 1.0f;
+	GetAttribute(node, "mass", mass);
+
+	auto path = node->Attribute("mesh");
+	if (path != nullptr && strlen(path) != 0)
+	{
+		if (path[0] == '{') // asset reference
+		{
+			const std::string key(path + 1, path + strlen(path) - 1);
+			pObj->SetRenderModel(&assets.GetMesh(key));
+		}
+	}
+	else
+	{
+		auto nMesh = node->FirstChildElement("object.mesh");
+		if (nMesh)
+		{
+			nMesh = nMesh->FirstChildElement();
+			auto& model = ParseMeshAsset(assets, nMesh);
+			pObj->SetRenderModel(&model);
+		}
+	}
+}

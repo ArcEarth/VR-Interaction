@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Common\BasicClass.h"
+#include "BCL.h"
 #include <Leap.h>
 #include <memory>
 #include "Interactive.h"
 #include "Common\Locatable.h"
 
-namespace Platform
+namespace Causality
 {
 	namespace Devices
 	{
@@ -29,12 +29,12 @@ namespace Platform
 			// The transform matrix convert Leap Coordinate to World coordinate
 			DirectX::XMMATRIX ToWorldTransform() const;
 
-			Platform::Fundation::Event<const Leap::Controller &> FrameArrived;
-			Platform::Fundation::Event<const Leap::Controller &> DeviceConnected;
-			Platform::Fundation::Event<const Leap::Controller &> DeviceDisconnected;
-			Platform::Fundation::Event<const Platform::UserHandsEventArgs &> HandsTracked;
-			Platform::Fundation::Event<const Platform::UserHandsEventArgs &> HandsLost;
-			Platform::Fundation::Event<const Platform::UserHandsEventArgs &> HandsMove;
+			Event<const Leap::Controller &> FrameArrived;
+			Event<const Leap::Controller &> DeviceConnected;
+			Event<const Leap::Controller &> DeviceDisconnected;
+			Event<const UserHandsEventArgs &> HandsTracked;
+			Event<const UserHandsEventArgs &> HandsLost;
+			Event<const UserHandsEventArgs &> HandsMove;
 
 		private:
 			class Listener;

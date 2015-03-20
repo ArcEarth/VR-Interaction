@@ -4,7 +4,7 @@
 #include <boost\range\adaptors.hpp>
 #include <iostream>
 #include <chrono>
-using namespace Platform::Devices;
+using namespace Causality::Devices;
 using namespace Microsoft::WRL;
 
 template <class T>
@@ -161,7 +161,7 @@ public:
 	{
 		ComPtr<IBodyFrame> pBodyFrame;
 		HRESULT hr = m_pBodyFrameReader->AcquireLatestFrame(&pBodyFrame);
-		Joint joints[JointType_Count];
+		::Joint joints[JointType_Count];
 		JointOrientation oris[JointType_Count];
 
 		if (SUCCEEDED(hr))
@@ -188,7 +188,7 @@ public:
 			for (auto itr = m_Players.begin(), end = m_Players.end(); itr != end;)
 			{
 				itr->second->IsCurrentTracked = false;
-				if (++(itr->second->LostFrameCount) >= LostThreshold)
+				if (++(itr->second->LostFrameCount) >= (int)LostThreshold)
 				{
 					pWrapper->OnPlayerLost(*itr->second);
 					std::cout << "Player Lost : ID = " << itr->second->PlayerID << std::endl;
@@ -315,38 +315,38 @@ public:
 	//}
 };
 
-Platform::Devices::Kinect::~Kinect()
+Kinect::~Kinect()
 {
 }
 
-bool Platform::Devices::Kinect::IsConnected() const
+bool Kinect::IsConnected() const
 {
 	return pImpl->IsActive();
 }
 
-void Platform::Devices::Kinect::SetDeviceCoordinate(const DirectX::Matrix4x4 & mat)
+void Kinect::SetDeviceCoordinate(const DirectX::Matrix4x4 & mat)
 {
 	pImpl->LocalMatrix = mat;
 }
 
-const DirectX::Matrix4x4 & Platform::Devices::Kinect::GetDeviceCoordinate()
+const DirectX::Matrix4x4 & Kinect::GetDeviceCoordinate()
 {
 	return pImpl->LocalMatrix;
 }
 
-void Platform::Devices::Kinect::ProcessFrame()
+void Kinect::ProcessFrame()
 {
 	pImpl->ProcessFrame();
 }
 
-const std::map<uint64_t, TrackedPlayer*>& Platform::Devices::Kinect::GetLatestPlayerFrame()
+const std::map<uint64_t, TrackedPlayer*>& Kinect::GetLatestPlayerFrame()
 {
 	return pImpl->m_Players;
 }
 
 // Static Constructors!!!
 
-std::unique_ptr<Kinect> Platform::Devices::Kinect::CreateDefault()
+std::unique_ptr<Kinect> Kinect::CreateDefault()
 {
 	std::unique_ptr<Kinect> pKinect(new Kinect);
 	if (SUCCEEDED(pKinect->pImpl->Initalize()))
@@ -355,13 +355,13 @@ std::unique_ptr<Kinect> Platform::Devices::Kinect::CreateDefault()
 		return nullptr;
 }
 
-Platform::Devices::Kinect::Kinect()
+Kinect::Kinect()
 :pImpl(new Impl)
 {
 	pImpl->pWrapper = this;
 }
 
-Platform::Devices::TrackedPlayer::TrackedPlayer()
+TrackedPlayer::TrackedPlayer()
 {
 	PoseFrame.resize(PlayerArmature->size());
 }

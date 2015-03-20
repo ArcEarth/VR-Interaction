@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <type_traits>
 #include <boost\range.hpp>
+#include <boost\range\adaptors.hpp>
 
 namespace stdx {
 	using boost::iterator_range;

@@ -8,9 +8,9 @@
 #endif
 #include "pch.h"
 #include "Interactive.h"
-#include "Common\BasicClass.h"
+#include "bcl.h"
 
-namespace Platform
+namespace Causality
 {
 	//ref class Window;
 	class NativeWindow;
@@ -113,12 +113,12 @@ namespace Platform
 			WheelDelta = 0;
 		}
 		// Event Interface
-		Fundation::Event<const CursorButtonEvent&> CursorButtonDown;
-		Fundation::Event<const CursorButtonEvent&> CursorButtonUp;
-		Fundation::Event<const CursorMoveEventArgs&> CursorMove;
+		Event<const CursorButtonEvent&> CursorButtonDown;
+		Event<const CursorButtonEvent&> CursorButtonUp;
+		Event<const CursorMoveEventArgs&> CursorMove;
 
-		Fundation::Vector2 CursorPostiton;
-		Fundation::Vector2 CursorPositionDelta;
+		Vector2 CursorPostiton;
+		Vector2 CursorPositionDelta;
 		float	WheelValue;
 		float	WheelDelta;
 		bool	ButtonStates[3];
@@ -142,8 +142,8 @@ namespace Platform
 			return (Keys[VK_CONTROL] & Mod_Control) | (Keys[VK_SHIFT] & Mod_Shift) | (Keys[VK_MENU] & Mod_Alt) | ((Keys[VK_LWIN] | Keys[VK_RWIN])& Mod_Meta);
 		}
 
-		Fundation::Event<const KeyboardEventArgs&> KeyDown;
-		Fundation::Event<const KeyboardEventArgs&> KeyUp;
+		Event<const KeyboardEventArgs&> KeyDown;
+		Event<const KeyboardEventArgs&> KeyUp;
 		BOOL	Keys[255];
 	};
 
@@ -211,7 +211,7 @@ namespace Platform
 			return m_hInstance;
 		}
 
-		Fundation::Rect Boundary() const
+		Rect Boundary() const
 		{
 			return m_Boundary;
 		}
@@ -221,7 +221,7 @@ namespace Platform
 		HWND				m_hWnd;
 		HINSTANCE			m_hInstance;
 		bool				m_FullScreen;
-		Fundation::Rect		m_Boundary;
+		Rect		m_Boundary;
 	};
 
 	//ref class Window sealed

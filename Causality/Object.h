@@ -1,8 +1,9 @@
 #pragma once
-#include "Common\BCL.h"
+#include "BCL.h"
 
 namespace Causality
 {
+	// object is managed resource that maybe "delayed destroy"
 	class Object
 	{
 	public:
@@ -16,17 +17,26 @@ namespace Causality
 		}
 
 		template <typename T>
-		const T& As() const
+		const T* As() const
 		{
-			return dynamic_cast<const T&>(*this);
+			return dynamic_cast<const T&>(this);
 		}
 
 		template <typename T>
-		T& As()
+		T* As()
 		{
-			return dynamic_cast<T&>(*this);
+			return dynamic_cast<T*>(this);
 		}
 
 		virtual ~Object();
+	};
+
+	class ObjectManager
+	{
+	public:
+		static ObjectManager GlobalObjectManager;
+
+	private:
+		std::unordered_map<id_t, Object*> objects_map;
 	};
 }

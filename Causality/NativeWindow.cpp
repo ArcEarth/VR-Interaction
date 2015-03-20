@@ -1,6 +1,6 @@
 #include "NativeWindow.h"
 
-namespace Platform
+namespace Causality
 {
 
 	std::map<HWND, std::weak_ptr<IWindow>> Application::WindowsLookup;
@@ -32,7 +32,7 @@ namespace Platform
 
 	void NativeWindow::OnMouseMove(int x, int y)
 	{
-		auto current = Fundation::Vector2((float)x, (float)y);
+		auto current = Vector2((float)x, (float)y);
 		CursorPositionDelta = current - CursorPostiton;
 		CursorPostiton = current;
 		if (!CursorMove.empty())

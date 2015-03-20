@@ -9,9 +9,17 @@
 
 namespace DirectX{
 
+	//class DeviceResource
+	//{
+
+	//protected:
+	//	std::string											m_Source;
+	//};
+
 
 	class Texture
 	{
+	public:
 		enum TextureType
 		{
 			Texture_1D,
@@ -23,6 +31,10 @@ namespace DirectX{
 		};
 
 	public:
+		Texture();
+		Texture(nullptr_t)
+		{}
+
 		Texture(Texture&& Src);
 		Texture(const Texture& rhs)
 		{
@@ -125,6 +137,10 @@ namespace DirectX{
 			return m_pResource.Get();
 		}
 
+		//const ID3D11Resource* Resource() const
+		//{
+		//	return const_cast<Texture*>(this)->Resource();
+		//}
 
 		operator ID3D11ShaderResourceView* ()
 		{
@@ -137,14 +153,8 @@ namespace DirectX{
 		}
 
 	protected:
-
 		Microsoft::WRL::ComPtr<ID3D11Resource>				m_pResource;
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>	m_pShaderResourceView;
-
-	protected:
-		Texture();
-		Texture(nullptr_t)
-		{}
 	};
 
 	class Texture2D
@@ -161,7 +171,7 @@ namespace DirectX{
 		{
 			Texture::operator=(rhs);
 			m_pTexture = rhs.m_pTexture;
-			m_TextureDescription = rhs.m_TextureDescription;
+			m_Description = rhs.m_Description;
 			return *this;
 		}
 
@@ -197,39 +207,50 @@ namespace DirectX{
 	public:
 		const D3D11_TEXTURE2D_DESC& Description() const
 		{
-			return m_TextureDescription;
+			return m_Description;
 		}
 
 		size_t Width() const
 		{ 
-			return m_TextureDescription.Width;
+			return m_Description.Width;
 		}
 		size_t Height() const
 		{
-			return m_TextureDescription.Height;
+			return m_Description.Height;
 		}
 		XMUINT2 Bounds() const
 		{
-			return XMUINT2(m_TextureDescription.Width,m_TextureDescription.Height);
+			return XMUINT2(m_Description.Width,m_Description.Height);
 		}
+
+		bool IsMultiSampleEnabled() const;
+		size_t MultiSampleCount() const;
+		size_t MultiSampleQuality() const;
 
 		DXGI_FORMAT Format() const
 		{
-			return m_TextureDescription.Format;
+			return m_Description.Format;
 		}
 
 		size_t MipMapLevel() const
 		{
-			return m_TextureDescription.MipLevels;
+			return m_Description.MipLevels;
 		}
 
 		// Warning! This one is not safe?
 		ID3D11Texture2D *Texture() const
 		{
-			Microsoft::WRL::ComPtr<ID3D11Texture2D> pTex;
-			m_pResource.As(&pTex);
-			return pTex.Get();
+			return m_pTexture.Get();
 		}
+
+		D3D11_USAGE Usage() const
+		{
+			return m_Description.Usage;
+		}
+
+		bool IsCpuWritable() const;
+		bool IsCpuReadable() const;
+		bool IsCubeMap() const;
 
 		operator ID3D11ShaderResourceView* ()
 		{
@@ -258,17 +279,17 @@ namespace DirectX{
 			);
 		Texture2D(ID3D11Device* pDevice, const D3D11_TEXTURE2D_DESC *pDesc , const D3D11_SUBRESOURCE_DATA *pInitialData = nullptr);
 		Texture2D(ID3D11Texture2D* pTexture , ID3D11ShaderResourceView* pResourceView = nullptr);
-		Texture2D(ID3D11Resource* pResource , ID3D11ShaderResourceView* pResourceView = nullptr);
-		Texture2D(ID3D11Device* pDevice , ID3D11Resource* pResouce);
+		Texture2D(ID3D11ShaderResourceView* pResourceView);
 		Texture2D();
 
 	protected:
 		Microsoft::WRL::ComPtr<ID3D11Texture2D>	m_pTexture;
-		D3D11_TEXTURE2D_DESC					m_TextureDescription;
+		D3D11_TEXTURE2D_DESC					m_Description;
 
 		friend class Texture;
 	};
 
+	// Cpu Writable texture
 	class DynamicTexture2D
 		: public Texture2D
 	{
@@ -325,15 +346,8 @@ namespace DirectX{
 			return m_pRenderTargetView.Get();
 		}
 
-		operator ID3D11ShaderResourceView* ()
-		{
-			return m_pShaderResourceView.Get();
-		}
-
-		operator ID3D11Texture2D* ()
-		{
-			return m_pTexture.Get();
-		}
+		using Texture2D::operator ID3D11ShaderResourceView *;
+		using Texture2D::operator ID3D11Texture2D *;
 
 		ID3D11RenderTargetView* RenderTargetView()
 		{
@@ -408,6 +422,7 @@ namespace DirectX{
 			m_pDepthStencilView = rhs.m_pDepthStencilView;
 			return *this;
 		}
+		explicit DepthStencilBuffer(ID3D11DepthStencilView* pDSV);
 
 		DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_D24_UNORM_S8_UINT);
 		~DepthStencilBuffer();
@@ -470,6 +485,8 @@ namespace DirectX{
 		DepthStencilBuffer& DepthBuffer();
 
 		const DepthStencilBuffer& DepthBuffer() const;
+
+		void SetDepthBuffer(DepthStencilBuffer& depthBuffer);
 
 		/// <summary>
 		/// Sets as render target with default no DepthStencil.

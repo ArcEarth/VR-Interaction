@@ -9,6 +9,8 @@
 #include <array>
 #include <SimpleMath.h>
 #include "BezierClip.h"
+#include <Eigen\Dense>
+#include <Eigen\Sparse>
 #include <boost\graph\adjacency_list.hpp>
 #ifdef PARALLEL_UPDATE
 #include <ppl.h>

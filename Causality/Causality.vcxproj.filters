@@ -129,6 +129,18 @@
     <ClCompile Include="Armature.cpp">
       <Filter>Platform\Platform.Devices</Filter>
     </ClCompile>
+    <ClCompile Include="AssetDictionary.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SelectorScene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderContext.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneParser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -138,9 +150,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\CompositeFlag.h">
-      <Filter>Platform\Platform.Fundation</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\BasicClass.h">
       <Filter>Platform\Platform.Fundation</Filter>
     </ClInclude>
     <ClInclude Include="NativeWindow.h">
@@ -233,9 +242,6 @@
     <ClInclude Include="Common\SpaceCurve.h">
       <Filter>DirectX</Filter>
     </ClInclude>
-    <ClInclude Include="ProbalisticModel.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="BulletPhysics.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -274,6 +280,24 @@
     </ClInclude>
     <ClInclude Include="Armature.h">
       <Filter>Platform\Platform.Devices</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\BCL.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AssetDictionary.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SelectorScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderContext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ProbalisticModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneParser.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -321,6 +345,9 @@
   <ItemGroup>
     <Xml Include="manifest.xml" />
     <Xml Include="Resources\Foregrounds.xml">
+      <Filter>Resource Files</Filter>
+    </Xml>
+    <Xml Include="DefaultSelectorScene.xml">
       <Filter>Resource Files</Filter>
     </Xml>
   </ItemGroup>

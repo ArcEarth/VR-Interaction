@@ -4,24 +4,9 @@
 #define OVR_D3D_VERSION 11
 #include <../Src/OVR_CAPI_D3D.h> // God dame this to put a important header inside here!
 #include <SpriteBatch.h>
-using namespace Platform::Devices;
-using namespace Platform::Fundation;
+using namespace Causality;
+using namespace Causality::Devices;
 using namespace DirectX::Scene;
-//class OvrInitializer
-//{
-//public:
-//	OvrInitializer()
-//	{
-//		Succeed = (bool)ovr_Initialize();
-//	}
-//
-//	~OvrInitializer()
-//	{
-//		ovr_Shutdown();
-//	}
-//
-//	bool Succeed;
-//};
 
 class OculusRift::Impl
 {
@@ -191,7 +176,7 @@ OculusRift::~OculusRift()
 
 }
 
-std::shared_ptr<OculusRift> Platform::Devices::OculusRift::Create(int hmdIdx)
+std::shared_ptr<OculusRift> OculusRift::Create(int hmdIdx)
 {
 	auto pRift = std::make_shared<OculusRift>();
 	pRift->pImpl = std::make_unique<OculusRift::Impl>(hmdIdx);
@@ -201,7 +186,7 @@ std::shared_ptr<OculusRift> Platform::Devices::OculusRift::Create(int hmdIdx)
 		return pRift;
 }
 
-bool Platform::Devices::OculusRift::Initialize(void)
+bool OculusRift::Initialize(void)
 {
 	if (!ovr_InitializeRenderingShim())
 		return false;
@@ -237,17 +222,17 @@ bool OculusRift::InitializeGraphics(HWND hWnd, DirectX::DeviceResources* pDevice
 	return true;
 }
 
-DirectX::Vector2 Platform::Devices::OculusRift::Resoulution() const
+DirectX::Vector2 OculusRift::Resoulution() const
 {
 	return Vector2(pImpl->HMD->Resolution.w, pImpl->HMD->Resolution.h);
 }
 
-DirectX::Vector2 Platform::Devices::OculusRift::DesktopWindowPosition() const
+DirectX::Vector2 OculusRift::DesktopWindowPosition() const
 {
 	return Vector2(pImpl->HMD->WindowsPos.x, pImpl->HMD->WindowsPos.y);
 }
 
-const char * Platform::Devices::OculusRift::DisplayDeviceName() const
+const char * OculusRift::DisplayDeviceName() const
 {
 	return pImpl->HMD->DisplayDeviceName;
 }

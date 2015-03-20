@@ -10,9 +10,9 @@
 //////////////
 
 #include <DirectXMath.h>
-#include "Locatable.h"
-#include "Textures.h"
 
+#include "Textures.h"
+#include "Locatable.h"
 ////////////////////////////////////////////////////////////////////////////////
 // Class name: Camera
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,79 +21,7 @@ namespace DirectX
 {
 	namespace Scene
 	{
-		enum EyesEnum : int
-		{
-			Eye_Left = 0,
-			Eye_Right = 1,
-			Eye_Count = 2,
-		};
 
-		struct CameraBuffer
-		{
-			DirectX::XMFLOAT4X4	ViewProjectionMatrix;
-			DirectX::XMFLOAT4	CameraPosition;
-			DirectX::XMFLOAT4	CameraFocus;
-			DirectX::XMFLOAT4X4 ViewMatrix;
-			DirectX::XMFLOAT4X4 ProjectionMatrix;
-		};
-
-		// Manually adjust advance camera paprameters
-		class ICameraParameters
-		{
-			virtual void SetFov(float fovRadius, float aspectRatioHbyW) = 0;
-			virtual float GetFov() const = 0;
-		};
-
-		// The basic functions for camera, to provide View/Projection Matrix, Setup Position and focus
-		class ICameraBase abstract : virtual public ILocatable, virtual public IOriented
-		{
-		public:
-			virtual ~ICameraBase()
-			{}
-			virtual size_t ViewCount() const = 0;
-			virtual DirectX::XMMATRIX GetViewMatrix(size_t view) const = 0;
-			virtual DirectX::XMMATRIX GetProjectionMatrix(size_t view) const = 0;
-			virtual void FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir) = 0;
-
-			virtual void XM_CALLCONV Move(FXMVECTOR p);
-			virtual void XM_CALLCONV Rotate(FXMVECTOR q);
-			virtual bool XM_CALLCONV IsInView(FXMVECTOR pos) const { return true; }
-		};
-
-		// Control the logic of render target setup and post-processing needed for current camera
-		class ICameraRenderControl
-		{
-		public:
-			// Called in the beginning of per-frame
-			virtual void BeginFrame() = 0;
-			// Called in in the end of per frame, should call Prenset inside
-			virtual void EndFrame() = 0;
-			// Called in advance of per-view rendering
-			virtual void SetView(size_t view) = 0;
-		};
-
-		class DefaultCameraRenderControl : public virtual ICameraRenderControl
-		{
-		public: 
-			void BeginFrame() override;
-			void EndFrame() override;
-			void SetView(size_t view) override;
-
-			DirectX::RenderTarget Target;
-		};
-
-		class IMonolithCamera abstract : public ICameraBase , virtual public ICameraParameters
-		{
-		public:
-			virtual size_t ViewCount() const { return 1U; }
-		};
-
-		// StereoCamera usually need to setup different view ports for differnt view, and it should implement the ICameraRenderControlInterface
-		class IStereoCamera abstract : public ICameraBase , virtual public ICameraRenderControl
-		{
-		public:
-			virtual size_t ViewCount() const { return 2U; }
-		};
 	}
 }
 

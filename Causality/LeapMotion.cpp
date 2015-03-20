@@ -1,7 +1,7 @@
 #include "LeapMotion.h"
 #include <iostream>
 
-using namespace Platform::Devices;
+using namespace Causality::Devices;
 
 class LeapMotion::Listener : public Leap::Listener
 {
@@ -20,7 +20,7 @@ public:
 	LeapMotion*	pOwner;
 };
 
-Platform::Devices::LeapMotion::LeapMotion(bool useEvent, bool isFixed)
+LeapMotion::LeapMotion(bool useEvent, bool isFixed)
 	:pListener(new Listener(this))
 {
 	using namespace DirectX;
@@ -34,20 +34,20 @@ Platform::Devices::LeapMotion::LeapMotion(bool useEvent, bool isFixed)
 		LeapController.setPolicy(Leap::Controller::PolicyFlag::POLICY_OPTIMIZE_HMD);
 }
 
-Platform::Devices::LeapMotion::~LeapMotion()
+LeapMotion::~LeapMotion()
 {
 	LeapController.removeListener(*pListener.get());
 }
 
-Leap::Controller & Platform::Devices::LeapMotion::Controller() {
+Leap::Controller & LeapMotion::Controller() {
 	return LeapController;
 }
 
-const Leap::Controller & Platform::Devices::LeapMotion::Controller() const {
+const Leap::Controller & LeapMotion::Controller() const {
 	return LeapController;
 }
 
-void Platform::Devices::LeapMotion::PullFrame()
+void LeapMotion::PullFrame()
 {
 	bool connected = LeapController.isConnected();
 	if (connected && !PrevConnectionStates)
@@ -64,19 +64,19 @@ void Platform::Devices::LeapMotion::PullFrame()
 		pListener->onFrame(LeapController);
 }
 
-void Platform::Devices::LeapMotion::SetMotionProvider(DirectX::ILocatable * pHeadLoc, DirectX::IOriented * pHeadOrient)
+void LeapMotion::SetMotionProvider(DirectX::ILocatable * pHeadLoc, DirectX::IOriented * pHeadOrient)
 {
 	pHeadLocation = pHeadLoc;
 	pHeadOrientation = pHeadOrient;
 }
 
-void Platform::Devices::LeapMotion::SetLeapCoord(const DirectX::Matrix4x4 & m)
+void LeapMotion::SetLeapCoord(const DirectX::Matrix4x4 & m)
 {
 	using namespace DirectX;
 	Coordinate = XMMatrixScalingFromVector(XMVectorReplicate(0.001f)) * (XMMATRIX)m;
 }
 
-DirectX::XMMATRIX Platform::Devices::LeapMotion::ToWorldTransform() const
+DirectX::XMMATRIX LeapMotion::ToWorldTransform() const
 {
 	using namespace DirectX;
 	if (pHeadLocation && pHeadOrientation)
@@ -85,21 +85,21 @@ DirectX::XMMATRIX Platform::Devices::LeapMotion::ToWorldTransform() const
 		return Coordinate;
 }
 
-void Platform::Devices::LeapMotion::Listener::onConnect(const Leap::Controller & controller)
+void LeapMotion::Listener::onConnect(const Leap::Controller & controller)
 {
 	pOwner->DeviceConnected(controller);
 	PrevHandsCount = 0;
 	std::cout << "[Leap] Device Connected." << std::endl;
 }
 
-void Platform::Devices::LeapMotion::Listener::onDisconnect(const Leap::Controller & controller)
+void LeapMotion::Listener::onDisconnect(const Leap::Controller & controller)
 {
 	pOwner->DeviceConnected(controller);
 	PrevHandsCount = 0;
 	std::cout << "[Leap] Device Disconnected." << std::endl;
 }
 
-void Platform::Devices::LeapMotion::Listener::onFrame(const Leap::Controller & controller)
+void LeapMotion::Listener::onFrame(const Leap::Controller & controller)
 {
 	CurrentFrame = controller.frame();
 	pOwner->FrameArrived(controller);

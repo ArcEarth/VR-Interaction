@@ -1,5 +1,5 @@
 #pragma once
-#include "Common\BCL.h"
+#include "BCL.h"
 #include "SceneObject.h"
 
 namespace Causality
@@ -42,6 +42,10 @@ namespace Causality
 
 	class Behavier : public Component
 	{
-
+		virtual void OnLoaded();
+		virtual void OnUnloaded();
+		virtual void OnRendering();
+		virtual void OnRendered();
+		virtual void OnUpdate();
 	};
 }

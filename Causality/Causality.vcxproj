@@ -214,6 +214,7 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AssetDictionary.cpp" />
     <ClCompile Include="BulletPhysics.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch_bullet.h</PrecompiledHeaderFile>
@@ -397,11 +398,15 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">-Zm113 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClCompile Include="PrimaryCamera.cpp" />
+    <ClCompile Include="RenderContext.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Armature.cpp" />
+    <ClCompile Include="SceneParser.cpp" />
+    <ClCompile Include="SelectorScene.cpp" />
     <ClCompile Include="TrackedPlayer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AssetDictionary.h" />
     <ClInclude Include="BulletPhysics.h" />
     <ClInclude Include="CausalityApplication.h" />
     <ClInclude Include="Common\BCL.h" />
@@ -445,10 +450,13 @@
     <ClInclude Include="pch_bullet.h" />
     <ClInclude Include="PrimaryCamera.h" />
     <ClInclude Include="ProbalisticModel.h" />
+    <ClInclude Include="RenderContext.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneObject.h" />
     <ClInclude Include="Armature.h" />
+    <ClInclude Include="SceneParser.h" />
+    <ClInclude Include="SelectorScene.h" />
     <ClInclude Include="WorldTreeBranch.h" />
   </ItemGroup>
   <ItemGroup>
@@ -530,6 +538,7 @@
     <ResourceCompile Include="Causality.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Xml Include="DefaultSelectorScene.xml" />
     <Xml Include="manifest.xml" />
     <Xml Include="Resources\Foregrounds.xml">
       <SubType>Designer</SubType>

@@ -3,10 +3,11 @@
 #include "BulletPhysics.h"
 #include "Armature.h"
 #include <memory>
+#include "Object.h"
 
 namespace Causality
 {
-
+	class Component;
 
 	enum SceneObjectCollisionType
 	{
@@ -14,14 +15,6 @@ namespace Causality
 		Collision_Static,		// Passive, Collision with Dynamic Type, won't move
 		Collision_Kinametic,	// Active, Collision with Dynamic Type, will move
 		Collision_Ghost,		// Active, Don't Collide, but will move
-	};
-
-	enum SceneObjectType
-	{
-		Entity,
-		Camera,
-		Light,
-		Misc,
 	};
 
 	struct RenderingSpecification // Shadow,Bloom,etc
@@ -44,24 +37,48 @@ namespace Causality
 	class SceneObject : public Object, public DirectX::BasicTransform
 	{
 	public:
-		std::string							Tag;
-
-		SceneObject*						Parent;
-		const std::vector<SceneObject*>&	Children;
-		const std::vector<Component*>&		Components;
-
-		template <typename TComponent,typename... TArgs>
-		TComponent&							AddComponent(TArgs&&... args)
+		SceneObject()
+			:Children(m_Children)//,Components(m_Components)
 		{
-			m_Components.push_back(new TComponent(std::forward(args)));
-			m_Components.back()->Owner = this;
+
 		}
 
-		template <typename TComponent>
-		const TComponent*					GetComponent() const 
+		string							Tag;
+
+		//const std::vector<uptr<Component>>&		Components;
+		const std::vector<uptr<SceneObject>>&	Children;
+
+		void AddChild(uptr<SceneObject>&& child)
 		{
-			return nullptr;
+			if (child != nullptr)
+				m_Children.emplace_back(std::move(child));
 		}
+
+		//template <typename TComponent,typename... TArgs>
+		//TComponent&							AddComponent(TArgs&&... args)
+		//{
+		//	m_Components.push_back(new TComponent(std::forward(args)));
+		//	m_Components.back()->Owner = this;
+		//}
+
+		//template <typename TInterface>
+		//auto GetComponents() 
+		//{
+		//	using namespace boost;
+		//	using namespace adaptors;
+		//	return 
+		//		Components 
+		//		| transformed([](auto pCom) {
+		//			return dynamic_cast<TInterface*>(pCom); }) 
+		//		| filtered([](auto pCom){
+		//			return pCom != nullptr;});
+		//}
+
+		//template <typename TComponent>
+		//const TComponent*					GetComponent() const 
+		//{
+		//	return nullptr;
+		//}
 
 		bool								IsStatic() const;
 		bool								IsActive() const;
@@ -70,16 +87,11 @@ namespace Causality
 
 		DirectX::XMMATRIX					GlobalTransformMatrix() const;
 
-		TypedEvent<SceneObject>				OnLoaded;
+		//TypedEvent<SceneObject>			OnLoaded;
 		//TypedEvent<SceneObject>			OnUnloaded;
 	protected:
-		std::vector<SceneObject*>			m_Children;
-		std::vector<Component*>				m_Components;
-	};
-
-	class CameraObject : public SceneObject
-	{
-
+		//std::vector<uptr<Component>>			m_Components;
+		std::vector<uptr<SceneObject>>			m_Children;
 	};
 
 	class LightingObject : public SceneObject
@@ -88,7 +100,7 @@ namespace Causality
 	};
 
 	// Scene object acts like entities for render
-	class SceneEntity : public SceneObject
+	class RenderableSceneObject : virtual public SceneObject
 	{
 	public:
 		//int										MaxLoD() const;
@@ -106,16 +118,17 @@ namespace Causality
 		bool										IsFocused() const;
 
 		// Events
-		//TypedEvent<SceneEntity, int>				LoDChanged;
-		//TypedEvent<SceneEntity>						Rendering;
-		//TypedEvent<SceneEntity>						Rendered;
-		//TypedEvent<SceneEntity>						Focused;
-		//TypedEvent<SceneEntity>						FocusLost;
-		//TypedEvent<SceneEntity>						VisibilityChanged;
-		//TypedEvent<SceneEntity>						PositionChanged;
+		//TypedEvent<RenderableSceneObject, int>				LoDChanged;
+		//TypedEvent<RenderableSceneObject>						Rendering;
+		//TypedEvent<RenderableSceneObject>						Rendered;
+		//TypedEvent<RenderableSceneObject>						Focused;
+		//TypedEvent<RenderableSceneObject>						FocusLost;
+		//TypedEvent<RenderableSceneObject>						VisibilityChanged;
+		//TypedEvent<RenderableSceneObject>						PositionChanged;
 
 		DirectX::Scene::IModelNode*					RenderModel(int LoD = 0);
 		const DirectX::Scene::IModelNode*			RenderModel(int LoD = 0) const;
+		void										SetRenderModel(DirectX::Scene::IModelNode* pMesh, int LoD = 0);
 
 		Bullet::CollisionShape&						CollisionShape(int LoD = 0);
 		const Bullet::CollisionShape&				CollisionShape(int LoD = 0) const;
@@ -137,19 +150,18 @@ namespace Causality
 		int								ID; // Must be same as the id referenced in Armature
 
 		// Saliency parameters
-		Color				AverageColor;
-		ColorHistogram		ColorDistribution;
-		Vector3				PositionDistribution;
-		BoundingBox			VelocityDistribution;
+		Color							AverageColor;
+		ColorHistogram					ColorDistribution;
+		Vector3							PositionDistribution;
+		BoundingBox						VelocityDistribution;
 		
 		float							IntrinsicSaliency;
 		float							ExtrinsicSaliency;
 	};
 
-
 	class ControlState;
 	// Represent an SceneObjecy
-	class KinematicSceneObject : public SceneEntity
+	class KinematicSceneObject : public RenderableSceneObject
 	{
 	public:
 		typedef AnimationSpace::frame_type frame_type;
@@ -160,14 +172,13 @@ namespace Causality
 
 		IArmature&						Armature();
 		const IArmature&				Armature() const;
-		AnimationSpace&					Space();
-		const AnimationSpace&			Space() const;
+		AnimationSpace&					Behavier();
+		const AnimationSpace&			Behavier() const;
+		void							SetBehavier(AnimationSpace& behaver);
 
 	private:
-		sptr<IArmature>							m_pArmature;
-		sptr<AnimationSpace>					m_pAnimationSpace;
-		const frame_type&						m_DefaultFrame;
-		frame_type								m_CurrentFrame;
+		AnimationSpace*					        m_pAnimationSpace;
+		frame_type						        m_CurrentFrame;
 
 		std::vector<KinematicSceneObjectPart>	m_Parts;
 

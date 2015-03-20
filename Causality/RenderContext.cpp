@@ -1,4 +1,4 @@
-#include "Scene.h"
+#include "RenderContext.h"
 
 using namespace Causality;
 

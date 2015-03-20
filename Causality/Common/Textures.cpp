@@ -27,7 +27,7 @@ Texture& Texture::operator = (Texture&& Src)
 Texture2D::Texture2D(Texture2D &&Src)
 	:DirectX::Texture(std::move(static_cast<DirectX::Texture&>(Src)))
 	, m_pTexture(std::move(Src.m_pTexture))
-	, m_TextureDescription(Src.m_TextureDescription)
+	, m_Description(Src.m_Description)
 {
 }
 
@@ -35,7 +35,7 @@ Texture2D& Texture2D::operator = (Texture2D &&Src)
 {
 	Texture::operator=(std::move(Src));
 	m_pTexture = Src.m_pTexture;
-	m_TextureDescription = Src.m_TextureDescription;
+	m_Description = Src.m_Description;
 	return *this;
 }
 
@@ -53,7 +53,7 @@ Texture2D::Texture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ u
 {
 	if (multisamplesCount > 1)
 		bindFlags &= ~D3D11_BIND_SHADER_RESOURCE; // Shader resources is not valiad for MSAA texture
-	D3D11_TEXTURE2D_DESC &TextureDesc = m_TextureDescription;
+	D3D11_TEXTURE2D_DESC &TextureDesc = m_Description;
 	TextureDesc.Width = Width;
 	TextureDesc.Height = Height;
 	TextureDesc.MipLevels = MipMapLevel;
@@ -94,18 +94,19 @@ Texture2D::Texture2D(ID3D11Texture2D* pTexture, ID3D11ShaderResourceView* pResou
 	HRESULT hr = m_pTexture.As<ID3D11Resource>(&m_pResource);
 	DirectX::ThrowIfFailed(hr);
 
-	m_pTexture->GetDesc(&m_TextureDescription);
+	m_pTexture->GetDesc(&m_Description);
 	m_pShaderResourceView = pResourceView;
 }
 
-Texture2D::Texture2D(ID3D11Resource* pResource, ID3D11ShaderResourceView* pResourceView)
+Texture2D::Texture2D(ID3D11ShaderResourceView* pResourceView)
 {
-	assert(pResource);
-	HRESULT hr = pResource->QueryInterface<ID3D11Texture2D>(&m_pTexture);
+	ComPtr<ID3D11Resource> pResource;
+	pResourceView->GetResource(&pResource);
+	HRESULT hr = pResource.As(&m_pTexture);
 	DirectX::ThrowIfFailed(hr);
-	m_pTexture->GetDesc(&m_TextureDescription);
+	m_pTexture->GetDesc(&m_Description);
 	m_pShaderResourceView = pResourceView;
-	m_pResource = pResource;
+	m_pResource = std::move(pResource);
 }
 
 void Texture2D::CopyFrom(ID3D11DeviceContext *pContext, const Texture2D* pSource)
@@ -152,7 +153,7 @@ RenderTargetTexture2D::RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ un
 	HRESULT hr = pDevice->CreateRenderTargetView(m_pResource.Get(), nullptr, &m_pRenderTargetView);
 	DirectX::ThrowIfFailed(hr);
 
-	m_Viewport = { 0.0f, 0.0f, (float) m_TextureDescription.Width, (float) m_TextureDescription.Height, 0.0f, 1.0f };
+	m_Viewport = { 0.0f, 0.0f, (float) m_Description.Width, (float) m_Description.Height, 0.0f, 1.0f };
 
 }
 
@@ -162,7 +163,7 @@ RenderTargetTexture2D::RenderTargetTexture2D(ID3D11Texture2D* pTexture, ID3D11Re
 	assert(pRenderTargetView);
 	m_pRenderTargetView = pRenderTargetView;
 	if (pViewport == nullptr)
-		m_Viewport = { 0.0f, 0.0f, (float) m_TextureDescription.Width, (float) m_TextureDescription.Height, 0.0f, 1.0f };
+		m_Viewport = { 0.0f, 0.0f, (float) m_Description.Width, (float) m_Description.Height, 0.0f, 1.0f };
 	else
 		m_Viewport = *pViewport;
 }
@@ -203,6 +204,10 @@ DepthStencilBuffer& DepthStencilBuffer::operator = (DepthStencilBuffer&&source)
 }
 
 
+
+DirectX::DepthStencilBuffer::DepthStencilBuffer(ID3D11DepthStencilView * pDSV)
+{
+}
 
 DepthStencilBuffer::DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format)
 	: Texture2D(pDevice, Width, Height, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL, 0)
@@ -283,7 +288,7 @@ Texture Texture::CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wcha
 			break;
 		case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
 		{
-			Texture2D texture2D (pResource, pView);
+			Texture2D texture2D (pView);
 			pResource->Release();
 			pView->Release();
 			return texture2D;
@@ -332,7 +337,7 @@ Texture2D Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevice,
 		{
 			ID3D11Texture2D* pTexInterface;
 			texture.Resource()->QueryInterface<ID3D11Texture2D>(&pTexInterface);
-			pTexInterface->GetDesc(&texture.m_TextureDescription);
+			pTexInterface->GetDesc(&texture.m_Description);
 		}
 		else
 		{
@@ -345,7 +350,7 @@ Texture2D Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevice,
 		ThrowIfFailed(hr);
 		ID3D11Texture2D* pTexInterface;
 		texture.Resource()->QueryInterface<ID3D11Texture2D>(&pTexInterface);
-		pTexInterface->GetDesc(&texture.m_TextureDescription);
+		pTexInterface->GetDesc(&texture.m_Description);
 		return texture;
 	}
 	return texture;
@@ -416,24 +421,24 @@ StagingTexture2D::StagingTexture2D(ID3D11DeviceContext* pContext, const Texture2
 
 	assert(pTexture.Get());
 
-	pTexture->GetDesc(&m_TextureDescription);
+	pTexture->GetDesc(&m_Description);
 
 	ScopedObject<ID3D11Device> d3dDevice;
 	pContext->GetDevice(&d3dDevice);
 
-	if (m_TextureDescription.SampleDesc.Count > 1)
+	if (m_Description.SampleDesc.Count > 1)
 	{
 		// MSAA content must be resolved before being copied to a staging texture
-		m_TextureDescription.SampleDesc.Count = 1;
-		m_TextureDescription.SampleDesc.Quality = 0;
+		m_Description.SampleDesc.Count = 1;
+		m_Description.SampleDesc.Quality = 0;
 
 		ScopedObject<ID3D11Texture2D> pTemp;
-		hr = d3dDevice->CreateTexture2D(&m_TextureDescription, 0, &pTemp);
+		hr = d3dDevice->CreateTexture2D(&m_Description, 0, &pTemp);
 		ThrowIfFailed(hr);
 
 		assert(pTemp.Get());
 
-		DXGI_FORMAT fmt = EnsureNotTypeless(m_TextureDescription.Format);
+		DXGI_FORMAT fmt = EnsureNotTypeless(m_Description.Format);
 
 		UINT support = 0;
 		hr = d3dDevice->CheckFormatSupport(fmt, &support);
@@ -442,28 +447,28 @@ StagingTexture2D::StagingTexture2D(ID3D11DeviceContext* pContext, const Texture2
 		if (!(support & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE))
 			throw std::runtime_error("Multisampling resolve failed");
 
-		for (UINT item = 0; item < m_TextureDescription.ArraySize; ++item)
+		for (UINT item = 0; item < m_Description.ArraySize; ++item)
 		{
-			for (UINT level = 0; level < m_TextureDescription.MipLevels; ++level)
+			for (UINT level = 0; level < m_Description.MipLevels; ++level)
 			{
-				UINT index = D3D11CalcSubresource(level, item, m_TextureDescription.MipLevels);
+				UINT index = D3D11CalcSubresource(level, item, m_Description.MipLevels);
 				pContext->ResolveSubresource(pTemp.Get(), index, pSource, index, fmt);
 			}
 		}
 
-		m_TextureDescription.BindFlags = 0;
-		m_TextureDescription.MiscFlags &= D3D11_RESOURCE_MISC_TEXTURECUBE;
-		m_TextureDescription.CPUAccessFlags = cpuAccessFlags;
-		m_TextureDescription.Usage = D3D11_USAGE_STAGING;
+		m_Description.BindFlags = 0;
+		m_Description.MiscFlags &= D3D11_RESOURCE_MISC_TEXTURECUBE;
+		m_Description.CPUAccessFlags = cpuAccessFlags;
+		m_Description.Usage = D3D11_USAGE_STAGING;
 
 		ID3D11Texture2D* pTex;
-		hr = d3dDevice->CreateTexture2D(&m_TextureDescription, 0, &pTex);
+		hr = d3dDevice->CreateTexture2D(&m_Description, 0, &pTex);
 		ThrowIfFailed(hr);
 		assert(m_pResource.Get());
 		pContext->CopyResource(m_pResource.Get(), pTemp.Get());
 		//m_pTexture = pTexture.Get();
 	}
-	else if ((m_TextureDescription.Usage == D3D11_USAGE_STAGING) && (m_TextureDescription.CPUAccessFlags & cpuAccessFlags))
+	else if ((m_Description.Usage == D3D11_USAGE_STAGING) && (m_Description.CPUAccessFlags & cpuAccessFlags))
 	{
 		// Handle case where the source is already a staging texture we can use directly
 		m_pResource = pTexture.Get();
@@ -471,13 +476,13 @@ StagingTexture2D::StagingTexture2D(ID3D11DeviceContext* pContext, const Texture2
 	else
 	{
 		// Otherwise, create a staging texture from the non-MSAA source
-		m_TextureDescription.BindFlags = 0;
-		m_TextureDescription.MiscFlags &= D3D11_RESOURCE_MISC_TEXTURECUBE;
-		m_TextureDescription.CPUAccessFlags = cpuAccessFlags;
-		m_TextureDescription.Usage = D3D11_USAGE_STAGING;
+		m_Description.BindFlags = 0;
+		m_Description.MiscFlags &= D3D11_RESOURCE_MISC_TEXTURECUBE;
+		m_Description.CPUAccessFlags = cpuAccessFlags;
+		m_Description.Usage = D3D11_USAGE_STAGING;
 
 		ID3D11Texture2D* pTex;
-		hr = d3dDevice->CreateTexture2D(&m_TextureDescription, 0, &pTex);
+		hr = d3dDevice->CreateTexture2D(&m_Description, 0, &pTex);
 		m_pResource = pTex;
 		ThrowIfFailed(hr);
 
@@ -587,7 +592,7 @@ static void GetSurfaceInfo(_In_ size_t width,
 std::unique_ptr<uint8_t> StagingTexture2D::GetData(ID3D11DeviceContext *pContext)
 {
 	size_t rowPitch, slicePitch, rowCount;
-	auto & desc = m_TextureDescription;
+	auto & desc = m_Description;
 	GetSurfaceInfo(desc.Width, desc.Height, desc.Format, &slicePitch, &rowPitch, &rowCount);
 
 	// Setup pixels

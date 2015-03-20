@@ -1,7 +1,7 @@
 #pragma once
 #include "Common\tree.h"
 #include "Common\DirectXMathExtend.h"
-#include "Common\BCL.h"
+#include "BCL.h"
 #include <unordered_map>
 #include <memory>
 #include "Common\CompositeFlag.h"
@@ -39,7 +39,7 @@ namespace Causality
 		// Update from Hirachy or Global
 		// FK Caculation
 		void UpdateGlobalData(const BoneDisplacement& refernece);
-		// Easy-IK Caculation with No-Yaw-Rotation-Constraint and bone length will be modified if the transform is not isometric
+		// Easy-IK Caculation with No-X-Rotation-Constraint and bone length will be modified if the transform is not isometric
 		void UpdateLocalDataByPositionOnly(const BoneDisplacement& reference);
 		// Assuming Global position & orientation is known
 		void UpdateLocalData(const BoneDisplacement& reference);
@@ -87,6 +87,11 @@ namespace Causality
 		Semantic_Head = 0x20,
 		Semantic_Eye = 0x40,
 		Semantic_Nouse = 0x80,
+		Semantic_Ear = 0x100,
+
+		Semantic_Left = 0x1000000,
+		Semantic_Right = 0x2000000,
+		Semantic_Center = 0x4000000,
 	};
 
 	using JointSemanticProperty = CompositeFlag<JointSemantic>;
@@ -147,7 +152,10 @@ namespace Causality
 			return JointData::Name;
 		}
 
-		void Rename(const std::string& name);
+		void SetName(const std::string& name) { JointData::Name = name; }
+		void SetParentID(int id) { JointData::ParentID = id; }
+
+		const JointSemanticProperty& AssignSemanticsBasedOnName();
 
 		const JointSemanticProperty& Semantics() const;
 		JointSemanticProperty& Semantics();
@@ -156,7 +164,7 @@ namespace Causality
 		void SetRotationConstraint(const RotationConstriant&);
 	};
 
-	typedef double TimeScalarType;
+	typedef time_seconds TimeScalarType;
 
 	struct AnimationFrame // Meta data for an animation frame
 	{
@@ -175,7 +183,20 @@ namespace Causality
 	public:
 		typedef public std::vector<BoneDisplacement, DirectX::AlignedAllocator<BoneDisplacement>> BaseType;
 		using BaseType::operator[];
-		using BaseType::operator=;
+		//using BaseType::operator=;
+
+		BoneDisplacementFrame() = default;
+		explicit BoneDisplacementFrame(size_t size);
+		// copy from default frame
+		explicit BoneDisplacementFrame(const IArmature& armature);
+		BoneDisplacementFrame(const BoneDisplacementFrame&) = default;
+		BoneDisplacementFrame(BoneDisplacementFrame&& rhs) { *this = std::move(rhs); }
+		BoneDisplacementFrame& operator=(const BoneDisplacementFrame&) = default;
+		BoneDisplacementFrame& operator=(BoneDisplacementFrame&& rhs)
+		{
+			BaseType::_Assign_rv(std::move(rhs));
+			return *this;
+		}
 
 		//const IArmature& Armature() const;
 		//// Which skeleton this state fram apply for
@@ -237,14 +258,39 @@ namespace Causality
 	class KeyframeAnimation : public IFrameAnimation
 	{
 	public:
+		string Name;
 		std::vector<FrameType> KeyFrames;
-
-		std::shared_ptr<FrameType> m_pDefaultFrame; // Use to generate
-		const FrameType& DefaultFrame() const;
-
 		// A function map : (BeginTime,EndTime) -> (BeginTime,EndTime),  that handels the easing effect between frames
 		// Restriction : TimeWarp(KeyFrameTime(i)) must equals to it self
 		std::function<TimeScalarType(TimeScalarType)> TimeWarpFunction;
+	protected:
+		FrameType * m_pDefaultFrame; // Use to generate
+	public:
+		typedef KeyframeAnimation self_type;
+
+		KeyframeAnimation() = default;
+		KeyframeAnimation(const self_type& rhs) = default;
+		self_type& operator=(const self_type& rhs) = default;
+
+		KeyframeAnimation(self_type&& rhs)
+		{
+			*this = std::move(rhs);
+		}
+
+		inline self_type& operator=(const self_type&& rhs)
+		{
+			Name = std::move(rhs.Name);
+			KeyFrames = std::move(rhs.KeyFrames);
+			m_pDefaultFrame = rhs.m_pDefaultFrame;
+			return *this;
+		}
+
+		const FrameType& DefaultFrame() const;
+
+		// Duration of this clip
+		TimeScalarType	Length() const;
+		// Is this clip a loopable animation : last frame == first frame
+		bool			Loopable()  const;
 
 		// Frame operations
 	public:
@@ -266,14 +312,36 @@ namespace Causality
 	class ArmatureKeyframeAnimation : public KeyframeAnimation<BoneDisplacementFrame>
 	{
 	public:
+		typedef ArmatureKeyframeAnimation self_type;
+		typedef KeyframeAnimation<BoneDisplacementFrame> base_type;
 		typedef BoneDisplacementFrame frame_type;
+
+		self_type() = default;
+		self_type(const self_type& rhs) = default;
+		self_type& operator=(const self_type& rhs) = default;
+
+		self_type(self_type&& rhs)
+		{
+			*this = std::move(rhs);
+		}
+		explicit ArmatureKeyframeAnimation (std::istream& file);
+
+		self_type& operator=(const self_type&& rhs)
+		{
+			pArmature = rhs.pArmature;
+			frames = std::move(rhs.frames);
+			base_type::operator=(std::move(rhs));
+			return *this;
+		}
+
+
 	
-		const IArmature& Armature() const;
-
+		const IArmature& Armature() const { return *pArmature; }
+		void SetArmature(IArmature& armature) { pArmature = &armature; }
 		// get the pre-computed frame buffer which contains interpolated frame
-		const std::vector<frame_type>& get_frame_buffer() const;
+		const std::vector<frame_type>& GetFrameBuffer() const { return frames; }
 
-		bool pre_interpolate_frames(double frameRate);
+		bool InterpolateFrames(double frameRate);
 
 	private:
 		IArmature* pArmature;
@@ -285,8 +353,10 @@ namespace Causality
 	public:
 		typedef BoneDisplacementFrame frame_type;
 		
-		const IArmature& SourceArmature() const;
-		const IArmature& TargetArmature() const;
+		const IArmature& SourceArmature() const { return *pSource; }
+		const IArmature& TargetArmature() const { return *pTarget; }
+		void SetSourceArmature(const IArmature& armature) { pSource = &armature; }
+		void SetTargetArmature(const IArmature& armature) { pTarget = &armature; }
 
 		int GetBindIndex(int sourceIdx) const;
 		int GetInverseBindIndex(int tragetIdx) const;
@@ -300,10 +370,11 @@ namespace Causality
 
 		void TransformBack(_Out_ frame_type& source_frame, _In_ const frame_type& target_frame) const;
 
-		Eigen::MatrixXf InternalMatrix();
-		const Eigen::MatrixXf InternalMatrix() const;
+		Eigen::MatrixXf& InternalMatrix();
+		const Eigen::MatrixXf& InternalMatrix() const;
 
 	protected:
+		const IArmature	*pSource, *pTarget;
 		Eigen::MatrixXf transform_matrix;
 	};
 
@@ -371,15 +442,20 @@ namespace Causality
 			}
 		}
 
-		void RegisterAnimation(const std::string&, animation_type&& animation);
+		void AddAnimationClip(const std::string& name, animation_type&& animation)
+		{
+			this->emplace(name, std::move(animation));
+		}
 
 		bool Contains(const std::string& name) const;
 
 		const IArmature&		Armature() const;
+		IArmature&				Armature();
+		void					SetArmature(IArmature& armature);
 
 		const frame_type&		RestFrame() const; // RestFrame should be the first fram in Rest Animation
 
-		// Using Local Position is bad : Yaw rotation of Parent Joint is not considerd
+		// Using Local Position is bad : X rotation of Parent Joint is not considerd
 		Eigen::VectorXf CaculateFrameFeatureVectorEndPointNormalized(const frame_type& frame) const;
 
 		// Basiclly, the difference's magnitude is acceptable, direction is bad
@@ -394,6 +470,8 @@ namespace Causality
 
 		float FrameLikilihood(const frame_type& frame, const frame_type& prev_frame) const;
 		float FrameLikilihood(const frame_type& frame) const;
+
+		vector<ArmatureTransform> GenerateBindings();
 
 		//float DynamicSimiliarityJvh(const velocity_frame_type& velocity_frame) const;
 	protected:
@@ -462,11 +540,30 @@ namespace Causality
 	class IArmature
 	{
 	public:
+		typedef BoneDisplacementFrame frame_type;
+
 		virtual ~IArmature() {}
 
 		virtual Joint* at(int index) = 0;
 		virtual Joint* root() = 0;
+		const Joint* root() const
+		{
+			return const_cast<IArmature*>(this)->root();
+		}
 		virtual size_t size() const = 0;
+		virtual const frame_type& default_frame() const = 0;
+
+		iterator_range<Joint::const_depth_first_iterator>
+			joints() const 
+		{
+			return root()->descendants();
+		}
+
+		iterator_range<Joint::mutable_depth_first_iterator> 
+			joints()
+		{
+			return root()->descendants();
+		}
 
 		// We say one Skeleton is compatiable with another Skeleton rhs
 		// if and only if rhs is a "base tree" of "this" in the sense of "edge shrink"
@@ -474,13 +571,10 @@ namespace Causality
 
 		const Joint* at(int index) const
 		{
-			return const_cast<Joint*>(const_cast<IArmature*>(this)->at(index));
+			return const_cast<IArmature*>(this)->at(index);
 		}
 
-		const Joint* root() const
-		{
-			return const_cast<IArmature*>(this)->root();
-		}
+
 
 		Joint* operator[](int idx)
 		{
@@ -500,7 +594,15 @@ namespace Causality
 	{
 	public:
 		typedef Joint joint_type;
+		typedef StaticArmature self_type;
 
+	private:
+		size_t						RootIdx;
+		std::vector<joint_type>		Joints;
+		std::vector<size_t>			TopologyOrder;
+		frame_type					DefaultFrame;
+
+	public:
 		template <template<class T> class Range>
 		StaticArmature(Range<JointData> data)
 		{
@@ -525,12 +627,27 @@ namespace Causality
 			CaculateTopologyOrder();
 		}
 
+		// deserialization
+		StaticArmature(std::istream& file);
 		StaticArmature(size_t JointCount, int *JointsParentIndices);
 		~StaticArmature();
+		StaticArmature(const self_type& rhs) = delete;
+		StaticArmature(self_type&& rhs);
+
+		self_type& operator=(const self_type& rhs) = delete;
+		self_type& operator=(self_type&& rhs)
+		{
+			this->DefaultFrame = std::move(rhs.DefaultFrame);
+			this->Joints = std::move(rhs.Joints);
+			this->TopologyOrder = std::move(rhs.TopologyOrder);
+			this->RootIdx = rhs.RootIdx;
+		}
+
 		//void GetBlendMatrices(_Out_ DirectX::XMFLOAT4X4* pOut);
-		virtual Joint* at(int index) override;
-		virtual Joint* root() override;
+		virtual joint_type* at(int index) override;
+		virtual joint_type* root() override;
 		virtual size_t size() const override;
+		virtual const frame_type& default_frame() const override;
 
 		// A topolical ordered joint index sequence
 		const std::vector<size_t>& joint_indices() const
@@ -538,15 +655,24 @@ namespace Causality
 			return TopologyOrder;
 		}
 
+		auto joints() const -> decltype(adaptors::transform(TopologyOrder,function<const Joint&(int)>()))
+		{
+			using namespace boost::adaptors;
+			function<const Joint&(int)> func = [this](int idx)->const joint_type& {return Joints[idx]; };
+			return transform(TopologyOrder, func);
+		}
+
+		auto joints() -> decltype(adaptors::transform(TopologyOrder, function<Joint&(int)>()))
+		{
+			using namespace boost::adaptors;
+			function<Joint&(int)> func = [this](int idx)->joint_type&{ return Joints[idx]; };
+			return transform(TopologyOrder, func);
+		}
+
 
 		using IArmature::operator[];
 	protected:
 		void CaculateTopologyOrder();
-
-	private:
-		size_t						RootIdx;
-		std::vector<joint_type>		Joints;
-		std::vector<size_t>			TopologyOrder;
 	};
 
 	// A armature which fellows a graph structure
@@ -577,11 +703,5 @@ namespace Causality
 	protected:
 		Joint* _root;
 	};
-
-	template<typename FrameType>
-	inline bool KeyframeAnimation<FrameType>::PreInterpolateFrames(double frameRate)
-	{
-		return false;
-	}
 
 }

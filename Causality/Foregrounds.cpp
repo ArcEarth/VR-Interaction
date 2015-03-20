@@ -369,7 +369,7 @@ void Causality::WorldScene::Render(ID3D11DeviceContext * pContext)
 						g_PrimitiveDrawer.DrawSphere(conners[i], 0.005f * similarity, c);
 					}
 				}
-				auto pModel = dynamic_cast<BasicModel*>(model.get());
+				auto pModel = dynamic_cast<CompositeModel*>(model.get());
 				XMMATRIX transform = model->GetWorldMatrix();
 				if (pModel)
 				{

@@ -12,10 +12,22 @@ public:
 	}
 
 	CompositeFlag(){}
-	explicit CompositeFlag(unsigned int flag)
+
+	CompositeFlag(unsigned int flag)
 	{
 		Flag = flag;
 	}
+	CompositeFlag(int flag)
+	{
+		Flag = (unsigned)flag;
+	}
+
+	CompositeFlag(_Tenum flag)
+	{
+		Flag = flag;
+	}
+
+
 	~CompositeFlag(void){}
 
 	unsigned int& RawData() { return Flag; }

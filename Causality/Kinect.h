@@ -4,7 +4,7 @@
 #ifdef _MSC_VER
 #pragma once
 #endif  // _MSC_VER
-#include "Common\BasicClass.h"
+#include "BCL.h"
 #include <wrl\client.h>
 #include <memory>
 #include "Common\DirectXMathExtend.h"
@@ -12,7 +12,7 @@
 
 
 
-namespace Platform
+namespace Causality
 {
 	namespace Devices
 	{
@@ -104,8 +104,8 @@ namespace Platform
 			time_t  LastTrackedTime;
 			int		LostFrameCount;
 
-			Platform::Fundation::Event<const TrackedPlayer&, HandType, HandState> OnHandStateChanged;
-			Platform::Fundation::Event<const TrackedPlayer&> OnPoseChanged;
+			Event<const TrackedPlayer&, HandType, HandState> OnHandStateChanged;
+			Event<const TrackedPlayer&> OnPoseChanged;
 		};
 
 		// An aggregate of Kinect Resources
@@ -117,8 +117,8 @@ namespace Platform
 			bool IsConnected() const;
 
 			// Player Event event interface!
-			Platform::Fundation::Event<const TrackedPlayer&> OnPlayerTracked;
-			Platform::Fundation::Event<const TrackedPlayer&> OnPlayerLost;
+			Event<const TrackedPlayer&> OnPlayerTracked;
+			Event<const TrackedPlayer&> OnPlayerLost;
 			//Platform::Fundation::Event<const TrackedPlayer&> OnPlayerPoseChanged;
 			//Platform::Fundation::Event<const TrackedPlayer&, HandEnum, HandState> OnPlayerHandStateChanged;
 

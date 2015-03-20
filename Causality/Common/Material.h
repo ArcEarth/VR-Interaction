@@ -4,6 +4,7 @@
 #include <wrl\client.h>
 #include <memory>
 #include "Textures.h"
+#include <boost\any.hpp>
 
 namespace DirectX
 {
@@ -46,6 +47,38 @@ namespace DirectX
 			TransparencyOn = 4,
 		};
 
+		class PropertyMap
+		{
+		public:
+			template <typename T>
+			T	Get(const std::string& key) const
+			{
+				auto itr = properties.find(key);
+				if (itr != properties.end())
+					return boost::any_cast<T>(itr->second);
+				else 
+					return T();
+			}
+
+			template <typename T>
+			void Set(const std::string& key, const T& value)
+			{
+				properties[key] = value;
+			}
+
+			boost::any& operator[](const std::string& key)
+			{
+				return properties[key];
+			}
+
+			bool HasProperty(const std::string& key) const
+			{
+				return properties.find(key) != properties.end();
+			}
+		private:
+			std::map<std::string, boost::any> properties;
+		};
+
 		class IPhongMaterial abstract
 		{
 			// Phong model
@@ -62,6 +95,51 @@ namespace DirectX
 			virtual ID3D11ShaderResourceView *GetNormalMap() const = 0;
 			virtual ID3D11ShaderResourceView *GetDisplaceMap() const = 0;
 			virtual ID3D11ShaderResourceView *GetSpecularMap() const = 0;
+		};
+
+		class Material : public IMaterial, public PropertyMap
+		{
+			Color		GetColor(const std::string& key) const
+			{
+				return Get<Color>(key);
+			}
+			float		GetFloat(const std::string& key) const
+			{
+				return Get<float>(key);
+			}
+			int			GetInt(const std::string& key) const
+			{
+				return Get<int>(key);
+			}
+			Vector4		GetVector4(const std::string& key) const
+			{
+				return Get<Vector4>(key);
+			}
+			std::string	GetString(const std::string& key) const
+			{
+				return Get<std::string>(key);
+			}
+			const Texture&	GetTexture(const std::string& key) const
+			{
+				return *Get<const Texture*>(key);
+			}
+
+			Color		    GetAmbientColor() const { return GetColor("AmbientColor"); }
+			Color		    GetDiffuseColor() const { return GetColor("DiffuseColor"); }
+			Color		    GetSpecularColor() const { return GetColor("SpecularColor"); }
+			float		    GetSpecularPower() const { return GetFloat("SpecularPower"); }
+			float		    GetOpacity() const { return GetFloat("Opacity"); }
+			const Texture&	GetDiffuseMap() const { return GetTexture("DiffuseMap"); }
+			const Texture&	GetNormalMap() const { return GetTexture("NormalMap"); }
+			const Texture&	GetDisplaceMap() const { return GetTexture("DisplaceMap"); }
+			const Texture&	GetSpecularMap() const { return GetTexture("SpecularMap"); }
+
+			void		SetColor(const std::string& key, const Color& value);
+			void		SetFloat(const std::string& key, float value);
+			void		SetInt(const std::string& key, int value);
+			void		SetString(const std::string& key, const std::string& value);
+			void		SetTexture(const std::string& key, Texture& texture);
+			void		SetVector4(const std::string& key);
 		};
 
 		struct PhongMaterial : public IPhongMaterial, public IMaterial

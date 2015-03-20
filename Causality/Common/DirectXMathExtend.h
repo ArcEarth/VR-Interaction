@@ -30,11 +30,13 @@ namespace DirectX
 {
 	namespace AlignedVector
 	{
+
+
 		XM_ALIGN16
 		struct Vector3A : XMFLOAT3A
 		{
 			Vector3A() : XMFLOAT3A(0.f, 0.f, 0.f) {}
-			Vector3A( FXMVECTOR V ) { XMStoreFloat3A(this, V); }
+			Vector3A(FXMVECTOR V) { XMStoreFloat3A(this, V); }
 
 			inline operator XMVECTOR() const { return XMLoadFloat3A(this); }
 
@@ -43,7 +45,7 @@ namespace DirectX
 
 		struct Vector4A : XMFLOAT4A
 		{
-			Vector4A() : XMFLOAT4A (0.f, 0.f, 0.f, 0.f) {}
+			Vector4A() : XMFLOAT4A(0.f, 0.f, 0.f, 0.f) {}
 			Vector4A(FXMVECTOR V) { XMStoreFloat4A(this, V); }
 
 			inline operator XMVECTOR() const { return XMLoadFloat4A(this); }
@@ -55,10 +57,10 @@ namespace DirectX
 	using SimpleMath::Vector2;
 	using SimpleMath::Vector3;
 
-//#ifndef _Vector4_
-//#define _Vector4_
+	//#ifndef _Vector4_
+	//#define _Vector4_
 	using SimpleMath::Vector4;
-//#endif // _Vector4_
+	//#endif // _Vector4_
 
 	using SimpleMath::Quaternion;
 	using SimpleMath::Color;
@@ -73,6 +75,7 @@ namespace DirectX
 	using SimpleMath::operator-;
 	using SimpleMath::operator/;
 	//}
+	XMGLOBALCONST XMVECTORF32 g_XMNegtiveXZ = { -1.0f,1.0f,-1.0f,1.0f };
 
 
 	// Derive from this to customize operator new and delete for
@@ -101,7 +104,7 @@ namespace DirectX
 
 
 			// Free aligned memory.
-		static void operator delete (void* ptr)
+			static void operator delete (void* ptr)
 		{
 			_aligned_free(ptr);
 		}
@@ -404,6 +407,29 @@ namespace DirectX
 		//friend XMDUALVECTOR operator* (float S, CXMMATRIX M);
 	};
 
+#if defined(_XM_SSE_INTRINSICS_) 
+	template <>
+	inline XMVECTOR XM_CALLCONV XMVectorSwizzle<1, 1, 3, 3>(FXMVECTOR v)
+	{
+		return SSE3::XMVectorSwizzle_1133(v);
+	}
+	template <>
+	inline XMVECTOR XM_CALLCONV XMVectorSwizzle<0, 0, 2, 2>(FXMVECTOR v)
+	{
+		return SSE3::XMVectorSwizzle_0022(v);
+	}
+	template <>
+	inline XMVECTOR XM_CALLCONV XMVectorSwizzle<0, 0, 1, 1>(FXMVECTOR v)
+	{
+		return XMVectorMergeXY(v, v);
+	}
+	template <>
+	inline XMVECTOR XM_CALLCONV XMVectorSwizzle<2, 2, 3, 3>(FXMVECTOR v)
+	{
+		return XMVectorMergeZW(v, v);
+	}
+#endif
+
 	// Caculate the rotation quaternion base on v1 and v2 (shortest rotation geo-distance in sphere surface)
 	inline XMVECTOR XM_CALLCONV XMQuaternionRotationVectorToVector(FXMVECTOR v1, FXMVECTOR v2) {
 		assert(!XMVector3Equal(v1, XMVectorZero()));
@@ -416,6 +442,168 @@ namespace DirectX
 		float angle = std::acosf(XMVectorGetX(XMVector3Dot(n1, n2)));
 		auto rot = XMQuaternionRotationAxis(axias, angle);
 		return rot;
+	}
+
+	enum AxisEnum
+	{
+		AxisX = 0,
+		AxisY = 1,
+		AxisZ = 2,
+	};
+
+	template <unsigned X, unsigned Y, unsigned Z>
+	// Caculate Left handed eular angles with 
+	// rotation sequence R(X)-R(Y)-R(Z)
+	XMVECTOR XM_CALLCONV XMQuaternionEulerAngleABC(FXMVECTOR q);
+
+	template <>
+	// Caculate Left handed eular angles with 
+	// rotation sequence R(Z)-R(Y)-R(X)
+	inline XMVECTOR XM_CALLCONV XMQuaternionEulerAngleABC<2, 1, 0>(FXMVECTOR q)
+	{
+#if defined(_XM_NO_INTRINSICS_)
+		float q0 = q.m128_f32[3], q1 = q.m128_f32[1], q2 = q.m128_f32[2], q3 = q.m128_f32[3];
+		XMVECTOR euler;
+		euler.m128_f32[0] = atan2(2 * (q0*q1 + q2*q3), 1 - 2 * (q1*q1 + q2*q2));
+		euler.m128_f32[1] = asinf(2 * (q0*q2 - q3*q1));
+		euler.m128_f32[2] = atan2(2 * (q0*q3 + q2*q1), 1 - 2 * (q2*q2 + q3*q3));
+#elif defined(_XM_SSE_INTRINSICS_) 
+		XMVECTOR q20 = XMVectorSwizzle<1, 1, 3, 3>(q);
+		XMVECTOR q13 = XMVectorSwizzle<0, 0, 2, 2>(q);
+
+		// eular X - Roll
+		XMVECTOR X = SSE4::XMVector4Dot(q20, q13);
+		XMVECTOR Y = XMVectorMergeXY(q13, q20);
+		Y = SSE4::XMVector4Dot(Y, Y);
+		Y = XMVectorSubtract(g_XMOne.v, Y);
+		XMVECTOR vResult = XMVectorATan2(Y, X);
+
+		// eular Z - X
+		q13 = XMVectorSwizzle<2, 2, 0, 0>(q); // now 3311
+		X = SSE4::XMVector4Dot(q20, q13);
+		Y = XMVectorMergeXY(q13, q20);
+		Y = SSE4::XMVector4Dot(Y, Y);
+		Y = XMVectorSubtract(g_XMOne.v, Y);
+		Y = XMVectorATan2(Y, X);
+
+		// eular Y - Patch
+		X = XMVectorSwizzle<2, 3, 0, 1>(q);
+		X = XMVectorMultiply(X, g_XMNegtiveXZ.v);
+		X = SSE4::XMVector4Dot(X, q);
+
+		// merge result
+		Y = XMVectorMergeXY(Y, X);
+		vResult = XMVectorSelect(Y, vResult, g_XMSelect1000.v);
+		vResult = XMVectorAndInt(vResult, g_XMMask3.v);
+		return vResult;
+#endif
+	}
+
+	namespace Internal
+	{
+		template <unsigned _X, unsigned _Y, unsigned _Z>
+		struct SwizzleInverse
+		{
+		};
+		template <>
+		struct SwizzleInverse<0, 1, 2>
+		{
+			static const unsigned X = 0;
+			static const unsigned Y = 1;
+			static const unsigned Z = 2;
+		};
+		template <>
+		struct SwizzleInverse<1, 2, 0>
+		{
+			static const unsigned X = 2;
+			static const unsigned Y = 0;
+			static const unsigned Z = 1;
+		};
+		template <>
+		struct SwizzleInverse<2, 1, 0>
+		{
+			static const unsigned X = 2;
+			static const unsigned Y = 1;
+			static const unsigned Z = 0;
+		};
+		template <>
+		struct SwizzleInverse<1, 0, 2>
+		{
+			static const unsigned X = 1;
+			static const unsigned Y = 0;
+			static const unsigned Z = 2;
+		};
+		template <>
+		struct SwizzleInverse<0, 2, 1>
+		{
+			static const unsigned X = 0;
+			static const unsigned Y = 2;
+			static const unsigned Z = 1;
+		};
+		template <>
+		struct SwizzleInverse<2, 0, 1>
+		{
+			static const unsigned X = 1;
+			static const unsigned Y = 2;
+			static const unsigned Z = 0;
+		};
+	}
+
+	template <unsigned X, unsigned Y, unsigned Z >
+	// Caculate Left handed eular angles with 3 different rotation axis
+	// rotation sequence R(X)-R(Y)-R(Z)	
+	inline XMVECTOR XM_CALLCONV XMQuaternionEulerAngleABC(FXMVECTOR q)
+	{
+		static_assert(X <= 2 && Y <= 2 && Z <= 2 && X != Y && Z != Y && X != Z, "X-Y-Z must be different Axis");
+
+		XMVECTOR qs = XMVectorSwizzle<Z, Y, X, 3>(q);
+		qs = XMQuaternionEulerAngleABC<2, 1, 0>(qs);
+		using InvS = Internal::SwizzleInverse<X, Y, Z>;
+		qs = XMVectorSwizzle<InvS::X, InvS::Y, InvS::Z, 3>(qs);
+		return qs;
+	}
+
+	template <unsigned X, unsigned Y>
+	// Caculate Left handed eular angles with 2 different rotation axis
+	// rotation sequence R(X)-R(Y)-R(X)	
+	inline XMVECTOR XM_CALLCONV XMQuaternionEulerAngleABA(FXMVECTOR q)
+	{
+	}
+
+	// Left handed eular angles
+	// rotation sequence R(Y)-R(X)-R(Z), so called Yaw-Pitch-Roll
+	// return : <R(X),R(Y),R(Z),0>
+	inline XMVECTOR XM_CALLCONV XMQuaternionEulerAngleYXZ(FXMVECTOR q)
+	{
+		return XMQuaternionEulerAngleABC<AxisY, AxisX, AxisZ>(q);
+	}
+
+	// left handed eular angles : <Pitch,Yaw,Roll,0>, ready with XMQuaternionRotationYawPitchRoll
+	// rotation sequence R(Y)-R(X)-R(Z), so called Yaw-Pitch-Roll
+	inline XMVECTOR XM_CALLCONV XMQuaternionEulerAngleYawPitchRoll(FXMVECTOR q)
+	{
+		return XMQuaternionEulerAngleABC<AxisY, AxisX, AxisZ>(q);
+	}
+
+	inline XMVECTOR XM_CALLCONV XMQuaternionRotationRollPitchYawRH
+	(
+		float Pitch,
+		float Yaw,
+		float Roll
+	)
+	{
+		XMVECTOR Angles = XMVectorSet(Pitch, Yaw, Roll, 0.0f);
+		Angles = XMVectorNegate(Angles);
+		return XMQuaternionRotationRollPitchYawFromVector(Angles);
+	}
+
+	inline XMVECTOR XM_CALLCONV XMQuaternionRotationRollPitchYawFromVectorRH
+	(
+		FXMVECTOR eular //<Pitch, Yaw, Roll, 0>
+	)
+	{
+		XMVECTOR Angles = XMVectorNegate(eular);
+		return XMQuaternionRotationRollPitchYawFromVector(Angles);
 	}
 
 	// This function garuntee the extends of the bounding box is sorted from bigger to smaller
@@ -689,6 +877,14 @@ namespace DirectX
 		inline  AlignedAllocator(const AlignedAllocator<_T2, _Align_Boundary> &) throw() {}
 		inline ~AlignedAllocator() throw() {}
 
+		template <size_t _Other_Alignment>
+		inline bool operator== (const AlignedAllocator<_T, _Other_Alignment> & rhs)
+		{
+			return _Align_Boundary == _Other_Alignment;
+		}
+
+
+
 		inline pointer adress(reference r)
 		{
 			return &r;
@@ -878,8 +1074,8 @@ namespace DirectX
 		}
 	};
 
-	typedef std::pair<Vector3, Vector3> LineSegement;
-	typedef std::vector<Vector3> LinePath;
+	//typedef std::pair<Vector3, Vector3> LineSegement;
+	//typedef std::vector<Vector3> LinePath;
 	static const float g_INFINITY = 1e12f;
 
 	inline XMMATRIX XM_CALLCONV XMMatrixScalingFromCenter(FXMVECTOR scale, FXMVECTOR center)
@@ -894,7 +1090,7 @@ namespace DirectX
 	// No Matrix Multiply inside, significant faster than affine transform
 	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationOrigin, FXMVECTOR RotationQuaterion, FXMVECTOR Translation)
 	{
-		XMVECTOR VTranslation = XMVector3Rotate(RotationOrigin, RotationQuaterion); 
+		XMVECTOR VTranslation = XMVector3Rotate(RotationOrigin, RotationQuaterion);
 		VTranslation = XMVectorAdd(VTranslation, RotationOrigin);
 		VTranslation = XMVectorAdd(VTranslation, VTranslation);
 		VTranslation = XMVectorSelect(g_XMSelect1110.v, Translation, g_XMSelect1110.v);
@@ -1113,7 +1309,7 @@ namespace DirectX
 
 			auto Ds = XMVector3LengthSq(s);
 			//p-s1 is the shortest distance
-			if (XMVector4Greater(Ps,Ds))
+			if (XMVector4Greater(Ps, Ds))
 				return XMVectorGetX(XMVector3Length(p - s1));
 			//find the projection point on line segment U
 			return XMVectorGetX(XMVector3Length(v - s * (Ps / Ds)));

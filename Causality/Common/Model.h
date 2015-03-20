@@ -115,6 +115,11 @@ namespace DirectX
 			void Draw(ID3D11DeviceContext *pContext) const;
 		};
 
+		namespace GeometricPrimtives
+		{
+			std::shared_ptr<MeshBuffer> CreateCube();
+		}
+
 		// Strong typed mesh buffer with static vertex typeing
 		template<class _TVertex, class _TIndex, D3D_PRIMITIVE_TOPOLOGY Primative_Topology = D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST>
 		struct TypedMeshBuffer : public MeshBuffer
@@ -178,7 +183,6 @@ namespace DirectX
 			};
 		};
 
-
 		class LocalMatrixHolder : virtual public ILocalMatrix
 		{
 		public:
@@ -230,12 +234,19 @@ namespace DirectX
 			float				Opticity;
 		};
 
-		// A basic model is a collection of ModelPart shares same Local Matrix
-		// Leaf node in a model tree
-		class BasicModel : public IModelNode
+		// A Monolith Model is a model with single ModelPart
+		class MonolithModel : public IModelNode, public ModelPart
 		{
 		public:
-			std::vector<std::shared_ptr<ModelPart>>	Parts;
+			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
+		};
+
+		// A basic model is a collection of ModelPart shares same Local Matrix
+		// Leaf node in a model tree
+		class CompositeModel : public IModelNode
+		{
+		public:
+			std::vector<ModelPart>	Parts;
 
 			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
 		};
@@ -254,11 +265,12 @@ namespace DirectX
 		};
 
 		// This Model also keeps the geomreics data in CPU
-		class GeometryModel : public BasicModel
+		class GeometryModel : public CompositeModel
 		{
 		public:
 			static bool CreateFromObjFile(GeometryModel *pResult, ID3D11Device *pDevice, const std::wstring &file, const std::wstring& textureDir);
-			BasicModel* ReleaseCpuResource();
+			void CreateDeviceResource(ID3D11Device *pDevice);
+			CompositeModel* ReleaseCpuResource();
 		public:
 			std::vector<VertexPositionNormalTexture>			Vertices;
 			std::vector<FacetPrimitives::Triangle<uint16_t>>	Facets;

@@ -11,6 +11,7 @@
 #include <Effects.h>
 #include <string>
 #include <mutex>
+#include "Textures.h"
 
 namespace DirectX
 {
@@ -44,6 +45,8 @@ namespace DirectX
 	class DeviceResources
 	{
 	public:
+		static DeviceResources& DeviceResourcesForCurrentView();
+
 		DeviceResources();
 		void SetNativeWindow(HWND hWnd);
 		void SetCoreWindow(Windows::UI::Core::CoreWindow^ window);
@@ -76,8 +79,10 @@ namespace DirectX
 		std::mutex&				GetD3DContextMutext() const				{ return m_d3dMutex; }
 		IDXGISwapChain1*		GetSwapChain() const					{ return m_swapChain.Get(); }
 		D3D_FEATURE_LEVEL		GetDeviceFeatureLevel() const			{ return m_d3dFeatureLevel; }
+
 		ID3D11RenderTargetView*	GetBackBufferRenderTargetView() const	{ return m_d3dRenderTargetView.Get(); }
 		ID3D11DepthStencilView* GetDepthStencilView() const				{ return m_d3dDepthStencilView.Get(); }
+
 		D3D11_VIEWPORT			GetScreenViewport() const				{ return m_screenViewport; }
 		XMMATRIX				GetOrientationTransform3D() const		{ return XMLoadFloat4x4(&m_orientationTransform3D); }
 
@@ -91,7 +96,6 @@ namespace DirectX
 		D2D1::Matrix3x2F		GetOrientationTransform2D() const		{ return m_orientationTransform2D; }
 
 		const std::shared_ptr<DirectX::BasicEffect>& GetBasicEffect() const	{ return m_pBasicEffect; }
-
 
 	private:
 		void CreateDeviceIndependentResources();

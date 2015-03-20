@@ -1405,7 +1405,7 @@ namespace stdx
 		}
 		// Iterator all descendants nodes in this sub-tree
 		const_depth_first_iterator descendants_begin() const {
-			return const_depth_first_iterator(static_cast<const_pointer>(this)->_child);
+			return const_depth_first_iterator(static_cast<const_pointer>(this)->_first_child);
 		}
 
 		const_depth_first_iterator descendants_end() const {
@@ -1456,7 +1456,7 @@ namespace stdx
 		}
 		// Depth first descendants begin iterator
 		mutable_depth_first_iterator descendants_begin() {
-			return mutable_depth_first_iterator(static_cast<pointer>(this)->_child);
+			return mutable_depth_first_iterator(static_cast<pointer>(this)->_first_child);
 		}
 		// Depth first descendants end iterator
 		mutable_depth_first_iterator descendants_end() {
@@ -1537,5 +1537,47 @@ namespace stdx
 		{
 			return iterator_range<mutable_depth_first_iterator>(descendants_breadth_first_begin(), descendants_breadth_first_end());
 		}
+	};
+
+	// 1 pointer + 1 std::vector<> overhaul for each node
+	template<typename _Ty>
+	class vector_tree_node
+	{
+	public:
+		typedef _Ty value_type;
+		typedef value_type& reference;
+		typedef value_type* pointer;
+		typedef value_type const & const_reference;
+		typedef value_type const * const_pointer;
+
+	protected:
+		pointer	_parent;
+		std::vector<value_type> _children;
+
+	public:
+		bool has_parent() const
+		{
+			return _parent != nullptr;
+		}
+
+		const_reference parent() const {
+			return *_parent;
+		}
+
+		// Logical Parent for this node
+		reference parent() {
+			return *_parent;
+		}
+
+		const std::vector<value_type>& children() const
+		{
+			return _children;
+		}
+
+		std::vector<value_type>& children()
+		{
+			return _children;
+		}
+
 	};
 }

@@ -2,6 +2,9 @@
 #include <boost\range.hpp>
 #include <boost\range\adaptors.hpp>
 #include <boost\range\algorithm.hpp>
+#include <regex>
+#include <boost\assign.hpp>
+#include <iostream>
 
 using namespace DirectX;
 using namespace Causality;
@@ -40,7 +43,7 @@ void BoneDisplacement::UpdateLocalDataByPositionOnly(const BoneDisplacement & re
 
 	Scaling = { 1.0f, XMVectorGetX(XMVector3Length(v0)), 1.0f };
 
-	// with Constraint No-Yaw
+	// with Constraint No-X
 	v0 = DirectX::XMVector3Normalize(v0);
 	XMFLOAT4A Sp;
 	DirectX::XMStoreFloat4A(&Sp, v0);
@@ -52,6 +55,8 @@ void BoneDisplacement::UpdateLocalDataByPositionOnly(const BoneDisplacement & re
 
 DirectX::XMMATRIX BoneDisplacement::TransformMatrix(const BoneDisplacement & from, const BoneDisplacement & to)
 {
+	using DirectX::operator+=;
+
 	XMMATRIX MScaling = XMMatrixScalingFromVector((XMVECTOR)to.Scaling / (XMVECTOR)from.Scaling);
 	XMVECTOR VRotationOrigin = XMVectorSelect(g_XMSelect1110.v, (DirectX::XMVECTOR)from.OriginPosition, g_XMSelect1110.v);
 	XMMATRIX MRotation = XMMatrixRotationQuaternion(XMQuaternionInverse(from.GlobalOrientation));
@@ -82,6 +87,42 @@ DirectX::XMDUALVECTOR BoneDisplacement::RigidTransformDualQuaternion(const BoneD
 	return XMDualQuaternionRigidTransform(from.OriginPosition, rot, tra);
 }
 
+Causality::StaticArmature::StaticArmature(std::istream & file)
+{
+	size_t jointCount ;
+	file >> jointCount;
+
+	Joints.resize(jointCount);
+	DefaultFrame.resize(jointCount);
+
+	// Joint line format: 
+	// Hip(Name) -1(ParentID)
+	// 1.5(Pitch) 2.0(Yaw) 0(Roll) 0.5(BoneLength)
+	for (size_t idx = 0; idx < jointCount; idx++)
+	{
+		auto& joint = Joints[idx];
+		auto& bone = DefaultFrame[idx];
+		((JointData&) joint).ID = idx;
+		file >> ((JointData&) joint).Name >> ((JointData&) joint).ParentID;
+		if (joint.ParentID() != idx && joint.ParentID() >= 0)
+		{
+			Joints[joint.ParentID()].append_children_back(&joint);
+		}
+		else
+		{
+			RootIdx = idx;
+		}
+
+		Vector4 vec;
+		file >> vec.x >> vec.y >> vec.z >> vec.w;
+		bone.LocalOrientation = XMQuaternionRotationRollPitchYawFromVectorRH(vec);
+		bone.Scaling.y = vec.w;
+	}
+
+	CaculateTopologyOrder();
+	DefaultFrame.RebuildGlobal(*this);
+}
+
 Causality::StaticArmature::StaticArmature(size_t JointCount, int * Parents)
 	: Joints(JointCount)
 {
@@ -107,6 +148,15 @@ Causality::StaticArmature::~StaticArmature()
 
 }
 
+inline Causality::StaticArmature::StaticArmature(self_type && rhs)
+{
+	using std::move;
+	RootIdx = rhs.RootIdx;
+	Joints = move(rhs.Joints);
+	TopologyOrder = move(rhs.TopologyOrder);
+	DefaultFrame = move(rhs.DefaultFrame);
+}
+
 //void GetBlendMatrices(_Out_ DirectX::XMFLOAT4X4* pOut);
 
 Joint * Causality::StaticArmature::at(int index) {
@@ -123,6 +173,12 @@ size_t Causality::StaticArmature::size() const
 	return Joints.size();
 }
 
+const IArmature::frame_type & Causality::StaticArmature::default_frame() const
+{
+	return DefaultFrame;
+	// TODO: insert return statement here
+}
+
 void Causality::StaticArmature::CaculateTopologyOrder()
 {
 	using namespace boost;
@@ -132,6 +188,16 @@ void Causality::StaticArmature::CaculateTopologyOrder()
 }
 
 // Interpolate the local-rotation and scaling, "interpolate in Time"
+
+inline Causality::BoneDisplacementFrame::BoneDisplacementFrame(size_t size)
+	: BaseType(size)
+{
+}
+
+inline Causality::BoneDisplacementFrame::BoneDisplacementFrame(const IArmature & armature)
+	: BaseType(armature.default_frame())
+{
+}
 
 Eigen::VectorXf Causality::BoneDisplacementFrame::LocalRotationVector() const
 {
@@ -209,7 +275,7 @@ Eigen::VectorXf Causality::AnimationSpace::CaculateFrameFeatureVectorEndPointNor
 	//Eigen::Vector3f v{ 0,1,0 };
 	XMVECTOR v = g_XMIdentityR1.v;
 	std::vector<Vector3> sv(N + 1); // Allocate one more space
-	for (size_t i = 0; i < N; i++)
+	for (int i = 0; i < N; i++)
 	{
 		const auto& bone = frame[i];
 		XMVECTOR q =  bone.EndPostion;
@@ -289,6 +355,18 @@ Eigen::RowVectorXf Causality::AnimationSpace::DynamicSimiliarityJvh(const frame_
 //	
 //}
 
+vector<ArmatureTransform> Causality::AnimationSpace::GenerateBindings()
+{
+	vector<ArmatureTransform> bindings;
+	auto& armature = Armature();
+
+	for (auto& joint : armature.joints())
+	{
+		joint.AssignSemanticsBasedOnName();
+	}
+	return bindings;
+}
+
 void Causality::AnimationSpace::CaculateXpInv()
 {
 	auto Xt = X.transpose();
@@ -296,24 +374,123 @@ void Causality::AnimationSpace::CaculateXpInv()
 	XpInv.ldlt().solveInPlace(Xt);
 }
 
-bool Causality::ArmatureKeyframeAnimation::pre_interpolate_frames(double frameRate)
+ArmatureKeyframeAnimation::ArmatureKeyframeAnimation(std::istream & file)
 {
-	float delta = 1.0f / frameRate;
+	using namespace std;
+	using namespace DirectX;
+	self_type animation;
+	int keyframs,joints;
+	file >> joints >> keyframs;
+	animation.KeyFrames.resize(keyframs);
+	for (int i = 0; i < keyframs; i++)
+	{
+		auto& frame = animation.KeyFrames[i];
+		frame.resize(joints);
+		double seconds;
+		file >> frame.Name;
+		file >> seconds;
+		frame.Time = (time_seconds)seconds;
+		for (auto& bone : frame)
+		{
+			Vector3 vec;
+			auto& scl = bone.Scaling;
+			//char ch;
+			file >> vec.x >> vec.y >> vec.z >> scl.y;
+			bone.LocalOrientation = XMQuaternionRotationRollPitchYawFromVector(vec);
+		}
+	}
+}
+
+bool Causality::ArmatureKeyframeAnimation::InterpolateFrames(double frameRate)
+{
+	float delta = (float)(1.0 / frameRate);
 	auto& armature = *pArmature;
 	float t = 0;
 	for (size_t i = 1; i < KeyFrames.size(); i++)
 	{
 		const frame_type& lhs = KeyFrames[i-1];
 		const frame_type& rhs = KeyFrames[i];
-		for (float t = lhs.Time; t < rhs.Time; t += delta)
+		for (t = (float)lhs.Time.count(); t < (float)rhs.Time.count(); t += delta)
 		{
 			frames.emplace_back(armature.size());
-			frame_type::Interpolate(frames.back(), lhs, rhs, t, armature);
+			frame_type::Interpolate(frames.back(), lhs, rhs, (float)t, armature);
 		}
 	}
 	frames.shrink_to_fit();
+	return true;
 }
 
 void Causality::ArmatureTransform::TransformBack(frame_type & source_frame, const frame_type & target_frame) const
 {
+}
+
+iterator_range<std::sregex_token_iterator> words_from_string(const std::string& str)
+{
+	using namespace std;
+	regex wordPattern("[_\\s]?[A-Za-z][a-z]*\\d*");
+	sregex_token_iterator wbegin(str.begin(), str.end(), wordPattern);
+	iterator_range<sregex_token_iterator> words(wbegin, sregex_token_iterator());
+	return words;
+}
+
+using namespace std;
+
+/*
+namespace std
+{
+	//inline
+	namespace literals {
+		//inline
+		namespace string_literals
+		{
+			std::string operator""s(const char* str, std::size_t len)
+			{
+				return std::string(str, len);
+			}
+		}
+	}
+}
+*/
+
+std::map<std::string, JointSemanticProperty> 
+	name2semantic = boost::assign::map_list_of
+		(string("hand"),    JointSemanticProperty(Semantic_Hand))
+		(string("foreleg"), JointSemanticProperty(Semantic_Hand | Semantic_Foot))
+		(string("arm"),     JointSemanticProperty(Semantic_Hand))
+		(string("claw"),    JointSemanticProperty(Semantic_Hand))
+		(string("wing"),    JointSemanticProperty(Semantic_Hand | Semantic_Wing))
+		(string("head"),    JointSemanticProperty(Semantic_Head))
+		(string("l"),       JointSemanticProperty(Semantic_Left))
+		(string("r"),       JointSemanticProperty(Semantic_Right))
+		(string("left"),    JointSemanticProperty(Semantic_Left))
+		(string("right"),   JointSemanticProperty(Semantic_Right))
+		(string("leg"),     JointSemanticProperty(Semantic_Foot))
+		(string("foot"),    JointSemanticProperty(Semantic_Foot))
+		(string("tail"),    JointSemanticProperty(Semantic_Tail))
+		(string("ear"),     JointSemanticProperty(Semantic_Ear))
+		(string("eye"),     JointSemanticProperty(Semantic_Eye))
+		(string("noise"),   JointSemanticProperty(Semantic_Nouse));
+
+const JointSemanticProperty & Causality::Joint::AssignSemanticsBasedOnName()
+{
+	using namespace std;
+	using namespace boost::adaptors;
+
+	auto words = words_from_string(Name());
+	for (auto& word : words)
+	{
+		string word_str;
+		if (*word.first == '_' || *word.first == ' ')
+			word_str = std::string (word.first + 1,word.second);
+		else
+			word_str = std::string (word.first, word.second);
+
+		for (auto& c : word_str)
+		{
+			c = std::tolower(c);
+		}
+		
+		this->Semantic += name2semantic[word_str];
+	}
+	return this->Semantic;
 }

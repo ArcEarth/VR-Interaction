@@ -135,12 +135,12 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 
 
 		auto mesh = std::make_shared<MeshBuffer>();
-		Parts.emplace_back(new ModelPart);
-		Parts.back()->Name = shape.name;
-		Parts.back()->pMesh = mesh;
+		Parts.emplace_back();
+		Parts.back().Name = shape.name;
+		Parts.back().pMesh = mesh;
 
 		auto& part = Parts.back();
-		auto& box = Parts.back()->BoundBox;
+		auto& box = Parts.back().BoundBox;
 		BoundingBox::CreateFromPoints(box, N, (XMFLOAT3*) shape.mesh.positions.data(), sizeof(float) * 3);
 		float scale = std::max(box.Extents.x, std::max(box.Extents.y, box.Extents.z));
 		for (auto& p : shape.mesh.positions)
@@ -149,9 +149,9 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 		}
 
 		//BoundingOrientedBox::CreateFromPoints(part.BoundOrientedBox, N, (XMFLOAT3*) shape.mesh.positions.data(), sizeof(float) * 3);
-		CreateBoundingOrientedBoxFromPoints(part->BoundOrientedBox, N, (XMFLOAT3*) shape.mesh.positions.data(), sizeof(float) * 3);
-		XMStoreFloat3(&part->BoundOrientedBox.Center, XMLoadFloat3(&part->BoundOrientedBox.Center) * scale);
-		XMStoreFloat3(&part->BoundOrientedBox.Extents, XMLoadFloat3(&part->BoundOrientedBox.Extents) * scale);
+		CreateBoundingOrientedBoxFromPoints(part.BoundOrientedBox, N, (XMFLOAT3*) shape.mesh.positions.data(), sizeof(float) * 3);
+		XMStoreFloat3(&part.BoundOrientedBox.Center, XMLoadFloat3(&part.BoundOrientedBox.Center) * scale);
+		XMStoreFloat3(&part.BoundOrientedBox.Extents, XMLoadFloat3(&part.BoundOrientedBox.Extents) * scale);
 		for (auto& p : shape.mesh.positions)
 		{
 			p *= scale;
@@ -191,10 +191,6 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 	XMStoreFloat3(&pResult->BoundSphere.Center, XMLoadFloat3(&pResult->BoundSphere.Center) * s);
 	pResult->BoundSphere.Radius *= scale;
 
-	// Device Dependent Resources Creation
-	auto pVertexBuffer = DirectX::CreateVertexBuffer(pDevice, Vertices.size(), &Vertices[0]);
-	auto pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, Facets.size() * 3, &Facets[0].V0);
-
 	for (auto& mat : materis)
 	{
 		HRESULT hr = S_OK;
@@ -225,21 +221,33 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 		Materials.push_back(pMaterial);
 	}
 
+	// Device Dependent Resources Creation
+	auto pVertexBuffer = DirectX::CreateVertexBuffer(pDevice, Vertices.size(), &Vertices[0]);
+	auto pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, Facets.size() * 3, &Facets[0].V0);
+
 	for (size_t i = 0; i < shapes.size(); i++)
 	{
 		const auto& shape = shapes[i];
 		auto &part = Parts[i];
 		if (shape.mesh.material_ids[0] >= 0)
-			part->pMaterial = Materials[shape.mesh.material_ids[0]];
+			part.pMaterial = Materials[shape.mesh.material_ids[0]];
 		else
-			part->pMaterial = nullptr;
-		part->pMesh->pVertexBuffer = pVertexBuffer;
-		part->pMesh->pIndexBuffer = pIndexBuffer;
+			part.pMaterial = nullptr;
+		part.pMesh->pVertexBuffer = pVertexBuffer;
+		part.pMesh->pIndexBuffer = pIndexBuffer;
 	}
 	return true;
 }
 
-BasicModel * DirectX::Scene::GeometryModel::ReleaseCpuResource()
+void DirectX::Scene::GeometryModel::CreateDeviceResource(ID3D11Device * pDevice)
+{
+	// Device Dependent Resources Creation
+	auto pVertexBuffer = DirectX::CreateVertexBuffer(pDevice, Vertices.size(), &Vertices[0]);
+	auto pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, Facets.size() * 3, &Facets[0].V0);
+
+}
+
+CompositeModel * DirectX::Scene::GeometryModel::ReleaseCpuResource()
 {
 	Vertices.clear();
 	Facets.clear();
@@ -297,7 +305,7 @@ void DirectX::Scene::ModelPart::Render(ID3D11DeviceContext * pContext, IEffect *
 	}
 }
 
-void DirectX::Scene::BasicModel::Render(ID3D11DeviceContext * pContext, IEffect* pEffect)
+void DirectX::Scene::CompositeModel::Render(ID3D11DeviceContext * pContext, IEffect* pEffect)
 {
 	auto world = this->GetWorldMatrix();
 	auto pEffectB = dynamic_cast<BasicEffect*>(pEffect);
@@ -312,7 +320,7 @@ void DirectX::Scene::BasicModel::Render(ID3D11DeviceContext * pContext, IEffect*
 		{
 			pEffectB->SetAlpha(Opticity);
 		}
-		part->Render(pContext,pEffect);
+		part.Render(pContext,pEffect);
 	}
 }
 
@@ -368,3 +376,13 @@ XMMATRIX DirectX::Scene::IModelNode::GetModelMatrix() const
 //{
 //	return XMLoadFloat4x4(&LocalMatrix);
 //}
+
+void DirectX::Scene::MonolithModel::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
+{
+	ModelPart::Render(pContext, pEffect);
+}
+
+std::shared_ptr<MeshBuffer> DirectX::Scene::GeometricPrimtives::CreateCube()
+{
+	return std::shared_ptr<MeshBuffer>();
+}

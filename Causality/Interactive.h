@@ -3,7 +3,7 @@
 #include <Leap.h>
 #include "Kinect.h"
 
-namespace Platform
+namespace Causality
 {
 	enum CursorButtonEnum
 	{

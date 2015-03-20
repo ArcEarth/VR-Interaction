@@ -1,5 +1,6 @@
 #pragma once
 
+// STL and std libs
 #include <map>
 #include <set>
 #include <vector>
@@ -8,14 +9,22 @@
 #include <functional>
 #include <chrono>
 
+// boost and std extension
 #include <boost\signals2.hpp>
-#include "stride_range.h"
+#include <boost\any.hpp>
+//#include <boost\range\any_range.hpp>
+#include "Common\stride_range.h"
+#include "Common\tree.h"
 
-#include "DirectXMathExtend.h"
+// Math libraries
+#include "Common\DirectXMathExtend.h"
 #include <Eigen\Dense>
 #include <Eigen\Sparse>
 
+// ComPtr and task
 #include <wrl\client.h>
+#include <ppltasks.h>
+
 
 namespace Causality
 {
@@ -24,6 +33,12 @@ namespace Causality
 	using std::string;
 	using boost::iterator_range;
 	using boost::sub_range;
+	using boost::any;
+	using boost::any_cast;
+	//using boost::any_range;
+	namespace adaptors = boost::adaptors;
+	using stdx::tree_node;
+	using stdx::foward_tree_node;
 	using stdx::stride_range;
 	using stdx::stride_iterator;
 	using std::vector;
@@ -32,6 +47,9 @@ namespace Causality
 	using std::unique_ptr;
 	using std::shared_ptr;
 	using std::list;
+	using std::weak_ptr;
+
+	using Concurrency::task;
 
 	using DirectX::Vector2;
 	using DirectX::Vector3;

@@ -1,13 +1,20 @@
 #pragma once
-#include "Common\bcl.h"
+#include "BCL.h"
 #include <memory>
 #include "Common\Textures.h"
 #include "Common\DeviceResources.h"
 #include "Common\Carmera.h"
 #include <exception>
 
-namespace Platform
+namespace Causality
 {
+	enum EyesEnum : int
+	{
+		Eye_Left = 0,
+		Eye_Right = 1,
+		Eye_Count = 2,
+	};
+
 	namespace Devices
 	{
 
@@ -37,18 +44,18 @@ namespace Platform
 			void DissmisHealthWarnning();
 			void BeginFrame();
 			void EndFrame();
-			void SetView(DirectX::Scene::EyesEnum eye);
+			void SetView(EyesEnum eye);
 
-			DirectX::RenderTarget& ViewTarget(DirectX::Scene::EyesEnum eye);
-			DirectX::RenderTargetTexture2D& EyeTexture(DirectX::Scene::EyesEnum eye);
+			DirectX::RenderTarget& ViewTarget(EyesEnum eye);
+			DirectX::RenderTargetTexture2D& EyeTexture(EyesEnum eye);
 			DirectX::DepthStencilBuffer& DepthStencilBuffer();
 
-			DirectX::XMMATRIX EyeProjection(DirectX::Scene::EyesEnum eye) const;
+			DirectX::XMMATRIX EyeProjection(EyesEnum eye) const;
 
 			// Tracking States
-			const Platform::Fundation::StaticPose& EyePoses(DirectX::Scene::EyesEnum eye) const;
+			const StaticPose& EyePoses(EyesEnum eye) const;
 			float UserEyeHeight() const;
-			const Platform::Fundation::DynamicPose& HeadPose() const;
+			const DynamicPose& HeadPose() const;
 
 		private:
 			class Impl;
