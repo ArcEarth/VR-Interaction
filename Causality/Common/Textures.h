@@ -142,7 +142,7 @@ namespace DirectX{
 		//	return const_cast<Texture*>(this)->Resource();
 		//}
 
-		operator ID3D11ShaderResourceView* ()
+		operator ID3D11ShaderResourceView* () const
 		{
 			return m_pShaderResourceView.Get();
 		}
@@ -252,12 +252,12 @@ namespace DirectX{
 		bool IsCpuReadable() const;
 		bool IsCubeMap() const;
 
-		operator ID3D11ShaderResourceView* ()
+		operator ID3D11ShaderResourceView* () const
 		{
 			return m_pShaderResourceView.Get();
 		}
 
-		operator ID3D11Texture2D* ()
+		operator ID3D11Texture2D* () const
 		{
 			return m_pTexture.Get();
 		}
@@ -337,9 +337,10 @@ namespace DirectX{
 
 		RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
 			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM , _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0, _In_opt_ bool Shared = false);
-		RenderTargetTexture2D( ID3D11Texture2D* pTexture , ID3D11RenderTargetView* pRenderTargetView , ID3D11ShaderResourceView* pShaderResouceView , const D3D11_VIEWPORT *pViewport = nullptr);
-		~RenderTargetTexture2D();
+		RenderTargetTexture2D( ID3D11Texture2D* pTexture , ID3D11RenderTargetView* pRenderTargetView , ID3D11ShaderResourceView* pShaderResouceView);
+		explicit RenderTargetTexture2D(ID3D11RenderTargetView* pRenderTargetView);
 
+		~RenderTargetTexture2D();
 
 		operator ID3D11RenderTargetView* ()
 		{
@@ -354,24 +355,6 @@ namespace DirectX{
 			return m_pRenderTargetView.Get();
 		}
 
-		/// <summary>
-		/// return a Const reference to the ViewPort binding this render target texture for RS stage.
-		/// </summary>
-		/// <returns> the return value is default to be (0,0) at left-top corner , while min-max depth is (0,1000) </returns>
-		inline const D3D11_VIEWPORT& ViewPort() const
-		{
-			return m_Viewport;
-		}
-
-		/// <summary>
-		/// return a Reference to the ViewPort binding this render target texture for RS stage.
-		/// </summary>
-		/// <returns> the return value is default to be (0,0) at left-top corner , while min-max depth is (0,1000) </returns>
-		inline D3D11_VIEWPORT& ViewPort()
-		{
-			return m_Viewport;
-		}
-
 		void Clear(ID3D11DeviceContext *pDeviceContext , FXMVECTOR Color = g_XMIdentityR3)
 		{
 			pDeviceContext->ClearRenderTargetView(m_pRenderTargetView.Get(),reinterpret_cast<const float*>(&Color));
@@ -379,7 +362,6 @@ namespace DirectX{
 
 	protected:
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView>			m_pRenderTargetView;
-		D3D11_VIEWPORT											m_Viewport;
 	};
 
 	/// <summary>
@@ -422,6 +404,8 @@ namespace DirectX{
 			m_pDepthStencilView = rhs.m_pDepthStencilView;
 			return *this;
 		}
+
+		DepthStencilBuffer(ID3D11Texture2D* pTexture, ID3D11DepthStencilView* pDSV);
 		explicit DepthStencilBuffer(ID3D11DepthStencilView* pDSV);
 
 		DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_D24_UNORM_S8_UINT);
@@ -437,7 +421,7 @@ namespace DirectX{
 			return m_pDepthStencilView.Get();
 		}
 
-		void Clear(ID3D11DeviceContext *pDeviceContext , uint32_t ClearFlag = D3D11_CLEAR_DEPTH || D3D11_CLEAR_STENCIL,float Depth = 1.0f , uint8_t Stencil = 0U)
+		void Clear(ID3D11DeviceContext *pDeviceContext , uint32_t ClearFlag = D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,float Depth = 1.0f , uint8_t Stencil = 0U)
 		{
 			pDeviceContext->ClearDepthStencilView(m_pDepthStencilView.Get(),ClearFlag,Depth,Stencil);
 		}
@@ -476,7 +460,7 @@ namespace DirectX{
 		/// return a Reference to the ViewPort binding this render target texture for RS stage.
 		/// </summary>
 		/// <returns> the return value is default to be (0,0) at left-top corner , while min-max depth is (0,1000) </returns>
-		inline D3D11_VIEWPORT& ViewPort();
+		D3D11_VIEWPORT& ViewPort();
 
 		RenderTargetTexture2D& ColorBuffer();
 

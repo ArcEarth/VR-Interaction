@@ -40,10 +40,10 @@ namespace DirectX
 	{
 	public:
 		virtual ~IShaderEffect() { }
-		virtual ID3D11InputLayout* GetInputLayout() const = 0;
-		virtual ID3D11VertexShader* GetVertexShader() const = 0;
-		virtual ID3D11GeometryShader* GetGeometryShader() const = 0;
-		virtual ID3D11PixelShader* GetPixelShader() const = 0;
+		virtual ID3D11InputLayout*		GetInputLayout() const = 0;
+		virtual ID3D11VertexShader*		GetVertexShader() const = 0;
+		virtual ID3D11GeometryShader*	GetGeometryShader() const = 0;
+		virtual ID3D11PixelShader*		GetPixelShader() const = 0;
 	};
 
 	class ShaderEffect
@@ -53,7 +53,7 @@ namespace DirectX
 		ShaderEffect() {}
 
 		template <typename _TVertex>
-		ShaderEffect(ID3D11Device *pDevice, const char *VertexShaderFile, const char *GeometryShaderFile, const char *PixelShaderFile)
+		ShaderEffect(_In_ ID3D11Device *pDevice, _In_ const char *VertexShaderFile, _In_opt_ const char *GeometryShaderFile , const char *PixelShaderFile)
 		{
 			typedef typename _TVertex VertexType;
 			std::string fileData = DirectX::ReadFileToString(VertexShaderFile);
@@ -94,7 +94,7 @@ namespace DirectX
 		}
 
 		template <size_t VertexShaderBytecodeLength, size_t PixelShaderBytecodeLength>
-		ShaderEffect(ID3D11Device *pDevice, const BYTE (&VertexShaderBytecode const)[VertexShaderBytecodeLength], const BYTE(&PixelShaderBytecode const)[PixelShaderBytecodeLength])
+		ShaderEffect(_In_ ID3D11Device *pDevice, _In_ const BYTE (&VertexShaderBytecode const)[VertexShaderBytecodeLength], _In_ const BYTE(&PixelShaderBytecode const)[PixelShaderBytecodeLength])
 		{
 		}
 
@@ -141,15 +141,9 @@ namespace DirectX
 		ComPtr<ID3D11InputLayout>		m_pInputLayout;
 	};
 
-	class IShader abstract
+	template <typename _TVSConstant, typename _TPSConstant, typename _TGSConstant>
+	class CommonShaderEffect
 	{
-	public:
-		virtual void Apply(ID3D11DeviceContext* pContext) = 0;
-		virtual void SetResource(ID3D11ShaderResourceView* pResource) = 0;
-		virtual void SetSampler() = 0;
-	};
 
-	class IVertexShader abstract : public IShader
-	{
 	};
 }

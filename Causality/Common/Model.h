@@ -127,12 +127,6 @@ namespace DirectX
 		public:
 			static_assert(std::is_integral<_TIndex>::value, "IndexType is not integer");
 
-			// Setup the effect for rendering and change the input layout as well
-			void SetEffect(const std::shared_ptr<IEffect> &pRenderEffect)
-			{
-				pEffect = pRenderEffect;
-			}
-
 			typedef TypedMeshBuffer	SelfType;
 			typedef _TVertex	VertexType;
 			typedef _TIndex		IndexType;
@@ -145,42 +139,18 @@ namespace DirectX
 		//};
 
 		// A ModelPart is a aggregate of a mesh and it's Material
-		class ModelPart
+		struct ModelPart
 		{ 
 		public:
-			std::string	Name;
-			std::shared_ptr<MeshBuffer>		pMesh;
-			std::shared_ptr<PhongMaterial>	pMaterial;
+			std::string						Name;
+			std::shared_ptr<MeshBuffer>		pMesh;		// Mesh of this model part
+			std::shared_ptr<PhongMaterial>	pMaterial;	// Material of this model part
+			std::shared_ptr<IEffect>		pEffect;	// Default Effect of this model part
 			DirectX::BoundingBox			BoundBox;
 			DirectX::BoundingOrientedBox	BoundOrientedBox;
-			void Render(ID3D11DeviceContext *pContext, IEffect* pEffect);
-		};
 
-		class SkinningModelPart : public ModelPart
-		{
-			static const unsigned int VERTEX_BLEND_BONES = 4U;
-			static const unsigned int MAX_BLEND_MATRIX_COUNT = 255U;
-
-			struct MatrixBlendBuffer
-			{
-				DirectX::XMFLOAT3X4 BlendMatrices[MAX_BLEND_MATRIX_COUNT];
-			};
-
-			struct DualQuaternionBlendBuffer
-			{
-				DirectX::DualQuaternion BlendMatrices[MAX_BLEND_MATRIX_COUNT];
-			};
-
-			struct VertexPositionNormalTextureWeights
-			{
-				DirectX::XMFLOAT4 Position;
-				DirectX::XMFLOAT3 Normal;
-				DirectX::XMFLOAT2 TexCoord;
-				DirectX::XMUINT4  Indices;
-				DirectX::XMFLOAT4 Weights;
-				static const UINT InputElementCount = 5;
-				static const D3D11_INPUT_ELEMENT_DESC InputElements[InputElementCount];
-			};
+			// This render method will not set "Transform"
+			void Render(ID3D11DeviceContext *pContext, IEffect* pEffect = nullptr);
 		};
 
 		class LocalMatrixHolder : virtual public ILocalMatrix
@@ -199,84 +169,145 @@ namespace DirectX
 			Matrix4x4	LocalMatrix;
 		};
 
-		class IModelNode : virtual public ILocalMatrix, virtual public IBoundable
+		class IModelNode : virtual public IBoundable
 		{
 		public:
 			virtual ~IModelNode();
 
-			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) = 0;
+			// Property : Name
+			virtual const std::string& Name() const = 0;
+			virtual void SetName(const std::string& name) = 0;
+
+			// Method : Render
+			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, IEffect* pEffect = nullptr) = 0;
 
 			// Get the Recursive multiplied model matrix since root, return the global world matrix
-			virtual XMMATRIX GetWorldMatrix() const;
+			// virtual XMMATRIX GetWorldMatrix() const;
 			//virtual XMMATRIX GetModelMatrix() const override;
 			// Transformed OrientedBounding Box
-			virtual BoundingOrientedBox GetOrientedBoundingBox() const;
+			//virtual BoundingOrientedBox GetOrientedBoundingBox() const = 0;
 			// Transformed Bounding Box
-			virtual BoundingBox GetBoundingBox() const override;
+			//virtual BoundingBox GetBoundingBox() const override;
 			// Transformed Bounding Sphere
-			virtual BoundingSphere GetBoundingSphere() const;
+			// virtual BoundingSphere GetBoundingSphere() const;
 
-			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
+			//virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
 
-			virtual XMMATRIX GetModelMatrix() const override;
+			//virtual XMMATRIX GetModelMatrix() const override;
 
 
 			// Inherited via ILocalMatrix
 			//virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
 			//virtual XMMATRIX GetModelMatrix() const override;
 
-			IModelNode*			pParent = nullptr;
-			std::string			Name;
-			BoundingOrientedBox BoundOrientedBox;
-			BoundingSphere		BoundSphere;
-			BoundingBox			BoundBox;
-			Matrix4x4			LocalMatrix;
-			float				Opticity;
+			#pragma region PropertyParent
+		//	IModelNode* Parent() { return pParent; }
+		//	const IModelNode* Parent() const { return pParent; }
+		//	void SetParent(IModelNode* parent) { pParent = parent; }
+
+		//private:
+		//	IModelNode*			pParent = nullptr;
+			#pragma endregion
+
+			//BoundingOrientedBox BoundOrientedBox;
+			//BoundingSphere		BoundSphere;
+			//BoundingBox			BoundBox;
+			//Matrix4x4			LocalMatrix;
+			//float				Opticity;
 		};
 
 		// A Monolith Model is a model with single ModelPart
 		class MonolithModel : public IModelNode, public ModelPart
 		{
 		public:
-			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
+			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, IEffect* pEffect) override;
+
+			const std::string& Name() const override { return ModelPart::Name; }
+			void SetName(const std::string& name) { ModelPart::Name = name; }
+
+			// Inherited via IModelNode
+			virtual BoundingBox GetBoundingBox() const override;
+			virtual BoundingOrientedBox GetOrientedBoundingBox() const override;
+
 		};
 
 		// A basic model is a collection of ModelPart shares same Local Matrix
 		// Leaf node in a model tree
-		class CompositeModel : public IModelNode
+		class CompositionModel : public IModelNode
 		{
+		protected:
+			std::string				_Name;
 		public:
+			BoundingOrientedBox		BoundOrientedBox;
+			BoundingSphere			BoundSphere;
+			BoundingBox				BoundBox;
+
 			std::vector<ModelPart>	Parts;
 
-			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
+			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, IEffect* pEffect) override;
+			const std::string& Name() const override { return _Name; }
+			void SetName(const std::string& name) { _Name = name; }
+
+			// Inherited via IModelNode
+			virtual BoundingBox GetBoundingBox() const override;
+			virtual BoundingOrientedBox GetOrientedBoundingBox() const override;
 		};
 
 		// Inherit from vector type, only push_back is valiad !!!
-		class ModelCollection : public IModelNode, public std::vector<std::shared_ptr<IModelNode>>
+		class CollectionModel : public IModelNode
 		{
 		public:
-			typedef std::vector<std::shared_ptr<IModelNode>> ContainnerType;
+			struct ModelTransformPair
+			{
+				MatrixTransform	Transform;
+				std::shared_ptr<IModelNode> Model;
+			};
+
+			typedef std::vector<ModelTransformPair> ContainnerType;
+
+		protected:
+			std::string				_Name;
+		public:
+			ContainnerType			Children;
+		public:
+			//BoundingOrientedBox		BoundOrientedBox;
+			BoundingBox				BoundBox;
+
+		public:
+
 			// All the data in Children's postion/orientation is 
 			// In the local coordinate of it's parent!
-			using ContainnerType::operator[];
-			void push_back(const value_type& _Val);
-			void push_back(value_type&& _Val);
-			virtual void Render(ID3D11DeviceContext *pContext, IEffect* pEffect) override;
+			void AddChild(const std::shared_ptr<IModelNode> &model, const MatrixTransform &transform = reinterpret_cast<const MatrixTransform&>(MatrixTransform::Identity));
+			//void push_back(const value_type& _Val);
+			//void push_back(value_type&& _Val);
+			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, IEffect* pEffect) override;
+
+			const std::string& Name() const { return _Name; }
+			void SetName(const std::string& name) { _Name = name; }
+
+			// Inherited via IModelNode
+			virtual BoundingBox GetBoundingBox() const override;
+			//virtual BoundingOrientedBox GetOrientedBoundingBox() const override;
+
 		};
 
 		// This Model also keeps the geomreics data in CPU
-		class GeometryModel : public CompositeModel
+		class GeometryModel : public CompositionModel
 		{
 		public:
+			typedef VertexPositionNormalTexture VertexType;
+			typedef uint16_t					IndexType;
+
 			static bool CreateFromObjFile(GeometryModel *pResult, ID3D11Device *pDevice, const std::wstring &file, const std::wstring& textureDir);
 			void CreateDeviceResource(ID3D11Device *pDevice);
-			CompositeModel* ReleaseCpuResource();
+			CompositionModel* ReleaseCpuResource();
+
 		public:
 			std::vector<VertexPositionNormalTexture>			Vertices;
 			std::vector<FacetPrimitives::Triangle<uint16_t>>	Facets;
-			stdx::stride_range<Vector3>	Positions;
-			stdx::stride_range<Vector3>	Normals;
-			stdx::stride_range<Vector2>	TexCoords;
+			stdx::stride_range<Vector3>							Positions;
+			stdx::stride_range<Vector3>							Normals;
+			stdx::stride_range<Vector2>							TexCoords;
 		};
 
 	}

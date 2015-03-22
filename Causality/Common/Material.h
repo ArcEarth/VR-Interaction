@@ -14,6 +14,8 @@ namespace DirectX
 		class IMaterial abstract
 		{
 		public:
+			virtual IEffect* GetRequestedEffect() const = 0;
+
 			virtual ~IMaterial() {}
 			//virtual Color	GetColor(const char* key) const = 0;
 			//virtual float	GetFloat(const char* key) const = 0;
@@ -47,14 +49,15 @@ namespace DirectX
 			TransparencyOn = 4,
 		};
 
-		class PropertyMap
+		class PropertyMap : private std::map<std::string, boost::any>
 		{
 		public:
+			typedef std::map<std::string, boost::any> base_type;
 			template <typename T>
 			T	Get(const std::string& key) const
 			{
-				auto itr = properties.find(key);
-				if (itr != properties.end())
+				auto itr = find(key);
+				if (itr != end())
 					return boost::any_cast<T>(itr->second);
 				else 
 					return T();
@@ -63,20 +66,24 @@ namespace DirectX
 			template <typename T>
 			void Set(const std::string& key, const T& value)
 			{
-				properties[key] = value;
+				base_type::operator[](key) = value;
 			}
 
-			boost::any& operator[](const std::string& key)
-			{
-				return properties[key];
-			}
+			using base_type::operator[];
 
 			bool HasProperty(const std::string& key) const
 			{
-				return properties.find(key) != properties.end();
+				return find(key) != end();
 			}
-		private:
-			std::map<std::string, boost::any> properties;
+
+			using base_type::begin;
+			using base_type::end;
+			using base_type::size;
+
+			size_t Size() const { return size(); }
+
+			const std::map<std::string, boost::any>& Properties() const 
+			{ return *this; }
 		};
 
 		class IPhongMaterial abstract
@@ -97,8 +104,11 @@ namespace DirectX
 			virtual ID3D11ShaderResourceView *GetSpecularMap() const = 0;
 		};
 
-		class Material : public IMaterial, public PropertyMap
+		class Material : public IMaterial, public PropertyMap, public IPhongMaterial
 		{
+		public:
+			std::string RequstedEffectName;
+
 			Color		GetColor(const std::string& key) const
 			{
 				return Get<Color>(key);
@@ -124,44 +134,66 @@ namespace DirectX
 				return *Get<const Texture*>(key);
 			}
 
-			Color		    GetAmbientColor() const { return GetColor("AmbientColor"); }
-			Color		    GetDiffuseColor() const { return GetColor("DiffuseColor"); }
-			Color		    GetSpecularColor() const { return GetColor("SpecularColor"); }
-			float		    GetSpecularPower() const { return GetFloat("SpecularPower"); }
-			float		    GetOpacity() const { return GetFloat("Opacity"); }
-			const Texture&	GetDiffuseMap() const { return GetTexture("DiffuseMap"); }
-			const Texture&	GetNormalMap() const { return GetTexture("NormalMap"); }
-			const Texture&	GetDisplaceMap() const { return GetTexture("DisplaceMap"); }
-			const Texture&	GetSpecularMap() const { return GetTexture("SpecularMap"); }
+			Color		                GetAmbientColor() const { return GetColor("AmbientColor"); }
+			Color		                GetDiffuseColor() const { return GetColor("DiffuseColor"); }
+			Color		                GetSpecularColor() const { return GetColor("SpecularColor"); }
+			float		                GetSpecularPower() const { return GetFloat("SpecularPower"); }
+			float		                GetOpacity() const { return GetFloat("Opacity"); }
+			ID3D11ShaderResourceView*	GetDiffuseMap() const override { return GetTexture("DiffuseMap"); }
+			ID3D11ShaderResourceView*	GetNormalMap() const override { return GetTexture("NormalMap"); }
+			ID3D11ShaderResourceView*	GetDisplaceMap() const override { return GetTexture("DisplaceMap"); }
+			ID3D11ShaderResourceView*	GetSpecularMap() const override { return GetTexture("SpecularMap"); }
 
-			void		SetColor(const std::string& key, const Color& value);
-			void		SetFloat(const std::string& key, float value);
-			void		SetInt(const std::string& key, int value);
-			void		SetString(const std::string& key, const std::string& value);
-			void		SetTexture(const std::string& key, Texture& texture);
-			void		SetVector4(const std::string& key);
+			void		SetColor(const std::string& key, const Color& value)
+			{
+				Set(key,value);
+			}
+			void		SetFloat(const std::string& key, float value)
+			{
+				Set(key, value);
+			}
+			void		SetInt(const std::string& key, int value)
+			{
+				Set(key, value);
+			}
+			void		SetString(const std::string& key, const std::string& value)
+			{
+				Set(key, value);
+			}
+			void		SetTexture(const std::string& key, Texture& texture)
+			{
+				Set(key, &texture);
+			}
+			void		SetVector4(const std::string& key, const Vector4 value)
+			{
+				Set(key, value);
+			}
 		};
 
-		struct PhongMaterial : public IPhongMaterial, public IMaterial
+		struct PhongMaterial : public Material
 		{
 		public:
+			using SRVComPtr = Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>;
+
 			PhongMaterial();
 			static std::vector<std::shared_ptr<PhongMaterial>> CreateFromMtlFile(ID3D11Device* pDevice, const std::wstring &file, const std::wstring &lookupDirectory);
 
+			IEffect*	Effect;
 			std::string Name;
-			Color AmbientColor;
-			Color DiffuseColor;
-			Color SpecularColor;
-			Color EmmsiveColor;
-			float SpecularPower;
-			float Alpha;
+			Color		AmbientColor;
+			Color		DiffuseColor;
+			Color		SpecularColor;
+			Color		EmmsiveColor;
+			float		SpecularPower;
+			float		Alpha;
 
-			Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> DiffuseMap;
-			Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> NormalMap;
-			Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> DisplaceMap;
-			Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> SpecularMap;
+			SRVComPtr	DiffuseMap;
+			SRVComPtr	NormalMap;
+			SRVComPtr	DisplaceMap;
+			SRVComPtr	SpecularMap;
 
 			// Inherited via IMaterial
+			virtual IEffect* GetRequestedEffect() const override { return Effect; }
 			virtual Color GetAmbientColor() const override;
 			virtual Color GetDiffuseColor() const override;
 			virtual Color GetSpecularColor() const override;

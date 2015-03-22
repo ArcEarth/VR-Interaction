@@ -34,7 +34,6 @@ namespace DirectX
 	class IBoundable abstract
 	{
 	public:
-		//virtual BoundingOrientedBox GetOrientedBoundingBox() const = 0;
 		//virtual BoundingSphere		GetBoundingSphere() const = 0;
 
 		// Efficent interface, but less friendly
@@ -42,6 +41,10 @@ namespace DirectX
 		//virtual const Vector3& GetExtent() const = 0;
 
 		virtual BoundingBox			GetBoundingBox() const = 0;
+		virtual BoundingOrientedBox GetOrientedBoundingBox() const { 
+			auto box = GetBoundingBox(); 
+			return BoundingOrientedBox(box.Center, box.Extents,Quaternion::Identity);
+		};
 	};
 
 	// Interface for object with the ability to Move / Rotate / Isotropic-Scale

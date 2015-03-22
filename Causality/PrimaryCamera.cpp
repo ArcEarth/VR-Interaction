@@ -1,3 +1,4 @@
+#include "pch_bcl.h"
 #include "PrimaryCamera.h"
 #include <DirectXColors.h>
 using namespace DirectX;
@@ -85,25 +86,25 @@ void XM_CALLCONV Camera::Rotate(FXMVECTOR q)
 	SetOrientation(XMQuaternionMultiply(q, GetOrientation()));
 }
 
-Vector3 Camera::GetPosition() const
-{
-	return SceneObject::GetPosition();
-}
-
-void Camera::SetPosition(const Vector3 &p)
-{
-	SceneObject::SetPosition(p);
-}
-
-Quaternion Camera::GetOrientation() const
-{
-	return SceneObject::GetOrientation();
-}
-
-void Camera::SetOrientation(const Quaternion &q)
-{
-	SceneObject::SetOrientation(q);
-}
+//Vector3 Camera::GetPosition() const
+//{
+//	return SceneObject::GetPosition();
+//}
+//
+//void Camera::SetPosition(const Vector3 &p)
+//{
+//	SceneObject::SetPosition(p);
+//}
+//
+//Quaternion Camera::GetOrientation() const
+//{
+//	return SceneObject::GetOrientation();
+//}
+//
+//void Camera::SetOrientation(const Quaternion &q)
+//{
+//	SceneObject::SetOrientation(q);
+//}
 //
 //void XM_CALLCONV PlayerCamera::Move(FXMVECTOR p) 
 //{
@@ -123,6 +124,26 @@ Causality::Camera::Camera(const RenderContext & context)
 
 Causality::Camera::~Camera()
 {
+}
+
+DirectX::RenderTarget & Causality::Camera::GetRenderTarget(int view)
+{
+	return m_RenderTarget;
+}
+
+void Causality::Camera::SetRenderTarget(DirectX::RenderTarget & renderTarget, int view)
+{
+	m_RenderTarget = renderTarget;
+}
+
+void Causality::Camera::SetRenderTarget(DirectX::RenderTarget && renderTarget, int view)
+{
+	m_RenderTarget = std::move(renderTarget);
+}
+
+void Causality::Camera::SetRenderContext(const RenderContext & context)
+{
+	m_pRenderContext = context;
 }
 
 // Stereo Settings
@@ -154,10 +175,8 @@ void Camera::BeginFrame()
 		// Reset the viewport to target the whole screen.
 		//auto viewport = m_pDeviceResources->GetScreenViewport();
 		//context->RSSetViewports(1, &viewport);
-		ID3D11RenderTargetView *const targets[1] = { m_RenderTarget.ColorBuffer() };
-		context->OMSetRenderTargets(1, targets, m_RenderTarget.DepthBuffer());
-		context->ClearRenderTargetView(m_RenderTarget.ColorBuffer(), Background);
-		context->ClearDepthStencilView(m_RenderTarget.DepthBuffer(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		m_RenderTarget.Clear(context, Background);
+		m_RenderTarget.SetAsRenderTarget(context);
 	}
 }
 
@@ -210,6 +229,10 @@ void Camera::SetView(size_t view)
 void Camera::SetPerspective(float fovRadius, float aspectRatioHbyW)
 {
 	Fov = fovRadius; AspectRatio = aspectRatioHbyW;
+}
+
+void Causality::Camera::SetOrthographic(float viewWidth, float viewHeight)
+{
 }
 
 float Camera::GetFov() const

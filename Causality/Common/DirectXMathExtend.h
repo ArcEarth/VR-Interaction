@@ -1099,6 +1099,16 @@ namespace DirectX
 		return M;
 	}
 
+	// No Matrix Multiply inside, significant faster than affine transform
+	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationQuaterion, FXMVECTOR Translation)
+	{
+		XMMATRIX M = XMMatrixRotationQuaternion(RotationQuaterion);
+		XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, Translation, g_XMSelect1110.v);
+		M.r[3] = XMVectorAdd(M.r[3], VTranslation);
+		return M;
+	}
+
+
 	// Composition of Translation and Rotation
 	struct RigidTransform
 	{

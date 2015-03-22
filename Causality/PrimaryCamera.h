@@ -1,7 +1,7 @@
 #pragma once
 #include "OculusRift.h"
-#include "Component.h"
 #include "RenderContext.h"
+#include "SceneObject.h"
 
 namespace Causality
 {
@@ -15,10 +15,10 @@ namespace Causality
 	};
 
 	// The basic functions for camera, to provide View/Projection Matrix, Setup Position and focus
-	class ICameraBase abstract
+	class ICameraViewControl abstract
 	{
 	public:
-		virtual ~ICameraBase()
+		virtual ~ICameraViewControl()
 		{}
 		virtual size_t ViewCount() const = 0;
 		virtual DirectX::XMMATRIX GetViewMatrix(size_t view = 0) const = 0;
@@ -47,7 +47,7 @@ namespace Causality
 	};
 
 	// A Camera setup which works both in the case with OculusRift and Normal Monolith Camera
-	class Camera : virtual public SceneObject, public ICameraBase, public ICameraRenderControl
+	class Camera : virtual public SceneObject, public ICameraViewControl, public ICameraRenderControl
 	{
 	public:
 		Camera(const RenderContext& context = nullptr);
@@ -55,8 +55,8 @@ namespace Causality
 		~Camera();
 
 		DirectX::RenderTarget& GetRenderTarget(int view = 0);
-		bool SetRenderTarget(DirectX::RenderTarget& renderTarget, int view = 0);
-		bool SetRenderTarget(DirectX::RenderTarget&& renderTarget, int view = 0);
+		void SetRenderTarget(DirectX::RenderTarget& renderTarget, int view = 0);
+		void SetRenderTarget(DirectX::RenderTarget&& renderTarget, int view = 0);
 
 		void SetRenderContext(const RenderContext& context);
 
@@ -92,10 +92,10 @@ namespace Causality
 		void	SetNear(float _near);
 		void	SetFar(float _far);
 
-		virtual Vector3		GetPosition() const override;
-		virtual void		SetPosition(const Vector3& p) override;
-		virtual Quaternion	GetOrientation() const override;
-		virtual void		SetOrientation(const Quaternion &q) override;
+		//virtual Vector3		GetPosition() const override;
+		//virtual void		SetPosition(const Vector3& p) override;
+		//virtual Quaternion	GetOrientation() const override;
+		//virtual void		SetOrientation(const Quaternion &q) override;
 
 		void XM_CALLCONV	Move(DirectX::FXMVECTOR p);
 		void XM_CALLCONV	Rotate(DirectX::FXMVECTOR q);
@@ -104,7 +104,7 @@ namespace Causality
 
 		static const DirectX::XMVECTORF32 Foward, Up;
 	private:
-		float _near, _far, _left, _right, _up, _down;
+		//float _near, _far, _left, _right, _up, _down;
 		float Fov, AspectRatio;
 		bool  dirty;
 

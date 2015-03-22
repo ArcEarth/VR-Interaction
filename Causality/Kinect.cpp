@@ -1,9 +1,12 @@
+#include "pch_bcl.h"
 #include <Kinect.h>
 #include "Kinect.h"
 #include <boost\range.hpp>
 #include <boost\range\adaptors.hpp>
 #include <iostream>
 #include <chrono>
+
+using namespace Causality;
 using namespace Causality::Devices;
 using namespace Microsoft::WRL;
 
@@ -53,6 +56,34 @@ JointType Kinect::JointsParent[JointType_Count] = {
 	JointType_HandRight,  //JointType_ThumbRight
 };
 
+char* JointNames[JointType_Count] = {
+	"SpineBase",
+	"SpineMid",
+	"Neck",
+	"Head",
+	"ShoulderLeft",
+	"ElbowLeft",
+	"WristLeft",
+	"HandLeft",
+	"ShoulderRight",
+	"ElbowRight",
+	"WristRight",
+	"HandRight",
+	"HipLeft",
+	"KneeLeft",
+	"AnkleLeft",
+	"FootLeft",
+	"HipRight",
+	"KneeRight",
+	"AnkleRight",
+	"FootRight",
+	"SpineShoulder",
+	"HandTipLeft",
+	"ThumbLeft",
+	"HandTipRight",
+	"ThumbRight",
+};
+
 std::unique_ptr<Causality::StaticArmature> TrackedPlayer::PlayerArmature;
 
 class Kinect::Impl
@@ -86,7 +117,7 @@ public:
 		{
 			int parents[JointType_Count];
 			std::copy_n(Kinect::JointsParent,(int)JointType_Count, parents);
-			TrackedPlayer::PlayerArmature = std::make_unique<Causality::StaticArmature>(JointType_Count, parents);
+			TrackedPlayer::PlayerArmature = std::make_unique<Causality::StaticArmature>(JointType_Count, parents, JointNames);
 		}
 		using namespace Microsoft::WRL;
 		using namespace std;
@@ -315,6 +346,22 @@ public:
 	//}
 };
 
+std::weak_ptr<Kinect> Kinect::wpCurrentDevice;
+
+std::shared_ptr<Kinect> Causality::Devices::Kinect::GetForCurrentView()
+{
+	if (wpCurrentDevice.expired())
+	{
+		auto pDevice = CreateDefault();
+		wpCurrentDevice = pDevice;
+		return pDevice;
+	}
+	else
+	{
+		return wpCurrentDevice.lock();
+	}
+}
+
 Kinect::~Kinect()
 {
 }
@@ -346,9 +393,9 @@ const std::map<uint64_t, TrackedPlayer*>& Kinect::GetLatestPlayerFrame()
 
 // Static Constructors!!!
 
-std::unique_ptr<Kinect> Kinect::CreateDefault()
+std::shared_ptr<Kinect> Kinect::CreateDefault()
 {
-	std::unique_ptr<Kinect> pKinect(new Kinect);
+	std::shared_ptr<Kinect> pKinect(new Kinect);
 	if (SUCCEEDED(pKinect->pImpl->Initalize()))
 		return pKinect;
 	else

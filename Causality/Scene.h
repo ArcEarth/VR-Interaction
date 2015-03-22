@@ -11,10 +11,12 @@
 
 namespace Causality
 {
+	class Frame;
+
 	interface IScene abstract
 	{
 	public:
-		virtual ~IScene();
+		virtual ~IScene() = default;
 
 		virtual void Update() = 0;
 		virtual void Render(RenderContext& context) = 0;
@@ -34,7 +36,13 @@ namespace Causality
 	class Scene : public IScene
 	{
 	public:
+		Scene()
+		{
+		}
+
 		static std::unique_ptr<Scene> LoadSceneFromXML(const string& xml_file);
+
+		void LoadFromXML(const string& xml_file);
 
 		static Scene& GetSceneFroCurrentView();
 
@@ -53,33 +61,57 @@ namespace Causality
 		virtual void OnNavigatedFrom() override;
 
 		// Timeline operations
-		bool	IsPaused() const;
-		void	Pause();
-		void	Resume();
+		bool	IsPaused() const { return is_paused; }
+		void	Pause() { is_paused = true; }
+		void	Resume() { is_paused = false; }
 
 		time_seconds	GetLocalTime() const
 		{
 			return time_seconds(step_timer.GetElapsedSeconds());
 		}
 
-		double	GetTimeScale() const;
-		void	SetTimeScale(double time_scale);
+		double	GetTimeScale() const { return time_scale; }
+		void	SetTimeScale(double time_scale) { this->time_scale = time_scale; }
 
 		// Contens operations
-		SceneObject*	Content();
+		SceneObject*	Content() { return content.get(); }
 
-		AssetDictionary& Assets();
-		const AssetDictionary& Assets() const;
+		AssetDictionary& Assets() { return assets; }
+		const AssetDictionary& Assets() const { return assets; }
 
-		DirectX::RenderTarget&			RenderTarget();
-		const DirectX::RenderTarget&	RenderTarget() const;
+		Camera *PrimaryCamera()
+		{
+			return primary_cameral;
+		}
+
+		RenderContext& GetRenderContext() { return render_context; }
+		const RenderContext& GetRenderContext() const { return render_context; }
+
+		void SetRenderDeviceAndContext(RenderDevice& device, RenderContext& context)
+		{
+			assets.SetRenderDevice(device);
+			render_context = context;
+		}
+
+		DirectX::RenderTarget&			Canvas() { return scene_canvas; }
+		const DirectX::RenderTarget&	Canvas() const { return scene_canvas; }
+		void							SetCanvas(DirectX::RenderTarget& canvas) {
+			scene_canvas = canvas;
+		}
+
+		void RebuildRenderViewCache();
 
 	private:
 		double						time_scale;
 		DirectX::StepTimer			step_timer;
+		RenderContext				render_context;
 		AssetDictionary				assets;
 		uptr<SceneObject>			content;
 		DirectX::RenderTarget		scene_canvas;
+		Camera						*primary_cameral;
+
+		std::vector<Camera*>		cameras;
+		std::vector<IRenderable*>	renderables;
 
 		bool						is_paused;
 		bool						is_loaded;

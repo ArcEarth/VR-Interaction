@@ -1,3 +1,4 @@
+#include "pch_bcl.h"
 #include "LeapMotion.h"
 #include <iostream>
 
@@ -20,13 +21,29 @@ public:
 	LeapMotion*	pOwner;
 };
 
+std::weak_ptr<LeapMotion> LeapMotion::wpCurrentDevice;
+
+std::shared_ptr<LeapMotion> Causality::Devices::LeapMotion::GetForCurrentView()
+{
+	if (wpCurrentDevice.expired())
+	{
+		auto pDevice = std::make_shared<LeapMotion>(false,true);
+		wpCurrentDevice = pDevice;
+		return pDevice;
+	}
+	else
+	{
+		return wpCurrentDevice.lock();
+	}
+}
+
 LeapMotion::LeapMotion(bool useEvent, bool isFixed)
 	:pListener(new Listener(this))
 {
 	using namespace DirectX;
 	PrevConnectionStates = false;
-	pHeadLocation = nullptr;
-	pHeadOrientation = nullptr;
+	//pHeadLocation = nullptr;
+	//pHeadOrientation = nullptr;
 	Coordinate = XMMatrixScalingFromVector(XMVectorReplicate(0.001f)) * XMMatrixTranslation(0, -0.20f, -0.50f); // Default setting
 	if (useEvent)
 		LeapController.addListener(*pListener.get());
@@ -64,13 +81,13 @@ void LeapMotion::PullFrame()
 		pListener->onFrame(LeapController);
 }
 
-void LeapMotion::SetMotionProvider(DirectX::ILocatable * pHeadLoc, DirectX::IOriented * pHeadOrient)
-{
-	pHeadLocation = pHeadLoc;
-	pHeadOrientation = pHeadOrient;
-}
+//void LeapMotion::SetMotionProvider(DirectX::ILocatable * pHeadLoc, DirectX::IOriented * pHeadOrient)
+//{
+//	pHeadLocation = pHeadLoc;
+//	pHeadOrientation = pHeadOrient;
+//}
 
-void LeapMotion::SetLeapCoord(const DirectX::Matrix4x4 & m)
+void LeapMotion::SetDeviceWorldCoord(const DirectX::Matrix4x4 & m)
 {
 	using namespace DirectX;
 	Coordinate = XMMatrixScalingFromVector(XMVectorReplicate(0.001f)) * (XMMATRIX)m;
@@ -79,10 +96,10 @@ void LeapMotion::SetLeapCoord(const DirectX::Matrix4x4 & m)
 DirectX::XMMATRIX LeapMotion::ToWorldTransform() const
 {
 	using namespace DirectX;
-	if (pHeadLocation && pHeadOrientation)
-		return Coordinate * XMMatrixRotationQuaternion(pHeadOrientation->GetOrientation()) * XMMatrixTranslationFromVector(pHeadLocation->GetPosition());
-	else
-		return Coordinate;
+	//if (pHeadLocation && pHeadOrientation)
+	//	return Coordinate * XMMatrixRigidTransform(pHeadOrientation->GetOrientation() ,pHeadLocation->GetPosition());
+	//else
+	return Coordinate;
 }
 
 void LeapMotion::Listener::onConnect(const Leap::Controller & controller)

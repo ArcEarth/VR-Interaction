@@ -1,3 +1,4 @@
+#include "pch_bcl.h"
 #include "Armature.h"
 #include <boost\range.hpp>
 #include <boost\range\adaptors.hpp>
@@ -5,6 +6,7 @@
 #include <regex>
 #include <boost\assign.hpp>
 #include <iostream>
+#include <Eigen\Eigen>
 
 using namespace DirectX;
 using namespace Causality;
@@ -87,7 +89,7 @@ DirectX::XMDUALVECTOR BoneDisplacement::RigidTransformDualQuaternion(const BoneD
 	return XMDualQuaternionRigidTransform(from.OriginPosition, rot, tra);
 }
 
-Causality::StaticArmature::StaticArmature(std::istream & file)
+StaticArmature::StaticArmature(std::istream & file)
 {
 	size_t jointCount ;
 	file >> jointCount;
@@ -123,14 +125,14 @@ Causality::StaticArmature::StaticArmature(std::istream & file)
 	DefaultFrame.RebuildGlobal(*this);
 }
 
-Causality::StaticArmature::StaticArmature(size_t JointCount, int * Parents)
+StaticArmature::StaticArmature(size_t JointCount, int * Parents,const char* const* Names)
 	: Joints(JointCount)
 {
-	TopologyOrder.resize(JointCount);
-
 	for (size_t i = 0; i < JointCount; i++)
 	{
 		Joints[i].SetID(i);
+		Joints[i].SetName(Names[i]);
+		((JointData&) Joints[i]).ParentID = Parents[i];
 		if (Parents[i] != i && Parents[i] >= 0)
 		{
 			Joints[Parents[i]].append_children_back(&Joints[i]);
@@ -143,12 +145,12 @@ Causality::StaticArmature::StaticArmature(size_t JointCount, int * Parents)
 	CaculateTopologyOrder();
 }
 
-Causality::StaticArmature::~StaticArmature()
+StaticArmature::~StaticArmature()
 {
 
 }
 
-inline Causality::StaticArmature::StaticArmature(self_type && rhs)
+inline StaticArmature::StaticArmature(self_type && rhs)
 {
 	using std::move;
 	RootIdx = rhs.RootIdx;
@@ -159,47 +161,64 @@ inline Causality::StaticArmature::StaticArmature(self_type && rhs)
 
 //void GetBlendMatrices(_Out_ DirectX::XMFLOAT4X4* pOut);
 
-Joint * Causality::StaticArmature::at(int index) {
+Joint * StaticArmature::at(int index) {
 	return &Joints[index];
 }
 
-Joint * Causality::StaticArmature::root()
+Joint * StaticArmature::root()
 {
 	return &Joints[RootIdx];
 }
 
-size_t Causality::StaticArmature::size() const
+size_t StaticArmature::size() const
 {
 	return Joints.size();
 }
 
-const IArmature::frame_type & Causality::StaticArmature::default_frame() const
+const IArmature::frame_type & StaticArmature::default_frame() const
 {
 	return DefaultFrame;
 	// TODO: insert return statement here
 }
 
-void Causality::StaticArmature::CaculateTopologyOrder()
+void StaticArmature::CaculateTopologyOrder()
 {
 	using namespace boost;
 	using namespace boost::adaptors;
+	TopologyOrder.resize(size());
 	copy(root()->nodes() | transformed([](const Joint& joint) {return joint.ID(); }), TopologyOrder.begin());
 
 }
 
 // Interpolate the local-rotation and scaling, "interpolate in Time"
 
-inline Causality::BoneDisplacementFrame::BoneDisplacementFrame(size_t size)
+BoneDisplacementFrame::BoneDisplacementFrame(size_t size)
 	: BaseType(size)
 {
 }
 
-inline Causality::BoneDisplacementFrame::BoneDisplacementFrame(const IArmature & armature)
+BoneDisplacementFrame::BoneDisplacementFrame(const IArmature & armature)
 	: BaseType(armature.default_frame())
 {
 }
 
-Eigen::VectorXf Causality::BoneDisplacementFrame::LocalRotationVector() const
+void BoneDisplacementFrame::RebuildGlobal(const IArmature & armature)
+{
+	for (auto& joint : armature.joints())
+	{
+		auto& bone = at(joint.ID());
+		if (joint.is_root())
+		{
+			bone.GlobalOrientation = bone.LocalOrientation;
+		}
+		else
+		{
+			bone.UpdateGlobalData(at(joint.ParentID()));
+		}
+	}
+}
+
+Eigen::VectorXf BoneDisplacementFrame::LocalRotationVector() const
 {
 	Eigen::VectorXf fvector(size() * 3);
 	Eigen::Vector3f v{ 0,1,0 };
@@ -216,7 +235,7 @@ Eigen::VectorXf Causality::BoneDisplacementFrame::LocalRotationVector() const
 	return fvector;
 }
 
-void Causality::BoneDisplacementFrame::UpdateFromLocalRotationVector(const IArmature& armature,const Eigen::VectorXf fv)
+void BoneDisplacementFrame::UpdateFromLocalRotationVector(const IArmature& armature,const Eigen::VectorXf fv)
 {
 	auto& This = *this;
 	auto& sarmature = static_cast<const StaticArmature&>(armature);
@@ -231,7 +250,7 @@ void Causality::BoneDisplacementFrame::UpdateFromLocalRotationVector(const IArma
 	}
 }
 
-void Causality::BoneDisplacementFrame::Interpolate(BoneDisplacementFrame& out, const BoneDisplacementFrame & lhs, const BoneDisplacementFrame & rhs, float t, const IArmature& armature)
+void BoneDisplacementFrame::Interpolate(BoneDisplacementFrame& out, const BoneDisplacementFrame & lhs, const BoneDisplacementFrame & rhs, float t, const IArmature& armature)
 {
 	//assert((Armature == lhs.pArmature) && (lhs.pArmature == rhs.pArmature));
 	for (size_t i = 0; i < lhs.size(); i++)
@@ -245,12 +264,12 @@ void Causality::BoneDisplacementFrame::Interpolate(BoneDisplacementFrame& out, c
 	}
 }
 
-void Causality::BoneDisplacementFrame::Blend(BoneDisplacementFrame& out, const BoneDisplacementFrame & lhs, const BoneDisplacementFrame & rhs, float * blend_weights, const IArmature& armature)
+void BoneDisplacementFrame::Blend(BoneDisplacementFrame& out, const BoneDisplacementFrame & lhs, const BoneDisplacementFrame & rhs, float * blend_weights, const IArmature& armature)
 {
 
 }
 
-Eigen::VectorXf Causality::AnimationSpace::CaculateFrameFeatureVectorLnQuaternion(const frame_type & frame) const
+Eigen::VectorXf AnimationSpace::CaculateFrameFeatureVectorLnQuaternion(const frame_type & frame) const
 {
 	Eigen::VectorXf fvector(frame.size() * 3);
 	Eigen::Vector3f v { 0,1,0 };
@@ -268,7 +287,15 @@ Eigen::VectorXf Causality::AnimationSpace::CaculateFrameFeatureVectorLnQuaternio
 	return fvector;
 }
 
-Eigen::VectorXf Causality::AnimationSpace::CaculateFrameFeatureVectorEndPointNormalized(const frame_type & frame) const
+const IArmature & AnimationSpace::Armature() const { return *m_pArmature; }
+
+IArmature & AnimationSpace::Armature() { return *m_pArmature; }
+
+void AnimationSpace::SetArmature(IArmature & armature) { assert(this->empty()); m_pArmature = &armature; }
+
+const AnimationSpace::frame_type & AnimationSpace::RestFrame() const { return Armature().default_frame(); }
+
+Eigen::VectorXf AnimationSpace::CaculateFrameFeatureVectorEndPointNormalized(const frame_type & frame) const
 {
 	int N = frame.size();
 	Eigen::VectorXf fvector(N * 3);
@@ -298,7 +325,7 @@ Eigen::VectorXf Causality::AnimationSpace::CaculateFrameFeatureVectorEndPointNor
 // !!! This will NOT work since the space will always be full-rank (with enough key frames)
 // and the projection will always be the same as the input feature vector
 // How about doing a PCA?
-float Causality::AnimationSpace::PoseDistancePCAProjection(const frame_type & frame) const
+float AnimationSpace::PoseDistancePCAProjection(const frame_type & frame) const
 {
 	auto fv = CaculateFrameFeatureVectorLnQuaternion(frame);
 
@@ -316,7 +343,7 @@ float Causality::AnimationSpace::PoseDistancePCAProjection(const frame_type & fr
 	return distance;
 }
 
-Eigen::RowVectorXf Causality::AnimationSpace::PoseDistanceNearestNeibor(const frame_type & frame) const
+Eigen::RowVectorXf AnimationSpace::PoseSquareDistanceNearestNeibor(const frame_type & frame) const
 {
 	auto fv = CaculateFrameFeatureVectorLnQuaternion(frame);
 
@@ -326,7 +353,16 @@ Eigen::RowVectorXf Causality::AnimationSpace::PoseDistanceNearestNeibor(const fr
 	return dis;
 }
 
-Eigen::VectorXf Causality::AnimationSpace::CaculateFrameDynamicFeatureVectorJointVelocityHistogram(const frame_type & frame, const frame_type & prev_frame) const
+Eigen::RowVectorXf Causality::AnimationSpace::StaticSimiliartyEculidDistance(const frame_type & frame) const
+{
+	using namespace Eigen;
+	auto dis = PoseSquareDistanceNearestNeibor(frame);
+	dis /= -(SegmaDis*SegmaDis);
+	dis = dis.array().exp();
+	return dis;
+}
+
+Eigen::VectorXf AnimationSpace::CaculateFrameDynamicFeatureVectorJointVelocityHistogram(const frame_type & frame, const frame_type & prev_frame) const
 {
 	using namespace Eigen;
 	auto N = frame.size();
@@ -342,7 +378,7 @@ Eigen::VectorXf Causality::AnimationSpace::CaculateFrameDynamicFeatureVectorJoin
 }
 
 // Nothing but Bhattacharyya distance
-Eigen::RowVectorXf Causality::AnimationSpace::DynamicSimiliarityJvh(const frame_type & frame, const frame_type & prev_frame) const
+Eigen::RowVectorXf AnimationSpace::DynamicSimiliarityJvh(const frame_type & frame, const frame_type & prev_frame) const
 {
 	auto fv = CaculateFrameDynamicFeatureVectorJointVelocityHistogram(frame, prev_frame);
 	Eigen::MatrixXf Dis = Xv.cwiseProduct(fv.replicate(1, Xv.cols()));
@@ -350,12 +386,26 @@ Eigen::RowVectorXf Causality::AnimationSpace::DynamicSimiliarityJvh(const frame_
 	return Dis.colwise().sum();;
 }
 
-//float Causality::AnimationSpace::DynamicSimiliarityJvh(const velocity_frame_type & velocity_frame) const
+//float AnimationSpace::DynamicSimiliarityJvh(const velocity_frame_type & velocity_frame) const
 //{
 //	
 //}
 
-vector<ArmatureTransform> Causality::AnimationSpace::GenerateBindings()
+float Causality::AnimationSpace::FrameLikilihood(const frame_type & frame, const frame_type & prev_frame) const
+{
+	auto stsim = StaticSimiliartyEculidDistance(frame);
+	auto dysim = DynamicSimiliarityJvh(frame, prev_frame);
+	stsim = stsim.cwiseProduct(dysim);
+	return stsim.minCoeff();
+}
+
+float Causality::AnimationSpace::FrameLikilihood(const frame_type & frame) const
+{
+	 auto minDis = PoseSquareDistanceNearestNeibor(frame).minCoeff();
+	 return expf(-minDis / (SegmaDis*SegmaDis));
+}
+
+vector<ArmatureTransform> AnimationSpace::GenerateBindings()
 {
 	vector<ArmatureTransform> bindings;
 	auto& armature = Armature();
@@ -367,7 +417,7 @@ vector<ArmatureTransform> Causality::AnimationSpace::GenerateBindings()
 	return bindings;
 }
 
-void Causality::AnimationSpace::CaculateXpInv()
+void AnimationSpace::CaculateXpInv()
 {
 	auto Xt = X.transpose();
 	XpInv = Xt * X;
@@ -401,7 +451,7 @@ ArmatureKeyframeAnimation::ArmatureKeyframeAnimation(std::istream & file)
 	}
 }
 
-bool Causality::ArmatureKeyframeAnimation::InterpolateFrames(double frameRate)
+bool ArmatureKeyframeAnimation::InterpolateFrames(double frameRate)
 {
 	float delta = (float)(1.0 / frameRate);
 	auto& armature = *pArmature;
@@ -420,7 +470,7 @@ bool Causality::ArmatureKeyframeAnimation::InterpolateFrames(double frameRate)
 	return true;
 }
 
-void Causality::ArmatureTransform::TransformBack(frame_type & source_frame, const frame_type & target_frame) const
+void ArmatureTransform::TransformBack(frame_type & source_frame, const frame_type & target_frame) const
 {
 }
 
@@ -471,7 +521,7 @@ std::map<std::string, JointSemanticProperty>
 		(string("eye"),     JointSemanticProperty(Semantic_Eye))
 		(string("noise"),   JointSemanticProperty(Semantic_Nouse));
 
-const JointSemanticProperty & Causality::Joint::AssignSemanticsBasedOnName()
+const JointSemanticProperty & Joint::AssignSemanticsBasedOnName()
 {
 	using namespace std;
 	using namespace boost::adaptors;

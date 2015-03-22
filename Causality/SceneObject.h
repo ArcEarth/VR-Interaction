@@ -1,13 +1,31 @@
 #pragma once
 #include "Common\Model.h"
-#include "BulletPhysics.h"
+//#include "BulletPhysics.h"
 #include "Armature.h"
 #include <memory>
 #include "Object.h"
+#include "RenderContext.h"
 
 namespace Causality
 {
 	class Component;
+
+	class IRenderable abstract
+	{
+	public:
+		// Camera culling
+		virtual bool IsVisible(const BoundingFrustum& viewFrustum) const = 0;
+		virtual void Render(RenderContext &context) = 0;
+		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) = 0;
+	};
+
+	// Interface for Time-dependent Animation
+	class ITimeAnimatable abstract
+	{
+	public:
+		virtual void UpdateAnimation(time_seconds const& time_delta) = 0;
+	};
+
 
 	enum SceneObjectCollisionType
 	{
@@ -34,64 +52,58 @@ namespace Causality
 	typedef std::vector<ProblistiscAffineTransform> SuperPosition;
 
 	// Basic class for all object, camera, entity, or light
-	class SceneObject : public Object, public DirectX::BasicTransform
+	class SceneObject : public tree_node<SceneObject>, public Object, virtual public DirectX::BasicTransform
 	{
 	public:
-		SceneObject()
-			:Children(m_Children)//,Components(m_Components)
-		{
+		typedef tree_node<SceneObject> tree_base_type;
 
-		}
+		SceneObject() = default;
 
-		string							Tag;
-
-		//const std::vector<uptr<Component>>&		Components;
-		const std::vector<uptr<SceneObject>>&	Children;
-
-		void AddChild(uptr<SceneObject>&& child)
+		inline void AddChild(SceneObject* child)
 		{
 			if (child != nullptr)
-				m_Children.emplace_back(std::move(child));
+				append_children_back(child);
 		}
 
-		//template <typename TComponent,typename... TArgs>
-		//TComponent&							AddComponent(TArgs&&... args)
-		//{
-		//	m_Components.push_back(new TComponent(std::forward(args)));
-		//	m_Components.back()->Owner = this;
-		//}
+		inline void add_child(SceneObject* child)
+		{
+			if (child != nullptr)
+				append_children_back(child);
+		}
 
 		//template <typename TInterface>
-		//auto GetComponents() 
+		//auto descendents_of_type() 
 		//{
 		//	using namespace boost;
 		//	using namespace adaptors;
 		//	return 
-		//		Components 
+		//		descendants()
 		//		| transformed([](auto pCom) {
 		//			return dynamic_cast<TInterface*>(pCom); }) 
 		//		| filtered([](auto pCom){
 		//			return pCom != nullptr;});
 		//}
 
-		//template <typename TComponent>
-		//const TComponent*					GetComponent() const 
-		//{
-		//	return nullptr;
-		//}
+		virtual void Update() {}
 
-		bool								IsStatic() const;
-		bool								IsActive() const;
+		bool								IsStatic() const { return m_IsStatic; }
 
-		bool								SetActive(bool active = true);
+		bool								IsEnabled() const;
+		bool								SetEnabled(bool enabled = true);
 
 		DirectX::XMMATRIX					GlobalTransformMatrix() const;
 
-		//TypedEvent<SceneObject>			OnLoaded;
-		//TypedEvent<SceneObject>			OnUnloaded;
+		virtual void						SetPosition(const Vector3 &p) override;
+		virtual void                        SetOrientation(const Quaternion &q) override;
+		virtual void                        SetScale(const Vector3 & s) override;
+		void								SetMatrixDirtyFlag() { m_GlobalTransformDirty = true; }
+
+	public:
+		string								Tag;
 	protected:
-		//std::vector<uptr<Component>>			m_Components;
-		std::vector<uptr<SceneObject>>			m_Children;
+		Matrix4x4							m_GlobalTransform;
+		bool								m_GlobalTransformDirty;
+		bool								m_IsStatic;
 	};
 
 	class LightingObject : public SceneObject
@@ -100,7 +112,7 @@ namespace Causality
 	};
 
 	// Scene object acts like entities for render
-	class RenderableSceneObject : virtual public SceneObject
+	class RenderableSceneObject : virtual public SceneObject , virtual public IRenderable
 	{
 	public:
 		//int										MaxLoD() const;
@@ -114,6 +126,7 @@ namespace Causality
 		void										Freeze();
 		void										Unfreeze();
 
+		virtual bool IsVisible(const BoundingFrustum& viewFrustum) const override;
 		bool										IsVisible() const;
 		bool										IsFocused() const;
 
@@ -130,15 +143,19 @@ namespace Causality
 		const DirectX::Scene::IModelNode*			RenderModel(int LoD = 0) const;
 		void										SetRenderModel(DirectX::Scene::IModelNode* pMesh, int LoD = 0);
 
-		Bullet::CollisionShape&						CollisionShape(int LoD = 0);
-		const Bullet::CollisionShape&				CollisionShape(int LoD = 0) const;
+		//Bullet::CollisionShape&						CollisionShape(int LoD = 0);
+		//const Bullet::CollisionShape&				CollisionShape(int LoD = 0) const;
+
+		// Inherited via IRenderable
+		virtual void Render(RenderContext & pContext) override;
+		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 	protected:
 		RenderingSpecification						RenderSpec;
 
 		std::shared_ptr<DirectX::Scene::IModelNode> m_pRenderModel;
 
-		std::shared_ptr<Bullet::CollisionShape>		m_CollisionShape;
+		//std::shared_ptr<Bullet::CollisionShape>		m_CollisionShape;
 	};
 
 	struct ColorHistogram
@@ -178,6 +195,7 @@ namespace Causality
 
 	private:
 		AnimationSpace*					        m_pAnimationSpace;
+		int										m_FrameMapState;
 		frame_type						        m_CurrentFrame;
 
 		std::vector<KinematicSceneObjectPart>	m_Parts;
@@ -199,16 +217,22 @@ namespace Causality
 		{
 		public:
 
-			const ArmatureTransform& Binding() const;
-			ArmatureTransform& Binding();
+			const ArmatureTransform& Binding() const { return m_Binding; }
+			ArmatureTransform& Binding() { return m_Binding; }
 
-			const KinematicSceneObject& Object() const;
-			KinematicSceneObject& Object();
+			const KinematicSceneObject& Object() const { return *m_pSceneObject; }
+			KinematicSceneObject& Object() { return *m_pSceneObject; }
+			void SetTargetObject(KinematicSceneObject& object) { 
+				m_pSceneObject = &object;
+				m_Binding.SetTargetArmature(object.Armature());
+				PotientialFrame = object.Armature().default_frame();
+			}
 
 			int						ID;
 			BoneDisplacementFrame	PotientialFrame;
 
-			KinematicSceneObject&	m_SceneObject;
+		private:
+			KinematicSceneObject*	m_pSceneObject;
 			ArmatureTransform		m_Binding;
 		};
 
@@ -221,10 +245,10 @@ namespace Causality
 			ControlState& NewState;
 		};
 
-		bool IsIdel() const;
-		const ControlState& CurrentState() const;
-		ControlState& CurrentState();
-		const ControlState&	GetState(int state) const;
+		bool IsIdel() const { return CurrentIdx == 0; }
+		const ControlState& CurrentState() const { return States[CurrentIdx]; }
+		ControlState& CurrentState() { return States[CurrentIdx]; }
+		const ControlState&	GetState(int state) const { return States[state]; }
 
 		Event<const StateChangedEventArgs&> StateChanged;
 

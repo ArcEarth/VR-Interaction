@@ -505,6 +505,8 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 			)
 		);
 
+	m_ColorBackBuffer = RenderTargetTexture2D(backBuffer.Get(), m_d3dRenderTargetView.Get(), nullptr);
+
 	// Create a depth stencil view for use with 3D rendering if needed.
 	CD3D11_TEXTURE2D_DESC depthStencilDesc(
 		DXGI_FORMAT_D24_UNORM_S8_UINT, 
@@ -538,6 +540,8 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 			)
 		);
 	
+	m_DepthBuffer = DepthStencilBuffer(depthStencil.Get(),m_d3dDepthStencilView.Get());
+
 	// Set the 3D rendering viewport to target the entire window.
 	m_screenViewport = CD3D11_VIEWPORT(
 		0.0f,
@@ -545,6 +549,8 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		m_d3dRenderTargetSize.Width,
 		m_d3dRenderTargetSize.Height
 		);
+
+	m_BackBuffer = RenderTarget(m_ColorBackBuffer, m_DepthBuffer, m_screenViewport);
 
 	m_d3dContext->RSSetViewports(1, &m_screenViewport);
 

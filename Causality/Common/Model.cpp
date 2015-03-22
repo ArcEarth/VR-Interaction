@@ -54,7 +54,7 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 	vector<shape_t> shapes;
 	vector<material_t> materis;
 	path file(fileName);
-	pResult->Name = file.filename().replace_extension().string();
+	pResult->_Name = file.filename().replace_extension().string();
 	auto dir = file.parent_path();
 	auto result = tinyobj::LoadObj(shapes, materis, file.string().c_str(), (dir.string() + "\\").c_str());
 
@@ -247,68 +247,66 @@ void DirectX::Scene::GeometryModel::CreateDeviceResource(ID3D11Device * pDevice)
 
 }
 
-CompositeModel * DirectX::Scene::GeometryModel::ReleaseCpuResource()
+CompositionModel * DirectX::Scene::GeometryModel::ReleaseCpuResource()
 {
 	Vertices.clear();
 	Facets.clear();
 	return this;
 }
 
-void ModelCollection::push_back(const value_type& _Val)
+void DirectX::Scene::CollectionModel::AddChild(const std::shared_ptr<IModelNode>& model, const MatrixTransform & transform)
 {
-	_Val->pParent = this;
-	ContainnerType::push_back(_Val);
-}
-void ModelCollection::push_back(value_type&& _Val)
-{
-	_Val->pParent = this;
-	ContainnerType::push_back(std::move(_Val));
+	//model->SetParent(this);
+	Children.emplace_back();
+	Children.back().Transform = transform;
+	Children.back().Model = model;
+
+	BoundingBox::CreateMerged(BoundBox, BoundBox, model->GetBoundingBox());
+	//BoundingOrientedBox::CreateFromBoundingBox()
 }
 
-void DirectX::Scene::ModelCollection::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
+void DirectX::Scene::CollectionModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect * pEffect)
 {
-	int count = size();
-	for (size_t i = 0; (int)i < count; i++)
+	XMMATRIX world = transform;
+	for (auto& child : Children)
 	{
-		auto& model = at(i);
-		model->Render(pContext, pEffect);
+		XMMATRIX child_transform = child.Transform;
+		child_transform *= world;
+		child.Model->Render(pContext, child_transform, pEffect);
 	}
 }
 
 void DirectX::Scene::ModelPart::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
 {
-	if (pEffect == nullptr)
+	if (pEffect == nullptr && pMaterial)
 	{
-		pMesh->Draw(pContext);
+		pEffect = pMaterial->GetRequestedEffect();
 	}
-	else
+
+	auto pMEffect = dynamic_cast<BasicEffect*>(pEffect);
+	if (pMEffect && pMaterial)
 	{
-		auto pMEffect = dynamic_cast<BasicEffect*>(pEffect);
-		if (pMEffect && pMaterial)
+		pMEffect->SetAlpha(pMaterial->GetAlpha());
+		if (pMaterial->GetDiffuseMap())
 		{
-			pMEffect->SetAlpha(pMaterial->GetAlpha());
-			if (pMaterial->GetDiffuseMap())
-			{
-				pMEffect->SetTextureEnabled(true);
-				pMEffect->SetTexture(pMaterial->GetDiffuseMap());
-				pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
-			}
-			else
-			{
-				pMEffect->SetTextureEnabled(false);
-				pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
-			}
-			pMEffect->SetSpecularColor(pMaterial->GetSpecularColor());
+			pMEffect->SetTextureEnabled(true);
+			pMEffect->SetTexture(pMaterial->GetDiffuseMap());
+			pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
 		}
-		pEffect->Apply(pContext);
-		pMesh->Draw(pContext);
+		else
+		{
+			pMEffect->SetTextureEnabled(false);
+			pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
+		}
+		pMEffect->SetSpecularColor(pMaterial->GetSpecularColor());
 	}
+	pEffect->Apply(pContext);
+	pMesh->Draw(pContext);
 }
 
-void DirectX::Scene::CompositeModel::Render(ID3D11DeviceContext * pContext, IEffect* pEffect)
+void DirectX::Scene::CompositionModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect* pEffect)
 {
-	auto world = this->GetWorldMatrix();
-	auto pEffectB = dynamic_cast<BasicEffect*>(pEffect);
+	XMMATRIX world = transform;
 	auto pEffectM = dynamic_cast<IEffectMatrices*>(pEffect);
 	for (auto& part : Parts)
 	{
@@ -316,56 +314,52 @@ void DirectX::Scene::CompositeModel::Render(ID3D11DeviceContext * pContext, IEff
 		{
 			pEffectM->SetWorld(world);
 		}
-		if (pEffectB)
-		{
-			pEffectB->SetAlpha(Opticity);
-		}
-		part.Render(pContext,pEffect);
+		part.Render(pContext, pEffect);
 	}
 }
 
-XMMATRIX IModelNode::GetWorldMatrix() const
-{
-	if (pParent)
-		return pParent->GetWorldMatrix() * GetModelMatrix();
-	else
-		return GetModelMatrix();
-}
-
-IModelNode::~IModelNode() {}
-
-// Transformed OrientedBounding Box
-BoundingOrientedBox IModelNode::GetOrientedBoundingBox() const
-{
-	BoundingOrientedBox box;
-	BoundOrientedBox.Transform(box, GetWorldMatrix());
-	return box;
-}
-
-// Transformed Bounding Box
-BoundingBox IModelNode::GetBoundingBox() const {
-	BoundingBox box;
-	BoundBox.Transform(box, GetWorldMatrix());
-	return box;
-}
-
-// Transformed Bounding Sphere
-BoundingSphere IModelNode::GetBoundingSphere() const
-{
-	BoundingSphere sphere;
-	BoundSphere.Transform(sphere, GetWorldMatrix());
-	return sphere;
-}
-
-void XM_CALLCONV DirectX::Scene::IModelNode::SetModelMatrix(DirectX::FXMMATRIX model)
-{
-	XMStoreFloat4x4(&LocalMatrix, model);
-}
-
-XMMATRIX DirectX::Scene::IModelNode::GetModelMatrix() const
-{
-	return XMLoadFloat4x4(&LocalMatrix);
-}
+//XMMATRIX IModelNode::GetWorldMatrix() const
+//{
+//	if (pParent)
+//		return pParent->GetWorldMatrix() * GetModelMatrix();
+//	else
+//		return GetModelMatrix();
+//}
+//
+//IModelNode::~IModelNode() {}
+//
+//// Transformed OrientedBounding Box
+//BoundingOrientedBox IModelNode::GetOrientedBoundingBox() const
+//{
+//	BoundingOrientedBox box;
+//	BoundOrientedBox.Transform(box, GetWorldMatrix());
+//	return box;
+//}
+//
+//// Transformed Bounding Box
+//BoundingBox IModelNode::GetBoundingBox() const {
+//	BoundingBox box;
+//	BoundBox.Transform(box, GetWorldMatrix());
+//	return box;
+//}
+//
+//// Transformed Bounding Sphere
+//BoundingSphere IModelNode::GetBoundingSphere() const
+//{
+//	BoundingSphere sphere;
+//	BoundSphere.Transform(sphere, GetWorldMatrix());
+//	return sphere;
+//}
+//
+//void XM_CALLCONV DirectX::Scene::IModelNode::SetModelMatrix(DirectX::FXMMATRIX model)
+//{
+//	XMStoreFloat4x4(&LocalMatrix, model);
+//}
+//
+//XMMATRIX DirectX::Scene::IModelNode::GetModelMatrix() const
+//{
+//	return XMLoadFloat4x4(&LocalMatrix);
+//}
 
 //void XM_CALLCONV DirectX::Scene::LocalMatrixHolder::SetModelMatrix(DirectX::FXMMATRIX model)
 //{
@@ -377,12 +371,45 @@ XMMATRIX DirectX::Scene::IModelNode::GetModelMatrix() const
 //	return XMLoadFloat4x4(&LocalMatrix);
 //}
 
-void DirectX::Scene::MonolithModel::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
+void DirectX::Scene::MonolithModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect * pEffect)
 {
+	if (pEffect == nullptr && pMaterial)
+		pEffect = pMaterial->GetRequestedEffect();
+
+	auto pMat = dynamic_cast<IEffectMatrices*>(pEffect);
+	if (pMat)
+		pMat->SetWorld(transform);
+
 	ModelPart::Render(pContext, pEffect);
 }
 
 std::shared_ptr<MeshBuffer> DirectX::Scene::GeometricPrimtives::CreateCube()
 {
 	return std::shared_ptr<MeshBuffer>();
+}
+
+BoundingBox DirectX::Scene::MonolithModel::GetBoundingBox() const
+{
+	return ModelPart::BoundBox;
+}
+
+BoundingOrientedBox DirectX::Scene::MonolithModel::GetOrientedBoundingBox() const
+{
+	return ModelPart::BoundOrientedBox;
+}
+
+// Inherited via IModelNode
+
+BoundingBox DirectX::Scene::CollectionModel::GetBoundingBox() const { return BoundBox; }
+
+//BoundingOrientedBox DirectX::Scene::CollectionModel::GetOrientedBoundingBox() const { return BoundOrientedBox; }
+
+// Inherited via IModelNode
+
+BoundingBox DirectX::Scene::CompositionModel::GetBoundingBox() const { return BoundBox; }
+
+BoundingOrientedBox DirectX::Scene::CompositionModel::GetOrientedBoundingBox() const { return BoundOrientedBox; }
+
+DirectX::Scene::IModelNode::~IModelNode()
+{
 }

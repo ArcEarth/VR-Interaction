@@ -19,43 +19,44 @@
 #include "LeapMotion.h"
 #include "Kinect.h"
 #include <boost\filesystem.hpp>
+#include "Scene.h"
 
 //extern std::unique_ptr<Causality::DXAppMain> m_main;
 
 namespace Causality
 {
-	class KeyboardMouseLogic : public Platform::IAppComponent , public DirectX::Scene::ITimeAnimatable, public Platform::IKeybordInteractive, public Platform::ICursorInteractive
+	class KeyboardMouseLogic : public IAppComponent , public DirectX::Scene::ITimeAnimatable, public IKeybordInteractive, public ICursorInteractive
 	{
 	public:
-		KeyboardMouseLogic(DirectX::Scene::ICameraBase* pCamera);
+		KeyboardMouseLogic(Camera* pCamera);
 		// Inherited via ITimeAnimatable
 		virtual void UpdateAnimation(DirectX::StepTimer const & timer) override;
 
 		// Inherited via IKeybordInteractive
-		virtual void OnKeyDown(const Platform::KeyboardEventArgs & e) override;
-		virtual void OnKeyUp(const Platform::KeyboardEventArgs & e) override;
+		virtual void OnKeyDown(const KeyboardEventArgs & e) override;
+		virtual void OnKeyUp(const KeyboardEventArgs & e) override;
 
 		// Inherited via ICursorInteractive
-		virtual void OnMouseButtonDown(const Platform::CursorButtonEvent & e) override;
-		virtual void OnMouseButtonUp(const Platform::CursorButtonEvent & e) override;
-		virtual void OnMouseMove(const Platform::CursorMoveEventArgs & e) override;
+		virtual void OnMouseButtonDown(const CursorButtonEvent & e) override;
+		virtual void OnMouseButtonUp(const CursorButtonEvent & e) override;
+		virtual void OnMouseMove(const CursorMoveEventArgs & e) override;
 	public:
 		float											Speed;
 		DirectX::Quaternion								InitialOrientation;
 		float											CameraYaw = 0;
 		float											CameraPitch = 0;
 	private:
-		DirectX::Scene::ICameraBase*					m_pCamera= nullptr;
+		Camera*											m_pCamera= nullptr;
 		bool											IsTrackingCursor = false;
 		DirectX::Vector3								CameraVeclocity;
 		DirectX::Vector3								CameraAngularVeclocity;
 	};
 
-	class App : public Platform::Application, public DirectX::IDeviceNotify
+	class App : public Application, public DirectX::IDeviceNotify
 	{
 	public:
 		static App* Current() {
-			return static_cast<App*>(Platform::Application::Current.get());
+			return static_cast<App*>(Application::Current.get());
 		}
 
 		App();
@@ -66,11 +67,6 @@ namespace Causality
 		virtual void OnExit() override;
 		virtual void OnIdle() override;
 
-		DirectX::Scene::ICameraBase *GetPrimaryCamera()
-		{
-			return m_pPrimaryCamera.get();
-		}
-
 		// Inherited via IDeviceNotify
 		virtual void OnDeviceLost() override;
 		virtual void OnDeviceRestored() override;
@@ -78,35 +74,33 @@ namespace Causality
 		boost::filesystem::path	GetResourcesDirectory() const;
 		void SetResourcesDirectory(const std::wstring& dir);
 
-		void RegisterComponent(std::unique_ptr<Platform::IAppComponent> &&pComponent);
-		void UnregisterComponent(Platform::IAppComponent *pComponent);
+		void RegisterComponent(std::unique_ptr<IAppComponent> &&pComponent);
+		void UnregisterComponent(IAppComponent *pComponent);
 		void XM_CALLCONV RenderToView(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection);
-		void OnCursorMove_RotateCamera(const Platform::CursorMoveEventArgs&e);
-		Platform::Fundation::Event<const DirectX::StepTimer&> TimeElapsed;
+		Event<const DirectX::StepTimer&> TimeElapsed;
 		//void NotifyChildrenCursorButtonDown(const CursorButtonEvent&e);
 	protected:
 		// Devices & Resources
 		boost::filesystem::path							ResourceDirectory;
 
 		// System resources
-		std::shared_ptr<Platform::DebugConsole>			pConsole;
-		std::shared_ptr<Platform::NativeWindow>			pWindow;
+		std::shared_ptr<DebugConsole>					pConsole;
+		std::shared_ptr<NativeWindow>					pWindow;
 		std::shared_ptr<DirectX::DeviceResources>		pDeviceResources;
 
+		RenderDevice									pDevice;
+		RenderContext									pContext;
+
 		// Extern Devices
-		std::shared_ptr<Platform::Devices::OculusRift>	pRift;
-		std::unique_ptr<Platform::Devices::Kinect>		pKinect;
+		std::shared_ptr<Devices::OculusRift>			pRift;
+		std::shared_ptr<Devices::Kinect>				pKinect;
+		std::shared_ptr<Devices::LeapMotion>			pLeap;
 
-		// Primary Camera
-		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pPrimaryCamera;
-		std::unique_ptr<DirectX::Scene::ICameraBase>	m_pTopViewCamera;
-
-		// Extern Devices depend on Camera
-		std::shared_ptr<Platform::Devices::LeapMotion>	pLeap;
+		std::vector<std::unique_ptr<Scene>>				Scenes;
 
 		// Application Logic object
-		std::vector<std::unique_ptr<Platform::IAppComponent>> Components;
-		std::map<Platform::IAppComponent*, std::vector<Platform::Fundation::EventConnection>> ComponentsEventRegisterations;
+		std::vector<std::unique_ptr<IAppComponent>>		Components;
+		std::map<IAppComponent*, std::vector<EventConnection>> ComponentsEventRegisterations;
 
 
 		// Rendering loop timer.

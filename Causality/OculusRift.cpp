@@ -39,7 +39,7 @@ public:
 			InstanceCount++;
 	}
 
-	bool IsOk() const { return HMD; }
+	bool IsOk() const { return (bool)HMD; }
 
 	~Impl()
 	{
@@ -176,6 +176,22 @@ OculusRift::~OculusRift()
 
 }
 
+std::weak_ptr<OculusRift> OculusRift::wpCurrentDevice;
+
+std::shared_ptr<OculusRift> Causality::Devices::OculusRift::GetForCurrentView()
+{
+	if (wpCurrentDevice.expired())
+	{
+		auto pDevice = Create();
+		wpCurrentDevice = pDevice;
+		return pDevice;
+	}
+	else
+	{
+		return wpCurrentDevice.lock();
+	}
+}
+
 std::shared_ptr<OculusRift> OculusRift::Create(int hmdIdx)
 {
 	auto pRift = std::make_shared<OculusRift>();
@@ -242,9 +258,9 @@ DirectX::RenderTarget& OculusRift::ViewTarget(EyesEnum eye)
 	return pImpl->EyeTextures[(size_t) eye];
 }
 
-DirectX::RenderTargetTexture2D& OculusRift::EyeTexture(EyesEnum eye)
+DirectX::RenderTargetTexture2D& OculusRift::ColorBuffer()
 {
-	return pImpl->EyeTextures[(size_t) eye].ColorBuffer();
+	return pImpl->EyeTextures[0].ColorBuffer();
 }
 
 DirectX::DepthStencilBuffer& OculusRift::DepthStencilBuffer()

@@ -5,7 +5,7 @@
 #include <boost\filesystem.hpp>
 #include "Armature.h"
 #include "RenderContext.h"
-
+#include <Effects.h>
 namespace Causality
 {
 	class AssetDictionary;
@@ -30,19 +30,21 @@ namespace Causality
 		using animation_clip_type = ArmatureKeyframeAnimation;
 		using behavier_type = AnimationSpace;
 		using armature_type = StaticArmature;
+		using effect_type = DirectX::IEffect;
 
 		AssetDictionary();
 		~AssetDictionary();
 
 		//Synchronize loading methods
-		mesh_type&		LoadMesh(const string& fileName);
-		texture_type&	LoadTexture(const string& fileName);
-		armature_type&	LoadArmature(const string& fileName);
+		mesh_type&		     LoadMesh(const string & key, const string& fileName);
+		texture_type&	     LoadTexture(const string & key, const string& fileName);
+		armature_type&	     LoadArmature(const string & key, const string& fileName);
+		animation_clip_type& LoadAnimation(const string& key, const string& fileName);
 
 		// Async loading methods
-		task<mesh_type*>&			LoadMeshAsync(const string& fileName);
-		task<texture_type*>&		LoadTextureAsync(const string& fileName);
-		task<audio_clip_type*>&		LoadAudioAsync(const string& fileName);
+		task<mesh_type*>&			LoadMeshAsync(const string & key, const string& fileName);
+		task<texture_type*>&		LoadTextureAsync(const string & key, const string& fileName);
+		task<audio_clip_type*>&		LoadAudioAsync(const string & key, const string& fileName);
 
 		bool IsAssetLoaded(const string& key) const;
 
@@ -57,6 +59,7 @@ namespace Causality
 			auto itr = meshes.find(key);
 			if (itr != meshes.end())
 				return itr->second;
+			return itr->second;
 		}
 
 		texture_type&				GetTexture(const string& key)
@@ -64,9 +67,28 @@ namespace Causality
 			auto itr = textures.find(key);
 			if (itr != textures.end())
 				return itr->second;
+			return itr->second;
+		}
+
+		animation_clip_type&		GetAnimation(const string& key)
+		{
+			return animations[key];
 		}
 
 		audio_clip_type&			GetAudio(const string& key);
+
+		effect_type*				GetEffect(const string& key)
+		{
+			return default_effect.get();
+		}
+
+		template<typename VertexType>
+		const cptr<ID3D11InputLayout>& GetInputLayout()
+		{
+			return pInputLayout;
+		}
+
+		DirectX::EffectFactory&		EffctFactory() { return *effect_factory; }
 
 		template<typename TAsset>
 		TAsset&						AddAsset(const string&key, TAsset* pAsset)
@@ -85,6 +107,8 @@ namespace Causality
 		{
 		}
 
+		RenderDevice& GetRenderDevice() { return render_device; }
+		const RenderDevice& GetRenderDevice() const { return render_device; }
 		void SetRenderDevice(RenderDevice& device);
 		void SetParentDictionary(AssetDictionary* dict);
 		void SetTextureDirectory(const path& dir);
@@ -97,7 +121,7 @@ namespace Causality
 		AssetDictionary*					parent_dictionary;
 
 		path								asset_directory;
-		path								texure_directory;
+		path								texture_directory;
 		path								mesh_directory;
 		path								animation_directory;
 
@@ -106,7 +130,13 @@ namespace Causality
 
 		map<string, mesh_type>				meshes;
 		map<string, texture_type>			textures;
+		map<string, animation_clip_type>	animations;
+		map<string, audio_clip_type>		audios;
+		map<string, effect_type*>			effects;
 
+		uptr<DirectX::BasicEffect>			default_effect;
+		uptr<DirectX::EffectFactory>		effect_factory;
+		cptr<ID3D11InputLayout>				pInputLayout;
 		// other assets
 		map<string, any>					assets;
 	};

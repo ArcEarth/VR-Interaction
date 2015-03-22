@@ -9,7 +9,7 @@
 namespace Causality
 {
 	// This sample renderer instantiates a basic rendering pipeline.
-	class CubeScene : public Platform::IAppComponent, public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable, public DirectX::Scene::IViewable, public Platform::ICursorInteractive, public Platform::IUserHandsInteractive
+	class CubeScene : public IAppComponent, public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable, public DirectX::Scene::IViewable, public ICursorInteractive, public IUserHandsInteractive
 	{
 	public:
 		CubeScene(const std::shared_ptr<DirectX::DeviceResources>& deviceResources);
@@ -33,14 +33,14 @@ namespace Causality
 		bool IsTracking() { return m_tracking; }
 
 		// Inherited via ICursorInteractive
-		virtual void OnMouseButtonDown(const Platform::CursorButtonEvent & e) override;
-		virtual void OnMouseButtonUp(const Platform::CursorButtonEvent & e) override;
-		virtual void OnMouseMove(const Platform::CursorMoveEventArgs & e) override;
+		virtual void OnMouseButtonDown(const CursorButtonEvent & e) override;
+		virtual void OnMouseButtonUp(const CursorButtonEvent & e) override;
+		virtual void OnMouseMove(const CursorMoveEventArgs & e) override;
 
 		// Inherited via IUserHandsInteractive
-		virtual void OnHandsTracked(const Platform::UserHandsEventArgs & e) override;
-		virtual void OnHandsTrackLost(const Platform::UserHandsEventArgs & e) override;
-		virtual void OnHandsMove(const Platform::UserHandsEventArgs & e) override;
+		virtual void OnHandsTracked(const UserHandsEventArgs & e) override;
+		virtual void OnHandsTrackLost(const UserHandsEventArgs & e) override;
+		virtual void OnHandsMove(const UserHandsEventArgs & e) override;
 
 	private:
 		void Rotate(float radians);

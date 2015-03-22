@@ -824,6 +824,19 @@ namespace stdx
 		// May be Logical Parent or Prev Sibling
 		pointer _parent;
 		//Properties
+	private:
+		template <typename T>
+		inline static void delete_s(std::enable_if_t<_DescendabtsOwnership, T>* &pData) {
+			if (pData) {
+				delete pData;
+				pData = nullptr;
+			}
+		}
+
+		template <typename T>
+		inline static void delete_s(std::enable_if_t<!_DescendabtsOwnership, T>* &pData) {
+			pData = nullptr;
+		}
 
 	public:
 		static pointer null;// = new tree_node();
@@ -835,6 +848,12 @@ namespace stdx
 
 		~tree_node()
 		{
+			auto child = _first_child;
+			while (child != nullptr)
+				delete_s<_Ty>(child);
+#ifdef _DEBUG
+			_parent = nullptr;
+#endif
 		}
 
 		// None-copyable, this should only use as pointer or reference
@@ -939,13 +958,17 @@ namespace stdx
 				this->_first_child->_prev_sibling = node;
 				node->_next_sibling = this->_first_child;
 			}
+			else
+				this->_last_child = node;
+			this->_first_child = node;
 
-			while (node->_prev_sibling)
+			do
 			{
 				node->_parent = static_cast<pointer>(this);
 				node = node->_prev_sibling;
-			}
-			this->_first_child = node;
+			} while (node);
+
+
 		}
 
 		inline void append_children_back(pointer node)
@@ -956,13 +979,17 @@ namespace stdx
 				this->_last_child->_next_sibling = node;
 				node->_prev_sibling = this->_last_child;
 			}
+			else
+				this->_first_child = node;
+			this->_last_child = node;
 
-			while (node->_next_sibling)
+			do
 			{
 				node->_parent = static_cast<pointer>(this);
 				node = node->_next_sibling;
-			}
-			this->_last_child = node;
+			} while (node);
+
+	
 		}
 
 		void insert_sibling_after(pointer node)

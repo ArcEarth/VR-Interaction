@@ -30,6 +30,10 @@ namespace Causality
 			OculusRift();
 			~OculusRift();
 
+			static std::shared_ptr<OculusRift> GetForCurrentView();
+
+			static std::weak_ptr<OculusRift> wpCurrentDevice;
+
 			static std::shared_ptr<OculusRift> Create(int hmdIdx = 0);
 
 			static bool Initialize(void);
@@ -47,7 +51,7 @@ namespace Causality
 			void SetView(EyesEnum eye);
 
 			DirectX::RenderTarget& ViewTarget(EyesEnum eye);
-			DirectX::RenderTargetTexture2D& EyeTexture(EyesEnum eye);
+			DirectX::RenderTargetTexture2D& ColorBuffer();
 			DirectX::DepthStencilBuffer& DepthStencilBuffer();
 
 			DirectX::XMMATRIX EyeProjection(EyesEnum eye) const;

@@ -9,7 +9,7 @@
 namespace Causality
 {
 	// Renders the current FPS value in the bottom right corner of the screen using Direct2D and DirectWrite.
-	class HUDInterface : public Platform::IAppComponent, public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable
+	class HUDInterface : public IAppComponent, public DirectX::Scene::IRenderable, public DirectX::Scene::ITimeAnimatable
 	{
 	public:
 		HUDInterface(const std::shared_ptr<DirectX::DeviceResources>& deviceResources);

@@ -40,6 +40,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{44012883-1899-4613-af3f-9e2f51e4d141}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Causality">
+      <UniqueIdentifier>{897e627e-a0e0-4504-8de2-12624d21ab1b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DeviceResources.cpp">
@@ -54,12 +57,6 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Common\Carmera.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\Textures.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="NativeWindow.cpp">
       <Filter>Platform</Filter>
     </ClCompile>
@@ -70,9 +67,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CausalityApplication.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="LeapMotion.cpp">
@@ -111,35 +105,38 @@
     <ClCompile Include="Common\SkyDome.cpp">
       <Filter>DirectX\SourceFile</Filter>
     </ClCompile>
-    <ClCompile Include="PrimaryCamera.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Common\DXGIFormatHelper.cpp">
       <Filter>DirectX</Filter>
-    </ClCompile>
-    <ClCompile Include="Foregrounds.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Kinect.cpp">
       <Filter>Platform\Platform.Devices</Filter>
     </ClCompile>
-    <ClCompile Include="TrackedPlayer.cpp">
+    <ClCompile Include="Common\Textures.cpp">
+      <Filter>DirectX\SourceFile</Filter>
+    </ClCompile>
+    <ClCompile Include="pch_bcl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Armature.cpp">
-      <Filter>Platform\Platform.Devices</Filter>
+      <Filter>Causality</Filter>
     </ClCompile>
     <ClCompile Include="AssetDictionary.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Causality</Filter>
     </ClCompile>
-    <ClCompile Include="SelectorScene.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="PrimaryCamera.cpp">
+      <Filter>Causality</Filter>
     </ClCompile>
-    <ClCompile Include="RenderContext.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Causality</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneObject.cpp">
+      <Filter>Causality</Filter>
     </ClCompile>
     <ClCompile Include="SceneParser.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Causality</Filter>
+    </ClCompile>
+    <ClCompile Include="SelectorScene.cpp">
+      <Filter>Causality</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -206,9 +203,6 @@
     <ClInclude Include="Common\DirectXMathExtend.h">
       <Filter>DirectX</Filter>
     </ClInclude>
-    <ClInclude Include="Foregrounds.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Common\Lights.h">
       <Filter>DirectX</Filter>
     </ClInclude>
@@ -241,9 +235,6 @@
     </ClInclude>
     <ClInclude Include="Common\SpaceCurve.h">
       <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="BulletPhysics.h">
-      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\PrimitiveVisualizer.h">
       <Filter>DirectX</Filter>
@@ -278,9 +269,6 @@
     <ClInclude Include="Common\stride_range.h">
       <Filter>StdX</Filter>
     </ClInclude>
-    <ClInclude Include="Armature.h">
-      <Filter>Platform\Platform.Devices</Filter>
-    </ClInclude>
     <ClInclude Include="Common\BCL.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -297,6 +285,21 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SceneParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Armature.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Object.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pch_bcl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BulletPhysics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BasicShapeModel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -345,9 +348,6 @@
   <ItemGroup>
     <Xml Include="manifest.xml" />
     <Xml Include="Resources\Foregrounds.xml">
-      <Filter>Resource Files</Filter>
-    </Xml>
-    <Xml Include="DefaultSelectorScene.xml">
       <Filter>Resource Files</Filter>
     </Xml>
   </ItemGroup>

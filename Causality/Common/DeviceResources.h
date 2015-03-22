@@ -13,6 +13,7 @@
 #include <mutex>
 #include "Textures.h"
 
+
 namespace DirectX
 {
 	class DeviceResources;
@@ -67,7 +68,9 @@ namespace DirectX
 		UINT GetMultiSampleCount() const { return m_multiSampleLevel; }
 		UINT GetMultiSampleQuality() const { return m_multiSampleQuality; }
 
-		DeviceHostType		   GetDeviceHostType() const				{ return m_deviceHostType; }
+		DeviceHostType			GetDeviceHostType() const				{ return m_deviceHostType; }
+
+		RenderTarget&			GetBackBufferRenderTarget()				{ return m_BackBuffer; }
 
 		// Device Accessors.
 		Windows::Foundation::Size GetOutputSize() const					{ return m_outputSize; }
@@ -117,6 +120,10 @@ namespace DirectX
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView>	m_d3dRenderTargetView;
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView>	m_d3dDepthStencilView;
 		D3D11_VIEWPORT									m_screenViewport;
+
+		RenderTargetTexture2D							m_ColorBackBuffer;
+		DepthStencilBuffer								m_DepthBuffer;
+		RenderTarget									m_BackBuffer;
 
 		// Direct2D drawing components.
 		Microsoft::WRL::ComPtr<ID2D1Factory2>			m_d2dFactory;

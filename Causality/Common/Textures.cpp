@@ -152,20 +152,21 @@ RenderTargetTexture2D::RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ un
 	// Create the render target view.
 	HRESULT hr = pDevice->CreateRenderTargetView(m_pResource.Get(), nullptr, &m_pRenderTargetView);
 	DirectX::ThrowIfFailed(hr);
-
-	m_Viewport = { 0.0f, 0.0f, (float) m_Description.Width, (float) m_Description.Height, 0.0f, 1.0f };
-
 }
 
-RenderTargetTexture2D::RenderTargetTexture2D(ID3D11Texture2D* pTexture, ID3D11RenderTargetView* pRenderTargetView, ID3D11ShaderResourceView* pShaderResouceView, const D3D11_VIEWPORT *pViewport)
+RenderTargetTexture2D::RenderTargetTexture2D(ID3D11Texture2D* pTexture, ID3D11RenderTargetView* pRenderTargetView, ID3D11ShaderResourceView* pShaderResouceView)
 	: Texture2D(pTexture, pShaderResouceView)
 {
 	assert(pRenderTargetView);
 	m_pRenderTargetView = pRenderTargetView;
-	if (pViewport == nullptr)
-		m_Viewport = { 0.0f, 0.0f, (float) m_Description.Width, (float) m_Description.Height, 0.0f, 1.0f };
-	else
-		m_Viewport = *pViewport;
+}
+
+inline DirectX::RenderTargetTexture2D::RenderTargetTexture2D(ID3D11RenderTargetView * pRenderTargetView)
+{
+	m_pRenderTargetView = pRenderTargetView;
+	pRenderTargetView->GetResource(&m_pResource);
+	m_pResource.As(&m_pTexture);
+	m_pTexture->GetDesc(&m_Description);
 }
 
 RenderTargetTexture2D::RenderTargetTexture2D()
@@ -175,8 +176,7 @@ RenderTargetTexture2D::RenderTargetTexture2D()
 
 RenderTargetTexture2D::RenderTargetTexture2D(RenderTargetTexture2D &&source)
 	: Texture2D(std::move(source)),
-	m_pRenderTargetView(std::move(source.m_pRenderTargetView)),
-	m_Viewport(source.m_Viewport)
+	m_pRenderTargetView(std::move(source.m_pRenderTargetView))
 {
 
 }
@@ -185,7 +185,6 @@ RenderTargetTexture2D& RenderTargetTexture2D::operator=(RenderTargetTexture2D &&
 {
 	Texture2D::operator=(std::move(source));
 	m_pRenderTargetView = std::move(source.m_pRenderTargetView);
-	m_Viewport = source.m_Viewport;
 	return *this;
 }
 
@@ -205,8 +204,18 @@ DepthStencilBuffer& DepthStencilBuffer::operator = (DepthStencilBuffer&&source)
 
 
 
+DirectX::DepthStencilBuffer::DepthStencilBuffer(ID3D11Texture2D * pTexture, ID3D11DepthStencilView * pDSV)
+	: Texture2D(pTexture,nullptr)
+{
+	m_pDepthStencilView = pDSV;
+}
+
 DirectX::DepthStencilBuffer::DepthStencilBuffer(ID3D11DepthStencilView * pDSV)
 {
+	m_pDepthStencilView = pDSV;
+	m_pDepthStencilView->GetResource(&m_pResource);
+	m_pResource.As(&m_pTexture);
+	m_pTexture->GetDesc(&m_Description);
 }
 
 DepthStencilBuffer::DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format)
@@ -714,12 +723,12 @@ void DirectX::RenderTarget::SetAsRenderTarget(ID3D11DeviceContext * pDeviceConte
 	pDeviceContext->OMSetRenderTargets(1, &pTargetView, m_DepthStencilBuffer);
 }
 
-inline DirectX::CubeTexture::CubeTexture(ID3D11Resource * pResource, ID3D11ShaderResourceView * pResourceView)
+DirectX::CubeTexture::CubeTexture(ID3D11Resource * pResource, ID3D11ShaderResourceView * pResourceView)
 	: Texture(pResource, pResourceView)
 {
 }
 
-inline void DirectX::CubeTexture::Initialize(ID3D11Device * pDevice, const std::wstring(&TextureFiles)[6])
+void DirectX::CubeTexture::Initialize(ID3D11Device * pDevice, const std::wstring(&TextureFiles)[6])
 {
 	for (int i = 0; i < 6; i++)
 	{
@@ -727,23 +736,23 @@ inline void DirectX::CubeTexture::Initialize(ID3D11Device * pDevice, const std::
 	}
 }
 
-inline DirectX::CubeTexture::CubeTexture(ID3D11Device * pDevice, const std::wstring(&TextureFiles)[6])
+DirectX::CubeTexture::CubeTexture(ID3D11Device * pDevice, const std::wstring(&TextureFiles)[6])
 {
 	Initialize(pDevice, TextureFiles);
 }
 
-inline DirectX::CubeTexture::CubeTexture()
+DirectX::CubeTexture::CubeTexture()
 {}
 
-inline DirectX::CubeTexture::~CubeTexture()
+DirectX::CubeTexture::~CubeTexture()
 {}
 
-inline ID3D11ShaderResourceView * DirectX::CubeTexture::at(unsigned int face)
+ID3D11ShaderResourceView * DirectX::CubeTexture::at(unsigned int face)
 {
 	return m_pTextureView[face];
 }
 
-inline ID3D11ShaderResourceView * const * DirectX::CubeTexture::ResourcesView()
+ID3D11ShaderResourceView * const * DirectX::CubeTexture::ResourcesView()
 {
 	return m_pTextureView;
 }

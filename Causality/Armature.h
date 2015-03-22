@@ -1,10 +1,7 @@
 #pragma once
-#include "Common\tree.h"
-#include "Common\DirectXMathExtend.h"
 #include "BCL.h"
 #include <unordered_map>
 #include <memory>
-#include "Common\CompositeFlag.h"
 
 namespace Causality
 {
@@ -140,11 +137,12 @@ namespace Causality
 		// will be -1 for root
 		int ParentID() const
 		{
-			auto p = parent();
-			if (p)
-				return parent()->ID();
-			else
-				return -1;
+			return JointData::ParentID;
+			//auto p = parent();
+			//if (p)
+			//	return parent()->ID();
+			//else
+			//	return -1;
 		}
 
 		const std::string& Name() const
@@ -202,8 +200,8 @@ namespace Causality
 		//// Which skeleton this state fram apply for
 		//IArmature* pArmature;
 
-		bool RebuildGlobal(const IArmature& armature);
-		bool RebuildLocal(const IArmature& armature);
+		void RebuildGlobal(const IArmature& armature);
+		void RebuildLocal(const IArmature& armature);
 
 		Eigen::VectorXf LocalRotationVector() const;
 		void UpdateFromLocalRotationVector(const IArmature& armature,const Eigen::VectorXf fv);
@@ -463,12 +461,15 @@ namespace Causality
 
 		// Evaluating a likelihood of the given frame is inside this space
 		float PoseDistancePCAProjection(const frame_type& frame) const;
-		Eigen::RowVectorXf PoseDistanceNearestNeibor(const frame_type& frame) const;
+		Eigen::RowVectorXf PoseSquareDistanceNearestNeibor(const frame_type& frame) const;
+		Eigen::RowVectorXf StaticSimiliartyEculidDistance(const frame_type& frame) const;
 
 		Eigen::VectorXf CaculateFrameDynamicFeatureVectorJointVelocityHistogram(const frame_type& frame, const frame_type& prev_frame) const;
 		Eigen::RowVectorXf DynamicSimiliarityJvh(const frame_type& frame, const frame_type& prev_frame) const;
 
+		// with 1st order dynamic
 		float FrameLikilihood(const frame_type& frame, const frame_type& prev_frame) const;
+		// without dynamic
 		float FrameLikilihood(const frame_type& frame) const;
 
 		vector<ArmatureTransform> GenerateBindings();
@@ -476,6 +477,9 @@ namespace Causality
 		//float DynamicSimiliarityJvh(const velocity_frame_type& velocity_frame) const;
 	protected:
 		void CaculateXpInv();
+
+		IArmature*						m_pArmature;
+		float			SegmaDis; // Distribution dervite of pose-distance
 
 		std::vector<DirectX::Vector3> Sv; // Buffer for computing feature vector
 
@@ -629,7 +633,7 @@ namespace Causality
 
 		// deserialization
 		StaticArmature(std::istream& file);
-		StaticArmature(size_t JointCount, int *JointsParentIndices);
+		StaticArmature(size_t JointCount, int *JointsParentIndices, const char* const* Names);
 		~StaticArmature();
 		StaticArmature(const self_type& rhs) = delete;
 		StaticArmature(self_type&& rhs);
@@ -648,6 +652,7 @@ namespace Causality
 		virtual joint_type* root() override;
 		virtual size_t size() const override;
 		virtual const frame_type& default_frame() const override;
+		frame_type& default_frame() { return DefaultFrame; }
 
 		// A topolical ordered joint index sequence
 		const std::vector<size_t>& joint_indices() const

@@ -28,7 +28,7 @@ namespace Causality
 			return dynamic_cast<T*>(this);
 		}
 
-		virtual ~Object();
+		virtual ~Object() = default;
 	};
 
 	class ObjectManager

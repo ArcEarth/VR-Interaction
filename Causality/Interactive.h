@@ -117,6 +117,6 @@ namespace Causality
 	class IUserPoseInteractive abstract
 	{
 	public:
-		virtual void OnPoseChanged(Devices::TrackedPlayer*);
+		virtual void OnPoseChanged(TrackedPlayer*);
 	};
 }
