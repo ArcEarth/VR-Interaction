@@ -13,11 +13,17 @@ namespace Causality
 		NoButton,
 	};
 
-	class IAppComponent
+	// Interface to register Application events
+	class IAppComponent abstract
 	{
 	public:
-		virtual ~IAppComponent() {}
+		virtual ~IAppComponent();
 
+	protected:
+		void Register();
+		void Unregister();
+
+	public:
 		// Retrive the given interface
 		template <class T>
 		const T* As() const 

@@ -115,6 +115,7 @@ AssetDictionary::mesh_type& ParseMeshAsset(AssetDictionary& assets, XMLElement* 
 				//task.wait();
 				//return task.get();
 				auto& mesh = assets.LoadMesh(node->Attribute("name"), src);
+				return mesh;
 			}
 			else
 			{
@@ -201,9 +202,17 @@ void GetAttribute<Vector3>(_In_ XMLElement* node, _In_  const char* attr, _Inout
 	auto attrval = node->Attribute(attr);
 	if (attrval != nullptr)
 	{
-		stringstream ss(attrval);
-		char ch;
-		ss >> value.x >> ch >> value.y >> ch >> value.z;
+		string str(attrval);
+		if (str.find_first_of(',') != string::npos)
+		{
+			stringstream ss(str);
+			char ch;
+			ss >> value.x >> ch >> value.y >> ch >> value.z;
+		}
+		else
+		{
+			value.x = value.y = value.z = atof(attrval); // replicate
+		}
 	}
 }
 

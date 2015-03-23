@@ -28,7 +28,10 @@ AssetDictionary::mesh_type & Causality::AssetDictionary::LoadMesh(const string &
 	auto& mesh = meshes[key];
 	for (auto& part : mesh.Parts)
 	{
-		part.pMaterial->Effect = GetEffect(part.pMaterial->Name);
+		//!+ This is A CHEAP HACK!!!! 
+		part.pEffect = default_effect;
+		if (part.pMaterial)
+			part.pMaterial->Effect = GetEffect(part.pMaterial->Name);
 		part.pMesh->pInputLayout = GetInputLayout<AssetDictionary::mesh_type::VertexType>();
 	}
 	return meshes[key];
@@ -86,7 +89,7 @@ void Causality::AssetDictionary::SetRenderDevice(RenderDevice & device)
 	if (!effect_factory)
 	{
 		effect_factory = std::make_unique<DirectX::EffectFactory>(device.Get());
-		default_effect = std::make_unique<DirectX::BasicEffect>(device.Get());
+		default_effect = std::make_shared<DirectX::BasicEffect>(device.Get());
 		default_effect->SetVertexColorEnabled(false);
 		default_effect->SetTextureEnabled(true);
 		//default_effect->SetLightingEnabled(true);

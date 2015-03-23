@@ -25,32 +25,6 @@
 
 namespace Causality
 {
-	class KeyboardMouseLogic : public IAppComponent , public DirectX::Scene::ITimeAnimatable, public IKeybordInteractive, public ICursorInteractive
-	{
-	public:
-		KeyboardMouseLogic(Camera* pCamera);
-		// Inherited via ITimeAnimatable
-		virtual void UpdateAnimation(DirectX::StepTimer const & timer) override;
-
-		// Inherited via IKeybordInteractive
-		virtual void OnKeyDown(const KeyboardEventArgs & e) override;
-		virtual void OnKeyUp(const KeyboardEventArgs & e) override;
-
-		// Inherited via ICursorInteractive
-		virtual void OnMouseButtonDown(const CursorButtonEvent & e) override;
-		virtual void OnMouseButtonUp(const CursorButtonEvent & e) override;
-		virtual void OnMouseMove(const CursorMoveEventArgs & e) override;
-	public:
-		float											Speed;
-		DirectX::Quaternion								InitialOrientation;
-		float											CameraYaw = 0;
-		float											CameraPitch = 0;
-	private:
-		Camera*											m_pCamera= nullptr;
-		bool											IsTrackingCursor = false;
-		DirectX::Vector3								CameraVeclocity;
-		DirectX::Vector3								CameraAngularVeclocity;
-	};
 
 	class App : public Application, public DirectX::IDeviceNotify
 	{
@@ -74,7 +48,10 @@ namespace Causality
 		boost::filesystem::path	GetResourcesDirectory() const;
 		void SetResourcesDirectory(const std::wstring& dir);
 
-		void RegisterComponent(std::unique_ptr<IAppComponent> &&pComponent);
+		void RegisterComponent(ICursorInteractive *pComponent);
+		void RegisterComponent(IKeybordInteractive *pComponent);
+		void RegisterComponent(IUserHandsInteractive *pComponent);
+		void RegisterComponent(IAppComponent *pComponent);
 		void UnregisterComponent(IAppComponent *pComponent);
 		void XM_CALLCONV RenderToView(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection);
 		Event<const DirectX::StepTimer&> TimeElapsed;

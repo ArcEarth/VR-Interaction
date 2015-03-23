@@ -86,10 +86,10 @@ void Causality::App::OnStartup(Array<String^>^ args)
 	Scenes.back()->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
 }
 
-void Causality::App::RegisterComponent(std::unique_ptr<IAppComponent> &&pComponent)
+void Causality::App::RegisterComponent(IAppComponent *pComponent)
 {
 	auto pCursorInteractive = pComponent->As<ICursorInteractive>();
-	auto& Regs = ComponentsEventRegisterations[pComponent.get()];
+	auto& Regs = ComponentsEventRegisterations[pComponent];
 	if (pCursorInteractive)
 	{
 		Regs.push_back(pWindow->CursorButtonDown += MakeEventHandler(&ICursorInteractive::OnMouseButtonDown, pCursorInteractive));
@@ -240,69 +240,3 @@ void XM_CALLCONV Causality::App::RenderToView(DirectX::FXMMATRIX view, DirectX::
 //	//std::cout << "Frame available" << std::endl;
 //}
 
-inline Causality::KeyboardMouseLogic::KeyboardMouseLogic(Camera * pCamera)
-{
-	m_pCamera = pCamera;
-	InitialOrientation = pCamera->GetOrientation();
-	Speed = 2.0f;
-}
-
-void Causality::KeyboardMouseLogic::UpdateAnimation(StepTimer const & timer)
-{
-	m_pCamera->Move(XMVector3Normalize(CameraVeclocity) * (Speed * (float) timer.GetElapsedSeconds()));
-}
-
-void Causality::KeyboardMouseLogic::OnKeyDown(const KeyboardEventArgs & e)
-{
-	if (e.Key == 'W')
-		CameraVeclocity += Vector3{ 0,0,-1 };
-	if (e.Key == 'S')
-		CameraVeclocity += Vector3{ 0,0,1 };
-	if (e.Key == 'A')
-		CameraVeclocity += Vector3{ -1,0,0 };
-	if (e.Key == 'D')
-		CameraVeclocity += Vector3{ 1,0,0 };
-}
-
-void Causality::KeyboardMouseLogic::OnKeyUp(const KeyboardEventArgs & e)
-{
-	if (e.Key == 'W')
-		CameraVeclocity -= Vector3{ 0,0,-1 };
-	if (e.Key == 'S')
-		CameraVeclocity -= Vector3{ 0,0,1 };
-	if (e.Key == 'A')
-		CameraVeclocity -= Vector3{ -1,0,0 };
-	if (e.Key == 'D')
-		CameraVeclocity -= Vector3{ 1,0,0 };
-	if (e.Key == VK_ESCAPE)
-		App::Current()->Exit();
-}
-
-void Causality::KeyboardMouseLogic::OnMouseButtonDown(const CursorButtonEvent & e)
-{
-	if (e.Button == CursorButtonEnum::RButton)
-	{
-		IsTrackingCursor = true;
-		//CursorMoveEventConnection = pWindow->CursorMove += MakeEventHandler(&App::OnCursorMove_RotateCamera, this);
-	}
-}
-
-void Causality::KeyboardMouseLogic::OnMouseButtonUp(const CursorButtonEvent & e)
-{
-	if (e.Button == CursorButtonEnum::RButton)
-	{
-		IsTrackingCursor = false;
-		//CursorMoveEventConnection.disconnect();
-		//pWindow->CursorMove -= CursorMoveEventConnection;
-	}
-}
-
-void Causality::KeyboardMouseLogic::OnMouseMove(const CursorMoveEventArgs & e)
-{
-	if (!IsTrackingCursor) return;
-	auto yaw = -e.PositionDelta.x / 1000.0f * XM_PI;
-	auto pitch = -e.PositionDelta.y / 1000.0f * XM_PI;
-	CameraYaw += yaw;
-	CameraPitch += pitch;
-	m_pCamera->SetOrientation((Quaternion)XMQuaternionRotationRollPitchYaw(CameraPitch, CameraYaw, 0)*InitialOrientation);
-}

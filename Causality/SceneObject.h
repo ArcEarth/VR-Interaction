@@ -5,6 +5,7 @@
 #include <memory>
 #include "Object.h"
 #include "RenderContext.h"
+#include "Interactive.h"
 
 namespace Causality
 {
@@ -52,7 +53,7 @@ namespace Causality
 	typedef std::vector<ProblistiscAffineTransform> SuperPosition;
 
 	// Basic class for all object, camera, entity, or light
-	class SceneObject : public tree_node<SceneObject>, public Object, virtual public DirectX::BasicTransform
+	class SceneObject : public tree_node<SceneObject>, public Object, public DirectX::BasicTransform
 	{
 	public:
 		typedef tree_node<SceneObject> tree_base_type;
@@ -69,6 +70,18 @@ namespace Causality
 		{
 			if (child != nullptr)
 				append_children_back(child);
+		}
+
+		template <typename T>
+		T* FirstAncesterOfType()
+		{
+			auto node = parent();
+			while (node && !node->Is<T>())
+				node = node->parent();
+			if (node)
+				return node->As<T>();
+			else
+				return nullptr;
 		}
 
 		//template <typename TInterface>
@@ -264,6 +277,44 @@ namespace Causality
 		VectorX						Likilihood;
 		MatrixX						TransferMatrix;
 	};
+
+	class KeyboardMouseFirstPersonControl :public SceneObject, public IAppComponent, public ITimeAnimatable, public IKeybordInteractive, public ICursorInteractive
+	{
+	public:
+		KeyboardMouseFirstPersonControl(IRigid* pTarget = nullptr);
+
+		void SetTarget(IRigid* pTarget);
+
+		// Inherited via ITimeAnimatable
+		virtual void UpdateAnimation(time_seconds const& time_delta) override;
+
+		// Inherited via IKeybordInteractive
+		virtual void OnKeyDown(const KeyboardEventArgs & e) override;
+		virtual void OnKeyUp(const KeyboardEventArgs & e) override;
+
+		// Inherited via ICursorInteractive
+		virtual void OnMouseButtonDown(const CursorButtonEvent & e) override;
+		virtual void OnMouseButtonUp(const CursorButtonEvent & e) override;
+		virtual void OnMouseMove(const CursorMoveEventArgs & e) override;
+	public:
+		float											Speed;
+		float											AngularSpeed;
+
+		DirectX::Quaternion								InitialOrientation;
+
+		float											AddationalYaw = 0;
+		float											AddationalPitch = 0;
+		float											AddationalRoll = 0;
+
+	private:
+		IRigid*											m_pTarget = nullptr;
+
+		bool											IsTrackingCursor = false;
+		DirectX::Vector3								CameraVeclocity;
+		DirectX::Vector3								CameraAngularVeclocity;
+		DirectX::Vector3								AngularDisplacement; // Eular Angle
+	};
+
 
 	class KinematicSceneObjectController
 	{

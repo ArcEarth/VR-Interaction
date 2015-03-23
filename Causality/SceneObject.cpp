@@ -1,5 +1,6 @@
 #include "pch_bcl.h"
 #include "SceneObject.h"
+#include "CausalityApplication.h"
 
 using namespace Causality;
 
@@ -82,19 +83,19 @@ inline DirectX::XMMATRIX SceneObject::GlobalTransformMatrix() const
 	}
 }
 
-void Causality::SceneObject::SetPosition(const Vector3 & p)
+void SceneObject::SetPosition(const Vector3 & p)
 {
 	m_GlobalTransformDirty = true;
 	AffineTransform::Translation = p;
 }
 
-void Causality::SceneObject::SetOrientation(const Quaternion & q)
+void SceneObject::SetOrientation(const Quaternion & q)
 {
 	m_GlobalTransformDirty = true;
 	AffineTransform::Rotation = q;
 }
 
-void Causality::SceneObject::SetScale(const Vector3 & s)
+void SceneObject::SetScale(const Vector3 & s)
 {
 	m_GlobalTransformDirty = true;
 	AffineTransform::Scale = s;
@@ -115,21 +116,106 @@ void RenderableSceneObject::SetRenderModel(DirectX::Scene::IModelNode * pMesh, i
 	return m_pRenderModel.reset(pMesh);
 }
 
-void Causality::RenderableSceneObject::Render(RenderContext & pContext)
+void RenderableSceneObject::Render(RenderContext & pContext)
 {
 	//m_pRenderModel->SetModelMatrix(this->GlobalTransformMatrix());
 	m_pRenderModel->Render(pContext,GlobalTransformMatrix());
 }
 
-void XM_CALLCONV Causality::RenderableSceneObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
+void XM_CALLCONV RenderableSceneObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 
 	return;
 }
 
-bool Causality::RenderableSceneObject::IsVisible(const BoundingFrustum & viewFrustum) const
+bool RenderableSceneObject::IsVisible(const BoundingFrustum & viewFrustum) const
 {
 	auto box = m_pRenderModel->GetOrientedBoundingBox();
 	box.Transform(box,this->GlobalTransformMatrix());
 	return viewFrustum.Contains(box) != DirectX::ContainmentType::DISJOINT;
+}
+
+KeyboardMouseFirstPersonControl::KeyboardMouseFirstPersonControl(IRigid* pTarget = nullptr)
+{
+	Speed = 2.0f;
+	SetTarget(pTarget);
+}
+
+void KeyboardMouseFirstPersonControl::SetTarget(IRigid * pTarget)
+{
+	if (pTarget && !m_pTarget)
+		Register();
+	else if (!pTarget && m_pTarget)
+		Unregister();
+	m_pTarget = pTarget;
+	InitialOrientation = pTarget->GetOrientation();
+	AddationalYaw = 0;
+	AddationalPitch = 0;
+	AddationalRoll = 0;
+}
+
+void KeyboardMouseFirstPersonControl::UpdateAnimation(time_seconds const& time_delta)
+{
+	if (m_pTarget)
+	m_pTarget->Move(XMVector3Normalize(CameraVeclocity) * (Speed * (float) time_delta.count()));
+}
+
+void KeyboardMouseFirstPersonControl::OnKeyDown(const KeyboardEventArgs & e)
+{
+	if (!m_pTarget) return;
+
+	if (e.Key == 'W')
+		CameraVeclocity += Vector3{ 0,0,-1 };
+	if (e.Key == 'S')
+		CameraVeclocity += Vector3{ 0,0,1 };
+	if (e.Key == 'A')
+		CameraVeclocity += Vector3{ -1,0,0 };
+	if (e.Key == 'D')
+		CameraVeclocity += Vector3{ 1,0,0 };
+}
+
+void KeyboardMouseFirstPersonControl::OnKeyUp(const KeyboardEventArgs & e)
+{
+	if (!m_pTarget) return;
+	if (e.Key == 'W')
+		CameraVeclocity -= Vector3{ 0,0,-1 };
+	if (e.Key == 'S')
+		CameraVeclocity -= Vector3{ 0,0,1 };
+	if (e.Key == 'A')
+		CameraVeclocity -= Vector3{ -1,0,0 };
+	if (e.Key == 'D')
+		CameraVeclocity -= Vector3{ 1,0,0 };
+	if (e.Key == VK_ESCAPE)
+		App::Current()->Exit();
+}
+
+void KeyboardMouseFirstPersonControl::OnMouseButtonDown(const CursorButtonEvent & e)
+{
+	if (e.Button == CursorButtonEnum::RButton)
+	{
+		IsTrackingCursor = true;
+		//CursorMoveEventConnection = pWindow->CursorMove += MakeEventHandler(&App::OnCursorMove_RotateCamera, this);
+	}
+}
+
+void KeyboardMouseFirstPersonControl::OnMouseButtonUp(const CursorButtonEvent & e)
+{
+	if (e.Button == CursorButtonEnum::RButton)
+	{
+		IsTrackingCursor = false;
+		//CursorMoveEventConnection.disconnect();
+		//pWindow->CursorMove -= CursorMoveEventConnection;
+	}
+}
+
+void KeyboardMouseFirstPersonControl::OnMouseMove(const CursorMoveEventArgs & e)
+{
+	using namespace DirectX;
+	if (!IsTrackingCursor) return;
+	auto yaw = -e.PositionDelta.x / 1000.0f * XM_PI;
+	auto pitch = -e.PositionDelta.y / 1000.0f * XM_PI;
+	AddationalYaw += yaw;
+	AddationalPitch += pitch;
+	if (m_pTarget)
+		m_pTarget->SetOrientation((Quaternion) XMQuaternionRotationRollPitchYaw(AddationalPitch, AddationalYaw, 0)*InitialOrientation);
 }

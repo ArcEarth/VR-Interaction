@@ -134,7 +134,7 @@ namespace Causality
 		map<string, audio_clip_type>		audios;
 		map<string, effect_type*>			effects;
 
-		uptr<DirectX::BasicEffect>			default_effect;
+		sptr<DirectX::BasicEffect>			default_effect;
 		uptr<DirectX::EffectFactory>		effect_factory;
 		cptr<ID3D11InputLayout>				pInputLayout;
 		// other assets
