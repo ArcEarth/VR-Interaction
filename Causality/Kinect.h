@@ -117,6 +117,8 @@ namespace Causality
 			static std::weak_ptr<Kinect> wpCurrentDevice;
 			static std::shared_ptr<Kinect> GetForCurrentView();
 
+			const StaticArmature& Armature() const { return *TrackedPlayer::PlayerArmature; }
+
 			~Kinect();
 
 			bool IsConnected() const;

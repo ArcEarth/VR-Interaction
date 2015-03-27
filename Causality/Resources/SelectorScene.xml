@@ -3,7 +3,7 @@
 	<scene.assets>
 		<mesh name="cube_mesh" src="cube.obj"></mesh>
 	    <mesh name="baseball_bat_mesh" src="baseball_bat.obj"></mesh>
-	    <mesh name="bunny_mesh" src="Torus.obj"></mesh>
+	    <mesh name="bunny_mesh" src="Mug.obj"></mesh>
 	    <armature name="bunny_armature" src="bunny.skl"></armature>
 	    <behavier name="bunny_behavier" armature="{bunny_armature}" >
 		    <animation_clip name="move" src="bunny.move.kfa"></animation_clip>
@@ -12,16 +12,17 @@
 	</scene.assets>
 	<scene.content>
 	  	<grid name="root">
-			<camera name="primary_camera" background="#FF00AA33" position="0,0,1.5" focus="0,0,0" up="0,1,0"></camera>
+	  		<coordinate_axis/>
+			<camera name="primary_camera" background="#FFFFFFFF" position="0,0,1.5" focus="0,0,0" up="0,1,0">
+				<first_person_keyboard_mouse_control />
+			</camera>
 			<skydome name="sky" background="SkyBox\GrimmNight"/>
-<!-- 			<cube position="0,-0.001,0" extent="10,0.001,10" name="floor" color="200,200,200" mass="0"></cube>
-			<cube position="0,0.5,-0.3" extent="0.5,0.5,0.02" name="wall" color="200,200,200" mass="0"></cube>
-			<cube position="-0.6,0.05,0.0" extent="0.05,0.05,0.05" name="cube_fl" color="35,255,35"></cube>
-			<cube position="-0.2,0.05.0,0.0" extent="0.05,0.05,0.05" name="cube_bl" color="225,35,225"></cube>
-			<cube position="-0.6,0.05,0.4" extent="0.05,0.05,0.05" name="cube_fr" color="35,255,35"></cube>
-			<cube position="-0.2,0.05.0,0.4" extent="0.05,0.05,0.05" name="cube_br" color="225,35,225"></cube> -->
-			<object name="baseball_bat" position="2.0,1.5.0,0.0" scale="0.1" mesh="{baseball_bat_mesh}"></object>
-			<creature name="bunny" position="2.0,1.5.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
+			<object name="baseball_bat" position="1.0,0.5.0,0.0" scale="0.1" mesh="{baseball_bat_mesh}"/>
+			<player_controller name="player">
+				<creature name="bunny" position="-1.0,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
+				<creature name="bunny2" position="-0.5,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
+				<kinect_visualizer/>
+			</player_controller>
 		</grid>
 	</scene.content>
 

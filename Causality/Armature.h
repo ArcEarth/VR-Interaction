@@ -179,6 +179,8 @@ namespace Causality
 	class BoneDisplacementFrame : public AnimationFrame, public std::vector<BoneDisplacement,DirectX::AlignedAllocator<BoneDisplacement>>
 	{
 	public:
+		typedef BoneDisplacementFrame self_type;
+
 		typedef public std::vector<BoneDisplacement, DirectX::AlignedAllocator<BoneDisplacement>> BaseType;
 		using BaseType::operator[];
 		//using BaseType::operator=;
@@ -212,6 +214,8 @@ namespace Causality
 		// Blend Two Animation Frame, "Interpolate in Space"
 		static void Blend(BoneDisplacementFrame& out, const BoneDisplacementFrame &lhs, const BoneDisplacementFrame &rhs, float* blend_weights, const IArmature& armature);
 
+		static void TransformMatrix(DirectX::XMFLOAT3X4* pOut, const self_type &from, const self_type& to);
+		static void TransformMatrix(DirectX::XMFLOAT4X4* pOut, const self_type &from, const self_type& to);
 		//void BlendMatrixFrom(DirectX::XMFLOAT3X4* pOut, const StateFrame &from)
 		//{
 

@@ -1,9 +1,11 @@
 #include "pch_bcl.h"
 #include "Scene.h"
+#include "SceneParser.h"
 #include "Common\Model.h"
 #include <boost\filesystem.hpp>
 #include <tinyxml2.h>
 #include "Common\SkyDome.h"
+#include "PlayerProxy.h"
 
 using namespace tinyxml2;
 using namespace Causality;
@@ -28,8 +30,7 @@ AssetDictionary::animation_clip_type ParseAnimationClip(XMLElement * node);
 
 AssetDictionary::behavier_type & ParseBehavierAsset(AssetDictionary & assets, XMLElement * node);
 
-std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node);
-
+std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, SceneObject* parent);
 
 std::unique_ptr<Scene> Scene::LoadSceneFromXML(const string& xml_file)
 {
@@ -53,9 +54,11 @@ void Causality::Scene::LoadFromXML(const string & xml_file)
 
 	auto nContent = nScene->FirstChildElement("scene.content");
 	nContent = nContent->FirstChildElement();
-	this->content = ParseSceneObject(*this, nContent);
+	this->content = ParseSceneObject(*this, nContent,nullptr);
 
 	RebuildRenderViewCache();
+
+	is_loaded = true;
 }
 
 void Causality::Scene::RebuildRenderViewCache()
@@ -211,7 +214,7 @@ void GetAttribute<Vector3>(_In_ XMLElement* node, _In_  const char* attr, _Inout
 		}
 		else
 		{
-			value.x = value.y = value.z = atof(attrval); // replicate
+			value.x = value.y = value.z = (float)atof(attrval); // replicate
 		}
 	}
 }
@@ -298,7 +301,7 @@ void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node)
 	pObj->SetOrientation(Quaternion::CreateFromYawPitchRoll(eular.x, eular.y, eular.z));
 }
 
-std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node)
+std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, SceneObject* parent)
 {
 	using namespace DirectX;
 
@@ -333,6 +336,33 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node)
 
 		pObj = move(pCreature);
 	}
+	else if (!strcmp(node->Name(), "first_person_keyboard_mouse_control"))
+	{
+		auto pControl = make_unique<KeyboardMouseFirstPersonControl>();
+		pControl->SetTarget(parent);
+
+		pObj = move(pControl);
+		ParseSceneObjectAttributes(pObj.get(), node);
+	}
+	else if (!strcmp(node->Name(), "coordinate_axis"))
+	{
+		auto pControl = make_unique<CoordinateAxis>();
+		pObj = move(pControl);
+		ParseSceneObjectAttributes(pObj.get(), node);
+	}
+	else if (!strcmp(node->Name(), "player_controller"))
+	{
+		auto pControl = make_unique<PlayerProxy>();
+		pObj = move(pControl);
+		//pObj.reset();
+		ParseSceneObjectAttributes(pObj.get(), node);
+	}
+	else if (!strcmp(node->Name(), "kinect_visualizer"))
+	{
+		auto pControl = make_unique<KinectVisualizer>();
+		pObj = move(pControl);
+		ParseSceneObjectAttributes(pObj.get(), node);
+	}
 	else
 	{
 		pObj = make_unique<SceneObject>();
@@ -342,9 +372,15 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node)
 	node = node->FirstChildElement();
 	while (node)
 	{
-		pObj->AddChild(ParseSceneObject(scene, node).release());
+		pObj->AddChild(ParseSceneObject(scene, node,pObj.get()).release());
 		node = node->NextSiblingElement();
 	}
+
+	// suffix construction 
+	auto pController = dynamic_cast<PlayerProxy*>(pObj.get());
+	if (pController)
+		pController->Initialize();
+
 	return pObj;
 }
 

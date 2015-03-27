@@ -45,11 +45,34 @@ DirectX::XMMATRIX Camera::GetProjectionMatrix(size_t view) const
 	}
 	else
 	{
-		return XMMatrixPerspectiveFovRH(Fov, AspectRatio, 0.01f, 100.0f);
+		return UpdateProjectionCache();
 	}
 }
 
-const BoundingFrustum & Causality::Camera::GetViewFrustum(size_t view) const { return m_ViewFrutum; }
+DirectX::XMMATRIX Causality::Camera::UpdateProjectionCache() const
+{
+	if (m_ProjectDirty)
+	{
+		using namespace DirectX;
+		m_ProjectDirty = false;
+		auto proj = XMMatrixPerspectiveFovRH(Fov, AspectRatio, 0.01f, 100.0f);
+		XMStoreFloat4x4(&m_ProjectionCache, proj);
+		DirectX::BoundingFrustumExtension::CreateFromMatrixRH(m_ViewFrutum, proj);
+		return proj;
+	}
+	else
+		return m_ProjectionCache;
+}
+
+const BoundingFrustum & Causality::Camera::GetViewFrustum(size_t view) const { 
+	if (m_ProjectDirty)
+	{
+		UpdateProjectionCache();
+	}
+
+	m_ViewFrutum.Transform(m_ExtrinsicViewFrutum, TransformMatrix());
+	return m_ExtrinsicViewFrutum;
+}
 
 bool XM_CALLCONV Causality::Camera::IsInView(DirectX::FXMVECTOR pos, size_t view) const
 {
@@ -120,6 +143,8 @@ void XM_CALLCONV Camera::Rotate(FXMVECTOR q)
 Causality::Camera::Camera(const RenderContext & context)
 	: m_pRenderContext(context)
 {
+	m_ProjectDirty = true;
+	m_ViewDirty = true;
 }
 
 Causality::Camera::~Camera()
@@ -131,14 +156,18 @@ DirectX::RenderTarget & Causality::Camera::GetRenderTarget(int view)
 	return m_RenderTarget;
 }
 
-void Causality::Camera::SetRenderTarget(DirectX::RenderTarget & renderTarget, int view)
+void Causality::Camera::SetRenderTarget(DirectX::RenderTarget & renderTarget, int view, bool autoAspect )
 {
 	m_RenderTarget = renderTarget;
+	if (autoAspect)
+		AspectRatio = renderTarget.ViewPort().Width / renderTarget.ViewPort().Height;
 }
 
-void Causality::Camera::SetRenderTarget(DirectX::RenderTarget && renderTarget, int view)
+void Causality::Camera::SetRenderTarget(DirectX::RenderTarget && renderTarget, int view, bool autoAspect )
 {
 	m_RenderTarget = std::move(renderTarget);
+	if (autoAspect)
+		AspectRatio = renderTarget.ViewPort().Width / renderTarget.ViewPort().Height;
 }
 
 void Causality::Camera::SetRenderContext(const RenderContext & context)
@@ -229,10 +258,12 @@ void Camera::SetView(size_t view)
 void Camera::SetPerspective(float fovRadius, float aspectRatioHbyW)
 {
 	Fov = fovRadius; AspectRatio = aspectRatioHbyW;
+	m_ProjectDirty = true;
 }
 
 void Causality::Camera::SetOrthographic(float viewWidth, float viewHeight)
 {
+	m_ProjectDirty = true;
 }
 
 float Camera::GetFov() const

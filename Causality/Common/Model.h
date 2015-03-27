@@ -15,9 +15,9 @@
 
 namespace DirectX
 {
+
 	namespace Scene
 	{
-
 		namespace FacetPrimitives
 		{
 			template <class _TIndex>

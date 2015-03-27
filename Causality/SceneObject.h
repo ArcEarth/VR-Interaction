@@ -11,6 +11,8 @@ namespace Causality
 {
 	class Component;
 
+	extern bool g_DebugView;
+
 	class IRenderable abstract
 	{
 	public:
@@ -19,14 +21,6 @@ namespace Causality
 		virtual void Render(RenderContext &context) = 0;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) = 0;
 	};
-
-	// Interface for Time-dependent Animation
-	class ITimeAnimatable abstract
-	{
-	public:
-		virtual void UpdateAnimation(time_seconds const& time_delta) = 0;
-	};
-
 
 	enum SceneObjectCollisionType
 	{
@@ -58,7 +52,12 @@ namespace Causality
 	public:
 		typedef tree_node<SceneObject> tree_base_type;
 
-		SceneObject() = default;
+		virtual ~SceneObject() override;
+
+		SceneObject() {
+			m_IsEnabled = true;
+			m_IsStatic = false;
+		};
 
 		inline void AddChild(SceneObject* child)
 		{
@@ -97,12 +96,12 @@ namespace Causality
 		//			return pCom != nullptr;});
 		//}
 
-		virtual void Update() {}
+		virtual void						Update(time_seconds const& time_delta);
 
 		bool								IsStatic() const { return m_IsStatic; }
 
-		bool								IsEnabled() const;
-		bool								SetEnabled(bool enabled = true);
+		bool								IsEnabled() const { return m_IsEnabled; }
+		bool								SetEnabled(bool enabled = true) { m_IsEnabled = enabled; }
 
 		DirectX::XMMATRIX					GlobalTransformMatrix() const;
 
@@ -112,11 +111,13 @@ namespace Causality
 		void								SetMatrixDirtyFlag() { m_GlobalTransformDirty = true; }
 
 	public:
+		string								Name;
 		string								Tag;
 	protected:
 		Matrix4x4							m_GlobalTransform;
 		bool								m_GlobalTransformDirty;
 		bool								m_IsStatic;
+		bool								m_IsEnabled;
 	};
 
 	class LightingObject : public SceneObject
@@ -132,16 +133,17 @@ namespace Causality
 		//int										CurrentLoD() const;
 		//void										SetLoD(int LoD);
 
-		void										Hide();
-		void										Show();
+		void										Hide() { m_isVisable = false; }
+		void										Show() { m_isVisable = true; }
 
-		bool										IsFreezed() const;
-		void										Freeze();
-		void										Unfreeze();
+		virtual bool								IsVisible(const BoundingFrustum& viewFrustum) const override;
+		bool										IsVisible() const { return m_isVisable; }
+		bool										IsFocused() const {
+			return m_isFocuesd;
+		}
 
-		virtual bool IsVisible(const BoundingFrustum& viewFrustum) const override;
-		bool										IsVisible() const;
-		bool										IsFocused() const;
+		float										Opticity() const { return m_opticity; }
+		void										SetOpticity(float value) { m_opticity = value; }
 
 		// Events
 		//TypedEvent<RenderableSceneObject, int>				LoDChanged;
@@ -165,10 +167,20 @@ namespace Causality
 
 	protected:
 		RenderingSpecification						RenderSpec;
-
-		std::shared_ptr<DirectX::Scene::IModelNode> m_pRenderModel;
+		float										m_opticity;
+		bool										m_isVisable;
+		bool										m_isFocuesd;
+		DirectX::Scene::IModelNode*					m_pRenderModel;
 
 		//std::shared_ptr<Bullet::CollisionShape>		m_CollisionShape;
+	};
+
+	class CoordinateAxis : virtual public SceneObject, virtual public IRenderable
+	{
+		// Inherited via IRenderable
+		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
+		virtual void Render(RenderContext & context) override;
+		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 	};
 
 	struct ColorHistogram
@@ -206,6 +218,14 @@ namespace Causality
 		const AnimationSpace&			Behavier() const;
 		void							SetBehavier(AnimationSpace& behaver);
 
+		bool							IsFreezed() const;
+		void							SetFreeze(bool freeze);
+
+
+		// Inherited via IRenderable
+		virtual void Render(RenderContext & pContext) override;
+		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
+
 	private:
 		AnimationSpace*					        m_pAnimationSpace;
 		int										m_FrameMapState;
@@ -223,62 +243,7 @@ namespace Causality
 
 	};
 
-	class PlayerController
-	{
-	public:
-		class ControlState
-		{
-		public:
-
-			const ArmatureTransform& Binding() const { return m_Binding; }
-			ArmatureTransform& Binding() { return m_Binding; }
-
-			const KinematicSceneObject& Object() const { return *m_pSceneObject; }
-			KinematicSceneObject& Object() { return *m_pSceneObject; }
-			void SetTargetObject(KinematicSceneObject& object) { 
-				m_pSceneObject = &object;
-				m_Binding.SetTargetArmature(object.Armature());
-				PotientialFrame = object.Armature().default_frame();
-			}
-
-			int						ID;
-			BoneDisplacementFrame	PotientialFrame;
-
-		private:
-			KinematicSceneObject*	m_pSceneObject;
-			ArmatureTransform		m_Binding;
-		};
-
-		struct StateChangedEventArgs
-		{
-			int OldStateIndex;
-			int NewStateIndex;
-			float Confidence;
-			ControlState& OldState;
-			ControlState& NewState;
-		};
-
-		bool IsIdel() const { return CurrentIdx == 0; }
-		const ControlState& CurrentState() const { return States[CurrentIdx]; }
-		ControlState& CurrentState() { return States[CurrentIdx]; }
-		const ControlState&	GetState(int state) const { return States[state]; }
-
-		Event<const StateChangedEventArgs&> StateChanged;
-
-		bool	UpdatePlayerFrame(const BoneDisplacementFrame& frame);
-
-		IArmature&					PlayerArmature;
-
-	protected:
-		int							CurrentIdx;
-		std::vector<ControlState>	States;
-
-		VectorX						StateProbality;
-		VectorX						Likilihood;
-		MatrixX						TransferMatrix;
-	};
-
-	class KeyboardMouseFirstPersonControl :public SceneObject, public IAppComponent, public ITimeAnimatable, public IKeybordInteractive, public ICursorInteractive
+	class KeyboardMouseFirstPersonControl :public SceneObject, public IAppComponent, public IKeybordInteractive, public ICursorInteractive
 	{
 	public:
 		KeyboardMouseFirstPersonControl(IRigid* pTarget = nullptr);
@@ -286,7 +251,7 @@ namespace Causality
 		void SetTarget(IRigid* pTarget);
 
 		// Inherited via ITimeAnimatable
-		virtual void UpdateAnimation(time_seconds const& time_delta) override;
+		virtual void Update(time_seconds const& time_delta) override;
 
 		// Inherited via IKeybordInteractive
 		virtual void OnKeyDown(const KeyboardEventArgs & e) override;

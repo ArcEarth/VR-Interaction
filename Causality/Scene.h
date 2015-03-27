@@ -16,7 +16,7 @@ namespace Causality
 	interface IScene abstract
 	{
 	public:
-		virtual ~IScene() = default;
+		virtual ~IScene() {};
 
 		virtual void Update() = 0;
 		virtual void Render(RenderContext& context) = 0;
@@ -32,13 +32,18 @@ namespace Causality
 		virtual void OnNavigatedFrom() = 0;
 	};
 
+	enum SceneTimeLineType
+	{
+		PhysicalTimeInterval, // The time of scene is binded to physical time
+		FixedTimeInterval,	  // The time of scene is binded to frame count, every two adjacant frame have same time delta
+	};
+
 	// A Scene is a collection of it's contents, interactive logic, 
 	class Scene : public IScene
 	{
 	public:
-		Scene()
-		{
-		}
+		Scene();
+		~Scene();
 
 		static std::unique_ptr<Scene> LoadSceneFromXML(const string& xml_file);
 
@@ -67,7 +72,7 @@ namespace Causality
 
 		time_seconds	GetLocalTime() const
 		{
-			return time_seconds(step_timer.GetElapsedSeconds());
+			return time_seconds(step_timer.GetTotalSeconds());
 		}
 
 		double	GetTimeScale() const { return time_scale; }
@@ -102,6 +107,7 @@ namespace Causality
 		void RebuildRenderViewCache();
 
 	private:
+		SceneTimeLineType			timeline_type;
 		double						time_scale;
 		DirectX::StepTimer			step_timer;
 		RenderContext				render_context;

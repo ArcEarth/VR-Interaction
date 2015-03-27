@@ -3,17 +3,29 @@
 
 using namespace Causality;
 
+Causality::Scene::Scene()
+{
+	is_paused = false;
+	is_loaded = false;
+}
+
+Causality::Scene::~Scene()
+{
+	int* p = nullptr;
+}
+
+
 void Causality::Scene::Update()
 {
-	time_seconds deltaTime(step_timer.GetElapsedSeconds());
-	for (auto& pObj : content->nodes())
-	{
-		auto pTimeable = pObj.As<ITimeAnimatable>();
-		if (pTimeable != nullptr)
-		{ 
-			pTimeable->UpdateAnimation(deltaTime);
+	if (is_paused) return;
+	step_timer.Tick([this]() {
+		time_seconds deltaTime(step_timer.GetElapsedSeconds());
+		for (auto& pObj : content->nodes())
+		{
+			if (pObj.IsEnabled())
+				pObj.Update(deltaTime);
 		}
-	}
+	});
 }
 
 void Causality::Scene::Render(RenderContext & context)
@@ -27,6 +39,15 @@ void Causality::Scene::Render(RenderContext & context)
 			auto v = pCamera->GetViewMatrix(view);
 			auto p = pCamera->GetProjectionMatrix(view);
 			auto& viewFrustum = pCamera->GetViewFrustum(view);
+
+			auto default_effect = assets.GetEffect("");
+			auto pEm = dynamic_cast<DirectX::IEffectMatrices*>(default_effect);
+			if (pEm)
+			{
+				pEm->SetView(v);
+				pEm->SetProjection(p);
+			}
+
 			for (auto& pRenderable : renderables)
 			{
 				if (pRenderable->IsVisible(viewFrustum))

@@ -8,7 +8,6 @@ namespace Causality
 	{
 	public:
 		id_t						ID;
-		string						Name;
 
 		template <typename T>
 		bool Is() const

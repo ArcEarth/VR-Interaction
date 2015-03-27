@@ -13,6 +13,23 @@ using namespace Platform;
 using namespace boost;
 //std::unique_ptr<Causality::DXAppMain> m_main;
 
+
+Causality::IAppComponent::~IAppComponent()
+{
+	Unregister();
+}
+
+void Causality::IAppComponent::Register()
+{
+	App::Current()->RegisterComponent(this);
+}
+
+void Causality::IAppComponent::Unregister()
+{
+	App::Current()->UnregisterComponent(this);
+}
+
+
 wstring ResourcesDirectory(L"C:\\Users\\Yupeng\\Documents\\GitHub\\VR\\Causality\\Resources\\");
 
 App::App()
@@ -27,7 +44,7 @@ App::~App()
 	}
 }
 
-inline void Application::Exit()
+void Application::Exit()
 {
 	for (auto& p : WindowsLookup)
 	{
@@ -80,7 +97,7 @@ void Causality::App::OnStartup(Array<String^>^ args)
 	//pLeap = Devices::LeapMotion::GetForCurrentView();;
 	pKinect = Devices::Kinect::GetForCurrentView();
 
-	Scenes.emplace_back(new Scene());
+	Scenes.emplace_back(new Scene);
 	Scenes.back()->SetRenderDeviceAndContext(pDevice, pContext);
 	Scenes.back()->SetCanvas(pDeviceResources->GetBackBufferRenderTarget());
 	Scenes.back()->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
@@ -112,16 +129,15 @@ void Causality::App::RegisterComponent(IAppComponent *pComponent)
 		Regs.push_back(pLeap->HandsLost += MakeEventHandler(&IUserHandsInteractive::OnHandsTrackLost, pHands));
 		Regs.push_back(pLeap->HandsMove += MakeEventHandler(&IUserHandsInteractive::OnHandsMove, pHands));
 	}
-	Components.push_back(std::move(pComponent));
+	//Components.push_back(std::move(pComponent));
 }
 
 void Causality::App::UnregisterComponent(IAppComponent * pComponent)
 {
-	auto& Regs = ComponentsEventRegisterations[pComponent];
-	for (auto& connection : Regs)
-	{
-		connection.disconnect();
-	}
+	auto itr = ComponentsEventRegisterations.find(pComponent);
+	if (itr != ComponentsEventRegisterations.end())
+		for (auto& connection : itr->second)
+			connection.disconnect();
 }
 
 
@@ -154,35 +170,18 @@ void Causality::App::OnIdle()
 	//			}
 	//		}
 	//}
-	// Time Aware update
-	m_timer.Tick([&]()
-	{
-		// Processing & Distribute Extra Input
-		if (pLeap)
-			pLeap->PullFrame();
-		if (pKinect)
-			pKinect->ProcessFrame();
 
-		for (auto& pScene : Scenes)
-		{
-			pScene->Update();
-			pScene->Render(pContext);
-		}
+	// Processing & Distribute Extra Input
+	if (pLeap)
+		pLeap->PullFrame();
+	if (pKinect)
+		pKinect->ProcessFrame();
 
-		//TimeElapsed(m_timer);
-		//// Rendering
-		//auto pRenderControl = dynamic_cast<ICameraRenderControl*>(m_pPrimaryCamera.get());
+	for (auto& pScene : Scenes)
+		pScene->Update();
 
-		//pRenderControl->BeginFrame();
-		//for (size_t view = 0; view < m_pPrimaryCamera->ViewCount(); view++)
-		//{
-		//	pRenderControl->SetView(view);
-		//	auto v = m_pPrimaryCamera->GetViewMatrix(view);
-		//	auto p = m_pPrimaryCamera->GetProjectionMatrix(view);
-		//	RenderToView(v, p);
-		//}
-		//pRenderControl->EndFrame();
-	});
+	for (auto& pScene : Scenes)
+		pScene->Render(pContext);
 
 	pDeviceResources->Present();
 }

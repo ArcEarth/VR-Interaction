@@ -55,8 +55,8 @@ namespace Causality
 		~Camera();
 
 		DirectX::RenderTarget& GetRenderTarget(int view = 0);
-		void SetRenderTarget(DirectX::RenderTarget& renderTarget, int view = 0);
-		void SetRenderTarget(DirectX::RenderTarget&& renderTarget, int view = 0);
+		void SetRenderTarget(DirectX::RenderTarget& renderTarget, int view = 0, bool autoAspect = true);
+		void SetRenderTarget(DirectX::RenderTarget&& renderTarget, int view = 0, bool autoAspect = true);
 
 		void SetRenderContext(const RenderContext& context);
 
@@ -108,9 +108,17 @@ namespace Causality
 		float Fov, AspectRatio;
 		bool  dirty;
 
-		BoundingFrustum								m_ViewFrutum;
 		DirectX::RenderTarget						m_RenderTarget;
 		RenderContext								m_pRenderContext;
 		std::shared_ptr<Devices::OculusRift>		m_pRift;
+		mutable BoundingFrustum						m_ExtrinsicViewFrutum; // the frutum also transformed by View Matrix
+		mutable BoundingFrustum						m_ViewFrutum; // the frutum defined by Projection Matrix
+		mutable DirectX::Matrix4x4					m_ViewCache; // extrinsic matrix
+		mutable DirectX::Matrix4x4					m_ProjectionCache; // instrinsic matrix
+		mutable bool								m_ViewDirty;
+		mutable bool								m_ProjectDirty;
+
+		DirectX::XMMATRIX UpdateProjectionCache() const;
+
 	};
 }

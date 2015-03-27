@@ -73,8 +73,6 @@ namespace Causality
 		std::shared_ptr<Devices::Kinect>				pKinect;
 		std::shared_ptr<Devices::LeapMotion>			pLeap;
 
-		std::vector<std::unique_ptr<Scene>>				Scenes;
-
 		// Application Logic object
 		std::vector<std::unique_ptr<IAppComponent>>		Components;
 		std::map<IAppComponent*, std::vector<EventConnection>> ComponentsEventRegisterations;
@@ -82,6 +80,10 @@ namespace Causality
 
 		// Rendering loop timer.
 		DirectX::StepTimer m_timer;
+
+		// Should be the first thing to destroy
+		std::vector<std::unique_ptr<Scene>>				Scenes;
+
 	};
 
 }

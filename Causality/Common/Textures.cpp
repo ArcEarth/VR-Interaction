@@ -219,19 +219,19 @@ DirectX::DepthStencilBuffer::DepthStencilBuffer(ID3D11DepthStencilView * pDSV)
 }
 
 DepthStencilBuffer::DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format)
-	: Texture2D(pDevice, Width, Height, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL, 0)
+	: Texture2D(pDevice, Width, Height, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE, 0)
 {
 	// Initialize the depth stencil view.
-	D3D11_DEPTH_STENCIL_VIEW_DESC ViewDesc;
-	ZeroMemory(&ViewDesc, sizeof(ViewDesc));
+	//D3D11_DEPTH_STENCIL_VIEW_DESC ViewDesc;
+	//ZeroMemory(&ViewDesc, sizeof(ViewDesc));
 	// Set up the depth stencil view description.
-	ViewDesc.Format = Format;
-	ViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-	ViewDesc.Texture2D.MipSlice = 0;
+	//ViewDesc.Format = Format;
+	//ViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	//ViewDesc.Texture2D.MipSlice = 0;
 
 	auto pTexture = m_pResource.Get();
 	// Create the depth stencil view.
-	HRESULT hr = pDevice->CreateDepthStencilView(pTexture, &ViewDesc, m_pDepthStencilView.GetAddressOf());
+	HRESULT hr = pDevice->CreateDepthStencilView(pTexture, NULL, m_pDepthStencilView.GetAddressOf());
 	DirectX::ThrowIfFailed(hr);
 }
 

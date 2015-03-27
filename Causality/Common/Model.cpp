@@ -278,29 +278,39 @@ void DirectX::Scene::CollectionModel::Render(ID3D11DeviceContext * pContext, con
 
 void DirectX::Scene::ModelPart::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
 {
-	if (pEffect == nullptr && pMaterial)
+	if (pEffect == nullptr)
 	{
-		pEffect = pMaterial->GetRequestedEffect();
+		pEffect = this->pEffect.get(); // pMaterial->GetRequestEffect
 	}
 
 	auto pMEffect = dynamic_cast<BasicEffect*>(pEffect);
-	if (pMEffect && pMaterial)
+	if (pMEffect )
 	{
-		pMEffect->SetAlpha(pMaterial->GetAlpha());
-		if (pMaterial->GetDiffuseMap())
+		if (pMaterial)
 		{
-			pMEffect->SetTextureEnabled(true);
-			pMEffect->SetTexture(pMaterial->GetDiffuseMap());
-			pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
+			pMEffect->SetAlpha(pMaterial->GetAlpha());
+			if (pMaterial->GetDiffuseMap())
+			{
+				pMEffect->SetTextureEnabled(true);
+				pMEffect->SetTexture(pMaterial->GetDiffuseMap());
+				pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
+			}
+			else
+			{
+				pMEffect->SetTextureEnabled(false);
+				pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
+			}
+			pMEffect->SetSpecularColor(pMaterial->GetSpecularColor());
 		}
 		else
 		{
 			pMEffect->SetTextureEnabled(false);
-			pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
+			pMEffect->SetDiffuseColor(Colors::Gray);
+			pMEffect->SetSpecularColor(Colors::White);
 		}
-		pMEffect->SetSpecularColor(pMaterial->GetSpecularColor());
 	}
-	pEffect->Apply(pContext);
+	if (pEffect)
+		pEffect->Apply(pContext);
 	pMesh->Draw(pContext);
 }
 
@@ -310,9 +320,13 @@ void DirectX::Scene::CompositionModel::Render(ID3D11DeviceContext * pContext, co
 	auto pEffectM = dynamic_cast<IEffectMatrices*>(pEffect);
 	for (auto& part : Parts)
 	{
-		if (pEffectM)
-		{
+		if (pEffect && pEffectM)
 			pEffectM->SetWorld(world);
+		else
+		{
+			auto pPartEffectM = dynamic_cast<IEffectMatrices*>(part.pEffect.get());
+			if (pPartEffectM)
+				pPartEffectM->SetWorld(world);
 		}
 		part.Render(pContext, pEffect);
 	}

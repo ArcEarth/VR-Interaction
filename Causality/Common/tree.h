@@ -1424,7 +1424,7 @@ namespace stdx
 		}
 		// Iterator though all it's direct children
 		const_sibling_iterator children_begin() const {
-			return const_sibling_iterator(static_cast<const_pointer>(this)->_child);
+			return const_sibling_iterator(static_cast<const_pointer>(this)->_first_child);
 		}
 
 		const_sibling_iterator children_end() const {
@@ -1440,7 +1440,7 @@ namespace stdx
 		}
 		// breadth_first_iterator can self determine if it has meet the end
 		const_breadth_first_iterator descendants_breadth_first_begin() const {
-			return const_breadth_first_iterator(static_cast<const_pointer>(this)->_child);
+			return const_breadth_first_iterator(static_cast<const_pointer>(this)->_first_child);
 		}
 		// just an null-iterator
 		const_sibling_iterator descendants_breadth_first_end() const {
@@ -1475,7 +1475,7 @@ namespace stdx
 		}
 		// List-like iterator over children
 		mutable_sibling_iterator children_begin() {
-			return mutable_sibling_iterator(static_cast<pointer>(this)->_child);
+			return mutable_sibling_iterator(static_cast<pointer>(this)->_first_child);
 		}
 		// List-like iterator over children
 		mutable_sibling_iterator children_end() {
@@ -1491,7 +1491,7 @@ namespace stdx
 		}
 		// Breadth first descendants iterator can self determine if it has meet the end
 		mutable_breadth_first_iterator descendants_breadth_first_begin() {
-			return mutable_breadth_first_iterator(static_cast<pointer>(this)->_child);
+			return mutable_breadth_first_iterator(static_cast<pointer>(this)->_first_child);
 		}
 		// just an null-iterator
 		mutable_sibling_iterator descendants_breadth_first_end() {

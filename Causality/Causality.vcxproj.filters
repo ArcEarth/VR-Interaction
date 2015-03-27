@@ -138,6 +138,9 @@
     <ClCompile Include="SelectorScene.cpp">
       <Filter>Causality</Filter>
     </ClCompile>
+    <ClCompile Include="PlayerProxy.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -284,9 +287,6 @@
     <ClInclude Include="ProbalisticModel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SceneParser.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Armature.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -300,6 +300,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="BasicShapeModel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerProxy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -269,6 +269,28 @@ void BoneDisplacementFrame::Blend(BoneDisplacementFrame& out, const BoneDisplace
 
 }
 
+void Causality::BoneDisplacementFrame::TransformMatrix(DirectX::XMFLOAT3X4 * pOut, const self_type & from, const self_type & to)
+{
+	auto n = min(from.size(), to.size());
+	for (int i = 0; i <= n; ++i)
+	{
+		XMMATRIX mat = BoneDisplacement::TransformMatrix(from[i], to[i]);
+		mat = XMMatrixTranspose(mat);
+		XMStoreFloat3x4(pOut + i, mat);
+	}
+}
+
+void Causality::BoneDisplacementFrame::TransformMatrix(DirectX::XMFLOAT4X4 * pOut, const self_type & from, const self_type & to)
+{
+	auto n = min(from.size(), to.size());
+	for (int i = 0; i <= n; ++i)
+	{
+		XMMATRIX mat = BoneDisplacement::TransformMatrix(from[i], to[i]);
+		mat = XMMatrixTranspose(mat);
+		XMStoreFloat4x4(pOut + i, mat);
+	}
+}
+
 Eigen::VectorXf AnimationSpace::CaculateFrameFeatureVectorLnQuaternion(const frame_type & frame) const
 {
 	Eigen::VectorXf fvector(frame.size() * 3);

@@ -424,6 +424,7 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">-Zm113 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">-Zm113 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
+    <ClCompile Include="PlayerProxy.cpp" />
     <ClCompile Include="PrimaryCamera.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch_bcl.h</PrecompiledHeaderFile>
@@ -530,6 +531,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="pch_bcl.h" />
     <ClInclude Include="pch_bullet.h" />
+    <ClInclude Include="PlayerProxy.h" />
     <ClInclude Include="PrimaryCamera.h" />
     <ClInclude Include="ProbalisticModel.h" />
     <ClInclude Include="RenderContext.h" />
