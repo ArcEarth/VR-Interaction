@@ -174,7 +174,7 @@ int main()
 			//5.Retrieve the animation curves.Given a node(lNode) and an animation layer(lAnimLayer), you can retrieve the animation curves for node properties such as the local translation as shown in the following example.
 			fbx::FbxAnimCurveNode* lAnimCurveNode = lAnimLayer->GetMember<fbx::FbxAnimCurveNode>(curvIdx);
 				//lNode->LclTranslation.GetCurve(lAnimLayer, FBXSDK_CURVENODE_COMPONENT_X);
-
+			//lAnimCurveNode->GetC
 		}
 
 	}

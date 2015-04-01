@@ -26,34 +26,20 @@
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\ConsoleUtility\Source.cpp</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>C:\Users\yupeng\AppData\Local\Temp\Report20150326-1802.diagsession</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Object.h</string>
     </ArrayOfString>
   </ArrayOfArrayOfString>
   <ArrayOfArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Interactive.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CausalityApplication.cpp</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\PrimitiveVisualizer.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\PrimitiveVisualizer.cpp</string>
-    </ArrayOfString>
-  </ArrayOfArrayOfString>
-  <ArrayOfArrayOfString>
-    <ArrayOfString>
-      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\PlayerProxy.cpp</string>
-      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\PlayerProxy.h</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\PlayerProxy.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\PlayerProxy.h</string>
     </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Model.cpp</string>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Model.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Armature.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Armature.cpp</string>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Armature.h</string>
     </ArrayOfString>
     <ArrayOfString>
@@ -88,6 +74,20 @@
     </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\pch.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\packages\Eigen.3.2.4\build\native\include\Eigen\src\Core\Matrix.h</string>
+    </ArrayOfString>
+  </ArrayOfArrayOfString>
+  <ArrayOfArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Interactive.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CausalityApplication.cpp</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\PrimitiveVisualizer.h</string>
     </ArrayOfString>
   </ArrayOfArrayOfString>
 </ArrayOfArrayOfArrayOfString>

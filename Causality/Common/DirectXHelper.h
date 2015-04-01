@@ -176,8 +176,8 @@ namespace DirectX
 	{
 		Concurrency::task<std::vector<byte>> RetriveDateTask([filename]()->std::vector < byte > {
 			std::ifstream fin;
-			auto current = std::tr2::sys::current_path<std::tr2::sys::wpath>();
-			auto dir = current.directory_string();
+			//auto current = std::tr2::sys::current_path<std::tr2::sys::wpath>();
+			//auto dir = current.directory_string();
 			fin.open(filename, std::ios::in | std::ios::binary);
 			if (fin.is_open())
 			{

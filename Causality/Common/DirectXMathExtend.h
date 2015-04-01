@@ -878,7 +878,7 @@ namespace DirectX
 		inline ~AlignedAllocator() throw() {}
 
 		template <size_t _Other_Alignment>
-		inline bool operator== (const AlignedAllocator<_T, _Other_Alignment> & rhs)
+		inline bool operator== (const AlignedAllocator<_T, _Other_Alignment> & rhs) const
 		{
 			return _Align_Boundary == _Other_Alignment;
 		}

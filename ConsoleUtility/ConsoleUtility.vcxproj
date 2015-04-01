@@ -1,6 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.props" Condition="Exists('..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -68,27 +67,27 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <NuGetPackageImportStamp>0f0469d8</NuGetPackageImportStamp>
+    <NuGetPackageImportStamp>49df6a1e</NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(BOOST_ROOT);C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\include\;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib\;$(LibraryPath)</LibraryPath>
-    <ExecutablePath>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;$(IncludePath)</IncludePath>
+    <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib\;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(BOOST_ROOT);C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\include\;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib\;$(LibraryPath)</LibraryPath>
-    <ExecutablePath>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;$(IncludePath)</IncludePath>
+    <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib\;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LibraryPath>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
-    <ExecutablePath>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
-    <IncludePath>$(BOOST_ROOT);C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\include\;$(IncludePath)</IncludePath>
+    <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LibraryPath>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
-    <ExecutablePath>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
-    <IncludePath>$(BOOST_ROOT);C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\include\;$(IncludePath)</IncludePath>
+    <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -106,13 +105,13 @@
       <PreserveSbr>true</PreserveSbr>
     </Bscmake>
     <CustomBuildStep>
-      <Command>copy "C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" libfbxsdk.dll</Command>
+      <Command>copy "$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" libfbxsdk.dll</Command>
     </CustomBuildStep>
     <CustomBuildStep>
       <Outputs>libfbxsdk.dll;%(Outputs)</Outputs>
     </CustomBuildStep>
     <CustomBuildStep>
-      <Inputs>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll</Inputs>
+      <Inputs>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll</Inputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -134,13 +133,13 @@
       <PreserveSbr>true</PreserveSbr>
     </Bscmake>
     <CustomBuildStep>
-      <Command>copy "C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" libfbxsdk.dll</Command>
+      <Command>copy "$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" libfbxsdk.dll</Command>
     </CustomBuildStep>
     <CustomBuildStep>
       <Outputs>libfbxsdk.dll;%(Outputs)</Outputs>
     </CustomBuildStep>
     <CustomBuildStep>
-      <Inputs>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll</Inputs>
+      <Inputs>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll</Inputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -159,13 +158,13 @@
       <AdditionalDependencies>libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
-      <Command>copy "C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" libfbxsdk.dll</Command>
+      <Command>copy "$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" libfbxsdk.dll</Command>
     </CustomBuildStep>
     <CustomBuildStep>
       <Outputs>libfbxsdk.dll;%(Outputs)</Outputs>
     </CustomBuildStep>
     <CustomBuildStep>
-      <Inputs>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll</Inputs>
+      <Inputs>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll</Inputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -184,13 +183,13 @@
       <AdditionalDependencies>libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <CustomBuildStep>
-      <Command>copy "C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" libfbxsdk.dll</Command>
+      <Command>copy "$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" libfbxsdk.dll</Command>
     </CustomBuildStep>
     <CustomBuildStep>
       <Outputs>libfbxsdk.dll;%(Outputs)</Outputs>
     </CustomBuildStep>
     <CustomBuildStep>
-      <Inputs>C:\Program Files\Autodesk\FBX\FBX SDK\2015.1\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll</Inputs>
+      <Inputs>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll</Inputs>
     </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -207,21 +206,19 @@
     <ClInclude Include="auto_pch.h" />
     <ClInclude Include="Source.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\..\SDKs\DirectXTK\DirectXTK_Desktop_2015.vcxproj">
+      <Project>{e0b52ae7-e160-4d32-bf3f-910b785e5a8e}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\Causality\packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets" Condition="Exists('..\Causality\packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets')" />
-    <Import Project="..\Causality\packages\tinyxml2.2.1.0\build\native\tinyxml2.targets" Condition="Exists('..\Causality\packages\tinyxml2.2.1.0\build\native\tinyxml2.targets')" />
-    <Import Project="..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.targets" Condition="Exists('..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.targets')" />
     <Import Project="..\Causality\packages\Eigen.3.2.4\build\native\Eigen.targets" Condition="Exists('..\Causality\packages\Eigen.3.2.4\build\native\Eigen.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\Causality\packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\tinyxml2.redist.2.1.0\build\native\tinyxml2.redist.targets'))" />
-    <Error Condition="!Exists('..\Causality\packages\tinyxml2.2.1.0\build\native\tinyxml2.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\tinyxml2.2.1.0\build\native\tinyxml2.targets'))" />
-    <Error Condition="!Exists('..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.props')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.props'))" />
-    <Error Condition="!Exists('..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\directxtk_desktop_2013.2015.2.25.1\build\native\directxtk_desktop_2013.targets'))" />
     <Error Condition="!Exists('..\Causality\packages\Eigen.3.2.4\build\native\Eigen.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\Causality\packages\Eigen.3.2.4\build\native\Eigen.targets'))" />
   </Target>
 </Project>

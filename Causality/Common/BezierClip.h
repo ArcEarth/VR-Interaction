@@ -51,7 +51,7 @@ namespace Geometrics
 			typedef _Ty ValueType;
 			typedef std::array< _Ty,Order+1> Collection;
 			typedef Internal::Combine<Order> CombinationType;
-
+			typedef BezierClipping SelfType;
 		protected:
 			const static Internal::Combine<Order> Combination;
 
@@ -70,40 +70,27 @@ namespace Geometrics
 			//	}
 
 		public:
-			BezierClipping()
-			{
-			}
-
-			BezierClipping(const Collection & ControlPoints)
-			{
-				*this = ControlPoints;
-			}
-
-			BezierClipping(Collection&& rhs)
-			{
-				*this = std::move(rhs);
-			}
-
+			BezierClipping() = default;
+			BezierClipping(const SelfType&) = default;
 			BezierClipping(BezierClipping&& rhs)
 			{
 				*this = std::move(rhs);
 			}
-
-			BezierClipping& operator=(Collection&& rhs)
+			BezierClipping(const Collection & ControlPoints)
+			{
+				*this = ControlPoints;
+			}
+			BezierClipping(Collection&& rhs)
 			{
 				*this = std::move(rhs);
-				return *this;
 			}
-			BezierClipping& operator=(const Collection& rhs)
+			using Collection::operator=;
+			BezierClipping& operator=(const BezierClipping& rhs) = default;
+			BezierClipping& operator=(BezierClipping&& rhs)
 			{
-				*this = rhs;
+				Collection::operator=(std::move(rhs));
 				return *this;
 			}
-			//BezierClipping& operator=(BezierClipping&& rhs)
-			//{
-			//	*this = std::move(rhs);
-			//	return *this;
-			//}
 
 			/// <summary>
 			/// Subdivides the Clip into 2 Clip with in the specified ratio r.

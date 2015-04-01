@@ -2,6 +2,7 @@
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
 #include <dxgiformat.h>
+#include <type_traits>
 
 // DXGI Format Utilities
 namespace DXGIFormatTraits
@@ -48,75 +49,75 @@ namespace DirectX
 	/// <returns>DXGI_FORMAT</returns>
 	template <class T>
 	struct ExtractDXGIFormat
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_UNKNOWN>
+		: public std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_UNKNOWN>
 	{};
 	template <>
 	struct ExtractDXGIFormat<uint32_t>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32_UINT>
+		: public  std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32_UINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<uint16_t>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R16_UINT>
+		: public  std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R16_UINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<uint8_t>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R8_UINT>
+		: public  std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R8_UINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<int32_t>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32_SINT>
+		: public  std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32_SINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<int16_t>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R16_SINT>
+		: public  std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R16_SINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<int8_t>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R8_SINT>
+		: public  std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R8_SINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<float>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32_FLOAT>
+		: public  std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32_FLOAT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMVECTOR>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32A32_FLOAT>
+		: public  std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32A32_FLOAT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMFLOAT2>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32_FLOAT>
+		: public std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32_FLOAT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMFLOAT3>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32_FLOAT>
+		: public std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32_FLOAT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMFLOAT4>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32A32_FLOAT>
+		: public std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32A32_FLOAT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMUINT2>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32_UINT>
+		: public std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32_UINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMUINT3>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32_UINT>
+		: public std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32_UINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMUINT4>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32A32_UINT>
+		: public std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32A32_UINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMINT4>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32A32_SINT>
+		: public std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32A32_SINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMINT3>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32_SINT>
+		: public std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32B32_SINT>
 	{};
 	template <>
 	struct ExtractDXGIFormat<XMINT2>
-		: std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32_SINT>
+		: public  std::integral_constant<DXGI_FORMAT,DXGI_FORMAT_R32G32_SINT>
 	{}; 
 
 	namespace PackedVector
