@@ -139,7 +139,7 @@
       <Filter>Causality</Filter>
     </ClCompile>
     <ClCompile Include="PlayerProxy.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Causality</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
