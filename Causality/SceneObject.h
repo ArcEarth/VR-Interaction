@@ -54,10 +54,7 @@ namespace Causality
 
 		virtual ~SceneObject() override;
 
-		SceneObject() {
-			m_IsEnabled = true;
-			m_IsStatic = false;
-		};
+		SceneObject();;
 
 		inline void AddChild(SceneObject* child)
 		{
@@ -129,6 +126,7 @@ namespace Causality
 	class RenderableSceneObject : virtual public SceneObject , virtual public IRenderable
 	{
 	public:
+		RenderableSceneObject();
 		//int										MaxLoD() const;
 		//int										CurrentLoD() const;
 		//void										SetLoD(int LoD);

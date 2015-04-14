@@ -308,6 +308,9 @@
     <ClInclude Include="SceneParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Common\Filter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\OculusDisortionPixelShader.hlsl">

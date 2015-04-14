@@ -3,7 +3,7 @@
 	<scene.assets>
 		<mesh name="cube_mesh" src="cube.obj"></mesh>
 	    <mesh name="baseball_bat_mesh" src="baseball_bat.obj"></mesh>
-	    <mesh name="bunny_mesh" src="Mug.obj"></mesh>
+	    <mesh name="bunny_mesh" src="bunny.obj"></mesh>
 	    <armature name="bunny_armature" src="bunny.skl"></armature>
 	    <behavier name="bunny_behavier" armature="{bunny_armature}" >
 		    <animation_clip name="move" src="bunny.move.kfa"></animation_clip>
@@ -13,15 +13,18 @@
 	<scene.content>
 	  	<grid name="root">
 	  		<coordinate_axis/>
-			<camera name="primary_camera" background="#FFFFFFFF" position="0,0,1.5" focus="0,0,0" up="0,1,0">
+			<camera name="primary_camera" background="#FFFFFFFF" position="0,0.5,2.5" focus="0,0,0" up="0,1,0">
 				<first_person_keyboard_mouse_control />
 			</camera>
+
+	<!-- 		<object name="ground" position="-2.0,-0.02,-2.0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>
+ -->
 			<skydome name="sky" background="SkyBox\GrimmNight"/>
-			<object name="baseball_bat" position="1.0,0.5.0,0.0" scale="0.1" mesh="{baseball_bat_mesh}"/>
-			<player_controller name="player">
-				<creature name="bunny" position="-1.0,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
+			<player_controller name="player" position="0,1.0,0">
+<!-- 				<creature name="bunny" position="-1.0,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
 				<creature name="bunny2" position="-0.5,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
-				<kinect_visualizer/>
+ -->				
+ 				<kinect_visualizer/>
 			</player_controller>
 		</grid>
 	</scene.content>

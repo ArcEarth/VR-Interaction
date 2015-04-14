@@ -1,0 +1,132 @@
+<node name='Root' id='0' translation='(0.000000, 0.000000, 0.000000)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+	<attribute type='skeleton' name=''/>
+	<node name='Hips' id='1' translation='(1.402054, 93.663849, -0.304350)' rotation='(14.782258, -5.301206, 3.305547)' scaling='(1.000000, 1.000000, 1.000000)'>
+		<attribute type='skeleton' name=''/>
+		<node name='Tail1' id='2' translation='(-0.000000, 3.032106, -35.981194)' rotation='(7.230731, 5.432391, -4.095235)' scaling='(1.000000, 1.000000, 1.000000)'>
+			<attribute type='skeleton' name=''/>
+			<node name='Tail2' id='3' translation='(0.000000, -3.276765, -6.184244)' rotation='(30.962252, 2.030566, -3.247141)' scaling='(1.000000, 1.000000, 1.000000)'>
+				<attribute type='skeleton' name=''/>
+				<node name='Tail3' id='4' translation='(0.000000, -14.554196, -4.851392)' rotation='(-2.641005, 0.502839, 0.298163)' scaling='(1.000000, 1.000000, 1.000000)'>
+					<attribute type='skeleton' name=''/>
+					<node name='Tail4' id='5' translation='(0.000000, -27.149817, 1.017147)' rotation='(-8.114239, 1.498651, 5.144263)' scaling='(1.000000, 1.000000, 1.000000)'>
+						<attribute type='skeleton' name=''/>
+						<node name='Tail5' id='6' translation='(-0.000000, -14.656427, -10.320399)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+							<attribute type='skeleton' name=''/>
+						</node>
+					</node>
+				</node>
+			</node>
+		</node>
+		<node name='LeftUpLeg' id='7' translation='(13.429371, -6.284989, -14.104745)' rotation='(-22.378662, 0.324767, -7.034311)' scaling='(1.000000, 1.000000, 1.000000)'>
+			<attribute type='skeleton' name=''/>
+			<node name='LeftLeg' id='8' translation='(-2.224948, -30.231112, -2.468040)' rotation='(72.053520, -7.990519, 2.711957)' scaling='(1.000000, 1.000000, 1.000000)'>
+				<attribute type='skeleton' name=''/>
+				<node name='LeftFoot' id='9' translation='(-0.065165, -10.036457, -13.859423)' rotation='(-64.066986, 3.291892, -2.918296)' scaling='(1.000000, 1.000000, 1.000000)'>
+					<attribute type='skeleton' name=''/>
+					<node name='LeftToeBase' id='10' translation='(-2.293536, -29.882633, -3.114914)' rotation='(55.827621, 5.223697, 1.534439)' scaling='(1.000000, 1.000000, 1.000000)'>
+						<attribute type='skeleton' name=''/>
+						<node name='LeftToeBaseEnd' id='11' translation='(-0.000000, -10.507766, 12.193969)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+							<attribute type='skeleton' name=''/>
+						</node>
+					</node>
+				</node>
+			</node>
+		</node>
+		<node name='RightUpLeg' id='12' translation='(-14.697258, -7.503762, -15.446966)' rotation='(-9.452370, -0.748554, -7.681639)' scaling='(1.000000, 1.000000, 1.000000)'>
+			<attribute type='skeleton' name=''/>
+			<node name='Rightleg' id='13' translation='(2.148334, -30.237547, -2.456953)' rotation='(48.091068, 3.791878, 2.638502)' scaling='(1.000000, 1.000000, 1.000000)'>
+				<attribute type='skeleton' name=''/>
+				<node name='RightFoot' id='14' translation='(-0.013976, -10.025990, -13.867186)' rotation='(-42.606850, -2.381133, 2.280208)' scaling='(1.000000, 1.000000, 1.000000)'>
+					<attribute type='skeleton' name=''/>
+					<node name='RightToeBase' id='15' translation='(2.210155, -29.889870, -3.105069)' rotation='(108.848991, 3.189785, 7.979768)' scaling='(1.000000, 1.000000, 1.000000)'>
+						<attribute type='skeleton' name=''/>
+						<node name='RightToeBaseEnd' id='16' translation='(0.000000, -9.589825, 10.786244)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+							<attribute type='skeleton' name=''/>
+						</node>
+					</node>
+				</node>
+			</node>
+		</node>
+		<node name='Spine' id='17' translation='(0.000000, -1.841088, 11.974151)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+			<attribute type='skeleton' name=''/>
+			<node name='Spine1' id='18' translation='(2.634139, 3.824959, 15.541191)' rotation='(-10.483912, 6.439216, -3.794974)' scaling='(1.000000, 1.000000, 1.000000)'>
+				<attribute type='skeleton' name=''/>
+				<node name='Neck' id='19' translation='(0.000000, -0.109472, 2.881428)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+					<attribute type='skeleton' name=''/>
+					<node name='Neck1' id='20' translation='(0.181424, 9.644786, 18.737011)' rotation='(4.044220, 1.021817, 0.879156)' scaling='(1.000000, 1.000000, 1.000000)'>
+						<attribute type='skeleton' name=''/>
+						<node name='Neck2' id='21' translation='(0.000000, 11.080247, 12.423292)' rotation='(-13.864593, -6.571977, 0.964172)' scaling='(1.000000, 1.000000, 1.000000)'>
+							<attribute type='skeleton' name=''/>
+							<node name='Head' id='22' translation='(0.000000, 9.065652, 16.956121)' rotation='(-5.816635, 0.006877, 0.041397)' scaling='(1.000000, 1.000000, 1.000000)'>
+								<attribute type='skeleton' name=''/>
+								<node name='Jaw' id='23' translation='(0.000000, -26.119280, 10.333461)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+									<attribute type='skeleton' name=''/>
+								</node>
+								<node name='R_Eye' id='24' translation='(-7.542558, -7.061851, 10.943323)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+									<attribute type='skeleton' name=''/>
+								</node>
+								<node name='L_Eye' id='25' translation='(7.539612, -7.061851, 10.943312)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+									<attribute type='skeleton' name=''/>
+								</node>
+								<node name='MouthTop' id='26' translation='(0.000000, -30.196453, 19.390614)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+									<attribute type='skeleton' name=''/>
+								</node>
+								<node name='L_Ear' id='27' translation='(5.991940, 1.192867, 8.759535)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+									<attribute type='skeleton' name=''/>
+									<node name='L_EarTop' id='28' translation='(1.184546, 3.268559, 2.036313)' rotation='(57.686690, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+										<attribute type='skeleton' name=''/>
+									</node>
+								</node>
+								<node name='R_Ear' id='29' translation='(-5.640753, 0.784706, 7.929708)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+									<attribute type='skeleton' name=''/>
+									<node name='R_EarTop' id='30' translation='(-1.535734, 3.676719, 2.866140)' rotation='(57.686690, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+										<attribute type='skeleton' name=''/>
+									</node>
+								</node>
+							</node>
+						</node>
+						<node name='Main' id='31' translation='(-0.000000, 19.742462, 8.942180)' rotation='(0.574199, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+							<attribute type='skeleton' name=''/>
+						</node>
+					</node>
+					<node name='LeftArm' id='32' translation='(14.167245, -24.493475, 22.325848)' rotation='(-14.997625, -5.702879, -5.866896)' scaling='(1.000000, 1.000000, 1.000000)'>
+						<attribute type='skeleton' name=''/>
+						<node name='LeftForeArm' id='33' translation='(-0.259215, -29.631504, -6.199429)' rotation='(7.699176, -0.111985, 0.153693)' scaling='(1.000000, 1.000000, 1.000000)'>
+							<attribute type='skeleton' name=''/>
+							<node name='LeftHand' id='34' translation='(-0.193056, -22.092060, -4.622087)' rotation='(0.273450, -0.939130, -2.209119)' scaling='(1.000000, 1.000000, 1.000000)'>
+								<attribute type='skeleton' name=''/>
+								<node name='LeftFinger1' id='35' translation='(1.193012, -11.421726, 6.707864)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+									<attribute type='skeleton' name=''/>
+								</node>
+							</node>
+						</node>
+					</node>
+					<node name='RightArm' id='36' translation='(-12.014521, -21.151981, 29.293600)' rotation='(-56.794926, -6.597845, 4.060307)' scaling='(1.000000, 1.000000, 1.000000)'>
+						<attribute type='skeleton' name=''/>
+						<node name='RightforeArm' id='37' translation='(0.221750, -29.631721, -6.199503)' rotation='(17.150124, 0.272141, -0.397512)' scaling='(1.000000, 1.000000, 1.000000)'>
+							<attribute type='skeleton' name=''/>
+							<node name='RightHand' id='38' translation='(0.165114, -22.092291, -4.622149)' rotation='(29.466995, 6.746447, -0.932294)' scaling='(1.000000, 1.000000, 1.000000)'>
+								<attribute type='skeleton' name=''/>
+								<node name='RightFinger1' id='39' translation='(-1.197848, -11.419537, 6.683361)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+									<attribute type='skeleton' name=''/>
+								</node>
+							</node>
+						</node>
+					</node>
+					<node name='Volume01' id='40' translation='(-0.000000, -10.949754, 30.959921)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+						<attribute type='skeleton' name=''/>
+					</node>
+				</node>
+				<node name='Volume02' id='41' translation='(-0.000000, -26.194336, 0.182669)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+					<attribute type='skeleton' name=''/>
+				</node>
+			</node>
+			<node name='Volume03' id='42' translation='(-0.000000, 9.524818, 5.814658)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+				<attribute type='skeleton' name=''/>
+			</node>
+		</node>
+		<node name='Volume04' id='43' translation='(0.000000, -25.749052, 0.168829)' rotation='(0.000000, 0.000000, 0.000000)' scaling='(1.000000, 1.000000, 1.000000)'>
+			<attribute type='skeleton' name=''/>
+		</node>
+	</node>
+</node>

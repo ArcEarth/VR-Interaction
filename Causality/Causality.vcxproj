@@ -575,6 +575,7 @@
     <ClInclude Include="Common\CompositeFlag.h" />
     <ClInclude Include="Common\ConstantBuffer.h" />
     <ClInclude Include="Common\Extern\tiny_obj_loader.h" />
+    <ClInclude Include="Common\Filter.h" />
     <ClInclude Include="Common\pch_directX.h" />
     <ClInclude Include="Common\PrimitiveVisualizer.h" />
     <ClInclude Include="Common\DeviceBuffers.h" />

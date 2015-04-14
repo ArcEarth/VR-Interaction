@@ -62,6 +62,11 @@ Causality::SceneObject::~SceneObject()
 	int *p = nullptr;
 }
 
+Causality::SceneObject::SceneObject() {
+	m_IsEnabled = true;
+	m_IsStatic = false;
+}
+
 void Causality::SceneObject::Update(time_seconds const & time_delta) {}
 
 DirectX::XMMATRIX SceneObject::GlobalTransformMatrix() const
@@ -120,6 +125,11 @@ void RenderableSceneObject::Render(RenderContext & pContext)
 void XM_CALLCONV RenderableSceneObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 	return;
+}
+
+Causality::RenderableSceneObject::RenderableSceneObject()
+{
+	m_isVisable = true;
 }
 
 bool RenderableSceneObject::IsVisible(const BoundingFrustum & viewFrustum) const

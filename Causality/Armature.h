@@ -15,20 +15,20 @@ namespace Causality
 	{
 	public:
 		// Local Data
-		DirectX::Quaternion LocalOrientation;
+		DirectX::Quaternion LclRotation;
 
 		XM_ALIGN16
-			DirectX::Vector3	Scaling; // Local Scaling , adjust this transform to adjust bone length
+		DirectX::Vector3	LclScaling; // Local LclScaling , adjust this transform to adjust bone length
 
-										 // Global Data (dulplicate with Local)
-		DirectX::Quaternion GlobalOrientation;
+		// Global Data (dulplicate with Local)
+		// Global Rotation
+		DirectX::Quaternion GblRotation;
 
 		// Global Position for the begining joint of this bone
 		XM_ALIGN16
-			DirectX::Vector3	OriginPosition;
-
+		DirectX::Vector3	OriginPosition;
 		XM_ALIGN16
-			DirectX::Vector3	EndPostion;
+		DirectX::Vector3	EndPostion;
 		//DirectX::XMVECTOR EndJointPosition() const;
 		bool DirtyFlag;
 
@@ -44,9 +44,9 @@ namespace Causality
 		// Static helper methods for caculate transform matrix
 		// Caculate the Transform Matrix from "FromState" to "ToState"
 		static DirectX::XMMATRIX TransformMatrix(const BoneDisplacement& from, const BoneDisplacement& to);
-		// Ingnore the Scaling transform, have better performence than TransformMatrix
+		// Ingnore the LclScaling transform, have better performence than TransformMatrix
 		static DirectX::XMMATRIX RigidTransformMatrix(const BoneDisplacement& from, const BoneDisplacement& to);
-		// Ingnore the Scaling transform, may be useful in skinning with Dual-Quaternion
+		// Ingnore the LclScaling transform, may be useful in skinning with Dual-Quaternion
 		static DirectX::XMDUALVECTOR RigidTransformDualQuaternion(const BoneDisplacement& from, const BoneDisplacement& to);
 	};
 

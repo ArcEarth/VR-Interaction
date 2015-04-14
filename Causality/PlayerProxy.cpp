@@ -10,24 +10,64 @@ using namespace std;
 std::pair<JointType, JointType> XFeaturePairs [] = { 
 	{JointType_SpineBase, JointType_SpineShoulder},
 	{ JointType_SpineShoulder, JointType_Head },
-	{JointType_SpineShoulder, JointType_HandLeft},
-	{JointType_SpineShoulder, JointType_HandRight },
-	{ JointType_SpineShoulder, JointType_AnkleLeft},
-	{ JointType_SpineShoulder, JointType_AnkleRight},
-	{ JointType_HandLeft, JointType_HandTipLeft },
-	{ JointType_HandRight, JointType_HandTipRight },
-	{ JointType_HandLeft, JointType_ThumbLeft },
-	{ JointType_HandRight, JointType_ThumbRight },
+	{JointType_ShoulderLeft, JointType_ElbowLeft},
+	{JointType_ShoulderRight, JointType_ElbowRight },
+	{ JointType_ElbowLeft, JointType_HandLeft },
+	{ JointType_ElbowRight, JointType_HandRight },
+	{ JointType_HipLeft, JointType_KneeLeft},
+	{ JointType_HipRight, JointType_KneeRight},
+	{ JointType_KneeLeft, JointType_AnkleLeft},
+	{ JointType_KneeRight, JointType_AnkleRight},
+	//{ JointType_HandLeft, JointType_HandTipLeft },
+	//{ JointType_HandRight, JointType_HandTipRight },
+	//{ JointType_HandLeft, JointType_ThumbLeft },
+	//{ JointType_HandRight, JointType_ThumbRight },
 };
+
+JointType KeyJoints [] = {
+	JointType_SpineBase,		//1
+	JointType_SpineShoulder,	//2
+	JointType_Head,				//3
+	JointType_ShoulderLeft,		//4
+	JointType_ElbowLeft,		//5
+	JointType_WristLeft,		//6
+	JointType_ShoulderRight,	//7
+	JointType_ElbowRight,		//8
+	JointType_WristRight,		//9
+	JointType_HipLeft,			//10
+	JointType_KneeLeft,			//11
+	JointType_AnkleLeft,		//12
+	JointType_HipRight,			//13
+	JointType_KneeRight,		//14
+	JointType_AnkleRight,		//15
+};
+
+static const size_t KeyJointCount = ARRAYSIZE(KeyJoints);
+
+static const size_t FeatureCount = (KeyJointCount * (KeyJointCount - 1))/2;
+static const size_t FeatureDim = FeatureCount * 3;
 
 VectorXf HumanFeatureFromFrame(const BoneDisplacementFrame& frame)
 {
-	VectorXf X(ARRAYSIZE(XFeaturePairs)*3);
-	for (size_t i = 0; i < ARRAYSIZE(XFeaturePairs); i++)
+	//VectorXf X(ARRAYSIZE(XFeaturePairs)*3);
+	//for (size_t i = 0; i < ARRAYSIZE(XFeaturePairs); i++)
+	//{
+	//	auto& p = XFeaturePairs[i];
+	//	Vector3 v = frame[p.first].EndPostion - frame[p.second].EndPostion;
+	//	X.block<3, 1>(i * 3,0) = Map<Vector3f>(&v.x);
+	//}
+
+	VectorXf X(FeatureDim);
+	int k = 0;
+	Vector3 v;
+	for (size_t i = 0; i < KeyJointCount; i++)
 	{
-		auto& p = XFeaturePairs[i];
-		Vector3 v = frame[p.first].EndPostion - frame[p.second].EndPostion;
-		X.block<3, 1>(i * 3,0) = Map<Vector3f>(&v.x);
+		for (size_t j = i+1; j < KeyJointCount; j++)
+			if (i != j)
+			{
+				v = frame[KeyJoints[i]].EndPostion - frame[KeyJoints[j]].EndPostion;
+				X.block<3, 1>(k++ * 3,0) = Map<Vector3f>(&v.x);
+			}
 	}
 	return X;
 }
@@ -35,7 +75,7 @@ VectorXf HumanFeatureFromFrame(const BoneDisplacementFrame& frame)
 Causality::PlayerProxy::PlayerProxy()
 	: FrameBuffer(BufferFramesCount)
 {
-
+	IsInitialized = false;
 }
 
 Causality::PlayerProxy::~PlayerProxy()
@@ -49,7 +89,7 @@ void Causality::PlayerProxy::Initialize()
 {
 	pKinect = Devices::Kinect::GetForCurrentView();
 	pPlayerArmature = &pKinect->Armature();
-	FrameBuffer.clear();
+	//FrameBuffer.clear();
 	for (auto& child : children())
 	{
 		auto pObj = dynamic_cast<KinematicSceneObject*>(&child);
@@ -60,6 +100,7 @@ void Causality::PlayerProxy::Initialize()
 			States.back().SetTargetObject(*pObj);
 		}
 	}
+	IsInitialized = true;
 }
 
 std::pair<float,float> PlayerProxy::ExtractUserMotionPeriod()
@@ -107,20 +148,21 @@ void Causality::PlayerProxy::PrintFrameBuffer(int No)
 	int flag = std::ofstream::out | (No == 1 ? 0 : std::ofstream::app);
 	std::ofstream fout("handpos.csv", flag);
 
+	//Matrix<float, Dynamic, FeatureDim> X(BufferFramesCount);
 	for (auto& frame : FrameBuffer)
 	{
-		auto X = HumanFeatureFromFrame(frame);
+		auto Xj = HumanFeatureFromFrame(frame);
 
-		for (size_t i = 0; i < X.size() - 1; i++)
+		for (size_t i = 0; i < Xj.size() - 1; i++)
 		{
-			fout << X(i) << ',';
+			fout << Xj(i) << ',';
 		}
-		fout << X(X.size() - 1) << endl;
+		fout << Xj(Xj.size() - 1) << endl;
 
 		//for (auto& bone : frame)
 		//{
 		//	const auto& pos = bone.EndPostion;
-		//	//DirectX::XMVECTOR quat = bone.LocalOrientation;
+		//	//DirectX::XMVECTOR quat = bone.LclRotation;
 		//	//Vector3 pos = DirectX::XMQuaternionLn(quat);
 		//	fout << pos.x << ',' << pos.y << ',' << pos.z << ',';
 		//}
@@ -131,11 +173,15 @@ void Causality::PlayerProxy::PrintFrameBuffer(int No)
 
 void Causality::PlayerProxy::Update(time_seconds const & time_delta)
 {
+	if (!IsInitialized) 
+		return;
 	const auto &players = pKinect->GetLatestPlayerFrame();
 	static long long frame_count = 0;
 	if (players.size() != 0)
 	{
 		auto player = players.begin()->second;
+		if (player == nullptr)
+			return;
 		const auto& frame = player->PoseFrame;
 		if (FrameBuffer.full())
 			FrameBuffer.pop_back();

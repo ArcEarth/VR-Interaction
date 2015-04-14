@@ -13,11 +13,11 @@ using namespace Causality;
 
 void BoneDisplacement::UpdateGlobalData(const BoneDisplacement & reference)
 {
-	XMVECTOR ParQ = reference.GlobalOrientation;
-	XMVECTOR Q = XMQuaternionMultiply(ParQ, LocalOrientation);
-	GlobalOrientation = Q;
+	XMVECTOR ParQ = reference.GblRotation;
+	XMVECTOR Q = XMQuaternionMultiply(ParQ, LclRotation);
+	GblRotation = Q;
 	OriginPosition = reference.EndPostion;
-	XMVECTOR V = Scaling;
+	XMVECTOR V = LclScaling;
 	V = XMVectorMultiply(V, g_XMIdentityR1.v);
 	V = XMVector3Rotate(V, Q);
 	V = XMVectorAdd(V, OriginPosition);
@@ -27,23 +27,23 @@ void BoneDisplacement::UpdateGlobalData(const BoneDisplacement & reference)
 void BoneDisplacement::UpdateLocalData(const BoneDisplacement& reference)
 {
 	OriginPosition = reference.EndPostion;
-	XMVECTOR ParQ = reference.GlobalOrientation;
+	XMVECTOR ParQ = reference.GblRotation;
 	ParQ = XMQuaternionInverse(ParQ);
-	XMVECTOR Q = GlobalOrientation;
-	LocalOrientation = XMQuaternionMultiply(ParQ, Q);
+	XMVECTOR Q = GblRotation;
+	LclRotation = XMQuaternionMultiply(ParQ, Q);
 	Q = (XMVECTOR)EndPostion - (XMVECTOR)reference.EndPostion;
 	Q = XMVector3Length(Q);
 	Q = XMVectorSelect(g_XMIdentityR1.v, Q, g_XMIdentityR1.v);
-	Scaling = Q;
+	LclScaling = Q;
 }
 
 
 void BoneDisplacement::UpdateLocalDataByPositionOnly(const BoneDisplacement & reference)
 {
 	XMVECTOR v0 = (XMVECTOR)this->OriginPosition - (XMVECTOR)reference.OriginPosition;
-	v0 = DirectX::XMVector3InverseRotate(v0, reference.GlobalOrientation);
+	v0 = DirectX::XMVector3InverseRotate(v0, reference.GblRotation);
 
-	Scaling = { 1.0f, XMVectorGetX(XMVector3Length(v0)), 1.0f };
+	LclScaling = { 1.0f, XMVectorGetX(XMVector3Length(v0)), 1.0f };
 
 	// with Constraint No-X
 	v0 = DirectX::XMVector3Normalize(v0);
@@ -51,23 +51,23 @@ void BoneDisplacement::UpdateLocalDataByPositionOnly(const BoneDisplacement & re
 	DirectX::XMStoreFloat4A(&Sp, v0);
 	float Roll = -std::asinf(Sp.x);
 	float Pitch = std::atan2f(Sp.z, Sp.y);
-	this->LocalOrientation = XMQuaternionRotationRollPitchYaw(Pitch, 0.0f, Roll);
-	this->GlobalOrientation = XMQuaternionMultiply(this->LocalOrientation, reference.GlobalOrientation);
+	this->LclRotation = XMQuaternionRotationRollPitchYaw(Pitch, 0.0f, Roll);
+	this->GblRotation = XMQuaternionMultiply(this->LclRotation, reference.GblRotation);
 }
 
 DirectX::XMMATRIX BoneDisplacement::TransformMatrix(const BoneDisplacement & from, const BoneDisplacement & to)
 {
 	using DirectX::operator+=;
 
-	XMMATRIX MScaling = XMMatrixScalingFromVector((XMVECTOR)to.Scaling / (XMVECTOR)from.Scaling);
+	XMMATRIX MScaling = XMMatrixScalingFromVector((XMVECTOR)to.LclScaling / (XMVECTOR)from.LclScaling);
 	XMVECTOR VRotationOrigin = XMVectorSelect(g_XMSelect1110.v, (DirectX::XMVECTOR)from.OriginPosition, g_XMSelect1110.v);
-	XMMATRIX MRotation = XMMatrixRotationQuaternion(XMQuaternionInverse(from.GlobalOrientation));
+	XMMATRIX MRotation = XMMatrixRotationQuaternion(XMQuaternionInverse(from.GblRotation));
 	XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, to.OriginPosition, g_XMSelect1110.v);
 
 	XMMATRIX M = XMMatrixTranslationFromVector(-VRotationOrigin);
 	M = XMMatrixMultiply(M, MRotation);
 	M = XMMatrixMultiply(M, MScaling);
-	MRotation = XMMatrixRotationQuaternion(to.GlobalOrientation);
+	MRotation = XMMatrixRotationQuaternion(to.GblRotation);
 	M = XMMatrixMultiply(M, MRotation);
 	M.r[3] += VTranslation;
 	return M;
@@ -75,16 +75,16 @@ DirectX::XMMATRIX BoneDisplacement::TransformMatrix(const BoneDisplacement & fro
 
 DirectX::XMMATRIX BoneDisplacement::RigidTransformMatrix(const BoneDisplacement & from, const BoneDisplacement & to)
 {
-	XMVECTOR rot = XMQuaternionInverse(from.GlobalOrientation);
-	rot = XMQuaternionMultiply(rot, to.GlobalOrientation);
+	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
+	rot = XMQuaternionMultiply(rot, to.GblRotation);
 	XMVECTOR tra = (XMVECTOR) to.OriginPosition - (XMVECTOR) from.OriginPosition;
 	return XMMatrixRigidTransform(from.OriginPosition, rot, tra);
 }
 
 DirectX::XMDUALVECTOR BoneDisplacement::RigidTransformDualQuaternion(const BoneDisplacement & from, const BoneDisplacement & to)
 {
-	XMVECTOR rot = XMQuaternionInverse(from.GlobalOrientation);
-	rot = XMQuaternionMultiply(rot, to.GlobalOrientation);
+	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
+	rot = XMQuaternionMultiply(rot, to.GblRotation);
 	XMVECTOR tra = (XMVECTOR)to.OriginPosition - (XMVECTOR)from.OriginPosition;
 	return XMDualQuaternionRigidTransform(from.OriginPosition, rot, tra);
 }
@@ -117,8 +117,8 @@ StaticArmature::StaticArmature(std::istream & file)
 
 		Vector4 vec;
 		file >> vec.x >> vec.y >> vec.z >> vec.w;
-		bone.LocalOrientation = XMQuaternionRotationRollPitchYawFromVectorRH(vec);
-		bone.Scaling.y = vec.w;
+		bone.LclRotation = XMQuaternionRotationRollPitchYawFromVectorRH(vec);
+		bone.LclScaling.y = vec.w;
 	}
 
 	CaculateTopologyOrder();
@@ -209,7 +209,7 @@ void BoneDisplacementFrame::RebuildGlobal(const IArmature & armature)
 		auto& bone = at(joint.ID());
 		if (joint.is_root())
 		{
-			bone.GlobalOrientation = bone.LocalOrientation;
+			bone.GblRotation = bone.LclRotation;
 		}
 		else
 		{
@@ -226,8 +226,8 @@ Eigen::VectorXf BoneDisplacementFrame::LocalRotationVector() const
 	for (size_t i = 0; i < size(); i++)
 	{
 		const auto& bone = (*this)[i];
-		XMVECTOR q = XMLoadFloat4A(reinterpret_cast<const XMFLOAT4A*>(&bone.LocalOrientation));
-		DirectX::Quaternion lq = XMQuaternionLn(bone.LocalOrientation);
+		XMVECTOR q = XMLoadFloat4A(reinterpret_cast<const XMFLOAT4A*>(&bone.LclRotation));
+		DirectX::Quaternion lq = XMQuaternionLn(bone.LclRotation);
 		Eigen::Map<const Eigen::Vector3f> elq(&lq.x);
 		fvector.block<3, 1>(i * 3, 0) = elq;
 	}
@@ -242,7 +242,7 @@ void BoneDisplacementFrame::UpdateFromLocalRotationVector(const IArmature& armat
 	for (auto i : sarmature.joint_indices())
 	{
 		auto data = fv.block<3, 1>(i * 3, 0).data();
-		This[i].LocalOrientation = XMQuaternionExp(XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(data)));
+		This[i].LclRotation = XMQuaternionExp(XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(data)));
 		if (!armature[i]->is_root())
 		{
 			This[i].UpdateGlobalData(This[armature[i]->ParentID()]);
@@ -255,8 +255,8 @@ void BoneDisplacementFrame::Interpolate(BoneDisplacementFrame& out, const BoneDi
 	//assert((Armature == lhs.pArmature) && (lhs.pArmature == rhs.pArmature));
 	for (size_t i = 0; i < lhs.size(); i++)
 	{
-		out[i].LocalOrientation = DirectX::Quaternion::Slerp(lhs[i].LocalOrientation, rhs[i].LocalOrientation, t);
-		out[i].Scaling = DirectX::XMVectorLerp(lhs[i].Scaling, rhs[i].Scaling, t);
+		out[i].LclRotation = DirectX::Quaternion::Slerp(lhs[i].LclRotation, rhs[i].LclRotation, t);
+		out[i].LclScaling = DirectX::XMVectorLerp(lhs[i].LclScaling, rhs[i].LclScaling, t);
 		if (!armature[i]->is_root())
 		{
 			out[i].UpdateGlobalData(out[armature[i]->ParentID()]);
@@ -299,8 +299,8 @@ Eigen::VectorXf AnimationSpace::CaculateFrameFeatureVectorLnQuaternion(const fra
 	for (size_t i = 0; i < frame.size(); i++)
 	{
 		const auto& bone = frame[i];
-		XMVECTOR q = XMLoadFloat4A(reinterpret_cast<const XMFLOAT4A*>(&bone.LocalOrientation));
-		DirectX::Quaternion lq = XMQuaternionLn(bone.LocalOrientation);
+		XMVECTOR q = XMLoadFloat4A(reinterpret_cast<const XMFLOAT4A*>(&bone.LclRotation));
+		DirectX::Quaternion lq = XMQuaternionLn(bone.LclRotation);
 		Eigen::Map<const Eigen::Vector3f> elq(&lq.x);
 		fvector.block<3, 1>(i * 3, 0) = elq;
 	}
@@ -465,10 +465,10 @@ ArmatureKeyframeAnimation::ArmatureKeyframeAnimation(std::istream & file)
 		for (auto& bone : frame)
 		{
 			Vector3 vec;
-			auto& scl = bone.Scaling;
+			auto& scl = bone.LclScaling;
 			//char ch;
 			file >> vec.x >> vec.y >> vec.z >> scl.y;
-			bone.LocalOrientation = XMQuaternionRotationRollPitchYawFromVector(vec);
+			bone.LclRotation = XMQuaternionRotationRollPitchYawFromVector(vec);
 		}
 	}
 }

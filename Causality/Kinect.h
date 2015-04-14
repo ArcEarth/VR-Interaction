@@ -11,7 +11,6 @@
 #include "Armature.h"
 
 
-
 namespace Causality
 {
 #ifndef _HandType_

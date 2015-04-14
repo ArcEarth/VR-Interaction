@@ -5,6 +5,8 @@
 #include <boost\range\adaptors.hpp>
 #include <iostream>
 #include <chrono>
+#include "Common\Filter.h"
+
 
 using namespace Causality;
 using namespace Causality::Devices;
@@ -84,7 +86,14 @@ char* JointNames[JointType_Count] = {
 	"ThumbRight",
 };
 
+typedef LowPassDynamicFilter<Vector3, float> Vector3DynamicFilter;
+
 std::unique_ptr<Causality::StaticArmature> TrackedPlayer::PlayerArmature;
+
+struct FilteredPlayer : public TrackedPlayer
+{
+	std::array<Vector3DynamicFilter, JointType_Count> JointFilters;
+};
 
 class Kinect::Impl
 {
@@ -93,16 +102,18 @@ class Kinect::Impl
 public:
 	size_t											LostThreshold = 60U;
 	time_t											LastFrameTime = 0;
+	float											FrameRate = 30;
+
 	Kinect*											pWrapper;
 	DirectX::Plane									FloorPlane;
 	DirectX::Matrix4x4								LocalMatrix;
 	// Current Kinect
-	Microsoft::WRL::ComPtr<IKinectSensor>          m_pKinectSensor;
-	Microsoft::WRL::ComPtr<ICoordinateMapper>      m_pCoordinateMapper;
+	Microsoft::WRL::ComPtr<IKinectSensor>			m_pKinectSensor;
+	Microsoft::WRL::ComPtr<ICoordinateMapper>		m_pCoordinateMapper;
 	// Body reader
-	Microsoft::WRL::ComPtr<IBodyFrameReader>       m_pBodyFrameReader;
+	Microsoft::WRL::ComPtr<IBodyFrameReader>		m_pBodyFrameReader;
 
-	std::map<uint64_t, TrackedPlayer*>	m_Players;
+	std::map<uint64_t, TrackedPlayer*>				m_Players;
 
 public:
 	bool IsActive() const
@@ -116,7 +127,7 @@ public:
 		if (TrackedPlayer::PlayerArmature == nullptr)
 		{
 			int parents[JointType_Count];
-			std::copy_n(Kinect::JointsParent,(int)JointType_Count, parents);
+			std::copy_n(Kinect::JointsParent, (int) JointType_Count, parents);
 			TrackedPlayer::PlayerArmature = std::make_unique<Causality::StaticArmature>(JointType_Count, parents, JointNames);
 		}
 		using namespace Microsoft::WRL;
@@ -159,7 +170,7 @@ public:
 		if (!pKinectSensor || FAILED(hr))
 		{
 			//SetStatusMessage(L"No ready Kinect found!", 10000, true);
-			return E_FAIL;
+			return hr;
 		}
 
 		m_pKinectSensor = move(pKinectSensor);
@@ -192,140 +203,162 @@ public:
 	{
 		ComPtr<IBodyFrame> pBodyFrame;
 		HRESULT hr = m_pBodyFrameReader->AcquireLatestFrame(&pBodyFrame);
-		::Joint joints[JointType_Count];
-		JointOrientation oris[JointType_Count];
 
-		if (SUCCEEDED(hr))
-		{
-			time_t nTime = 0;
-
-			hr = pBodyFrame->get_RelativeTime(&nTime);
-			//auto t = std::chrono::system_clock::from_time_t(nTime);
-			//t.time_since_epoch
-			if (LastFrameTime >= nTime) // Not an new frame
-			{
-				return false;
-			}
-
-			LastFrameTime = nTime;
-
-			IBody* ppBodies[BODY_COUNT] = { 0 };
-
-			if (SUCCEEDED(hr))
-			{
-				hr = pBodyFrame->GetAndRefreshBodyData(_countof(ppBodies), ppBodies);
-			}
-
-			for (auto itr = m_Players.begin(), end = m_Players.end(); itr != end;)
-			{
-				itr->second->IsCurrentTracked = false;
-				if (++(itr->second->LostFrameCount) >= (int)LostThreshold)
-				{
-					pWrapper->OnPlayerLost(*itr->second);
-					std::cout << "Player Lost : ID = " << itr->second->PlayerID << std::endl;
-					itr = m_Players.erase(itr);
-				}
-				else
-					++itr;
-			}
-
-			for (int i = 0; i < _countof(ppBodies); ++i)
-			{
-				auto &pBody = ppBodies[i];
-				if (pBody == nullptr)
-					break;
-
-				UINT64 Id;
-				pBody->get_TrackingId(&Id);
-				BOOLEAN isTracked;
-				pBody->get_IsTracked(&isTracked);
-
-				if (Id == 0) // This data is invaliad
-					break;
-
-
-				bool isNew = false;
-				auto& player = m_Players[Id];
-				if (player == nullptr)
-				{
-					player = new TrackedPlayer;
-					std::cout << "New Player Tracked : ID = " << Id << std::endl;
-					isNew = true;
-				}
-
-				if (!isTracked)
-				{
-					if (!isNew && player->IsCurrentTracked) // Maybe wait for couple of frames?
-					{
-						pWrapper->OnPlayerLost(*player);
-						std::cout << "Player Lost : ID = " << Id << std::endl;
-					}
-					player->IsCurrentTracked = false;
-				}
-				else
-				{
-					player->IsCurrentTracked = true;
-					player->LostFrameCount = 0;
-				}
-
-				pBody->GetJoints(ARRAYSIZE(joints), joints);
-				pBody->GetJointOrientations(ARRAYSIZE(oris), oris);
-
-				auto& frame = player->PoseFrame;
-
-				// WARNING!!! This may be ill-formed if transform contains shear or other non-rigid transformation
-				DirectX::XMVECTOR junk,rotation;
-				DirectX::XMMATRIX transform = LocalMatrix;
-				DirectX::XMMatrixDecompose(&junk, &rotation, &junk, transform);
-
-				for (int j = 0; j < JointType_Count; j++)
-				{
-					DirectX::XMVECTOR ep = DirectX::XMLoadFloat3(reinterpret_cast<DirectX::Vector3*>(&joints[j].Position));
-					frame[j].EndPostion = DirectX::XMVector3TransformCoord(ep,transform);
-					ep = DirectX::XMLoadFloat4(reinterpret_cast<DirectX::Quaternion*>(&oris[j].Orientation));
-					frame[j].GlobalOrientation = DirectX::XMQuaternionMultiply(ep, rotation);
-				}
-
-				auto& sk = *TrackedPlayer::PlayerArmature;
-				for (const auto& jId : sk.joint_indices())
-				{
-					if (jId < JointType_Count)
-						frame[jId].UpdateLocalData(frame[sk[jId]->ParentID()]);
-					else
-						// Update 'intermediate" joints if not presented in Kinect
-						frame[jId].UpdateGlobalData(frame[sk[jId]->ParentID()]);
-				}
-
-				if (isNew)
-				{
-					pWrapper->OnPlayerTracked(*player);
-					std::cout << "New Player Tracked : ID = " << Id << std::endl;
-				}
-				else
-				{
-					player->OnPoseChanged(*player);
-					HandState state;
-					pBody->get_HandLeftState(&state);
-					if (state != player->HandStates[0])
-					{
-						player->HandStates[0] = state;
-						player->OnHandStateChanged(*player, HandType_LEFT, state);
-					}
-					pBody->get_HandRightState(&state);
-					if (state != player->HandStates[1])
-					{
-						player->HandStates[1] = state;
-						player->OnHandStateChanged(*player, HandType_RIGHT, state);
-					}
-				}
-
-				SafeRelease(ppBodies[i]);
-			}
-		}
-		else
+		if (FAILED(hr))
 		{
 			return false;
 		}
+
+		::Joint joints[JointType_Count];
+		JointOrientation oris[JointType_Count];
+
+
+		time_t nTime = 0;
+
+		hr = pBodyFrame->get_RelativeTime(&nTime);
+
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		//auto t = std::chrono::system_clock::from_time_t(nTime);
+		//t.time_since_epoch
+		if (LastFrameTime >= nTime) // Not an new frame
+		{
+			return false;
+		}
+
+		LastFrameTime = nTime;
+
+		IBody* ppBodies[BODY_COUNT] = { 0 };
+
+		hr = pBodyFrame->GetAndRefreshBodyData(_countof(ppBodies), ppBodies);
+
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		for (auto itr = m_Players.begin(), end = m_Players.end(); itr != end;)
+		{
+			itr->second->IsCurrentTracked = false;
+			if (++(itr->second->LostFrameCount) >= (int) LostThreshold)
+			{
+				pWrapper->OnPlayerLost(*itr->second);
+				std::cout << "Player Lost : ID = " << itr->second->PlayerID << std::endl;
+				itr = m_Players.erase(itr);
+			}
+			else
+				++itr;
+		}
+
+		for (int i = 0; i < _countof(ppBodies); ++i)
+		{
+			auto &pBody = ppBodies[i];
+			if (pBody == nullptr)
+				break;
+
+			UINT64 Id;
+			pBody->get_TrackingId(&Id);
+			BOOLEAN isTracked;
+			pBody->get_IsTracked(&isTracked);
+
+			if (Id == 0) // This data is invaliad
+				break;
+
+			std::cout << "Player Tracked, ID = '" << Id << '\'' << std::endl;
+			bool isNew = false;
+			FilteredPlayer* player = static_cast<FilteredPlayer*>(m_Players[Id]);
+			if (player == nullptr)
+			{
+				player = new FilteredPlayer;
+				m_Players[Id] = player;
+				std::cout << "New Player Tracked : ID = " << Id << std::endl;
+				isNew = true;
+			}
+
+			if (!isTracked)
+			{
+				if (player->LostFrameCount > 3)
+				{
+					for (auto& filter : player->JointFilters)
+					{
+						filter.Reset();
+					}
+				}
+
+				if (!isNew && player->IsCurrentTracked) // Maybe wait for couple of frames?
+				{
+					pWrapper->OnPlayerLost(*player);
+					std::cout << "Player Lost : ID = " << Id << std::endl;
+				}
+				player->IsCurrentTracked = false;
+			}
+			else
+			{
+				player->IsCurrentTracked = true;
+				player->LostFrameCount = 0;
+			}
+
+			pBody->GetJoints(ARRAYSIZE(joints), joints);
+			pBody->GetJointOrientations(ARRAYSIZE(oris), oris);
+
+			auto& frame = player->PoseFrame;
+
+			// WARNING!!! This may be ill-formed if transform contains shear or other non-rigid transformation
+			DirectX::XMVECTOR junk, rotation;
+			DirectX::XMMATRIX transform = LocalMatrix;
+			DirectX::XMMatrixDecompose(&junk, &rotation, &junk, transform);
+
+			for (int j = 0; j < JointType_Count; j++)
+			{
+				auto& filter = player->JointFilters[j];
+				DirectX::XMVECTOR ep = DirectX::XMLoadFloat3(reinterpret_cast<DirectX::Vector3*>(&joints[j].Position));
+				ep = DirectX::XMVector3TransformCoord(ep, transform);
+				//? Why not filtering?
+				//! We are tracking gestures here, keep the raw data is better!
+				frame[j].EndPostion = ep; // filter.Apply(ep);
+				ep = DirectX::XMLoadFloat4(reinterpret_cast<DirectX::Quaternion*>(&oris[j].Orientation));
+				frame[j].GblRotation = DirectX::XMQuaternionMultiply(ep, rotation);
+			}
+
+			auto& sk = *TrackedPlayer::PlayerArmature;
+			for (const auto& jId : sk.joint_indices())
+			{
+				if (jId < JointType_Count)
+					frame[jId].UpdateLocalData(frame[sk[jId]->ParentID()]);
+				else
+					// Update 'intermediate" joints if not presented in Kinect
+					frame[jId].UpdateGlobalData(frame[sk[jId]->ParentID()]);
+			}
+
+			if (isNew)
+			{
+				pWrapper->OnPlayerTracked(*player);
+				std::cout << "New Player Tracked : ID = " << Id << std::endl;
+			}
+			else
+			{
+				player->OnPoseChanged(*player);
+				HandState state;
+				pBody->get_HandLeftState(&state);
+				if (state != player->HandStates[0])
+				{
+					player->HandStates[0] = state;
+					player->OnHandStateChanged(*player, HandType_LEFT, state);
+				}
+				pBody->get_HandRightState(&state);
+				if (state != player->HandStates[1])
+				{
+					player->HandStates[1] = state;
+					player->OnHandStateChanged(*player, HandType_RIGHT, state);
+				}
+			}
+
+			SafeRelease(ppBodies[i]);
+		}
+
 		return true;
 	}
 
@@ -403,7 +436,7 @@ std::shared_ptr<Kinect> Kinect::CreateDefault()
 }
 
 Kinect::Kinect()
-:pImpl(new Impl)
+	:pImpl(new Impl)
 {
 	pImpl->pWrapper = this;
 }
