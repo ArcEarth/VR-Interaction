@@ -1,9 +1,9 @@
 %% Reading and preprocessing data
 %X = csvread('user.punch.csv');
-% X = csvread('user.attack.csv');
-X = csvread('user.walk.csv');
+X = csvread('user.attack.csv');
+% X = csvread('user.walk.csv');
 %X = csvread('user.horse.run.csv');
-% X = csvread('user.spider.walk.csv');
+%X = csvread('user.spider.walk.csv');
 Y = csvread('spider.attack.csv');
 % Y = csvread('spider.walk.csv');
 %Y = csvread('horse.run.csv');
@@ -100,6 +100,8 @@ Ec = sqrt(Ec);
 % J = C;
 % Xd = Yd;
 % Ej = Ec;
+
+pca
 
 Y = repmat(Y,2,1,1);
 %% Correlation calculation

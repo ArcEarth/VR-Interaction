@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<ArrayOfArrayOfArrayOfString xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <ArrayOfArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\DXMathExtend.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\DXMathExtend.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\Lights.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\SkinMesh.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\Player.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\Player.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\KinematicsSkeleton.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\KinematicsSkeleton.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\Kinect2Controler.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\Kinect2Controler.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\AttachMap.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\AvatarMaker\AvatarEngine\AttachMap.h</string>
+    </ArrayOfString>
+  </ArrayOfArrayOfString>
+</ArrayOfArrayOfArrayOfString>

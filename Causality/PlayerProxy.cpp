@@ -49,26 +49,26 @@ static const size_t FeatureDim = FeatureCount * 3;
 
 VectorXf HumanFeatureFromFrame(const BoneDisplacementFrame& frame)
 {
-	//VectorXf X(ARRAYSIZE(XFeaturePairs)*3);
-	//for (size_t i = 0; i < ARRAYSIZE(XFeaturePairs); i++)
-	//{
-	//	auto& p = XFeaturePairs[i];
-	//	Vector3 v = frame[p.first].EndPostion - frame[p.second].EndPostion;
-	//	X.block<3, 1>(i * 3,0) = Map<Vector3f>(&v.x);
-	//}
-
-	VectorXf X(FeatureDim);
-	int k = 0;
-	Vector3 v;
-	for (size_t i = 0; i < KeyJointCount; i++)
+	VectorXf X(ARRAYSIZE(XFeaturePairs)*3);
+	for (size_t i = 0; i < ARRAYSIZE(XFeaturePairs); i++)
 	{
-		for (size_t j = i+1; j < KeyJointCount; j++)
-			if (i != j)
-			{
-				v = frame[KeyJoints[i]].EndPostion - frame[KeyJoints[j]].EndPostion;
-				X.block<3, 1>(k++ * 3,0) = Map<Vector3f>(&v.x);
-			}
+		auto& p = XFeaturePairs[i];
+		Vector3 v = frame[p.first].EndPostion - frame[p.second].EndPostion;
+		X.block<3, 1>(i * 3,0) = Map<Vector3f>(&v.x);
 	}
+
+	//VectorXf X(FeatureDim);
+	//int k = 0;
+	//Vector3 v;
+	//for (size_t i = 0; i < KeyJointCount; i++)
+	//{
+	//	for (size_t j = i+1; j < KeyJointCount; j++)
+	//		if (i != j)
+	//		{
+	//			v = frame[KeyJoints[i]].EndPostion - frame[KeyJoints[j]].EndPostion;
+	//			X.block<3, 1>(k++ * 3,0) = Map<Vector3f>(&v.x);
+	//		}
+	//}
 	return X;
 }
 
@@ -110,7 +110,7 @@ std::pair<float,float> PlayerProxy::ExtractUserMotionPeriod()
 	MatrixXcf
 		MotionSpecturm(BufferFramesCount, JointCount * JointDemension);
 	MatrixXf
-		JointReductedSpecturm(JointCount, BufferFramesCount);
+		JointReductedSpecturm(BufferFramesCount, JointCount);
 	Array<float, JointCount,1>		JointPeriod; // Period time in seconds, from fft Peek frequency
 
 	FFT<float> fft;
@@ -121,9 +121,9 @@ std::pair<float,float> PlayerProxy::ExtractUserMotionPeriod()
 	MotionSpecturm = MotionSpecturm.array() * MotionSpecturm.array().conjugate();
 	MotionBuffer = MotionSpecturm.real().transpose();
 
-	for (size_t i = 0; i < MotionSpecturm.cols(); i++)
+	for (size_t i = 0; i < JointCount; i++)
 	{
-		Map<Matrix<float, JointCount, JointDemension>> Jsp(&MotionBuffer(0,i));
+		Map<Matrix<float, JointCount, JointDemension>> Jsp(&MotionBuffer(0,i * JointDemension));
 		// sum up spectrum energy for X-Y-Z components
 		JointReductedSpecturm.col(i) = Jsp.rowwise().sum(); 
 	}
@@ -188,11 +188,12 @@ void Causality::PlayerProxy::Update(time_seconds const & time_delta)
 		FrameBuffer.push_front(frame);
 
 		++frame_count;
-		if (frame_count % BufferFramesCount == 0 && frame_count != 0)
-		{
-			PrintFrameBuffer(frame_count / BufferFramesCount);
-		}
-		//UpdatePlayerFrame(frame);
+		//if (frame_count % BufferFramesCount == 0 && frame_count != 0)
+		//{
+		//	PrintFrameBuffer(frame_count / BufferFramesCount);
+		//}
+
+		UpdatePlayerFrame(frame);
 	}
 }
 
