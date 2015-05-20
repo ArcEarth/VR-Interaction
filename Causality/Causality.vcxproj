@@ -358,6 +358,7 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../pch.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="FbxParser.cpp" />
     <ClCompile Include="Kinect.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Use</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">pch_bcl.h</PrecompiledHeaderFile>
@@ -569,6 +570,7 @@
     <ClInclude Include="BasicShapeModel.h" />
     <ClInclude Include="BulletPhysics.h" />
     <ClInclude Include="CausalityApplication.h" />
+    <ClInclude Include="CCA.h" />
     <ClInclude Include="Common\BCL.h" />
     <ClInclude Include="Common\BezierClip.h" />
     <ClInclude Include="Common\Carmera.h" />
@@ -601,6 +603,7 @@
     <ClInclude Include="Content\CubeScene.h" />
     <ClInclude Include="Content\SampleFpsTextRenderer.h" />
     <ClInclude Include="Content\ShaderStructures.h" />
+    <ClInclude Include="FbxParser.h" />
     <ClInclude Include="Interactive.h" />
     <ClInclude Include="Kinect.h" />
     <ClInclude Include="LeapMotion.h" />

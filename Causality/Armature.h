@@ -30,7 +30,7 @@ namespace Causality
 		XM_ALIGN16
 		DirectX::Vector3	EndPostion;
 		//DirectX::XMVECTOR EndJointPosition() const;
-		bool DirtyFlag;
+		//bool DirtyFlag;
 
 		void GetBoundingBox(DirectX::BoundingBox& out) const;
 		// Update from Hirachy or Global
@@ -48,6 +48,13 @@ namespace Causality
 		static DirectX::XMMATRIX RigidTransformMatrix(const BoneDisplacement& from, const BoneDisplacement& to);
 		// Ingnore the LclScaling transform, may be useful in skinning with Dual-Quaternion
 		static DirectX::XMDUALVECTOR RigidTransformDualQuaternion(const BoneDisplacement& from, const BoneDisplacement& to);
+
+	public:
+		typedef Eigen::Map<Eigen::Matrix<float, 20, Eigen::Dynamic>, Eigen::Aligned> EigenType;
+		EigenType AsEigenType()
+		{
+			return EigenType(&LclRotation.x);
+		}
 	};
 
 	XM_ALIGN16
@@ -220,6 +227,24 @@ namespace Causality
 		//{
 
 		//}
+
+		// number of float elements per bone
+		static const auto BoneWidth = sizeof(BoneDisplacement) / sizeof(float);
+		//! not the eigen vector in math !!!
+		typedef Eigen::Map<VectorX, Eigen::Aligned> EigenVectorType;
+
+		// return a 20N x 1 column vector of this frame, where 20 = BoneWidth
+		EigenVectorType AsEigenVector()
+		{
+			return EigenVectorType(&(*this)[0].LclRotation.x,size() * BoneWidth);
+		}
+
+		typedef Eigen::Map<Eigen::Matrix<float, BoneWidth, Eigen::Dynamic>, Eigen::Aligned> EigenMatrixType;
+		// return a 20 x N matrix of this frame
+		EigenMatrixType AsEigenMatrix()
+		{
+			return EigenMatrixType(&(*this)[0].LclRotation.x, BoneWidth,size());
+		}
 	};
 
 	class BoneVelocityFrame : public std::vector<BoneVelocity>
@@ -336,18 +361,31 @@ namespace Causality
 			return *this;
 		}
 
-
-	
 		const IArmature& Armature() const { return *pArmature; }
 		void SetArmature(IArmature& armature) { pArmature = &armature; }
 		// get the pre-computed frame buffer which contains interpolated frame
 		const std::vector<frame_type>& GetFrameBuffer() const { return frames; }
+		const Eigen::MatrixXf& FramesMatrix() const;
 
 		bool InterpolateFrames(double frameRate);
 
+		enum DataType
+		{
+			LocalRotation = 0,
+			GlobalRotation = 2,
+			OriginPosition = 3,
+			EndPositon = 4,
+		};
+
+		// Eigen interface
+		//Eigen::Map<Eigen::MatrixXf, Eigen::Aligned, Eigen::Stride<sizeof(float), sizeof(BoneDisplacement)>> DataMatrix(DataType data) const
+		//{
+		//	return Eigen::Map<Eigen::Matrix3Xf, Eigen::Aligned, Eigen::Stride<sizeof(float), sizeof(BoneDisplacement)>>(&frames[0][0]);
+		//}
+
 	private:
-		IArmature* pArmature;
-		std::vector<frame_type> frames;
+		IArmature*		pArmature;
+		Eigen::MatrixXf frames;
 	};
 
 	class ArmatureTransform
@@ -449,6 +487,11 @@ namespace Causality
 			this->emplace(name, std::move(animation));
 		}
 
+		animation_type& AddAnimationClip(const std::string& name)
+		{
+			this->emplace(name);
+		}
+
 		bool Contains(const std::string& name) const;
 
 		const IArmature&		Armature() const;
@@ -458,10 +501,12 @@ namespace Causality
 		const frame_type&		RestFrame() const; // RestFrame should be the first fram in Rest Animation
 
 		// Using Local Position is bad : X rotation of Parent Joint is not considerd
-		Eigen::VectorXf CaculateFrameFeatureVectorEndPointNormalized(const frame_type& frame) const;
-
+		Eigen::VectorXf FrameFeatureVectorEndPointNormalized(const frame_type& frame) const;
+		Eigen::MatrixXf AnimationMatrixEndPosition(const ArmatureKeyframeAnimation& animation) const;
+		void CacAnimationMatrixEndPosition( _In_ const ArmatureKeyframeAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
 		// Basiclly, the difference's magnitude is acceptable, direction is bad
-		Eigen::VectorXf CaculateFrameFeatureVectorLnQuaternion(const frame_type& frame) const;
+		Eigen::VectorXf FrameFeatureVectorLnQuaternion(const frame_type& frame) const;
+		void CaculateAnimationFeatureLnQuaternionInto(_In_ const ArmatureKeyframeAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
 
 		// Evaluating a likelihood of the given frame is inside this space
 		float PoseDistancePCAProjection(const frame_type& frame) const;

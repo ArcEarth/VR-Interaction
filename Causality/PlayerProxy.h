@@ -7,20 +7,21 @@ namespace Causality
 {
 	using boost::circular_buffer;
 
-	struct Chain : stdx::tree_node<Chain>
+	struct ExtNode
 	{
 		int				Index;				// Index for this chain
+		int				LoD;				// Level of detail
 		// Structural feature
 		bool			IsGrounded;			// Is this feature grounded? == foot semantic
 		bool			IsEndEffector;			// Is this feature a end effector?
 		bool			IsSymetric;			// Is this feature a symetric pair?
 		bool			IsEvenSymmetric;	// Even symmetry or odd symmtry
 		float			ExpandThreshold;	// The threshold to expand this part
-		int				DetailLevel;		// Detail level 
 		int				GroundLevel;		// Distance to ground
-		Chain*			GroundingParent;	// Path to grounded bone
+		int				GroundIdx;			
+		ExtNode*		GroundParent;		// Path to grounded bone
 		bool			IsLeft;				// Is this feature left part of a symtric feature
-		Chain*			SymetricPair;		// Path to grounded bone
+		ExtNode*		SymetricPair;		// Path to grounded bone
 		// Motion and geometry feature
 		VectorX			Xd;					// Default or "Representative" parameters
 		MatrixX			Xt;					// Animated parameters
@@ -28,6 +29,10 @@ namespace Causality
 		bool			IsStable;			// Is Current state a stable state
 		float			MotionEnergy;		// Motion Energy Level
 		float			PotientialEnergy;	// Potenial Energy Level
+		int				SpaceRepresentIdx;	// Index of the joint which represent it's postion
+
+		int				FeatureDimension;	
+		BoundingOrientedBox OBbox;
 	};
 
 	struct CompactArmature

@@ -77,7 +77,7 @@ DirectX::XMMATRIX BoneDisplacement::RigidTransformMatrix(const BoneDisplacement 
 {
 	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
 	rot = XMQuaternionMultiply(rot, to.GblRotation);
-	XMVECTOR tra = (XMVECTOR) to.OriginPosition - (XMVECTOR) from.OriginPosition;
+	XMVECTOR tra = (XMVECTOR)to.OriginPosition - (XMVECTOR)from.OriginPosition;
 	return XMMatrixRigidTransform(from.OriginPosition, rot, tra);
 }
 
@@ -91,7 +91,7 @@ DirectX::XMDUALVECTOR BoneDisplacement::RigidTransformDualQuaternion(const BoneD
 
 StaticArmature::StaticArmature(std::istream & file)
 {
-	size_t jointCount ;
+	size_t jointCount;
 	file >> jointCount;
 
 	Joints.resize(jointCount);
@@ -104,8 +104,8 @@ StaticArmature::StaticArmature(std::istream & file)
 	{
 		auto& joint = Joints[idx];
 		auto& bone = DefaultFrame[idx];
-		((JointData&) joint).ID = idx;
-		file >> ((JointData&) joint).Name >> ((JointData&) joint).ParentID;
+		((JointData&)joint).ID = idx;
+		file >> ((JointData&)joint).Name >> ((JointData&)joint).ParentID;
 		if (joint.ParentID() != idx && joint.ParentID() >= 0)
 		{
 			Joints[joint.ParentID()].append_children_back(&joint);
@@ -125,14 +125,14 @@ StaticArmature::StaticArmature(std::istream & file)
 	DefaultFrame.RebuildGlobal(*this);
 }
 
-StaticArmature::StaticArmature(size_t JointCount, int * Parents,const char* const* Names)
+StaticArmature::StaticArmature(size_t JointCount, int * Parents, const char* const* Names)
 	: Joints(JointCount)
 {
 	for (size_t i = 0; i < JointCount; i++)
 	{
 		Joints[i].SetID(i);
 		Joints[i].SetName(Names[i]);
-		((JointData&) Joints[i]).ParentID = Parents[i];
+		((JointData&)Joints[i]).ParentID = Parents[i];
 		if (Parents[i] != i && Parents[i] >= 0)
 		{
 			Joints[Parents[i]].append_children_back(&Joints[i]);
@@ -235,7 +235,7 @@ Eigen::VectorXf BoneDisplacementFrame::LocalRotationVector() const
 	return fvector;
 }
 
-void BoneDisplacementFrame::UpdateFromLocalRotationVector(const IArmature& armature,const Eigen::VectorXf fv)
+void BoneDisplacementFrame::UpdateFromLocalRotationVector(const IArmature& armature, const Eigen::VectorXf fv)
 {
 	auto& This = *this;
 	auto& sarmature = static_cast<const StaticArmature&>(armature);
@@ -291,10 +291,10 @@ void Causality::BoneDisplacementFrame::TransformMatrix(DirectX::XMFLOAT4X4 * pOu
 	}
 }
 
-Eigen::VectorXf AnimationSpace::CaculateFrameFeatureVectorLnQuaternion(const frame_type & frame) const
+Eigen::VectorXf AnimationSpace::FrameFeatureVectorLnQuaternion(const frame_type & frame) const
 {
 	Eigen::VectorXf fvector(frame.size() * 3);
-	Eigen::Vector3f v { 0,1,0 };
+	Eigen::Vector3f v{ 0,1,0 };
 
 	for (size_t i = 0; i < frame.size(); i++)
 	{
@@ -317,7 +317,7 @@ void AnimationSpace::SetArmature(IArmature & armature) { assert(this->empty()); 
 
 const AnimationSpace::frame_type & AnimationSpace::RestFrame() const { return Armature().default_frame(); }
 
-Eigen::VectorXf AnimationSpace::CaculateFrameFeatureVectorEndPointNormalized(const frame_type & frame) const
+Eigen::VectorXf AnimationSpace::FrameFeatureVectorEndPointNormalized(const frame_type & frame) const
 {
 	int N = frame.size();
 	Eigen::VectorXf fvector(N * 3);
@@ -327,16 +327,16 @@ Eigen::VectorXf AnimationSpace::CaculateFrameFeatureVectorEndPointNormalized(con
 	for (int i = 0; i < N; i++)
 	{
 		const auto& bone = frame[i];
-		XMVECTOR q =  bone.EndPostion;
+		XMVECTOR q = bone.EndPostion;
 		q = XMVector3Rotate(v, q);
-		XMStoreFloat4(&reinterpret_cast<XMFLOAT4&>(sv[i]),q);
+		XMStoreFloat4(&reinterpret_cast<XMFLOAT4&>(sv[i]), q);
 		// HACK: equals to sv[i]=q
 		// Float4 functions is significant faster
 		// and all memery address is accessable = =
 	}
 
 	using namespace Eigen;
-	Map<const VectorXf> eep(&sv[0].x, N*3);
+	Map<const VectorXf> eep(&sv[0].x, N * 3);
 	//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(BoneDisplacement) / sizeof(float)>> eep(&frame[0].EndPostion.x, N);
 
 	//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(BoneDisplacement)/sizeof(float)>> eep(&frame[0].EndPostion.x, N);
@@ -344,12 +344,56 @@ Eigen::VectorXf AnimationSpace::CaculateFrameFeatureVectorEndPointNormalized(con
 	return fvector;
 }
 
+Eigen::MatrixXf Causality::AnimationSpace::AnimationMatrixEndPosition(const ArmatureKeyframeAnimation & animation) const
+{
+	const auto & frames = animation.GetFrameBuffer();
+	int K = animation.GetFrameBuffer().size();
+	int N = animation.Armature().size();
+	Eigen::MatrixXf fmatrix(N * 3, K);
+	CacAnimationMatrixEndPosition(animation, fmatrix);
+	return fmatrix;
+}
+
+void Causality::AnimationSpace::CacAnimationMatrixEndPosition(const ArmatureKeyframeAnimation & animation, Eigen::MatrixXf & fmatrix) const
+{
+	const auto & frames = animation.GetFrameBuffer();
+	int K = animation.GetFrameBuffer().size();
+	int N = animation.Armature().size();
+	if (fmatrix.rows() != N*3 || fmatrix.cols() != K)
+		fmatrix.resize(N * 3, K);
+	for (size_t i = 0; i < K; i++)
+	{
+		auto& frame = frames[i];
+		auto fvector = fmatrix.col(i);
+		//Eigen::Vector3f v{ 0,1,0 };
+		XMVECTOR v = g_XMIdentityR1.v;
+		std::vector<Vector3> sv(N + 1); // Allocate one more space
+		for (int i = 0; i < N; i++)
+		{
+			const auto& bone = frame[i];
+			XMVECTOR q = bone.EndPostion;
+			q = XMVector3Rotate(v, q);
+			XMStoreFloat4(&reinterpret_cast<XMFLOAT4&>(sv[i]), q);
+			// HACK: equals to sv[i]=q
+			// Float4 functions is significant faster
+			// and all memery address is accessable = =
+		}
+
+		using namespace Eigen;
+		Map<const VectorXf> eep(&sv[0].x, N * 3);
+		//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(BoneDisplacement) / sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+
+		//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(BoneDisplacement)/sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+		fvector = eep.cwiseProduct(Wb);//.asDiagonal();
+	}
+}
+
 // !!! This will NOT work since the space will always be full-rank (with enough key frames)
 // and the projection will always be the same as the input feature vector
 // How about doing a PCA?
 float AnimationSpace::PoseDistancePCAProjection(const frame_type & frame) const
 {
-	auto fv = CaculateFrameFeatureVectorLnQuaternion(frame);
+	auto fv = FrameFeatureVectorLnQuaternion(frame);
 
 	// Assupt the space have mutiple basis
 	fv -= X0;
@@ -358,7 +402,7 @@ float AnimationSpace::PoseDistancePCAProjection(const frame_type & frame) const
 
 	VectorX px = X * w;
 	px += w0 * X0;
-	
+
 	// px is the projected point from fv to Space [X0 X]
 	auto distance = (fv - px).norm();
 
@@ -367,7 +411,7 @@ float AnimationSpace::PoseDistancePCAProjection(const frame_type & frame) const
 
 Eigen::RowVectorXf AnimationSpace::PoseSquareDistanceNearestNeibor(const frame_type & frame) const
 {
-	auto fv = CaculateFrameFeatureVectorLnQuaternion(frame);
+	auto fv = FrameFeatureVectorLnQuaternion(frame);
 
 	// Here X is an dense sampled frames feature vector from the animations
 	auto D = X - fv.replicate(1, X.cols());
@@ -423,8 +467,8 @@ float Causality::AnimationSpace::FrameLikilihood(const frame_type & frame, const
 
 float Causality::AnimationSpace::FrameLikilihood(const frame_type & frame) const
 {
-	 auto minDis = PoseSquareDistanceNearestNeibor(frame).minCoeff();
-	 return expf(-minDis / (SegmaDis*SegmaDis));
+	auto minDis = PoseSquareDistanceNearestNeibor(frame).minCoeff();
+	return expf(-minDis / (SegmaDis*SegmaDis));
 }
 
 vector<ArmatureTransform> AnimationSpace::GenerateBindings()
@@ -451,7 +495,7 @@ ArmatureKeyframeAnimation::ArmatureKeyframeAnimation(std::istream & file)
 	using namespace std;
 	using namespace DirectX;
 	self_type animation;
-	int keyframs,joints;
+	int keyframs, joints;
 	file >> joints >> keyframs;
 	animation.KeyFrames.resize(keyframs);
 	for (int i = 0; i < keyframs; i++)
@@ -480,7 +524,7 @@ bool ArmatureKeyframeAnimation::InterpolateFrames(double frameRate)
 	float t = 0;
 	for (size_t i = 1; i < KeyFrames.size(); i++)
 	{
-		const frame_type& lhs = KeyFrames[i-1];
+		const frame_type& lhs = KeyFrames[i - 1];
 		const frame_type& rhs = KeyFrames[i];
 		for (t = (float)lhs.Time.count(); t < (float)rhs.Time.count(); t += delta)
 		{
@@ -524,24 +568,24 @@ namespace std
 }
 */
 
-std::map<std::string, JointSemanticProperty> 
-	name2semantic = boost::assign::map_list_of
-		(string("hand"),    JointSemanticProperty(Semantic_Hand))
-		(string("foreleg"), JointSemanticProperty(Semantic_Hand | Semantic_Foot))
-		(string("arm"),     JointSemanticProperty(Semantic_Hand))
-		(string("claw"),    JointSemanticProperty(Semantic_Hand))
-		(string("wing"),    JointSemanticProperty(Semantic_Hand | Semantic_Wing))
-		(string("head"),    JointSemanticProperty(Semantic_Head))
-		(string("l"),       JointSemanticProperty(Semantic_Left))
-		(string("r"),       JointSemanticProperty(Semantic_Right))
-		(string("left"),    JointSemanticProperty(Semantic_Left))
-		(string("right"),   JointSemanticProperty(Semantic_Right))
-		(string("leg"),     JointSemanticProperty(Semantic_Foot))
-		(string("foot"),    JointSemanticProperty(Semantic_Foot))
-		(string("tail"),    JointSemanticProperty(Semantic_Tail))
-		(string("ear"),     JointSemanticProperty(Semantic_Ear))
-		(string("eye"),     JointSemanticProperty(Semantic_Eye))
-		(string("noise"),   JointSemanticProperty(Semantic_Nouse));
+std::map<std::string, JointSemanticProperty>
+name2semantic = boost::assign::map_list_of
+(string("hand"), JointSemanticProperty(Semantic_Hand))
+(string("foreleg"), JointSemanticProperty(Semantic_Hand | Semantic_Foot))
+(string("arm"), JointSemanticProperty(Semantic_Hand))
+(string("claw"), JointSemanticProperty(Semantic_Hand))
+(string("wing"), JointSemanticProperty(Semantic_Hand | Semantic_Wing))
+(string("head"), JointSemanticProperty(Semantic_Head))
+(string("l"), JointSemanticProperty(Semantic_Left))
+(string("r"), JointSemanticProperty(Semantic_Right))
+(string("left"), JointSemanticProperty(Semantic_Left))
+(string("right"), JointSemanticProperty(Semantic_Right))
+(string("leg"), JointSemanticProperty(Semantic_Foot))
+(string("foot"), JointSemanticProperty(Semantic_Foot))
+(string("tail"), JointSemanticProperty(Semantic_Tail))
+(string("ear"), JointSemanticProperty(Semantic_Ear))
+(string("eye"), JointSemanticProperty(Semantic_Eye))
+(string("noise"), JointSemanticProperty(Semantic_Nouse));
 
 const JointSemanticProperty & Joint::AssignSemanticsBasedOnName()
 {
@@ -553,15 +597,15 @@ const JointSemanticProperty & Joint::AssignSemanticsBasedOnName()
 	{
 		string word_str;
 		if (*word.first == '_' || *word.first == ' ')
-			word_str = std::string (word.first + 1,word.second);
+			word_str = std::string(word.first + 1, word.second);
 		else
-			word_str = std::string (word.first, word.second);
+			word_str = std::string(word.first, word.second);
 
 		for (auto& c : word_str)
 		{
 			c = std::tolower(c);
 		}
-		
+
 		this->Semantic += name2semantic[word_str];
 	}
 	return this->Semantic;

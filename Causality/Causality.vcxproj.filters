@@ -141,6 +141,9 @@
     <ClCompile Include="PlayerProxy.cpp">
       <Filter>Causality</Filter>
     </ClCompile>
+    <ClCompile Include="FbxParser.cpp">
+      <Filter>Causality</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -310,6 +313,12 @@
     </ClInclude>
     <ClInclude Include="Common\Filter.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CCA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FbxParser.h">
+      <Filter>Causality</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
