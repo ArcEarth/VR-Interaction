@@ -18,15 +18,47 @@ void KinematicSceneObject::ReleaseCurrentFrameFrorUpdate()
 	m_DirtyFlag = true;
 }
 
-IArmature & KinematicSceneObject::Armature() { return m_pAnimationSpace->Armature(); }
+IArmature & KinematicSceneObject::Armature() { return m_pBehavier->Armature(); }
 
-const IArmature & KinematicSceneObject::Armature() const { return m_pAnimationSpace->Armature(); }
+const IArmature & KinematicSceneObject::Armature() const { return m_pBehavier->Armature(); }
 
-AnimationSpace & KinematicSceneObject::Behavier() { return *m_pAnimationSpace; }
+BehavierSpace & KinematicSceneObject::Behavier() { return *m_pBehavier; }
 
-const AnimationSpace & KinematicSceneObject::Behavier() const { return *m_pAnimationSpace; }
+const BehavierSpace & KinematicSceneObject::Behavier() const { return *m_pBehavier; }
 
-void KinematicSceneObject::SetBehavier(AnimationSpace & behaver) { m_pAnimationSpace = &behaver; }
+void KinematicSceneObject::SetBehavier(BehavierSpace & behaver) { m_pBehavier = &behaver; }
+
+bool Causality::KinematicSceneObject::StartAction(const string & key, time_seconds begin_time, bool loop, time_seconds transition_time)
+{
+	auto& anim = (*m_pBehavier)[key];
+	m_pCurrentAction = &anim;
+	m_CurrentActionTime = begin_time;
+	m_LoopCurrentAction = loop;
+	return true;
+}
+
+bool Causality::KinematicSceneObject::StopAction(time_seconds transition_time)
+{
+	return false;
+}
+
+void Causality::KinematicSceneObject::SetFreeze(bool freeze)
+{
+}
+
+void Causality::KinematicSceneObject::Update(time_seconds const & time_delta)
+{
+	if (m_pCurrentAction != nullptr)
+	{
+		m_CurrentActionTime += time_delta;
+		m_pCurrentAction->GetFrameAt(m_CurrentFrame, m_CurrentActionTime);
+	}
+}
+
+bool Causality::KinematicSceneObject::IsVisible(const BoundingFrustum & viewFrustum) const
+{
+	return true;
+}
 
 void Causality::KinematicSceneObject::Render(RenderContext & pContext)
 {
@@ -35,14 +67,22 @@ void Causality::KinematicSceneObject::Render(RenderContext & pContext)
 		using namespace DirectX;
 		using Visualizers::g_PrimitiveDrawer;
 		const auto& frame = m_CurrentFrame;
+		g_PrimitiveDrawer.Begin();
 		//const auto& dframe = Armature().default_frame();
+		auto trans = this->TransformMatrix();
 		for (auto& bone : frame)
 		{
-			g_PrimitiveDrawer.DrawCylinder(bone.OriginPosition, bone.EndPostion, 0.01f, DirectX::Colors::LimeGreen);
+			XMVECTOR e0 = bone.OriginPosition.LoadA();
+			XMVECTOR e1 = bone.EndPostion.LoadA();
+			e0 = XMVector3Transform(e0,trans);
+			e1 = XMVector3Transform(e1, trans);
+			g_PrimitiveDrawer.DrawCylinder(e0, e1, 0.01f, DirectX::Colors::LimeGreen);
+			g_PrimitiveDrawer.DrawSphere(e1, 0.02, DirectX::Colors::LimeGreen);
 		}
+		g_PrimitiveDrawer.End();
 
-	}
-	RenderableSceneObject::Render(pContext);
+	} else
+		RenderableSceneObject::Render(pContext);
 }
 
 void XM_CALLCONV Causality::KinematicSceneObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)

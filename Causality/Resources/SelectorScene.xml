@@ -3,12 +3,14 @@
 	<scene.assets>
 		<mesh name="cube_mesh" src="cube.obj"></mesh>
 	    <mesh name="baseball_bat_mesh" src="baseball_bat.obj"></mesh>
-	    <mesh name="bunny_mesh" src="bunny.obj"></mesh>
+	    <mesh name="bunny_mesh" src="cube.obj"></mesh>
 	    <armature name="bunny_armature" src="bunny.skl"></armature>
-	    <behavier name="bunny_behavier" armature="{bunny_armature}" >
+	    <!--<behavier name="bunny_behavier" armature="{bunny_armature}" >
 		    <animation_clip name="move" src="bunny.move.kfa"></animation_clip>
 		    <animation_clip name="ear_bunce" src="bunny.ear_bunce.kfa"></animation_clip>
-	    </behavier>
+	    </behavier>-->
+      <behavier name="spider_behavier" src="spider.fbx">
+      </behavier>
 	</scene.assets>
 	<scene.content>
 	  	<grid name="root">
@@ -23,7 +25,8 @@
 			<player_controller name="player" position="0,1.0,0">
 <!-- 				<creature name="bunny" position="-1.0,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
 				<creature name="bunny2" position="-0.5,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
- -->				
+ -->
+        <creature name="spider" position="0,1.0,0" scale="0.05" behavier="{spider_behavier}"></creature>
  				<kinect_visualizer/>
 			</player_controller>
 		</grid>

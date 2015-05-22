@@ -4,14 +4,14 @@
 
 namespace Causality
 {
-	class FbxModel
+	class FbxAnimationParser
 	{
 	public:
-		bool LoadFromFile(const string& file);
-		const AnimationSpace& GetAnimationSpace() const;
-
+		unique_ptr<BehavierSpace> LoadFromFile(const string& file);
+		~FbxAnimationParser();
+		FbxAnimationParser();
 	private:
-		class Impl;
+		struct Impl;
 		unique_ptr<Impl> m_pImpl;
 	};
 }

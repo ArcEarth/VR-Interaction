@@ -11,19 +11,40 @@
 using namespace DirectX;
 using namespace Causality;
 
+//void BoneDisplacement::UpdateGlobalData(const BoneDisplacement & reference)
+//{
+//	XMVECTOR ParQ = reference.GblRotation;
+//	XMVECTOR Q = XMQuaternionMultiply(ParQ, LclRotation);
+//	GblRotation = Q;
+//
+//	OriginPosition = reference.EndPostion;
+//	//XMVECTOR V = LclScaling;
+//	//V = XMVectorMultiply(V, g_XMIdentityR1.v);
+//	//V = XMVector3Rotate(V, Q);
+//
+//	V = XMVectorAdd(V, OriginPosition);
+//	EndPostion = V;
+//}
+
 void BoneDisplacement::UpdateGlobalData(const BoneDisplacement & reference)
 {
-	XMVECTOR ParQ = reference.GblRotation;
-	XMVECTOR Q = XMQuaternionMultiply(ParQ, LclRotation);
-	GblRotation = Q;
-	OriginPosition = reference.EndPostion;
-	XMVECTOR V = LclScaling;
-	V = XMVectorMultiply(V, g_XMIdentityR1.v);
+	XMVECTOR ParQ = reference.GblRotation.LoadA();
+	XMVECTOR Q = XMQuaternionMultiply(LclRotation.LoadA(), ParQ);
+	XMVECTOR S = reference.GblScaling.LoadA() * LclScaling.LoadA();
+	GblRotation.StoreA(Q);
+	GblScaling.StoreA(S);
+
+	OriginPosition = reference.EndPostion; // should be a constriant
+
+	XMVECTOR V = LclTranslation.LoadA();
+	V *= S;
 	V = XMVector3Rotate(V, Q);
-	V = XMVectorAdd(V, OriginPosition);
-	EndPostion = V;
+	V = XMVectorAdd(V, OriginPosition.LoadA());
+
+	EndPostion.StoreA(V);
 }
 
+// This will assuming LclTranslation is not changed
 void BoneDisplacement::UpdateLocalData(const BoneDisplacement& reference)
 {
 	OriginPosition = reference.EndPostion;
@@ -31,10 +52,12 @@ void BoneDisplacement::UpdateLocalData(const BoneDisplacement& reference)
 	ParQ = XMQuaternionInverse(ParQ);
 	XMVECTOR Q = GblRotation;
 	LclRotation = XMQuaternionMultiply(ParQ, Q);
+
 	Q = (XMVECTOR)EndPostion - (XMVECTOR)reference.EndPostion;
 	Q = XMVector3Length(Q);
 	Q = XMVectorSelect(g_XMIdentityR1.v, Q, g_XMIdentityR1.v);
-	LclScaling = Q;
+	LclTranslation = Q;
+	LclScaling = Vector3::One;
 }
 
 
@@ -104,8 +127,8 @@ StaticArmature::StaticArmature(std::istream & file)
 	{
 		auto& joint = Joints[idx];
 		auto& bone = DefaultFrame[idx];
-		((JointData&)joint).ID = idx;
-		file >> ((JointData&)joint).Name >> ((JointData&)joint).ParentID;
+		((JointBasicData&)joint).ID = idx;
+		file >> ((JointBasicData&)joint).Name >> ((JointBasicData&)joint).ParentID;
 		if (joint.ParentID() != idx && joint.ParentID() >= 0)
 		{
 			Joints[joint.ParentID()].append_children_back(&joint);
@@ -132,7 +155,7 @@ StaticArmature::StaticArmature(size_t JointCount, int * Parents, const char* con
 	{
 		Joints[i].SetID(i);
 		Joints[i].SetName(Names[i]);
-		((JointData&)Joints[i]).ParentID = Parents[i];
+		((JointBasicData&)Joints[i]).ParentID = Parents[i];
 		if (Parents[i] != i && Parents[i] >= 0)
 		{
 			Joints[Parents[i]].append_children_back(&Joints[i]);
@@ -291,7 +314,7 @@ void Causality::BoneDisplacementFrame::TransformMatrix(DirectX::XMFLOAT4X4 * pOu
 	}
 }
 
-Eigen::VectorXf AnimationSpace::FrameFeatureVectorLnQuaternion(const frame_type & frame) const
+Eigen::VectorXf BehavierSpace::FrameFeatureVectorLnQuaternion(const frame_type & frame) const
 {
 	Eigen::VectorXf fvector(frame.size() * 3);
 	Eigen::Vector3f v{ 0,1,0 };
@@ -309,15 +332,15 @@ Eigen::VectorXf AnimationSpace::FrameFeatureVectorLnQuaternion(const frame_type 
 	return fvector;
 }
 
-const IArmature & AnimationSpace::Armature() const { return *m_pArmature; }
+const IArmature & BehavierSpace::Armature() const { return *m_pArmature; }
 
-IArmature & AnimationSpace::Armature() { return *m_pArmature; }
+IArmature & BehavierSpace::Armature() { return *m_pArmature; }
 
-void AnimationSpace::SetArmature(IArmature & armature) { assert(this->empty()); m_pArmature = &armature; }
+void BehavierSpace::SetArmature(IArmature & armature) { assert(this->empty()); m_pArmature = &armature; }
 
-const AnimationSpace::frame_type & AnimationSpace::RestFrame() const { return Armature().default_frame(); }
+const BehavierSpace::frame_type & BehavierSpace::RestFrame() const { return Armature().default_frame(); }
 
-Eigen::VectorXf AnimationSpace::FrameFeatureVectorEndPointNormalized(const frame_type & frame) const
+Eigen::VectorXf BehavierSpace::FrameFeatureVectorEndPointNormalized(const frame_type & frame) const
 {
 	int N = frame.size();
 	Eigen::VectorXf fvector(N * 3);
@@ -344,7 +367,7 @@ Eigen::VectorXf AnimationSpace::FrameFeatureVectorEndPointNormalized(const frame
 	return fvector;
 }
 
-Eigen::MatrixXf Causality::AnimationSpace::AnimationMatrixEndPosition(const ArmatureKeyframeAnimation & animation) const
+Eigen::MatrixXf Causality::BehavierSpace::AnimationMatrixEndPosition(const ArmatureKeyframeAnimation & animation) const
 {
 	const auto & frames = animation.GetFrameBuffer();
 	int K = animation.GetFrameBuffer().size();
@@ -354,7 +377,7 @@ Eigen::MatrixXf Causality::AnimationSpace::AnimationMatrixEndPosition(const Arma
 	return fmatrix;
 }
 
-void Causality::AnimationSpace::CacAnimationMatrixEndPosition(const ArmatureKeyframeAnimation & animation, Eigen::MatrixXf & fmatrix) const
+void Causality::BehavierSpace::CacAnimationMatrixEndPosition(const ArmatureKeyframeAnimation & animation, Eigen::MatrixXf & fmatrix) const
 {
 	const auto & frames = animation.GetFrameBuffer();
 	int K = animation.GetFrameBuffer().size();
@@ -391,7 +414,7 @@ void Causality::AnimationSpace::CacAnimationMatrixEndPosition(const ArmatureKeyf
 // !!! This will NOT work since the space will always be full-rank (with enough key frames)
 // and the projection will always be the same as the input feature vector
 // How about doing a PCA?
-float AnimationSpace::PoseDistancePCAProjection(const frame_type & frame) const
+float BehavierSpace::PoseDistancePCAProjection(const frame_type & frame) const
 {
 	auto fv = FrameFeatureVectorLnQuaternion(frame);
 
@@ -409,7 +432,7 @@ float AnimationSpace::PoseDistancePCAProjection(const frame_type & frame) const
 	return distance;
 }
 
-Eigen::RowVectorXf AnimationSpace::PoseSquareDistanceNearestNeibor(const frame_type & frame) const
+Eigen::RowVectorXf BehavierSpace::PoseSquareDistanceNearestNeibor(const frame_type & frame) const
 {
 	auto fv = FrameFeatureVectorLnQuaternion(frame);
 
@@ -419,7 +442,7 @@ Eigen::RowVectorXf AnimationSpace::PoseSquareDistanceNearestNeibor(const frame_t
 	return dis;
 }
 
-Eigen::RowVectorXf Causality::AnimationSpace::StaticSimiliartyEculidDistance(const frame_type & frame) const
+Eigen::RowVectorXf Causality::BehavierSpace::StaticSimiliartyEculidDistance(const frame_type & frame) const
 {
 	using namespace Eigen;
 	auto dis = PoseSquareDistanceNearestNeibor(frame);
@@ -428,7 +451,7 @@ Eigen::RowVectorXf Causality::AnimationSpace::StaticSimiliartyEculidDistance(con
 	return dis;
 }
 
-Eigen::VectorXf AnimationSpace::CaculateFrameDynamicFeatureVectorJointVelocityHistogram(const frame_type & frame, const frame_type & prev_frame) const
+Eigen::VectorXf BehavierSpace::CaculateFrameDynamicFeatureVectorJointVelocityHistogram(const frame_type & frame, const frame_type & prev_frame) const
 {
 	using namespace Eigen;
 	auto N = frame.size();
@@ -444,7 +467,7 @@ Eigen::VectorXf AnimationSpace::CaculateFrameDynamicFeatureVectorJointVelocityHi
 }
 
 // Nothing but Bhattacharyya distance
-Eigen::RowVectorXf AnimationSpace::DynamicSimiliarityJvh(const frame_type & frame, const frame_type & prev_frame) const
+Eigen::RowVectorXf BehavierSpace::DynamicSimiliarityJvh(const frame_type & frame, const frame_type & prev_frame) const
 {
 	auto fv = CaculateFrameDynamicFeatureVectorJointVelocityHistogram(frame, prev_frame);
 	Eigen::MatrixXf Dis = Xv.cwiseProduct(fv.replicate(1, Xv.cols()));
@@ -452,12 +475,12 @@ Eigen::RowVectorXf AnimationSpace::DynamicSimiliarityJvh(const frame_type & fram
 	return Dis.colwise().sum();;
 }
 
-//float AnimationSpace::DynamicSimiliarityJvh(const velocity_frame_type & velocity_frame) const
+//float BehavierSpace::DynamicSimiliarityJvh(const velocity_frame_type & velocity_frame) const
 //{
 //	
 //}
 
-float Causality::AnimationSpace::FrameLikilihood(const frame_type & frame, const frame_type & prev_frame) const
+float Causality::BehavierSpace::FrameLikilihood(const frame_type & frame, const frame_type & prev_frame) const
 {
 	auto stsim = StaticSimiliartyEculidDistance(frame);
 	auto dysim = DynamicSimiliarityJvh(frame, prev_frame);
@@ -465,13 +488,13 @@ float Causality::AnimationSpace::FrameLikilihood(const frame_type & frame, const
 	return stsim.minCoeff();
 }
 
-float Causality::AnimationSpace::FrameLikilihood(const frame_type & frame) const
+float Causality::BehavierSpace::FrameLikilihood(const frame_type & frame) const
 {
 	auto minDis = PoseSquareDistanceNearestNeibor(frame).minCoeff();
 	return expf(-minDis / (SegmaDis*SegmaDis));
 }
 
-vector<ArmatureTransform> AnimationSpace::GenerateBindings()
+vector<ArmatureTransform> BehavierSpace::GenerateBindings()
 {
 	vector<ArmatureTransform> bindings;
 	auto& armature = Armature();
@@ -483,7 +506,7 @@ vector<ArmatureTransform> AnimationSpace::GenerateBindings()
 	return bindings;
 }
 
-void AnimationSpace::CaculateXpInv()
+void BehavierSpace::CaculateXpInv()
 {
 	auto Xt = X.transpose();
 	XpInv = Xt * X;
@@ -533,6 +556,15 @@ bool ArmatureKeyframeAnimation::InterpolateFrames(double frameRate)
 		}
 	}
 	frames.shrink_to_fit();
+	return true;
+}
+
+bool Causality::ArmatureKeyframeAnimation::GetFrameAt(BoneDisplacementFrame & outFrame, TimeScalarType time) const
+{
+	double t = fmod(time.count(),Duration.count());
+	int frameIdx = round(t / FrameInterval.count());
+	frameIdx = frameIdx % frames.size(); // ensure the index is none negative
+	outFrame = frames[frameIdx];
 	return true;
 }
 

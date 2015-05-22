@@ -54,7 +54,7 @@ namespace Causality
 
 		virtual ~SceneObject() override;
 
-		SceneObject();;
+		SceneObject();
 
 		inline void AddChild(SceneObject* child)
 		{
@@ -181,30 +181,12 @@ namespace Causality
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 	};
 
-	struct ColorHistogram
-	{
-	};
-
-	struct KinematicSceneObjectPart
-	{
-		int								ID; // Must be same as the id referenced in Armature
-
-		// Saliency parameters
-		Color							AverageColor;
-		ColorHistogram					ColorDistribution;
-		Vector3							PositionDistribution;
-		BoundingBox						VelocityDistribution;
-		
-		float							IntrinsicSaliency;
-		float							ExtrinsicSaliency;
-	};
-
 	class ControlState;
 	// Represent an SceneObjecy
 	class KinematicSceneObject : public RenderableSceneObject
 	{
 	public:
-		typedef AnimationSpace::frame_type frame_type;
+		typedef BehavierSpace::frame_type frame_type;
 
 		const frame_type&				GetCurrentFrame() const;
 		frame_type&						MapCurrentFrameForUpdate();
@@ -212,24 +194,32 @@ namespace Causality
 
 		IArmature&						Armature();
 		const IArmature&				Armature() const;
-		AnimationSpace&					Behavier();
-		const AnimationSpace&			Behavier() const;
-		void							SetBehavier(AnimationSpace& behaver);
+		BehavierSpace&					Behavier();
+		const BehavierSpace&			Behavier() const;
+		void							SetBehavier(BehavierSpace& behaver);
+		
+		bool							StartAction(const string& key, time_seconds begin_time = time_seconds(0), bool loop = false, time_seconds transition_time = time_seconds(0));
+		bool							StopAction(time_seconds transition_time = time_seconds(0));
 
 		bool							IsFreezed() const;
 		void							SetFreeze(bool freeze);
 
 
+		virtual void Update(time_seconds const& time_delta) override;
 		// Inherited via IRenderable
+		virtual bool IsVisible(const BoundingFrustum& viewFrustum) const override;
 		virtual void Render(RenderContext & pContext) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 	private:
-		AnimationSpace*					        m_pAnimationSpace;
+		BehavierSpace*					        m_pBehavier;
+		BehavierSpace::animation_type*			m_pCurrentAction;
+		BehavierSpace::animation_type*			m_pLastAction;
+		time_seconds							m_CurrentActionTime;
+		bool									m_LoopCurrentAction;
+
 		int										m_FrameMapState;
 		frame_type						        m_CurrentFrame;
-
-		std::vector<KinematicSceneObjectPart>	m_Parts;
 
 		bool									m_DirtyFlag;
 		std::vector<ControlState*>				m_Controls;

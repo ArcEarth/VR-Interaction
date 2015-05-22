@@ -15,16 +15,26 @@ namespace Causality
 	{
 	public:
 		// Local Data
+		XM_ALIGN16
 		DirectX::Quaternion LclRotation;
 
 		XM_ALIGN16
-		DirectX::Vector3	LclScaling; // Local LclScaling , adjust this transform to adjust bone length
+		DirectX::Vector3	LclScaling; // Local Scaling , adjust this transform to adjust bone length
+
+		// Local Translation, represent the offset vector (Pe - Po) in current frame 
+		// Typical value should always be (0,l,0), where l = length of the bone
+		// Should be constant among time!!!
+		XM_ALIGN16
+		DirectX::Vector3	LclTranslation; 
 
 		// Global Data (dulplicate with Local)
 		// Global Rotation
+		XM_ALIGN16
 		DirectX::Quaternion GblRotation;
-
+		XM_ALIGN16
+		DirectX::Vector3	GblScaling;
 		// Global Position for the begining joint of this bone
+		// Aka : GblTranslation
 		XM_ALIGN16
 		DirectX::Vector3	OriginPosition;
 		XM_ALIGN16
@@ -35,6 +45,7 @@ namespace Causality
 		void GetBoundingBox(DirectX::BoundingBox& out) const;
 		// Update from Hirachy or Global
 		// FK Caculation
+		// Need this.LclRotation, this.LclScaling, and all Data for reference
 		void UpdateGlobalData(const BoneDisplacement& refernece);
 		// Easy-IK Caculation with No-X-Rotation-Constraint and bone length will be modified if the transform is not isometric
 		void UpdateLocalDataByPositionOnly(const BoneDisplacement& reference);
@@ -50,7 +61,10 @@ namespace Causality
 		static DirectX::XMDUALVECTOR RigidTransformDualQuaternion(const BoneDisplacement& from, const BoneDisplacement& to);
 
 	public:
-		typedef Eigen::Map<Eigen::Matrix<float, 20, Eigen::Dynamic>, Eigen::Aligned> EigenType;
+		// number of float elements per bone
+		static const auto BoneWidth = 28;
+
+		typedef Eigen::Map<Eigen::Matrix<float, BoneWidth, 1>, Eigen::Aligned> EigenType;
 		EigenType AsEigenType()
 		{
 			return EigenType(&LclRotation.x);
@@ -102,7 +116,7 @@ namespace Causality
 	// A Joint descript the structure information of a joint
 	// Also represent the "bone" "end" with it
 	// the state information could be retrived by using it's ID
-	struct JointData
+	struct JointBasicData
 	{
 		// The Index for this joint (&it's the bone ending with it)
 		// The Name for this joint
@@ -110,41 +124,57 @@ namespace Causality
 		// Should be -1 for Root
 		int							ParentID;
 		std::string					Name;
-
-		JointSemanticProperty		Semantic;
-		RotationConstriant			RotationConstraint;
 	};
 
-	class Joint : public stdx::tree_node<Joint, false>, protected JointData
+	struct ColorHistogram
 	{
+	};
+
+	class Joint : public stdx::tree_node<Joint, false>, protected JointBasicData
+	{
+	public:
+		JointSemanticProperty		Semantic;
+		RotationConstriant			RotationConstraint;
+		Vector3						Scale;
+		Vector3						OffsetFromParent;
+
+		// Saliency parameters & Extra Parameters
+		Color						AverageColor;
+		ColorHistogram				ColorDistribution;
+		Vector3						PositionDistribution;
+		BoundingBox					VelocityDistribution;
+
+		float						IntrinsicSaliency;
+		float						ExtrinsicSaliency;
+
 	public:
 		Joint()
 		{
-			JointData::ID = -1;
-			JointData::ParentID = -1;
+			JointBasicData::ID = -1;
+			JointBasicData::ParentID = -1;
 		}
 
 		Joint(int id)
 		{
-			JointData::ID = id;
-			JointData::ParentID = -1;
+			JointBasicData::ID = id;
+			JointBasicData::ParentID = -1;
 		}
 
-		Joint(const JointData& data)
-			: JointData(data)
+		Joint(const JointBasicData& data)
+			: JointBasicData(data)
 		{
 		}
 
 		int ID() const
 		{
-			return JointData::ID;
+			return JointBasicData::ID;
 		}
-		void SetID(int idx) { JointData::ID = idx; }
+		void SetID(int idx) { JointBasicData::ID = idx; }
 
 		// will be -1 for root
 		int ParentID() const
 		{
-			return JointData::ParentID;
+			return JointBasicData::ParentID;
 			//auto p = parent();
 			//if (p)
 			//	return parent()->ID();
@@ -154,19 +184,19 @@ namespace Causality
 
 		const std::string& Name() const
 		{
-			return JointData::Name;
+			return JointBasicData::Name;
 		}
 
-		void SetName(const std::string& name) { JointData::Name = name; }
-		void SetParentID(int id) { JointData::ParentID = id; }
+		void SetName(const std::string& name) { JointBasicData::Name = name; }
+		void SetParentID(int id) { JointBasicData::ParentID = id; }
 
 		const JointSemanticProperty& AssignSemanticsBasedOnName();
 
-		const JointSemanticProperty& Semantics() const;
-		JointSemanticProperty& Semantics();
+		//const JointSemanticProperty& Semantics() const;
+		//JointSemanticProperty& Semantics();
 
-		const RotationConstriant&	RotationConstraint() const;
-		void SetRotationConstraint(const RotationConstriant&);
+		//const RotationConstriant&	RotationConstraint() const;
+		//void SetRotationConstraint(const RotationConstriant&);
 	};
 
 	typedef time_seconds TimeScalarType;
@@ -285,8 +315,10 @@ namespace Causality
 	class KeyframeAnimation : public IFrameAnimation
 	{
 	public:
-		string Name;
-		std::vector<FrameType> KeyFrames;
+		string					Name;
+		std::vector<FrameType>	KeyFrames;
+		TimeScalarType			Duration;
+		TimeScalarType			FrameInterval;
 		// A function map : (BeginTime,EndTime) -> (BeginTime,EndTime),  that handels the easing effect between frames
 		// Restriction : TimeWarp(KeyFrameTime(i)) must equals to it self
 		std::function<TimeScalarType(TimeScalarType)> TimeWarpFunction;
@@ -332,7 +364,7 @@ namespace Causality
 
 	public:
 		// Frame Retrival
-		bool GetFrameAt(FrameType& outFrame, TimeScalarType time) const;
+		virtual bool GetFrameAt(FrameType& outFrame, TimeScalarType time) const;
 
 	};
 
@@ -365,9 +397,15 @@ namespace Causality
 		void SetArmature(IArmature& armature) { pArmature = &armature; }
 		// get the pre-computed frame buffer which contains interpolated frame
 		const std::vector<frame_type>& GetFrameBuffer() const { return frames; }
-		const Eigen::MatrixXf& FramesMatrix() const;
+		std::vector<frame_type>& GetFrameBuffer() { return frames; }
+
+		// Feature Matrix of this animation, const version
+		const Eigen::MatrixXf& AnimMatrix() const { return animMatrix; }
+		// Feature Matrix of this animation
+		Eigen::MatrixXf& AnimMatrix() { return animMatrix; }
 
 		bool InterpolateFrames(double frameRate);
+		virtual bool GetFrameAt(BoneDisplacementFrame& outFrame, TimeScalarType time) const;
 
 		enum DataType
 		{
@@ -384,8 +422,9 @@ namespace Causality
 		//}
 
 	private:
-		IArmature*		pArmature;
-		Eigen::MatrixXf frames;
+		IArmature*			pArmature;
+		vector<frame_type>	frames;
+		Eigen::MatrixXf		animMatrix; // 20N x F matrix
 	};
 
 	class ArmatureTransform
@@ -445,7 +484,7 @@ namespace Causality
 
 	// Represent an semantic collection of animations
 	// It's the possible pre-defined actions for an given object
-	class AnimationSpace : protected std::map<std::string, ArmatureKeyframeAnimation>
+	class BehavierSpace : protected std::map<std::string, ArmatureKeyframeAnimation>
 	{
 	public:
 		typedef ArmatureKeyframeAnimation animation_type;
@@ -484,12 +523,15 @@ namespace Causality
 
 		void AddAnimationClip(const std::string& name, animation_type&& animation)
 		{
-			this->emplace(name, std::move(animation));
+			this->emplace(std::make_pair(name, std::move(animation)));
 		}
 
 		animation_type& AddAnimationClip(const std::string& name)
 		{
-			this->emplace(name);
+			this->emplace(std::make_pair(name,animation_type()));
+			auto& clip = this->at(name);
+			clip.SetArmature(*m_pArmature);
+			return clip;
 		}
 
 		bool Contains(const std::string& name) const;
@@ -501,20 +543,20 @@ namespace Causality
 		const frame_type&		RestFrame() const; // RestFrame should be the first fram in Rest Animation
 
 		// Using Local Position is bad : X rotation of Parent Joint is not considerd
-		Eigen::VectorXf FrameFeatureVectorEndPointNormalized(const frame_type& frame) const;
-		Eigen::MatrixXf AnimationMatrixEndPosition(const ArmatureKeyframeAnimation& animation) const;
-		void CacAnimationMatrixEndPosition( _In_ const ArmatureKeyframeAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
+		Eigen::VectorXf			FrameFeatureVectorEndPointNormalized(const frame_type& frame) const;
+		Eigen::MatrixXf			AnimationMatrixEndPosition(const ArmatureKeyframeAnimation& animation) const;
+		void					CacAnimationMatrixEndPosition( _In_ const ArmatureKeyframeAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
 		// Basiclly, the difference's magnitude is acceptable, direction is bad
-		Eigen::VectorXf FrameFeatureVectorLnQuaternion(const frame_type& frame) const;
-		void CaculateAnimationFeatureLnQuaternionInto(_In_ const ArmatureKeyframeAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
+		Eigen::VectorXf			FrameFeatureVectorLnQuaternion(const frame_type& frame) const;
+		void					CaculateAnimationFeatureLnQuaternionInto(_In_ const ArmatureKeyframeAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
 
 		// Evaluating a likelihood of the given frame is inside this space
-		float PoseDistancePCAProjection(const frame_type& frame) const;
-		Eigen::RowVectorXf PoseSquareDistanceNearestNeibor(const frame_type& frame) const;
-		Eigen::RowVectorXf StaticSimiliartyEculidDistance(const frame_type& frame) const;
+		float					PoseDistancePCAProjection(const frame_type& frame) const;
+		Eigen::RowVectorXf		PoseSquareDistanceNearestNeibor(const frame_type& frame) const;
+		Eigen::RowVectorXf		StaticSimiliartyEculidDistance(const frame_type& frame) const;
 
-		Eigen::VectorXf CaculateFrameDynamicFeatureVectorJointVelocityHistogram(const frame_type& frame, const frame_type& prev_frame) const;
-		Eigen::RowVectorXf DynamicSimiliarityJvh(const frame_type& frame, const frame_type& prev_frame) const;
+		Eigen::VectorXf			CaculateFrameDynamicFeatureVectorJointVelocityHistogram(const frame_type& frame, const frame_type& prev_frame) const;
+		Eigen::RowVectorXf		DynamicSimiliarityJvh(const frame_type& frame, const frame_type& prev_frame) const;
 
 		// with 1st order dynamic
 		float FrameLikilihood(const frame_type& frame, const frame_type& prev_frame) const;
@@ -657,7 +699,7 @@ namespace Causality
 
 	public:
 		template <template<class T> class Range>
-		StaticArmature(Range<JointData> data)
+		StaticArmature(Range<JointBasicData> data)
 		{
 			size_t jointCount = data.size();
 			Joints.resize(jointCount);
@@ -757,5 +799,11 @@ namespace Causality
 	protected:
 		Joint* _root;
 	};
+
+	template<typename FrameType>
+	bool KeyframeAnimation<FrameType>::GetFrameAt(FrameType & outFrame, TimeScalarType time) const
+	{
+		return false;
+	}
 
 }

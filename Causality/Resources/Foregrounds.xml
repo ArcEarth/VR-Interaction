@@ -10,6 +10,7 @@
   <obj src="baseball_bat.obj" position="2.0,1.5.0,0.0" scale="0.1"></obj>
   <!--<obj src="ConfederatePistolf.obj" position="5.0,5.0,4.0" scale = "0.0075"></obj>-->
   <obj src="NBA_BASKETBALL.obj" position="2.5,1.0,0.0" scale="0.005"></obj>
+
   <!--<obj src="sibenik_n.obj" position="0,13,46.2" scale="10.0"></obj>-->
 
   <skin_model src="Bird.obj">

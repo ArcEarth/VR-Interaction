@@ -1,6 +1,7 @@
 #include "pch_bcl.h"
 #include "AssetDictionary.h"
 #include "Common\DirectXHelper.h"
+#include "FbxParser.h"
 
 using namespace Causality;
 using namespace boost::filesystem;
@@ -61,6 +62,18 @@ AssetDictionary::animation_clip_type& Causality::AssetDictionary::LoadAnimation(
 		return animations[key];
 	}
 	return animations[key];
+}
+
+Causality::BehavierSpace & AssetDictionary::LoadBehavierFbx(const string & key, const string & fileName)
+{
+	FbxAnimationParser fbxparser;
+	auto behavier = fbxparser.LoadFromFile((mesh_directory / fileName).string());
+	auto rtnval = behavier.get();
+	if (behavier)
+	{
+		behaviers[key] = behavier.release();
+	}
+	return *rtnval;
 }
 
 task<AssetDictionary::mesh_type*>& Causality::AssetDictionary::LoadMeshAsync(const string & key, const string & fileName)

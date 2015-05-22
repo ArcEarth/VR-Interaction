@@ -436,9 +436,17 @@ namespace DirectX
 		assert(!XMVector3Equal(v2, XMVectorZero()));
 		XMVECTOR n1 = XMVector3Normalize(v1);
 		XMVECTOR n2 = XMVector3Normalize(v2);
-		if (XMVector4NearEqual(n1, n2, g_XMEpsilon.v))
-			return XMQuaternionIdentity();
 		XMVECTOR axias = XMVector3Cross(n1, n2);
+		if (XMVector4NearEqual(axias, g_XMZero.v, g_XMEpsilon.v))
+		{
+			n2 = g_XMIdentityR0.v;
+			axias = XMVector3Cross(n1, n2);
+			if (XMVector4NearEqual(axias, g_XMZero.v, g_XMEpsilon.v))
+			{
+				n2 = g_XMIdentityR1.v;
+				axias = XMVector3Cross(n1, n2);
+			}
+		}
 		float angle = std::acosf(XMVectorGetX(XMVector3Dot(n1, n2)));
 		auto rot = XMQuaternionRotationAxis(axias, angle);
 		return rot;

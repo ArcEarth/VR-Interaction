@@ -143,6 +143,12 @@ namespace DirectX{
 	//	m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
 	//}
 
+	//void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Sphere, FXMVECTOR Color)
+	//{
+	//	XMMATRIX world = XMMatrixAffineTransformation(XMVectorSplatW(Sphere), g_XMZero, XMQuaternionIdentity(), Sphere);
+	//	m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	//}
+
 	void XM_CALLCONV PrimitveDrawer::DrawCube(FXMVECTOR Position, FXMVECTOR HalfExtend, FXMVECTOR Orientation, GXMVECTOR Color)
 	{
 		XMMATRIX world = XMMatrixAffineTransformation(HalfExtend, g_XMZero, Orientation, Position);

@@ -97,10 +97,24 @@ void Causality::App::OnStartup(Array<String^>^ args)
 	//pLeap = Devices::LeapMotion::GetForCurrentView();;
 	pKinect = Devices::Kinect::GetForCurrentView();
 
+	//auto loadingScene = new Scene;
+	//Scenes.emplace_back(loadingScene);
+	//loadingScene->SetRenderDeviceAndContext(pDevice, pContext);
+	//loadingScene->SetCanvas(pDeviceResources->GetBackBufferRenderTarget());
+
 	Scenes.emplace_back(new Scene);
-	Scenes.back()->SetRenderDeviceAndContext(pDevice, pContext);
-	Scenes.back()->SetCanvas(pDeviceResources->GetBackBufferRenderTarget());
-	Scenes.back()->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
+	auto& selector = Scenes.back();
+	selector->SetRenderDeviceAndContext(pDevice, pContext);
+	selector->SetCanvas(pDeviceResources->GetBackBufferRenderTarget());
+	selector->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
+	for (auto& node : selector->Content()->descendants())
+	{
+		if (node.Name == "spider")
+		{
+			node.As<KinematicSceneObject>()->StartAction("attack");
+			break;
+		}
+	}
 }
 
 void Causality::App::RegisterComponent(IAppComponent *pComponent)

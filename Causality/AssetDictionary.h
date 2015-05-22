@@ -28,7 +28,7 @@ namespace Causality
 		using texture_type = DirectX::Texture;
 		using audio_clip_type = int;
 		using animation_clip_type = ArmatureKeyframeAnimation;
-		using behavier_type = AnimationSpace;
+		using behavier_type = BehavierSpace;
 		using armature_type = StaticArmature;
 		using effect_type = DirectX::IEffect;
 
@@ -40,6 +40,7 @@ namespace Causality
 		texture_type&	     LoadTexture(const string & key, const string& fileName);
 		armature_type&	     LoadArmature(const string & key, const string& fileName);
 		animation_clip_type& LoadAnimation(const string& key, const string& fileName);
+		behavier_type&		 LoadBehavierFbx(const string & key, const string & fileName);
 
 		// Async loading methods
 		task<mesh_type*>&			LoadMeshAsync(const string & key, const string& fileName);
@@ -73,6 +74,11 @@ namespace Causality
 		animation_clip_type&		GetAnimation(const string& key)
 		{
 			return animations[key];
+		}
+
+		behavier_type&				GetBehavier(const string& key)
+		{
+			return *behaviers[key];
 		}
 
 		audio_clip_type&			GetAudio(const string& key);
@@ -133,6 +139,7 @@ namespace Causality
 		map<string, animation_clip_type>	animations;
 		map<string, audio_clip_type>		audios;
 		map<string, effect_type*>			effects;
+		map<string, behavier_type*>			behaviers;
 
 		sptr<DirectX::BasicEffect>			default_effect;
 		uptr<DirectX::EffectFactory>		effect_factory;
