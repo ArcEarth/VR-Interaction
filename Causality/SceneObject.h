@@ -9,6 +9,7 @@
 
 namespace Causality
 {
+	class Scene;
 	class Component;
 
 	extern bool g_DebugView;
@@ -110,6 +111,8 @@ namespace Causality
 	public:
 		string								Name;
 		string								Tag;
+		Scene								*ParentScene;
+
 	protected:
 		Matrix4x4							m_GlobalTransform;
 		bool								m_GlobalTransformDirty;

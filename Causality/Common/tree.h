@@ -294,6 +294,7 @@ namespace stdx
 			{
 				leaf_iterator itr;
 				itr.current = ptr;
+				if (ptr == nullptr) return itr;
 				itr.move_to_next_from_this_subtree();
 				return itr;
 			}
@@ -1194,6 +1195,7 @@ namespace stdx
 			static inline self_type create_end(const pointer ptr)
 			{
 				self_type itr(ptr);
+				if (ptr == nullptr) return itr;
 				itr.move_to_next_from_this_subtree();
 				return itr;
 			}
@@ -1452,7 +1454,7 @@ namespace stdx
 		}
 		// Depth first end iterator to all nodes inside this sub-tree
 		const_depth_first_iterator nodes_end() const {
-			auto itr = const_depth_first_iterator::create_end(static_cast<const_pointer>(this));
+			return const_depth_first_iterator::create_end(static_cast<const_pointer>(this));
 		}
 		// breadth_first_iterator can self determine if it has meet the end, iterate through sub-tree
 		const_breadth_first_iterator nodes_breadth_first_begin() const {

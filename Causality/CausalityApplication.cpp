@@ -67,7 +67,7 @@ void Causality::App::OnStartup(Array<String^>^ args)
 
 	pWindow = make_shared<NativeWindow>();
 	if (!pRift)
-		pWindow->Initialize(ref new String(L"Causality"), 1920, 1080, false);
+		pWindow->Initialize(ref new String(L"Causality"), 1280, 720, false);
 	else
 	{
 		auto res = pRift->Resoulution();
@@ -96,7 +96,6 @@ void Causality::App::OnStartup(Array<String^>^ args)
 	//}
 	//pLeap = Devices::LeapMotion::GetForCurrentView();;
 	pKinect = Devices::Kinect::GetForCurrentView();
-
 	//auto loadingScene = new Scene;
 	//Scenes.emplace_back(loadingScene);
 	//loadingScene->SetRenderDeviceAndContext(pDevice, pContext);
@@ -115,6 +114,9 @@ void Causality::App::OnStartup(Array<String^>^ args)
 			break;
 		}
 	}
+
+	pKinect->Start();
+
 }
 
 void Causality::App::RegisterComponent(IAppComponent *pComponent)
@@ -188,8 +190,8 @@ void Causality::App::OnIdle()
 	// Processing & Distribute Extra Input
 	if (pLeap)
 		pLeap->PullFrame();
-	if (pKinect)
-		pKinect->ProcessFrame();
+	//if (pKinect)
+	//	pKinect->ProcessFrame();
 
 	for (auto& pScene : Scenes)
 		pScene->Update();

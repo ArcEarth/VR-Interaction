@@ -67,7 +67,7 @@ void Causality::KinematicSceneObject::Render(RenderContext & pContext)
 		using namespace DirectX;
 		using Visualizers::g_PrimitiveDrawer;
 		const auto& frame = m_CurrentFrame;
-		g_PrimitiveDrawer.Begin();
+		//g_PrimitiveDrawer.Begin();
 		//const auto& dframe = Armature().default_frame();
 		auto trans = this->TransformMatrix();
 		for (auto& bone : frame)
@@ -76,10 +76,10 @@ void Causality::KinematicSceneObject::Render(RenderContext & pContext)
 			XMVECTOR e1 = bone.EndPostion.LoadA();
 			e0 = XMVector3Transform(e0,trans);
 			e1 = XMVector3Transform(e1, trans);
-			g_PrimitiveDrawer.DrawCylinder(e0, e1, 0.01f, DirectX::Colors::LimeGreen);
-			g_PrimitiveDrawer.DrawSphere(e1, 0.02, DirectX::Colors::LimeGreen);
+			g_PrimitiveDrawer.DrawCylinder(e0, e1, 0.01f, DirectX::Colors::Yellow);
+			g_PrimitiveDrawer.DrawSphere(e1, 0.02, DirectX::Colors::Yellow);
 		}
-		g_PrimitiveDrawer.End();
+		//g_PrimitiveDrawer.End();
 
 	} else
 		RenderableSceneObject::Render(pContext);
@@ -243,6 +243,15 @@ void KeyboardMouseFirstPersonControl::OnKeyUp(const KeyboardEventArgs & e)
 		CameraVeclocity -= Vector3{ -1,0,0 };
 	if (e.Key == 'D')
 		CameraVeclocity -= Vector3{ 1,0,0 };
+
+	if (e.Key == VK_SPACE)
+	{
+		if (!this->ParentScene->IsPaused())
+			this->ParentScene->Pause();
+		else
+			this->ParentScene->Resume();
+	}
+
 	if (e.Key == VK_ESCAPE)
 		App::Current()->Exit();
 }
@@ -290,25 +299,45 @@ bool Causality::CoordinateAxis::IsVisible(const BoundingFrustum & viewFrustum) c
 
 void Causality::CoordinateAxis::Render(RenderContext & context)
 {
+	float ub = 5, lb = -5, majorIdent = 1, minorIdent = 0.25f;
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 	using namespace DirectX;
+	g_PrimitiveDrawer.DrawSphere({ .0f,.0f,.0f,0.02f }, Colors::Cyan);
+
+	float Ar = 0.03f, Al = ub, Almr = Al-Ar, Alpr = Al + Ar;
 	g_PrimitiveDrawer.Begin();
-	g_PrimitiveDrawer.DrawSphere({ .0f,.0f,.0f,0.02f }, Colors::Red);
-	g_PrimitiveDrawer.DrawLine({ -5.0f,.0f,.0f }, { 5.0f,.0f,.0f }, Colors::Red);
-	g_PrimitiveDrawer.DrawLine({ .0f,-5.0f,.0f }, { .0f,5,.0f }, Colors::Green);
-	g_PrimitiveDrawer.DrawLine({ .0f,.0f,-5.0f }, { .0f,.0f,5.0f }, Colors::Blue);
-	g_PrimitiveDrawer.DrawTriangle({ 5.05f,.0f,.0f }, { 4.95f,0.05f,.0f }, { 4.95f,-0.05f,.0f }, Colors::Red);
-	g_PrimitiveDrawer.DrawTriangle({ 5.05f,.0f,.0f }, { 4.95f,-0.05f,.0f }, { 4.95f,0.05f,.0f }, Colors::Red);
-	g_PrimitiveDrawer.DrawTriangle({ 5.05f,.0f,.0f }, { 4.95f,.0f,0.05f }, { 4.95f,.0f,-0.05f }, Colors::Red);
-	g_PrimitiveDrawer.DrawTriangle({ 5.05f,.0f,.0f }, { 4.95f,.0f,-0.05f }, { 4.95f,.0f,0.05f }, Colors::Red);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,5.05f,.0f }, { -0.05f,4.95f,.0f }, { 0.05f,4.95f,.0f }, Colors::Green);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,5.05f,.0f }, { 0.05f,4.95f,.0f }, { -0.05f,4.95f,.0f }, Colors::Green);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,5.05f,.0f }, { .0f,4.95f,-0.05f }, { .0f,4.95f,0.05f }, Colors::Green);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,5.05f,.0f }, { .0f,4.95f,0.05f }, { .0f,4.95f,-0.05f }, Colors::Green);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,5.05f }, { 0.05f,.0f,4.95f }, { -0.05f,.0f,4.95f }, Colors::Blue);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,5.05f }, { -0.05f,.0f,4.95f }, { 0.05f,.0f,4.95f }, Colors::Blue);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,5.05f }, { .0f,0.05f,4.95f }, { .0f,-0.05f,4.95f }, Colors::Blue);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,5.05f }, { .0f,-0.05f,4.95f }, { .0f,0.05f,4.95f }, Colors::Blue);
+
+	for (float x = lb; x <= ub; x += minorIdent)
+	{
+		g_PrimitiveDrawer.DrawLine({ -Al,.0f,x }, { Al,.0f,x }, Colors::LightGray);
+		g_PrimitiveDrawer.DrawLine({ x,.0f,-Al }, { x,.0f,Al }, Colors::LightGray);
+	}
+
+	for (float x = lb; x <= ub; x+=majorIdent)
+	{
+		g_PrimitiveDrawer.DrawLine({ -Al,.0f,x }, { Al,.0f,x }, Colors::Black);
+		g_PrimitiveDrawer.DrawLine({ x,.0f,-Al }, { x,.0f,Al }, Colors::Black);
+	}
+
+	g_PrimitiveDrawer.DrawLine({ -Al,.0f,.0f }, { Al,.0f,.0f }, Colors::Red);
+	g_PrimitiveDrawer.DrawLine({ .0f,-Al,.0f }, { .0f,Al,.0f }, Colors::Green);
+	g_PrimitiveDrawer.DrawLine({ .0f,.0f,-Al }, { .0f,.0f,Al }, Colors::Blue);
+
+
+	g_PrimitiveDrawer.DrawTriangle({ Alpr,.0f,.0f }, { Almr,Ar,.0f }, { Almr,-Ar,.0f }, Colors::Red);
+	g_PrimitiveDrawer.DrawTriangle({ Alpr,.0f,.0f }, { Almr,-Ar,.0f }, { Almr,Ar,.0f }, Colors::Red);
+	g_PrimitiveDrawer.DrawTriangle({ Alpr,.0f,.0f }, { Almr,.0f,Ar }, { Almr,.0f,-Ar }, Colors::Red);
+	g_PrimitiveDrawer.DrawTriangle({ Alpr,.0f,.0f }, { Almr,.0f,-Ar }, { Almr,.0f,Ar }, Colors::Red);
+
+	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { -Ar,Almr,.0f }, { Ar,Almr,.0f }, Colors::Green);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { Ar,Almr,.0f }, { -Ar,Almr,.0f }, Colors::Green);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { .0f,Almr,-Ar }, { .0f,Almr,Ar }, Colors::Green);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { .0f,Almr,Ar }, { .0f,Almr,-Ar }, Colors::Green);
+
+	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,Alpr }, { Ar,.0f,Almr }, { -Ar,.0f,Almr }, Colors::Blue);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,Alpr }, { -Ar,.0f,Almr }, { Ar,.0f,Almr }, Colors::Blue);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,Alpr }, { .0f,Ar,Almr }, { .0f,-Ar,Almr }, Colors::Blue);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,Alpr }, { .0f,-Ar,Almr }, { .0f,Ar,Almr }, Colors::Blue);
 	g_PrimitiveDrawer.End();
 }
 

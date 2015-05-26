@@ -137,17 +137,17 @@ namespace DirectX{
 		m_pCylinder->Draw(world, ViewMatrix, ProjectionMatrix, Color);
 	}
 
-	//void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Position, float radius, FXMVECTOR Color)
-	//{
-	//	XMMATRIX world = XMMatrixAffineTransformation(XMVectorReplicate(radius), g_XMZero, XMQuaternionIdentity(), Position);
-	//	m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
-	//}
+	void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Position, float radius, FXMVECTOR Color)
+	{
+		XMMATRIX world = XMMatrixAffineTransformation(XMVectorReplicate(radius), g_XMZero, XMQuaternionIdentity(), Position);
+		m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	}
 
-	//void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Sphere, FXMVECTOR Color)
-	//{
-	//	XMMATRIX world = XMMatrixAffineTransformation(XMVectorSplatW(Sphere), g_XMZero, XMQuaternionIdentity(), Sphere);
-	//	m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
-	//}
+	void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Sphere, FXMVECTOR Color)
+	{
+		XMMATRIX world = XMMatrixAffineTransformation(XMVectorSplatW(Sphere), g_XMZero, XMQuaternionIdentity(), Sphere);
+		m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+	}
 
 	void XM_CALLCONV PrimitveDrawer::DrawCube(FXMVECTOR Position, FXMVECTOR HalfExtend, FXMVECTOR Orientation, GXMVECTOR Color)
 	{
@@ -285,33 +285,33 @@ namespace DirectX{
 		m_pDirectXBatch->DrawQuad(Vertices[0], Vertices[1], Vertices[2], Vertices[3]);
 	}
 
-	void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Center,float Radius,FXMVECTOR Color)
-	{
-		VertexPositionColor Vertices[34];
-		XMVECTOR vRadius = XMVectorReplicate(Radius);
+	//void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Center,float Radius,FXMVECTOR Color)
+	//{
+	//	VertexPositionColor Vertices[34];
+	//	XMVECTOR vRadius = XMVectorReplicate(Radius);
 
-		for (int i = 0; i < 34; i++)
-		{
-			XMVECTOR vtr = Internal::SphereVertices[i] * vRadius + Center;
-			XMStoreFloat3(&Vertices[i].position,vtr);
-			XMStoreFloat4(&Vertices[i].color,Color);
-		}
-		m_pDirectXBatch->DrawIndexed(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,Internal::SphereIndics,64*3,Vertices,34);
-	}
+	//	for (int i = 0; i < 34; i++)
+	//	{
+	//		XMVECTOR vtr = Internal::SphereVertices[i] * vRadius + Center;
+	//		XMStoreFloat3(&Vertices[i].position,vtr);
+	//		XMStoreFloat4(&Vertices[i].color,Color);
+	//	}
+	//	m_pDirectXBatch->DrawIndexed(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,Internal::SphereIndics,64*3,Vertices,34);
+	//}
 
-	void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Sphere,FXMVECTOR Color)
-	{
-		VertexPositionColor Vertices[34];
-		XMVECTOR vRadius = XMVectorSwizzle<3,3,3,3>(Sphere);
+	//void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Sphere,FXMVECTOR Color)
+	//{
+	//	VertexPositionColor Vertices[34];
+	//	XMVECTOR vRadius = XMVectorSwizzle<3,3,3,3>(Sphere);
 
-		for (int i = 0; i < 34; i++)
-		{
-			XMVECTOR vtr = Internal::SphereVertices[i] * vRadius + Sphere;
-			XMStoreFloat3(&Vertices[i].position,vtr);
-			XMStoreFloat4(&Vertices[i].color,Color);
-		}
-		m_pDirectXBatch->DrawIndexed(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,Internal::SphereIndics,64*3,Vertices,34);
-	}
+	//	for (int i = 0; i < 34; i++)
+	//	{
+	//		XMVECTOR vtr = Internal::SphereVertices[i] * vRadius + Sphere;
+	//		XMStoreFloat3(&Vertices[i].position,vtr);
+	//		XMStoreFloat4(&Vertices[i].color,Color);
+	//	}
+	//	m_pDirectXBatch->DrawIndexed(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST,Internal::SphereIndics,64*3,Vertices,34);
+	//}
 
 	namespace Visualizers
 	{

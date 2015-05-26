@@ -367,7 +367,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		if (m_multiSampleLevel > 1)
 		{
 			HRESULT hr = m_d3dDevice->CheckMultisampleQualityLevels(DXGI_FORMAT_B8G8R8A8_UNORM, m_multiSampleLevel, &m_multiSampleQuality);
-			m_multiSampleQuality = std::min(std::max(m_multiSampleQuality - 1.0f, 0.0f),4.0f);
+			m_multiSampleQuality = std::min(std::max(m_multiSampleQuality - 1U, 0U),4U);
 			swapChainDesc.SampleDesc.Count = m_multiSampleLevel;
 			swapChainDesc.SampleDesc.Quality = m_multiSampleQuality;
 			swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;

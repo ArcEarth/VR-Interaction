@@ -100,6 +100,23 @@ void Causality::PlayerProxy::Initialize()
 			States.back().SetTargetObject(*pObj);
 		}
 	}
+
+	pKinect->OnPlayerTracked += [this](TrackedBody& body)
+	{
+		if (!this->ConnectedBody()->IsCurrentTracked)
+		{
+			this->Connect(&body);
+		}
+	};
+
+	pKinect->OnPlayerTracked += [this](TrackedBody& body)
+	{
+		if (body.Id == this->ConnectedBody()->Id)
+		{
+			this->ResetConnection();
+		}
+	};
+
 	IsInitialized = true;
 }
 
@@ -173,28 +190,28 @@ void Causality::PlayerProxy::PrintFrameBuffer(int No)
 
 void Causality::PlayerProxy::Update(time_seconds const & time_delta)
 {
-	if (!IsInitialized) 
+	if (!IsInitialized || !IsConnected())
 		return;
-	const auto &players = pKinect->GetLatestPlayerFrame();
 	static long long frame_count = 0;
-	if (players.size() != 0)
+
+	auto& player = *pBody;
+	if (!player.IsCurrentTracked) return;
+
+	const auto& frame = player.GetPoseFrame();
+	if (&frame == nullptr) 
+		return;
+
+	if (FrameBuffer.full())
+		FrameBuffer.pop_back();
+	FrameBuffer.push_front(frame);
+
+	++frame_count;
+	if (frame_count % BufferFramesCount == 0 && frame_count != 0)
 	{
-		auto player = players.begin()->second;
-		if (player == nullptr)
-			return;
-		const auto& frame = player->PoseFrame;
-		if (FrameBuffer.full())
-			FrameBuffer.pop_back();
-		FrameBuffer.push_front(frame);
-
-		++frame_count;
-		//if (frame_count % BufferFramesCount == 0 && frame_count != 0)
-		//{
-		//	PrintFrameBuffer(frame_count / BufferFramesCount);
-		//}
-
-		UpdatePlayerFrame(frame);
+		PrintFrameBuffer(frame_count / BufferFramesCount);
 	}
+
+	UpdatePlayerFrame(frame);
 }
 
 bool PlayerProxy::UpdatePlayerFrame(const BoneDisplacementFrame & frame)
@@ -254,10 +271,29 @@ bool Causality::PlayerProxy::IsVisible(const BoundingFrustum & viewFrustum) cons
 
 void Causality::PlayerProxy::Render(RenderContext & context)
 {
+	auto &players = pKinect->GetTrackedBodies();
+	using DirectX::Visualizers::g_PrimitiveDrawer;
+
+	for (auto& player : players)
+	{
+		if (player.IsCurrentTracked)
+		{
+			const auto& frame = player.GetPoseFrame();
+			if (&frame == nullptr) return;
+
+			for (auto& bone : frame)
+			{
+				g_PrimitiveDrawer.DrawCylinder(bone.OriginPosition, bone.EndPostion, 0.015f, DirectX::Colors::LimeGreen);
+				g_PrimitiveDrawer.DrawSphere(bone.EndPostion, 0.03f, DirectX::Colors::LimeGreen);
+			}
+		}
+	}
 }
 
 void XM_CALLCONV Causality::PlayerProxy::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
+	DirectX::Visualizers::g_PrimitiveDrawer.SetView(view);
+	DirectX::Visualizers::g_PrimitiveDrawer.SetProjection(projection);
 }
 
 Causality::KinectVisualizer::KinectVisualizer()
@@ -272,17 +308,21 @@ bool Causality::KinectVisualizer::IsVisible(const BoundingFrustum & viewFrustum)
 
 void Causality::KinectVisualizer::Render(RenderContext & context)
 {
-	const auto &players = pKinect->GetLatestPlayerFrame();
+	auto &players = pKinect->GetTrackedBodies();
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 
-	for (auto& item : players)
+	for (auto& player : players)
 	{
-		const auto& player = *item.second;
-		const auto& frame = player.PoseFrame;
-
-		for (auto& bone : frame)
+		if (player.IsCurrentTracked)
 		{
-			g_PrimitiveDrawer.DrawCylinder(bone.OriginPosition, bone.EndPostion, 0.01f, DirectX::Colors::LimeGreen);
+			const auto& frame = player.GetPoseFrame();
+			if (&frame == nullptr) return;
+
+			for (auto& bone : frame)
+			{
+				g_PrimitiveDrawer.DrawCylinder(bone.OriginPosition, bone.EndPostion, 0.015f, DirectX::Colors::LimeGreen);
+				g_PrimitiveDrawer.DrawSphere(bone.EndPostion, 0.03f, DirectX::Colors::LimeGreen);
+			}
 		}
 	}
 }

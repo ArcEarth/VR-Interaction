@@ -29,7 +29,7 @@ using namespace Causality;
 void BoneDisplacement::UpdateGlobalData(const BoneDisplacement & reference)
 {
 	XMVECTOR ParQ = reference.GblRotation.LoadA();
-	XMVECTOR Q = XMQuaternionMultiply(LclRotation.LoadA(), ParQ);
+	XMVECTOR Q = XMQuaternionMultiply(LclRotation.LoadA(),ParQ);
 	XMVECTOR S = reference.GblScaling.LoadA() * LclScaling.LoadA();
 	GblRotation.StoreA(Q);
 	GblScaling.StoreA(S);
@@ -38,7 +38,7 @@ void BoneDisplacement::UpdateGlobalData(const BoneDisplacement & reference)
 
 	XMVECTOR V = LclTranslation.LoadA();
 	V *= S;
-	V = XMVector3Rotate(V, Q);
+	V = XMVector3Rotate(V, ParQ);
 	V = XMVectorAdd(V, OriginPosition.LoadA());
 
 	EndPostion.StoreA(V);
@@ -233,9 +233,13 @@ void BoneDisplacementFrame::RebuildGlobal(const IArmature & armature)
 		if (joint.is_root())
 		{
 			bone.GblRotation = bone.LclRotation;
+			bone.GblScaling = Vector3::One;
+			bone.EndPostion = bone.LclTranslation;
 		}
 		else
 		{
+			//bone.OriginPosition = at(joint.ParentID()).EndPostion;
+
 			bone.UpdateGlobalData(at(joint.ParentID()));
 		}
 	}

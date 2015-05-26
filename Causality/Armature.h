@@ -651,13 +651,13 @@ namespace Causality
 		iterator_range<Joint::const_depth_first_iterator>
 			joints() const 
 		{
-			return root()->descendants();
+			return root()->nodes();
 		}
 
 		iterator_range<Joint::mutable_depth_first_iterator> 
 			joints()
 		{
-			return root()->descendants();
+			return root()->nodes();
 		}
 
 		// We say one Skeleton is compatiable with another Skeleton rhs

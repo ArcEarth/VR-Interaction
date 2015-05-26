@@ -379,6 +379,9 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 		ParseSceneObjectAttributes(pObj.get(), node);
 	}
 
+	if (pObj)
+		pObj->ParentScene = &scene;
+
 	node = node->FirstChildElement();
 	while (node)
 	{

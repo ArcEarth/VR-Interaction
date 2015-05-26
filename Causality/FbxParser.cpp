@@ -34,15 +34,15 @@ namespace Causality
 			auto rotation = pNode->LclRotation.Get();
 			auto scaling = pNode->LclScaling.Get();
 
-#if defined(_DEBUG)
-			printf("<node name='%s' id='%d' translation='(%f, %f, %f)' rotation='(%f, %f, %f)' scaling='(%f, %f, %f)'>\n",
-				nodeName,
-				m_NodeIdx,
-				translation[0], translation[1], translation[2],
-				rotation[0], rotation[1], rotation[2],
-				scaling[0], scaling[1], scaling[2]
-				);
-#endif
+//#if defined(_DEBUG)
+//			printf("<node name='%s' id='%d' translation='(%f, %f, %f)' rotation='(%f, %f, %f)' scaling='(%f, %f, %f)'>\n",
+//				nodeName,
+//				m_NodeIdx,
+//				translation[0], translation[1], translation[2],
+//				rotation[0], rotation[1], rotation[2],
+//				scaling[0], scaling[1], scaling[2]
+//				);
+//#endif
 
 			bool isSkeleton = false;
 			// Print the node's attributes.
@@ -52,7 +52,6 @@ namespace Causality
 				if (attr->GetAttributeType() == FbxNodeAttribute::eSkeleton)
 				{
 					isSkeleton = true;
-
 				}
 			}
 
@@ -189,25 +188,51 @@ namespace Causality
 			{
 				auto pNode = m_SkeletonNodes[nodeIdx];
 				FbxTime time = pAnimStack->GetLocalTimeSpan().GetStart();
+				auto pParent = pNode->GetParent();
+				const char *name = pNode->GetName();
+				const char *parName = nullptr;
+				if (pParent)
+				{
+					parName = pParent->GetName();
+				}
 
 				for (int i = 0; i < m_FrameCount; i++)
 				{
-					auto t = pNode->LclTranslation.EvaluateValue(time);
-					auto r = pNode->LclRotation.EvaluateValue(time);
-					auto s = pNode->LclScaling.EvaluateValue(time);
+					//auto t = pNode->LclTranslation.EvaluateValue(time);
+					//auto r = pNode->LclRotation.EvaluateValue(time);
+					//auto s = pNode->LclScaling.EvaluateValue(time);
+
+					//FbxEuler::EOrder lRotationOrder;
+					//pNode->GetRotationOrder(FbxNode::eSourcePivot, lRotationOrder);
+					//FbxAMatrix parM;
+
+					//auto parM = pParent->EvaluateGlobalTransform(time);
+
+					auto lclM = pNode->EvaluateLocalTransform(time);
+					auto t = lclM.GetT();
+					auto q = lclM.GetQ();
+					auto s = lclM.GetS();
+					
+					//parM *= lclM;
 
 					//auto glbM = pNode->EvaluateGlobalTransform(time);
 					//auto gt = glbM.GetT();
-					//auto fbxq = glbM.GetQ();
+					//auto gq = glbM.GetQ();
+					//auto gs = glbM.GetS();
 
-					FbxQuaternion fbxq;
-					fbxq.ComposeSphericalXYZ(r);
-					DirectX::Quaternion q(fbxq[0], fbxq[1], fbxq[2], fbxq[3]);
+					//FbxVector4 rd(r);
+					////rd *= (180.0 / DirectX::XM_PI);
+					//FbxQuaternion fbxq;
+					//fbxq.ComposeSphericalXYZ(rd);
+					//DirectX::Quaternion q(fbxq[0], fbxq[1], fbxq[2], fbxq[3]);
 
 					auto& bone = buffer[i][nodeIdx];
-					bone.LclRotation = q;
+					bone.LclRotation = Quaternion(q[0], q[1], q[2], q[3]);//q;
 					bone.LclScaling = Vector3(s[0], s[1], s[2]);
 					bone.LclTranslation = Vector3(t[0], t[1], t[2]);
+					//bone.GblScaling = Vector3(gs[0], gs[1], gs[2]);
+					//bone.GblRotation = Quaternion(gq[0], gq[1], gq[2], gq[3]);
+					//bone.EndPostion = Vector3(gt[0], gt[1], gt[2]);
 
 					time += m_FrameInterval;
 				}

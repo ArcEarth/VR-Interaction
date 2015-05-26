@@ -9,8 +9,8 @@
 #include <memory>
 #include "Common\DirectXMathExtend.h"
 #include "Armature.h"
-
-
+#include "Common\Filter.h"
+#include <boost\circular_buffer.hpp>
 namespace Causality
 {
 #ifndef _HandType_
@@ -76,33 +76,188 @@ namespace Causality
 	};
 #endif // _JointType_
 
-	struct TrackedPlayer
+	template <class _Ty, class _Alloc = std::allocator<_Ty>>
+	class BufferedStreamViewer
 	{
 	public:
-		TrackedPlayer();
+		typedef const _Ty* const_pointer;
+		typedef _Ty* pointer;
+		typedef const _Ty& const_reference;
+		typedef _Ty &  reference;
+		typedef _Ty && rvalue_reference;
+
+		//enum StreamViewMode
+		//{
+		//	Latest = 0,
+		//	SequenceCaching = 1,
+		//}
+
+		BufferedStreamViewer(size_t BufferSize = 65536U)
+			: m_paused(false) , m_Capicity(BufferSize)
+		{
+		}
+
+		BufferedStreamViewer(const BufferedStreamViewer& rhs)
+		{
+			m_paused = rhs.m_paused;
+			std::lock_guard<std::mutex> guard(rhs.m_BufferMutex);
+			m_StreamingBuffer = rhs.m_StreamingBuffer;
+		}
+
+		BufferedStreamViewer(BufferedStreamViewer&& rhs) = default;
+
+		~BufferedStreamViewer(void)
+		{
+			m_paused = true;
+		}
+
+		void Push(const_reference frame)
+		{
+			if (m_paused) return;
+
+			std::lock_guard<std::mutex> guard(m_BufferMutex);
+			if (m_StreamingBuffer.size() >= m_StreamingBuffer.max_size())
+				m_StreamingBuffer.pop_front();
+			m_StreamingBuffer.emplace_back(frame);
+		}
+
+		void Push(rvalue_reference frame)
+		{
+			if (m_paused) return;
+
+			std::lock_guard<std::mutex> guard(m_BufferMutex);
+			if (m_StreamingBuffer.size() >= m_Capicity)
+				m_StreamingBuffer.pop_front();
+			m_StreamingBuffer.emplace_back(std::move(frame));
+		}
+
+		pointer GetNext() const
+		{
+			if (m_StreamingBuffer.empty()) return nullptr;
+
+			std::lock_guard<std::mutex> guard(m_BufferMutex);
+
+			m_ReadingBuffer = m_StreamingBuffer.front();
+			m_StreamingBuffer.pop_front();
+
+			return &m_ReadingBuffer;
+		}
+
+		pointer GetCurrent() const
+		{
+			return &m_ReadingBuffer;
+		}
+
+		pointer GetLatest() const 
+		{
+			if (m_StreamingBuffer.empty()) return &m_ReadingBuffer;
+
+			std::lock_guard<std::mutex> guard(m_BufferMutex);
+
+			m_ReadingBuffer = m_StreamingBuffer.back();
+			m_StreamingBuffer.clear();
+
+			return &m_ReadingBuffer;
+		}
+
+		std::deque<_Ty>& LockBuffer()
+		{
+			m_BufferMutex.lock();
+			return m_StreamingBuffer;
+		}
+
+		void UnlockBuffer()
+		{
+			m_BufferMutex.unlock();
+		}
+
+		bool empty() const
+		{
+			return m_StreamingBuffer.empty();
+		}
+
+		void Pause(bool pause)
+		{
+			m_paused = pause;
+		}
+
+	private:
+		bool						m_paused;
+		size_t						m_Capicity;
+		mutable _Ty					m_ReadingBuffer;
+		mutable std::deque<_Ty, _Alloc >	m_StreamingBuffer;
+		mutable std::mutex			m_BufferMutex;
+	};
+
+
+	struct TrackedBody
+	{
+	public:
+		TrackedBody();
+		TrackedBody(const TrackedBody &) = default;
+		TrackedBody(TrackedBody &&) = default;
+
+		typedef Causality::BoneDisplacementFrame FrameType;
+
+		void PushFrame(FrameType && frame);
+
+		Causality::BoneDisplacementFrame& GetPoseFrame() const
+		{
+			return *PoseBuffer.GetLatest();
+		}
+
+
+	public:
 		// Skeleton Structure and basic body parameter
 		// Shared through all players since they have same structure
-		static std::unique_ptr<StaticArmature> PlayerArmature;
+		static std::unique_ptr<StaticArmature> BodyArmature;
+
+		void AddRef() {
+			++RefCount;
+		}
+
+		void Release() {
+			--RefCount;
+		}
 
 		// Default pose data, should we use this ?
 		// Causality::BoneDisplacementFrame RestFrame;
 
 		// Current pose data
-		Causality::BoneDisplacementFrame PoseFrame;
+		typedef Causality::BoneDisplacementFrame FrameType;
+		BufferedStreamViewer<FrameType>	 PoseBuffer;
 
-		bool IsOnAir() const;
+		static const size_t SampleRate = 30U; // Hz
+
+		static const size_t FeatureDimension = 6U;
+		Eigen::Map<Eigen::Matrix<float, FeatureDimension*JointType_Count, -1>> GetTrajectoryMatrix(time_seconds duration);
+
+		static const size_t RecordFeatures = SampleRate * 10U;
+		static const size_t FeatureBufferCaptcity = RecordFeatures * 3;
+		// This buffer stores the time-re-sampled frame data as feature matrix
+		// This buffer is allocated as 30x30 frames size
+		// thus , it would be linearized every 30 seconds
+		boost::circular_buffer<std::array<float, FeatureDimension*JointType_Count>> FeatureBuffer;
+
+		//Causality::BoneDisplacementFrame PoseFrame;
 
 		// Hand States
-		HandState HandStates[2];
+		std::array<HandState,2>	HandStates;
 
-		uint64_t PlayerID;
-		bool IsCurrentTracked;
+		int			RefCount;
 
-		time_t  LastTrackedTime;
-		int		LostFrameCount;
+		uint64_t	Id;
+		bool		IsCurrentTracked;
 
-		Event<const TrackedPlayer&, HandType, HandState> OnHandStateChanged;
-		Event<const TrackedPlayer&> OnPoseChanged;
+		time_t		LastTrackedTime;
+		int			LostFrameCount;
+
+		typedef LowPassDynamicFilter<Vector3, float> Vector3DynamicFilter;
+
+		//std::array<Vector3DynamicFilter, JointType_Count> JointFilters;
+
+		Event<const TrackedBody&, HandType, HandState>	OnHandStateChanged;
+		Event<const TrackedBody&>						OnPoseChanged;
 	};
 
 
@@ -116,17 +271,17 @@ namespace Causality
 			static std::weak_ptr<Kinect> wpCurrentDevice;
 			static std::shared_ptr<Kinect> GetForCurrentView();
 
-			const StaticArmature& Armature() const { return *TrackedPlayer::PlayerArmature; }
+			const StaticArmature& Armature() const { return *TrackedBody::BodyArmature; }
 
 			~Kinect();
 
 			bool IsConnected() const;
 
 			// Player Event event interface!
-			Event<const TrackedPlayer&> OnPlayerTracked;
-			Event<const TrackedPlayer&> OnPlayerLost;
-			//Platform::Fundation::Event<const TrackedPlayer&> OnPlayerPoseChanged;
-			//Platform::Fundation::Event<const TrackedPlayer&, HandEnum, HandState> OnPlayerHandStateChanged;
+			Event<TrackedBody&> OnPlayerTracked;
+			Event<TrackedBody&> OnPlayerLost;
+			//Platform::Fundation::Event<const TrackedBody&> OnPlayerPoseChanged;
+			//Platform::Fundation::Event<const TrackedBody&, HandEnum, HandState> OnPlayerHandStateChanged;
 
 			// DeviceCoordinate Matrix will be use to transform all input data every frame
 			// If Kinect is moving, this function should be called every frame
@@ -137,7 +292,13 @@ namespace Causality
 			// Process frame and trigger the events
 			void ProcessFrame();
 
-			const std::map<uint64_t, TrackedPlayer*> &GetLatestPlayerFrame();
+			bool Start();
+			void Stop();
+			bool Pause();
+			bool Resume();
+
+			// Return the list of CURRENT Tracked bodies
+			const std::list<TrackedBody> &GetTrackedBodies();
 
 			// Static Constructors!!!
 			static std::shared_ptr<Kinect> CreateDefault();

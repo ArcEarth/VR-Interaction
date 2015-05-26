@@ -45,7 +45,6 @@ namespace Causality
 	public:
 		typedef BoneDisplacementFrame frame_type;
 
-
 		class ControlState
 		{
 		public:
@@ -99,7 +98,7 @@ namespace Causality
 		void	Update(time_seconds const& time_delta) override;
 		bool	UpdatePlayerFrame(const BoneDisplacementFrame& frame);
 
-		const IArmature&					PlayerArmature() const { return *pPlayerArmature; };
+		const IArmature&					BodyArmature() const { return *pPlayerArmature; };
 
 		// Inherited via IRenderable
 		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
@@ -107,11 +106,34 @@ namespace Causality
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 		std::pair<float, float> ExtractUserMotionPeriod();
+
+		// Body Connection management
+		bool IsConnected() const { return pBody != nullptr; }
+		void Connect(TrackedBody* body) { 
+			ResetConnection();
+			pBody = body; 
+			if (pBody)
+				pBody->AddRef();
+		}
+		TrackedBody* ConnectedBody() const { return pBody; }
+		void ResetConnection() { 
+			if (pBody)
+			{
+				pBody->Release();
+				pBody = nullptr;
+			}
+		}
+
 	protected:
 		bool								IsInitialized;
+
 		const IArmature*					pPlayerArmature;
-		int									PlayerID;
+		int									Id;
+
 		std::shared_ptr<Devices::Kinect>	pKinect;
+		TrackedBody*						pBody;
+		
+
 		int									CurrentIdx;
 		std::vector<ControlState>			States;
 

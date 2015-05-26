@@ -123,6 +123,6 @@ namespace Causality
 	class IUserPoseInteractive abstract
 	{
 	public:
-		virtual void OnPoseChanged(TrackedPlayer*);
+		virtual void OnPoseChanged(TrackedBody*);
 	};
 }

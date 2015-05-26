@@ -26,8 +26,8 @@
 <!-- 				<creature name="bunny" position="-1.0,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
 				<creature name="bunny2" position="-0.5,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
  -->
-        <creature name="spider" position="0,1.0,0" scale="0.05" behavier="{spider_behavier}"></creature>
- 				<kinect_visualizer/>
+        <creature name="spider" position="0,0,0" scale="0.0025" behavier="{spider_behavier}"></creature>
+ 				<!--<kinect_visualizer/>-->
 			</player_controller>
 		</grid>
 	</scene.content>
