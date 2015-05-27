@@ -112,7 +112,7 @@ public:
 	Microsoft::WRL::ComPtr<IBodyFrameReader>		m_pBodyFrameReader;
 	Microsoft::WRL::Wrappers::Event					m_FrameReadyEvent;
 
-	std::list<TrackedBody>						m_Players;
+	std::list<TrackedBody>							m_Players;
 	std::thread										m_Thread;
 
 public:
@@ -601,7 +601,6 @@ void Causality::TrackedBody::PushFrame(FrameType && frame)
 	if (!FeatureBuffer.is_linearized())
 		FeatureBuffer.linearize();
 
-
 	auto& fb = FeatureBuffer.back();
 	Vector3* vs = reinterpret_cast<Vector3*>(fb.data());
 	for (size_t i = 0; i < JointType_Count; i++)
@@ -617,4 +616,14 @@ void Causality::TrackedBody::PushFrame(FrameType && frame)
 
 	// Regularize frames at here
 
+}
+
+Eigen::Map<TrackedBody::FeatureMatrixType> Causality::TrackedBody::GetFeatureMatrix(time_seconds duration)
+{
+	using namespace std;
+	int si = duration.count() * 30;
+	si = min(max(si, 0), (int)FeatureBuffer.size());
+	auto sidx = FeatureBuffer.size() - si;
+	auto head = &FeatureBuffer[sidx][0];
+	return Eigen::Matrix<float, TrackedBody::FeatureDimension*JointType_Count, -1>::Map(head, TrackedBody::FeatureDimension*JointType_Count,si);
 }

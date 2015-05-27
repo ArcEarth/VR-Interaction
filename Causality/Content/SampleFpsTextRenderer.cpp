@@ -133,7 +133,16 @@ void HUDInterface::CreateDeviceDependentResources()
 		m_deviceResources->GetD2DDeviceContext()->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::White), &m_whiteBrush)
 		);
 }
+
 void HUDInterface::ReleaseDeviceDependentResources()
 {
 	m_whiteBrush.Reset();
+}
+
+void Causality::TextBlock::UpdateLayout()
+{
+}
+
+void Causality::TextBlock::Render()
+{
 }

@@ -404,6 +404,8 @@ namespace Causality
 		// Feature Matrix of this animation
 		Eigen::MatrixXf& AnimMatrix() { return animMatrix; }
 
+		std::vector<Eigen::ColPivHouseholderQR<MatrixXf>> QRs;
+
 		bool InterpolateFrames(double frameRate);
 		virtual bool GetFrameAt(BoneDisplacementFrame& outFrame, TimeScalarType time) const;
 

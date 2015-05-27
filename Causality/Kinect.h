@@ -230,7 +230,8 @@ namespace Causality
 		static const size_t SampleRate = 30U; // Hz
 
 		static const size_t FeatureDimension = 6U;
-		Eigen::Map<Eigen::Matrix<float, FeatureDimension*JointType_Count, -1>> GetTrajectoryMatrix(time_seconds duration);
+		typedef Eigen::Matrix<float, FeatureDimension*JointType_Count, -1> FeatureMatrixType;
+		Eigen::Map<FeatureMatrixType> GetFeatureMatrix(time_seconds duration = time_seconds(10));
 
 		static const size_t RecordFeatures = SampleRate * 10U;
 		static const size_t FeatureBufferCaptcity = RecordFeatures * 3;

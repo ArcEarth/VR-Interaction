@@ -320,6 +320,9 @@
     <ClInclude Include="FbxParser.h">
       <Filter>Causality</Filter>
     </ClInclude>
+    <ClInclude Include="Resample.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\OculusDisortionPixelShader.hlsl">

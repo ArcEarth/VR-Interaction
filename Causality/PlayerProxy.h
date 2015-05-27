@@ -137,13 +137,15 @@ namespace Causality
 		int									CurrentIdx;
 		std::vector<ControlState>			States;
 
-		static const size_t					FrameRate = 30;
-		static const size_t					BufferTime = 15; // second
+		static const size_t					FrameRate = 30U;
+		static const size_t					BufferTime = 10; // second
 		static const size_t					BufferFramesCount = FrameRate * BufferTime;
+		static const size_t					ScaledMotionTime = 3; // second
+		static const size_t					ScaledFramesCount = 90U;
 		static const size_t					JointCount = JointType_Count;
-		static const size_t					JointDemension = 3; // X-Y-Z Position
+		static const size_t					JointDemension = 6; // X-Y-Z Position
 		static const size_t					MinimumFrequency = 3; // 3/BufferTime Hz
-		static const size_t					MaximumFrequency = BufferTime; // 1 Hz
+		static const size_t					MaximumFrequency = 10; // 10 Hz
 		static const size_t					BandWidth = MaximumFrequency - MinimumFrequency + 1;
 
 		circular_buffer<frame_type>			FrameBuffer;

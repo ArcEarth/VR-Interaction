@@ -69,6 +69,7 @@ namespace Eigen {
 		DenseIndex	rankX, rankY;	// rank of input X and Y
 		DenseIndex  d, dX, dY;		// Dimension of latent space, X feature, Y feature
 
+		ColPivHouseholderQR<MatrixXf> qrX, qrY;
 		// for transform
 		JacobiSVD<MatrixXf,2> svdBt;	
 		MatrixXf	invB;
@@ -79,7 +80,10 @@ namespace Eigen {
 			compute(X, Y);
 		}
 
-		Cca& compute(const MatrixXf &X, const MatrixXf &Y, bool computeTransform = false);
+		Cca& compute(const MatrixXf &X, const MatrixXf &Y, bool computeAB = false);
+
+		template<typename _MatrixTypeX, typename _MatrixTypeY>
+		Cca& computeFromQr(const ColPivHouseholderQR<_MatrixTypeX>& qrX, const ColPivHouseholderQR<_MatrixTypeY>& qrY, bool computeAB = false);
 
 		const MatrixXf& matrixA() const { return A; }
 		const MatrixXf& matrixB() const { return B; }
@@ -102,7 +106,52 @@ namespace Eigen {
 
 	};
 
-	inline Cca& Cca::compute(const MatrixXf &X, const MatrixXf &Y, bool computeTransform)
+	template<typename _MatrixTypeX, typename _MatrixTypeY>
+	inline Cca& Cca::computeFromQr(const ColPivHouseholderQR<_MatrixTypeX>& qrX, const ColPivHouseholderQR<_MatrixTypeY>& qrY, bool computeAB)
+	{
+		using namespace std;
+		assert(qrX.rows() == qrX.rows());
+		auto n = qrX.rows();
+		// get ranks and latent space dimension
+		rankX = qrX.rank();
+		rankY = qrY.rank();
+		d = min(rankX, rankY);
+		// Get matrix Q,R and covQXY
+		MatrixXf qX, qY;
+		qrX.matrixQ().setLength(rankX).evalTo(qX);
+		qrY.matrixQ().setLength(rankY).evalTo(qY);
+
+		auto covQXY = qX.transpose() * qY;
+		// SVD
+		auto svd = covQXY.jacobiSvd();
+
+		R = svd.singularValues().topRows(d);
+
+		if (computeAB)
+		{
+			auto rX = qrX.matrixR().topLeftCorner(rankX, rankX).triangularView<Upper>();
+			auto rY = qrY.matrixR().topLeftCorner(rankY, rankY).triangularView<Upper>();
+			// A = rX \ U * sqrt(n-1)
+			// B = rY \ V * sqrt(n-1)
+			A = rX.solve(svd.matrixU().leftCols(d));
+			B = rY.solve(svd.matrixV().leftCols(d));
+
+			// normalize A,B and reverse the permutation , thus U,V will have unit varience
+			A = A * sqrtf(n - 1) * qrX.colsPermutation().inverse();
+			B = B * sqrtf(n - 1) * qrY.colsPermutation().inverse();
+
+			// Compute Transform X -> Y
+			if (d == rankY)
+				invB = B.inverse();
+			else
+				svdBt = JacobiSVD<MatrixXf>(B.transpose());
+		}
+
+		m_initialized = true;
+		return *this;
+	}
+
+	inline Cca& Cca::compute(const MatrixXf &X, const MatrixXf &Y, bool computeAB = false)
 	{
 		// Algorithm is explianed here : ( Qr + SVD version)
 		// http://www.nr.com/whp/notes/CanonCorrBySVD.pdf
@@ -120,40 +169,8 @@ namespace Eigen {
 		// QR-decomposition
 		auto qrX = mX.colPivHouseholderQr();
 		auto qrY = mY.colPivHouseholderQr();
-		// get ranks and latent space dimension
-		rankX = qrX.rank();
-		rankY = qrY.rank();
-		d = std::min(rankX, rankY);
-		// Get matrix Q,R and covQXY
-		MatrixXf qX, qY;
-		qrX.householderQ().setLength(rankX).evalTo(qX);
-		qrY.householderQ().setLength(rankY).evalTo(qY);
-		auto rX = qrX.matrixR().topLeftCorner(rankX, rankX).triangularView<Upper>();
-		auto rY = qrY.matrixR().topLeftCorner(rankY, rankY).triangularView<Upper>();
-
-		auto covQXY = qX.transpose() * qY;
-		// SVD
-		auto svd = covQXY.jacobiSvd();
-
-
-		// A = rX \ U * sqrt(n-1)
-		// B = rY \ V * sqrt(n-1)
-		A = rX.solve(svd.matrixU().leftCols(d));
-		B = rY.solve(svd.matrixV().leftCols(d));
-
-		// normalize A,B and reverse the permutation , thus U,V will have unit varience
-		A = A * sqrtf(n-1) * qrX.colsPermutation().inverse();
-		B = B * sqrtf(n-1) * qrY.colsPermutation().inverse();
-		R = svd.singularValues().topRows(d);
-
-		if (computeTransform)
-			if (d == rankY)
-				invB = B.inverse();
-			else
-				svdBt = JacobiSVD<MatrixXf>(B.transpose());
-
-		m_initialized = true;
-		return *this;
+		
+		return computeFromQr(qrX, qrY, computeAB);
 	}
 
 }

@@ -621,6 +621,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="PrimaryCamera.h" />
     <ClInclude Include="ProbalisticModel.h" />
     <ClInclude Include="RenderContext.h" />
+    <ClInclude Include="Resample.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneObject.h" />

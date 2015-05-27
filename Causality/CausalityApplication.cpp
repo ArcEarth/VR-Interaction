@@ -105,18 +105,20 @@ void Causality::App::OnStartup(Array<String^>^ args)
 	auto& selector = Scenes.back();
 	selector->SetRenderDeviceAndContext(pDevice, pContext);
 	selector->SetCanvas(pDeviceResources->GetBackBufferRenderTarget());
-	selector->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
-	for (auto& node : selector->Content()->descendants())
-	{
-		if (node.Name == "spider")
+	task<void> loadScene([&]() {
+		cout << "[Scene] Loading ...";
+		selector->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
+		for (auto& node : selector->Content()->descendants())
 		{
-			node.As<KinematicSceneObject>()->StartAction("attack");
-			break;
+			if (node.Name == "spider")
+			{
+				node.As<KinematicSceneObject>()->StartAction("walk");
+				break;
+			}
 		}
-	}
-
-	pKinect->Start();
-
+		pKinect->Start();
+		cout << "[Scene] Loading Finished!";
+	});
 }
 
 void Causality::App::RegisterComponent(IAppComponent *pComponent)
@@ -194,10 +196,14 @@ void Causality::App::OnIdle()
 	//	pKinect->ProcessFrame();
 
 	for (auto& pScene : Scenes)
+	{
 		pScene->Update();
+	}
 
 	for (auto& pScene : Scenes)
+	{
 		pScene->Render(pContext);
+	}
 
 	pDeviceResources->Present();
 }

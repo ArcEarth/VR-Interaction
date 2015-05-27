@@ -17,7 +17,7 @@ Causality::Scene::~Scene()
 
 void Causality::Scene::Update()
 {
-	if (is_paused) return;
+	if (is_paused || !is_loaded) return;
 	step_timer.Tick([this]() {
 		time_seconds deltaTime(step_timer.GetElapsedSeconds());
 		for (auto& pObj : content->nodes())
@@ -30,6 +30,8 @@ void Causality::Scene::Update()
 
 void Causality::Scene::Render(RenderContext & context)
 {
+	if (!is_loaded) return;
+
 	for (auto& pCamera : cameras)
 	{
 		pCamera->BeginFrame();
