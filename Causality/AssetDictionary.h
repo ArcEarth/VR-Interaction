@@ -27,7 +27,7 @@ namespace Causality
 		using mesh_type = DirectX::Scene::GeometryModel;
 		using texture_type = DirectX::Texture;
 		using audio_clip_type = int;
-		using animation_clip_type = ArmatureKeyframeAnimation;
+		using animation_clip_type = ArmatureFrameAnimation;
 		using behavier_type = BehavierSpace;
 		using armature_type = StaticArmature;
 		using effect_type = DirectX::IEffect;

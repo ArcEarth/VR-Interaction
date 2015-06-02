@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <algorithm>
 
 namespace Causality
 {
@@ -87,11 +88,14 @@ namespace Causality
 				m_FirstTime = false;
 			}
 
-			TScaler updateFrequency = *m_pUpdateFrequency;
-			TScaler Te(TScaler(1.0) / updateFrequency);		// the sampling period (in seconds)
-			TScaler Tau(TScaler(1.0) / (TScaler(2 * 3.14159265) * m_CutoffFrequency));	// a time constant calculated from the cut-off frequency
+			const TScaler one = TScaler(1), zero = TScaler(0), twopi = TScaler(2 * 3.14159265);
 
-			auto t = TScaler(1) / (TScaler(1) + (Tau / Te));
+			TScaler updateFrequency = *m_pUpdateFrequency;
+
+			TScaler Te(one / updateFrequency);		// the sampling period (in seconds)
+			TScaler Tau(one / (twopi * m_CutoffFrequency));	// a time constant calculated from the cut-off frequency
+
+			auto t = one / (one + (Tau / Te));
 
 			m_Delta = t * (value - m_PrevValue);
 
@@ -267,15 +271,18 @@ namespace Causality
 			TValue vel = (mPositionForVelocity - m_LastPositionForVelocity) * updateFrequency;
 			m_LastPositionForVelocity = mPositionForVelocity;
 
-
+			// constants
+			const TScaler one = TScaler(1), zero = TScaler(0), twopi = TScaler(2 * 3.14159265);
 			// interpolate between frequencies depending on velocity
-			TScaler t = (mf_GetNormal(vel) - m_VelocityLow) / (m_VelocityHigh - m_VelocityLow);
-			t = min(max(t, 0.0), 1.0);
-			TScaler cutoff((m_CutoffFrequencyHigh * t) + (m_CutoffFrequency * (1 - t)));
-			TScaler Te(1.0 / updateFrequency);		// the sampling period (in seconds)
-			TScaler Tau(TScaler(1.0) / (TScaler(2 * 3.14159265) * cutoff));	// a time constant calculated from the cut-off frequency
 
-			t = TScaler(1) / (TScaler(1) + (Tau / Te));
+			TScaler t = (mf_GetNormal(vel) - m_VelocityLow) / (m_VelocityHigh - m_VelocityLow);
+			using namespace std;
+			t = min(max(t, zero), one);
+			TScaler cutoff((m_CutoffFrequencyHigh * t) + (m_CutoffFrequency * (one - t)));
+			TScaler Te(one / updateFrequency);		// the sampling period (in seconds)
+			TScaler Tau(one / (twopi * cutoff));	// a time constant calculated from the cut-off frequency
+
+			t = one / (one + (Tau / Te));
 
 			m_Delta = t * (value - m_PrevValue);
 

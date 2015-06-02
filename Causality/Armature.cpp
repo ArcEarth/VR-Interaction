@@ -11,7 +11,7 @@
 using namespace DirectX;
 using namespace Causality;
 
-//void BoneDisplacement::UpdateGlobalData(const BoneDisplacement & reference)
+//void Bone::UpdateGlobalData(const Bone & reference)
 //{
 //	XMVECTOR ParQ = reference.GblRotation;
 //	XMVECTOR Q = XMQuaternionMultiply(ParQ, LclRotation);
@@ -26,7 +26,7 @@ using namespace Causality;
 //	EndPostion = V;
 //}
 
-void BoneDisplacement::UpdateGlobalData(const BoneDisplacement & reference)
+void Bone::UpdateGlobalData(const Bone & reference)
 {
 	XMVECTOR ParQ = reference.GblRotation.LoadA();
 	XMVECTOR Q = XMQuaternionMultiply(LclRotation.LoadA(),ParQ);
@@ -45,7 +45,7 @@ void BoneDisplacement::UpdateGlobalData(const BoneDisplacement & reference)
 }
 
 // This will assuming LclTranslation is not changed
-void BoneDisplacement::UpdateLocalData(const BoneDisplacement& reference)
+void Bone::UpdateLocalData(const Bone& reference)
 {
 	OriginPosition = reference.EndPostion;
 	XMVECTOR ParQ = reference.GblRotation;
@@ -61,7 +61,7 @@ void BoneDisplacement::UpdateLocalData(const BoneDisplacement& reference)
 }
 
 
-void BoneDisplacement::UpdateLocalDataByPositionOnly(const BoneDisplacement & reference)
+void Bone::UpdateLocalDataByPositionOnly(const Bone & reference)
 {
 	XMVECTOR v0 = (XMVECTOR)this->OriginPosition - (XMVECTOR)reference.OriginPosition;
 	v0 = DirectX::XMVector3InverseRotate(v0, reference.GblRotation);
@@ -78,7 +78,7 @@ void BoneDisplacement::UpdateLocalDataByPositionOnly(const BoneDisplacement & re
 	this->GblRotation = XMQuaternionMultiply(this->LclRotation, reference.GblRotation);
 }
 
-DirectX::XMMATRIX BoneDisplacement::TransformMatrix(const BoneDisplacement & from, const BoneDisplacement & to)
+DirectX::XMMATRIX Bone::TransformMatrix(const Bone & from, const Bone & to)
 {
 	using DirectX::operator+=;
 
@@ -96,7 +96,7 @@ DirectX::XMMATRIX BoneDisplacement::TransformMatrix(const BoneDisplacement & fro
 	return M;
 }
 
-DirectX::XMMATRIX BoneDisplacement::RigidTransformMatrix(const BoneDisplacement & from, const BoneDisplacement & to)
+DirectX::XMMATRIX Bone::RigidTransformMatrix(const Bone & from, const Bone & to)
 {
 	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
 	rot = XMQuaternionMultiply(rot, to.GblRotation);
@@ -104,7 +104,7 @@ DirectX::XMMATRIX BoneDisplacement::RigidTransformMatrix(const BoneDisplacement 
 	return XMMatrixRigidTransform(from.OriginPosition, rot, tra);
 }
 
-DirectX::XMDUALVECTOR BoneDisplacement::RigidTransformDualQuaternion(const BoneDisplacement & from, const BoneDisplacement & to)
+DirectX::XMDUALVECTOR Bone::RigidTransformDualQuaternion(const Bone & from, const Bone & to)
 {
 	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
 	rot = XMQuaternionMultiply(rot, to.GblRotation);
@@ -215,17 +215,17 @@ void StaticArmature::CaculateTopologyOrder()
 
 // Interpolate the local-rotation and scaling, "interpolate in Time"
 
-BoneDisplacementFrame::BoneDisplacementFrame(size_t size)
+AffineFrame::AffineFrame(size_t size)
 	: BaseType(size)
 {
 }
 
-BoneDisplacementFrame::BoneDisplacementFrame(const IArmature & armature)
+AffineFrame::AffineFrame(const IArmature & armature)
 	: BaseType(armature.default_frame())
 {
 }
 
-void BoneDisplacementFrame::RebuildGlobal(const IArmature & armature)
+void AffineFrame::RebuildGlobal(const IArmature & armature)
 {
 	for (auto& joint : armature.joints())
 	{
@@ -245,7 +245,7 @@ void BoneDisplacementFrame::RebuildGlobal(const IArmature & armature)
 	}
 }
 
-Eigen::VectorXf BoneDisplacementFrame::LocalRotationVector() const
+Eigen::VectorXf AffineFrame::LocalRotationVector() const
 {
 	Eigen::VectorXf fvector(size() * 3);
 	Eigen::Vector3f v{ 0,1,0 };
@@ -262,7 +262,7 @@ Eigen::VectorXf BoneDisplacementFrame::LocalRotationVector() const
 	return fvector;
 }
 
-void BoneDisplacementFrame::UpdateFromLocalRotationVector(const IArmature& armature, const Eigen::VectorXf fv)
+void AffineFrame::UpdateFromLocalRotationVector(const IArmature& armature, const Eigen::VectorXf fv)
 {
 	auto& This = *this;
 	auto& sarmature = static_cast<const StaticArmature&>(armature);
@@ -277,7 +277,7 @@ void BoneDisplacementFrame::UpdateFromLocalRotationVector(const IArmature& armat
 	}
 }
 
-void BoneDisplacementFrame::Interpolate(BoneDisplacementFrame& out, const BoneDisplacementFrame & lhs, const BoneDisplacementFrame & rhs, float t, const IArmature& armature)
+void AffineFrame::Interpolate(AffineFrame& out, const AffineFrame & lhs, const AffineFrame & rhs, float t, const IArmature& armature)
 {
 	//assert((Armature == lhs.pArmature) && (lhs.pArmature == rhs.pArmature));
 	for (size_t i = 0; i < lhs.size(); i++)
@@ -291,28 +291,30 @@ void BoneDisplacementFrame::Interpolate(BoneDisplacementFrame& out, const BoneDi
 	}
 }
 
-void BoneDisplacementFrame::Blend(BoneDisplacementFrame& out, const BoneDisplacementFrame & lhs, const BoneDisplacementFrame & rhs, float * blend_weights, const IArmature& armature)
+void AffineFrame::Blend(AffineFrame& out, const AffineFrame & lhs, const AffineFrame & rhs, float * blend_weights, const IArmature& armature)
 {
 
 }
 
-void Causality::BoneDisplacementFrame::TransformMatrix(DirectX::XMFLOAT3X4 * pOut, const self_type & from, const self_type & to)
+void Causality::AffineFrame::TransformMatrix(DirectX::XMFLOAT3X4 * pOut, const self_type & from, const self_type & to)
 {
+	using namespace std;
 	auto n = min(from.size(), to.size());
 	for (int i = 0; i <= n; ++i)
 	{
-		XMMATRIX mat = BoneDisplacement::TransformMatrix(from[i], to[i]);
+		XMMATRIX mat = Bone::TransformMatrix(from[i], to[i]);
 		mat = XMMatrixTranspose(mat);
 		XMStoreFloat3x4(pOut + i, mat);
 	}
 }
 
-void Causality::BoneDisplacementFrame::TransformMatrix(DirectX::XMFLOAT4X4 * pOut, const self_type & from, const self_type & to)
+void Causality::AffineFrame::TransformMatrix(DirectX::XMFLOAT4X4 * pOut, const self_type & from, const self_type & to)
 {
+	using namespace std;
 	auto n = min(from.size(), to.size());
 	for (int i = 0; i <= n; ++i)
 	{
-		XMMATRIX mat = BoneDisplacement::TransformMatrix(from[i], to[i]);
+		XMMATRIX mat = Bone::TransformMatrix(from[i], to[i]);
 		mat = XMMatrixTranspose(mat);
 		XMStoreFloat4x4(pOut + i, mat);
 	}
@@ -364,14 +366,14 @@ Eigen::VectorXf BehavierSpace::FrameFeatureVectorEndPointNormalized(const frame_
 
 	using namespace Eigen;
 	Map<const VectorXf> eep(&sv[0].x, N * 3);
-	//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(BoneDisplacement) / sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+	//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(Bone) / sizeof(float)>> eep(&frame[0].EndPostion.x, N);
 
-	//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(BoneDisplacement)/sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+	//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(Bone)/sizeof(float)>> eep(&frame[0].EndPostion.x, N);
 	fvector = eep.cwiseProduct(Wb);//.asDiagonal();
 	return fvector;
 }
 
-Eigen::MatrixXf Causality::BehavierSpace::AnimationMatrixEndPosition(const ArmatureKeyframeAnimation & animation) const
+Eigen::MatrixXf Causality::BehavierSpace::AnimationMatrixEndPosition(const ArmatureFrameAnimation & animation) const
 {
 	const auto & frames = animation.GetFrameBuffer();
 	int K = animation.GetFrameBuffer().size();
@@ -381,7 +383,7 @@ Eigen::MatrixXf Causality::BehavierSpace::AnimationMatrixEndPosition(const Armat
 	return fmatrix;
 }
 
-void Causality::BehavierSpace::CacAnimationMatrixEndPosition(const ArmatureKeyframeAnimation & animation, Eigen::MatrixXf & fmatrix) const
+void Causality::BehavierSpace::CacAnimationMatrixEndPosition(const ArmatureFrameAnimation & animation, Eigen::MatrixXf & fmatrix) const
 {
 	const auto & frames = animation.GetFrameBuffer();
 	int K = animation.GetFrameBuffer().size();
@@ -408,9 +410,9 @@ void Causality::BehavierSpace::CacAnimationMatrixEndPosition(const ArmatureKeyfr
 
 		using namespace Eigen;
 		Map<const VectorXf> eep(&sv[0].x, N * 3);
-		//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(BoneDisplacement) / sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+		//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(Bone) / sizeof(float)>> eep(&frame[0].EndPostion.x, N);
 
-		//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(BoneDisplacement)/sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+		//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(Bone)/sizeof(float)>> eep(&frame[0].EndPostion.x, N);
 		fvector = eep.cwiseProduct(Wb);//.asDiagonal();
 	}
 }
@@ -517,7 +519,7 @@ void BehavierSpace::CaculateXpInv()
 	XpInv.ldlt().solveInPlace(Xt);
 }
 
-ArmatureKeyframeAnimation::ArmatureKeyframeAnimation(std::istream & file)
+ArmatureFrameAnimation::ArmatureFrameAnimation(std::istream & file)
 {
 	using namespace std;
 	using namespace DirectX;
@@ -544,7 +546,7 @@ ArmatureKeyframeAnimation::ArmatureKeyframeAnimation(std::istream & file)
 	}
 }
 
-bool ArmatureKeyframeAnimation::InterpolateFrames(double frameRate)
+bool ArmatureFrameAnimation::InterpolateFrames(double frameRate)
 {
 	float delta = (float)(1.0 / frameRate);
 	auto& armature = *pArmature;
@@ -563,7 +565,7 @@ bool ArmatureKeyframeAnimation::InterpolateFrames(double frameRate)
 	return true;
 }
 
-bool Causality::ArmatureKeyframeAnimation::GetFrameAt(BoneDisplacementFrame & outFrame, TimeScalarType time) const
+bool Causality::ArmatureFrameAnimation::GetFrameAt(AffineFrame & outFrame, TimeScalarType time) const
 {
 	double t = fmod(time.count(),Duration.count());
 	int frameIdx = round(t / FrameInterval.count());

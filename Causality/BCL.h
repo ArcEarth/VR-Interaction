@@ -22,9 +22,17 @@
 #include <Eigen\Sparse>
 
 // ComPtr and task
+#define NOMINMAX
 #include <wrl\client.h>
 #include <ppltasks.h>
 
+#ifndef _PCH_CPP_
+// Extern template instantiation declearation
+extern template class std::vector<int>;
+extern template class std::vector<float>;
+//extern template class Eigen::Matrix<float,-1,-1>;
+//extern template class Eigen::Matrix<float,-1, 1>;
+#endif
 
 namespace Causality
 {

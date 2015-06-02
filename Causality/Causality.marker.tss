@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<ArrayOfTabHighlightState xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <TabHighlightState>
+    <extensions>
+      <string>Kinect.h</string>
+      <string>Kinect.cpp</string>
+    </extensions>
+    <highlightIndex>4</highlightIndex>
+  </TabHighlightState>
+  <TabHighlightState>
+    <extensions>
+      <string>FbxParser.cpp</string>
+      <string>FbxParser.h</string>
+    </extensions>
+    <highlightIndex>4</highlightIndex>
+  </TabHighlightState>
+  <TabHighlightState>
+    <extensions>
+      <string>PlayerProxy.h</string>
+      <string>PlayerProxy.cpp</string>
+    </extensions>
+    <highlightIndex>4</highlightIndex>
+  </TabHighlightState>
+</ArrayOfTabHighlightState>

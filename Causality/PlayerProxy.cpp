@@ -4,11 +4,54 @@
 #include <fstream>
 #include <Eigen\fft>
 #include "CCA.h"
-#include "Resample.h"
+#include "EigenExtension.h"
+#include <boost\multi_array.hpp>
 
 using namespace Causality;
 using namespace Eigen;
 using namespace std;
+
+class CcaArmatureTransform : public ArmatureTransform
+{
+public:
+	struct CcaMap
+	{
+		DenseIndex Jx, Jy;
+		MatrixXf A, B;
+		RowVectorXf uX, uY;
+		JacobiSVD<MatrixXf> svdBt;
+		MatrixXf invB;
+		bool useInvB;
+	};
+
+	std::vector<CcaMap> Maps;
+
+public:
+	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
+	{
+		const auto dF = frame_type::StdFeatureDimension;
+		const auto dY = 3;
+		RowVectorXf X(source_frame.size() * dF);
+		RowVectorXf Y(target_frame.size() * dF);
+		source_frame.PopulateStdFeatureVector(X);
+		target_frame.PopulateStdFeatureVector(Y); //! populate non-mapped with default values
+
+		for (const auto& map : Maps)
+		{
+			auto& Xp = X.middleCols<dF>(map.Jx * dF);
+			auto& Yp = Y.middleCols<dY>(map.Jy * dF);
+			auto U = ((Xp.rowwise() - map.uX) * map.A).eval();
+			if (map.useInvB)
+				Yp = U * map.invB;
+			else
+				Yp = map.svdBt.solve(U.transpose()).transpose(); // Y' ~ B' \ U'
+			Yp.rowwise() += map.uY;
+		}
+
+		target_frame.RebuildFromStdFeatureVector(Y, *pTarget);
+	}
+
+};
 
 std::pair<JointType, JointType> XFeaturePairs[] = {
 	{JointType_SpineBase, JointType_SpineShoulder},
@@ -45,12 +88,16 @@ JointType KeyJoints[] = {
 	JointType_AnkleRight,		//15
 };
 
+float BoneRadius[JointType_Count] = {
+
+};
+
 static const size_t KeyJointCount = ARRAYSIZE(KeyJoints);
 
 static const size_t FeatureCount = (KeyJointCount * (KeyJointCount - 1)) / 2;
 static const size_t FeatureDim = FeatureCount * 3;
 
-VectorXf HumanFeatureFromFrame(const BoneDisplacementFrame& frame)
+VectorXf HumanFeatureFromFrame(const AffineFrame& frame)
 {
 	VectorXf X(ARRAYSIZE(XFeaturePairs) * 3);
 	for (size_t i = 0; i < ARRAYSIZE(XFeaturePairs); i++)
@@ -79,6 +126,7 @@ Causality::PlayerProxy::PlayerProxy()
 	: FrameBuffer(BufferFramesCount), pBody(nullptr)
 {
 	IsInitialized = false;
+	CurrentIdx = -1;
 }
 
 Causality::PlayerProxy::~PlayerProxy()
@@ -101,6 +149,7 @@ void Causality::PlayerProxy::Initialize()
 			States.emplace_back();
 			States.back().SetSourceArmature(*pPlayerArmature);
 			States.back().SetTargetObject(*pObj);
+			pObj->SetOpticity(0.5f);
 		}
 	}
 
@@ -112,7 +161,7 @@ void Causality::PlayerProxy::Initialize()
 		}
 	};
 
-	pKinect->OnPlayerTracked += [this](TrackedBody& body)
+	pKinect->OnPlayerLost += [this](TrackedBody& body)
 	{
 		if (body.Id == this->ConnectedBody()->Id)
 		{
@@ -123,6 +172,209 @@ void Causality::PlayerProxy::Initialize()
 	IsInitialized = true;
 }
 
+int Causality::PlayerProxy::SelectControlStateByLatestFrames()
+{
+	auto& player = *pBody;
+	static std::ofstream flog("Xlog.txt");
+
+	MatrixXf X = player.GetFeatureMatrix();
+	//? WARNNING! player.GetFeatureMatrix() is ROW Major!!!
+	//? But we have convert it into Column Major! Yes and No!!!
+	auto N = X.rows();
+	auto K = X.cols();
+
+	if (N*K == 0) return -1; // Feature Matrix is not ready yet
+
+	cout << "X : min = " << X.minCoeff() << " , max = " << X.maxCoeff() << endl;
+	//cout << "X = " << X << endl;
+	flog << X << endl;
+	flog.flush();
+
+	MatrixXcf Xf(N, K);
+	MatrixXf Xr(N, K);
+
+	FFT<float> fft;
+	for (size_t i = 0; i < K; i++)
+		fft.fwd(Xf.col(i).data(), X.col(i).data(), N);
+
+	MatrixXf Xs = Xf.cwiseAbs2();
+
+	int idx;
+	VectorXf Ea = Xs.middleRows(3, 20).rowwise().sum().transpose();
+	Ea.middleRows(1, Ea.rows() - 2).maxCoeff(&idx); // Frequency 3 - 30
+	cout << Ea.transpose() << endl;
+
+	auto Ex = Ea.middleRows<3>(idx);
+	idx += 3;
+	cout << Ex.transpose() << endl;
+
+	Vector3f Ix = { idx - 1.0f, (float)idx, idx + 1.0f };
+	float peekFreq = Ex.dot(Ix) / Ex.sum();
+
+	size_t T = ceil(N / peekFreq);
+	// Peek Frequency
+
+	float sigma = 6;
+	auto G = ArrayXf::LinSpaced(N, 0, sigma);
+	auto Eg = (-G.square()).exp().eval();
+
+	cout << "Eg : min = " << Eg.minCoeff() << " , max = " << Eg.maxCoeff() << endl;
+	cout << "Xf : min = " << Xs.minCoeff() << " , max = " << Xs.maxCoeff() << endl;
+	Xf.array() *= Eg.replicate(1, K).array(); // low-pass filter
+
+	for (size_t i = 0; i < K; i++)
+		fft.inv(Xr.col(i), Xf.col(i));
+
+	cout << "Xr : min = " << Xr.minCoeff() << " , max = " << Xr.maxCoeff() << endl;
+	Xs = resample(Xr.bottomRows(2 * T), T, ScaledFramesCount);
+	cout << "Xs : min = " << Xs.minCoeff() << " , max = " << Xs.maxCoeff() << endl;
+
+	T = ScaledFramesCount; // Since we have resampled , Time period "T" is now equals to ScaledFramesCount
+	int Ti = 5; // 2
+	int Ts = T / Ti;
+
+	size_t Ju = JointType_Count;
+	vector<vector<MeanThinQr<Matrix<float, -1, JointDemension>>>> QrXs(Ts);
+	for (auto& v : QrXs)
+		v.resize(Ju);
+
+	//? average two period = =||| this is a HACK, not right
+	Xs.topRows(T) += Xs.bottomRows(T);
+	Xs.bottomRows(T) += Xs.topRows(T);
+	Xs.array() *= 0.5f;
+	//Xs.rowwise() -= Xs.colwise().mean();
+	cout << "Xs : min = " << Xs.minCoeff() << " , max = " << Xs.maxCoeff() << endl;
+
+	// Fuck it... 11,250,000 times of CCA(SVD) computation every guess
+	// 1,406,250 SVD for 5x5 setup, much more reasonable!
+	for (DenseIndex phi = 0; phi < T; phi += Ti)	//? <= 50 , we should optimze phase shifting search from rough to fine
+	{
+		auto Xp = Xs.middleRows(T - phi, T);
+		for (size_t i = 0; i < Ju; i++)			//? <= 25 joint per USER?
+		{
+			auto Xk = Xp.middleCols<JointDemension>(i*JointDemension);
+			QrXs[phi/Ti][i].compute(Xk, false);
+		}
+	}
+
+	//? HACK Juk Jck! Pre-reduce DOF
+	size_t Juk[] = { JointType_Head,JointType_ElbowLeft,JointType_ElbowRight,JointType_KneeLeft,JointType_KneeRight };
+	size_t Jck[] = { 8,12,17,22,35,40,45,50,54};
+	for (auto& jc : Jck)
+		jc -= 1;
+
+	////? HACK Ju
+	//Ju = std::size(Juk);
+
+
+	for (auto& state : States)			//? <= 5 character
+	{
+		auto& object = state.Object();
+		size_t Jc = object.Armature().size();
+
+		////? HACK Jc
+		//Jc = std::size(Jck);
+
+		auto& anim = object.Behavier()["walk"];
+		//x for (auto& action : object.Behavier())	//? <= 5 animation per character
+		{
+			//auto& anim = action.second;
+			boost::multi_array<float, 3> Rm(boost::extents[Ts][Ju][Jc]);
+			std::fill_n(Rm.data(), Ts*Ju*Jc, .0f);
+
+			float maxScore = std::numeric_limits<float>::min();
+			DenseIndex maxPhi = -1;
+			std::vector<DenseIndex> maxMatching;
+
+			//DenseIndex phi = 0;
+			for (DenseIndex phi = 0; phi < T; phi += Ti)	//? <= 50 , we should optimze phase shifting search from rough to fine
+			{
+				auto Xp = Xs.middleRows(T - phi, T);
+
+				//int i = JointType_ElbowRight;
+				for (auto& i : Juk)
+				//for (size_t i = 0; i < Ju; i++)			//? <= 25 joint per USER?
+				{
+					auto& qrX = QrXs[phi / Ti][i];
+
+					auto Xk = Xp.middleCols<JointDemension>(i*JointDemension);
+					//cout << "X : min = " << Xk.minCoeff() << " , max = " << Xk.maxCoeff() << endl;
+
+					//int j = 17;
+					for (auto& j : Jck)
+					//for (size_t j = 0; j < Jc; j++)		//? <= 50, we should applies joint reduce in characters
+					{
+						auto& qrY = anim.QrYs[j];
+						Cca cca;
+						cca.computeFromQr(qrX, qrY, true);	//? it's <= 6x6 SVD inside
+						auto r = cca.correlaltions().minCoeff();
+						Rm[phi / Ti][i][j] = r;
+					}
+				}
+
+				auto A = MatrixXf::Map(&Rm[phi / Ti][0][0], Jc, Ju).transpose();
+				auto matching = max_weight_bipartite_matching(A);
+				auto score = matching_cost(A,matching);
+				if (score > maxScore)
+				{
+					maxPhi = phi;
+					maxMatching = matching;
+					maxScore = score;
+				}
+			}
+
+			state.SpatialMotionScore = maxScore;
+			auto pBinding = new CcaArmatureTransform();
+			state.SetBinding(pBinding);
+			cout << "Best assignment for " << state.Object().Name << " : " << anim.Name << endl;
+
+			int sdxass[] = {3,14,19,24,29};
+			for (size_t i = 0; i < std::size(sdxass); i++)
+				maxMatching[Juk[i]] = sdxass[i];
+
+			for (auto i : Juk)
+			{
+				DenseIndex Jx = i, Jy = maxMatching[i];
+				if (Jy == -1) continue;
+
+				cout << pPlayerArmature->at(Jx)->Name() << " ==> " << state.Object().Armature()[Jy]->Name() << endl;
+
+				pBinding->Maps.emplace_back();
+				pBinding->SetSourceArmature(*pPlayerArmature);
+				pBinding->SetTargetArmature(state.Object().Armature());
+
+				auto& map = pBinding->Maps.back();
+				auto& qrX = QrXs[maxPhi / Ti][Jx];
+				auto& qrY = anim.QrYs[Jy];
+
+				Cca cca;
+				cca.computeFromQr(QrXs[maxPhi / Ti][Jx], anim.QrYs[Jy], true);
+
+				// populate map
+				map.Jx = Jx; map.Jy = Jy;
+				map.A = cca.matrixA();
+				map.B = cca.matrixB();
+				map.uX = qrX.mean();
+				map.uY = qrY.mean();
+				if (cca.rank() == qrY.cols()) // d == dY
+				{
+					map.useInvB = true;
+					map.invB = map.B.inverse();
+				}
+				else
+				{
+					map.useInvB = false;
+					map.svdBt = JacobiSVD<MatrixXf>(map.B.transpose(),ComputeThinU | ComputeThinV);;
+				}
+			}
+		}
+		CurrentIdx = state.ID;
+	}
+
+	return 1;
+}
+
+//x DON"T USE THIS
 std::pair<float, float> PlayerProxy::ExtractUserMotionPeriod()
 {
 	MatrixXf
@@ -193,6 +445,9 @@ void Causality::PlayerProxy::PrintFrameBuffer(int No)
 
 void Causality::PlayerProxy::Update(time_seconds const & time_delta)
 {
+	using namespace std;
+	using namespace Eigen;
+
 	if (!IsInitialized || !IsConnected())
 		return;
 
@@ -201,104 +456,33 @@ void Causality::PlayerProxy::Update(time_seconds const & time_delta)
 	auto& player = *pBody;
 	if (!player.IsCurrentTracked) return;
 
-	if (frame_count++ % 1000 == 0)
+	if (IsMapped())
 	{
-
+		auto& state = CurrentState();
+		//state.Object().StopAction();
+		auto& cframe = state.Object().MapCurrentFrameForUpdate();
+		state.Binding().Transform(cframe, player.GetPoseFrame());
+		state.Object().ReleaseCurrentFrameFrorUpdate();
+		return;
 	}
 
-	auto X = player.GetFeatureMatrix();
-
-	auto N = X.rows();
-	auto K = X.cols();
-
-	FFT<float> fft;
-
-	MatrixXcf Xf(N, K);
-	MatrixXf Xr(N, K);
-
-	FFT<float> fft;
-	for (size_t i = 0; i < K; i++)
-		fft.fwd(Xf.col(i), X.col(i));
-
-	MatrixXf Xs = (Xf.array() * Xf.array().conjugate()).real();
-
-	int idx;
-	VectorXf Ea = Xs.middleRows(3, 20).rowwise().sum().transpose();
-	Ea.middleRows(1, Ea.rows() - 2).maxCoeff(&idx); // Frequency 3 - 30
-
-	auto Ex = Ea.middleRows<3>(idx);
-	idx += 3;
-	Vector3f Ix = { idx - 1, idx, idx + 1 };
-	float peekFreq = Ex.dot(Ix) / Ex.sum();
-
-	size_t T = ceil(N / peekFreq);
-	// Peek Frequency
-
-	float sigma = 6;
-	auto G = ArrayXf::LinSpaced(N, 0, sigma);
-	auto Eg = (-G.square()).exp();
-
-	Xf.array() *= Eg.replicate(1, K).array(); // low-pass filter
-
-	for (size_t i = 0; i < K; i++)
-		fft.inv(Xr.col(i), Xf.col(i));
-
-	MatrixXf Xs = resample(Xr.bottomRows(2 * T), T, ScaledFramesCount);
-
-	size_t Ju = JointType_Count;
-
-	// Fuck it... 11,250,000 times of CCA(SVD) computation every guess
-	// 1,406,250 SVD for 5x5 setup, much more reasonable!
-	for (DenseIndex phi = 0; phi < T; phi+=2 )	//? <= 50 , we should optimze phase shifting search from rough to fine
+	if (frame_count++ % 100 != 0)
 	{
-		auto Xp = Xs.middleRows(T - phi, T);
-		for (size_t i = 0; i < Ju; i++)			//? <= 25 joint per USER?
-		{
-			auto Xk = Xp.middleCols<JointDemension>(i*JointDemension);
-			auto qrX = Xk.colPivHouseholderQr();
-
-			for (auto& state : States)			//? <= 5 character
-			{
-				auto& object = state.Object();
-				size_t Jc = object.Armature().size();
-				for (auto& action : object.Behavier())	//? <= 5 animation per character
-				{
-					auto& anim = action.second;
-					auto Y = anim.AnimMatrix();
-					for (size_t j = 0; j < Jc; j++)		//? <= 50, we should applies joint reduce in characters
-					{
-						auto& qrY = anim.QRs[j];
-						Cca cca;
-						cca.computeFromQr(qrX, qrY);	//? it's <= 6x6 SVD inside
-						auto r = cca.correlaltions().minCoeff();
-					}
-				}
-			}
-
-		}
+		return;
 	}
 
-
-	//const auto& frame = player.GetPoseFrame();
-	//if (&frame == nullptr)
-	//	return;
-
-	//if (FrameBuffer.full())
-	//	FrameBuffer.pop_back();
-	//FrameBuffer.push_front(frame);
-
-	//++frame_count;
-	//if (frame_count % BufferFramesCount == 0 && frame_count != 0)
-	//{
-	//	PrintFrameBuffer(frame_count / BufferFramesCount);
-	//}
-
-	//UpdatePlayerFrame(frame);
+	if (player.FeatureBuffer.size() >= 0)
+	{
+		SelectControlStateByLatestFrames();
+		cout << "Mapped!!!!!!!!!" << endl;
+		if (IsMapped())
+			CurrentState().Object().StopAction();
+	}
 }
 
-bool PlayerProxy::UpdatePlayerFrame(const BoneDisplacementFrame & frame)
+bool PlayerProxy::UpdatePlayerFrame(const AffineFrame & frame)
 {
-	BoneDisplacementFrame tframe;
+	AffineFrame tframe;
 	// Caculate likilihood
 	for (int i = 0, end = States.size(); i < end; ++i)
 	{
@@ -336,7 +520,7 @@ bool PlayerProxy::UpdatePlayerFrame(const BoneDisplacementFrame & frame)
 			StateChanged(arg);
 	}
 
-	if (!IsIdel())
+	if (IsMapped())
 	{
 		auto& state = CurrentState();
 		auto& cframe = state.Object().MapCurrentFrameForUpdate();
@@ -357,6 +541,12 @@ void Causality::PlayerProxy::Render(RenderContext & context)
 
 	if (!IsConnected()) return;
 	auto& player = *pBody;
+
+	DirectX::Color color = DirectX::Colors::LimeGreen.v;
+
+	if (IsMapped())
+		color.A(0.05f);
+
 	if (player.IsCurrentTracked)
 	{
 		const auto& frame = player.GetPoseFrame();
@@ -364,8 +554,8 @@ void Causality::PlayerProxy::Render(RenderContext & context)
 
 		for (auto& bone : frame)
 		{
-			g_PrimitiveDrawer.DrawCylinder(bone.OriginPosition, bone.EndPostion, 0.015f, DirectX::Colors::LimeGreen);
-			g_PrimitiveDrawer.DrawSphere(bone.EndPostion, 0.03f, DirectX::Colors::LimeGreen);
+			g_PrimitiveDrawer.DrawCylinder(bone.OriginPosition, bone.EndPostion, 0.015f, color);
+			g_PrimitiveDrawer.DrawSphere(bone.EndPostion, 0.03f, color);
 		}
 	}
 }
@@ -413,18 +603,27 @@ void XM_CALLCONV Causality::KinectVisualizer::UpdateViewMatrix(DirectX::FXMMATRI
 	DirectX::Visualizers::g_PrimitiveDrawer.SetProjection(projection);
 }
 
-inline const ArmatureTransform & Causality::PlayerProxy::ControlState::Binding() const { return m_Binding; }
+inline const ArmatureTransform & Causality::PlayerProxy::ControlState::Binding() const { return *m_pBinding; }
 
-inline ArmatureTransform & Causality::PlayerProxy::ControlState::Binding() { return m_Binding; }
+inline ArmatureTransform & Causality::PlayerProxy::ControlState::Binding() { return *m_pBinding; }
+
+void Causality::PlayerProxy::ControlState::SetBinding(ArmatureTransform * pBinding)
+{
+	m_pBinding = pBinding;
+}
 
 inline const KinematicSceneObject & Causality::PlayerProxy::ControlState::Object() const { return *m_pSceneObject; }
 
 inline KinematicSceneObject & Causality::PlayerProxy::ControlState::Object() { return *m_pSceneObject; }
 
-inline void Causality::PlayerProxy::ControlState::SetSourceArmature(const IArmature & armature) { m_Binding.SetSourceArmature(armature); }
+inline void Causality::PlayerProxy::ControlState::SetSourceArmature(const IArmature & armature) { 
+	if (m_pBinding)
+		m_pBinding->SetSourceArmature(armature);
+}
 
 inline void Causality::PlayerProxy::ControlState::SetTargetObject(KinematicSceneObject & object) {
 	m_pSceneObject = &object;
-	m_Binding.SetTargetArmature(object.Armature());
+	if (m_pBinding)
+		m_pBinding->SetTargetArmature(object.Armature());
 	PotientialFrame = object.Armature().default_frame();
 }

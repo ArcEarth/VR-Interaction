@@ -39,7 +39,9 @@ bool Causality::KinematicSceneObject::StartAction(const string & key, time_secon
 
 bool Causality::KinematicSceneObject::StopAction(time_seconds transition_time)
 {
-	return false;
+	m_pCurrentAction = nullptr;
+	m_LoopCurrentAction = false;
+	return true;
 }
 
 void Causality::KinematicSceneObject::SetFreeze(bool freeze)
@@ -57,7 +59,7 @@ void Causality::KinematicSceneObject::Update(time_seconds const & time_delta)
 
 bool Causality::KinematicSceneObject::IsVisible(const BoundingFrustum & viewFrustum) const
 {
-	return true;
+	return m_isVisable;
 }
 
 void Causality::KinematicSceneObject::Render(RenderContext & pContext)
@@ -69,6 +71,9 @@ void Causality::KinematicSceneObject::Render(RenderContext & pContext)
 		const auto& frame = m_CurrentFrame;
 		//g_PrimitiveDrawer.Begin();
 		//const auto& dframe = Armature().default_frame();
+		DirectX::XMVECTOR color = DirectX::Colors::Yellow.v;
+		color = DirectX::XMVectorSetW(color, Opticity());
+
 		auto trans = this->TransformMatrix();
 		for (auto& bone : frame)
 		{
@@ -76,8 +81,8 @@ void Causality::KinematicSceneObject::Render(RenderContext & pContext)
 			XMVECTOR e1 = bone.EndPostion.LoadA();
 			e0 = XMVector3Transform(e0,trans);
 			e1 = XMVector3Transform(e1, trans);
-			g_PrimitiveDrawer.DrawCylinder(e0, e1, 0.01f, DirectX::Colors::Yellow);
-			g_PrimitiveDrawer.DrawSphere(e1, 0.02, DirectX::Colors::Yellow);
+			g_PrimitiveDrawer.DrawCylinder(e0, e1, 0.01f, color);
+			g_PrimitiveDrawer.DrawSphere(e1, 0.02, color);
 		}
 		//g_PrimitiveDrawer.End();
 
@@ -170,6 +175,8 @@ void XM_CALLCONV RenderableSceneObject::UpdateViewMatrix(DirectX::FXMMATRIX view
 Causality::RenderableSceneObject::RenderableSceneObject()
 {
 	m_isVisable = true;
+	m_opticity = 1.0f;
+	m_isFocuesd = false;
 }
 
 bool RenderableSceneObject::IsVisible(const BoundingFrustum & viewFrustum) const

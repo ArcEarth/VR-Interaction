@@ -317,10 +317,10 @@
     <ClInclude Include="CCA.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FbxParser.h">
-      <Filter>Causality</Filter>
+    <ClInclude Include="EigenExtension.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Resample.h">
+    <ClInclude Include="FbxParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

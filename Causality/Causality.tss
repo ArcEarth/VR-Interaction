@@ -20,69 +20,45 @@
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Scene.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\packages\Eigen.3.2.4\build\native\include\Eigen\src\Core\Map.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>d:\user\yupeng\documents\github\vr-interaction\causality\packages\eigen.3.2.4\build\native\include\eigen\src\core\mapbase.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\ConsoleUtility\auto_pch.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>d:\SDKs\boost_1_57_0\boost\any.hpp</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>D:\SDKs\DirectXTK\Src\SimpleMath.cpp</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>D:\SDKs\DirectXTK\Inc\SimpleMath.h</string>
-      <string>D:\SDKs\DirectXTK\Inc\SimpleMath.inl</string>
-    </ArrayOfString>
-    <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\tree.h</string>
     </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\StepTimer.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Resample.h</string>
-    </ArrayOfString>
-  </ArrayOfArrayOfString>
-  <ArrayOfArrayOfString>
-    <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Kinect.cpp</string>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Kinect.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\AssetDictionary.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\EigenExtension.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\DirectXMathExtend.h</string>
+      <string>c:\Program Files\Autodesk\FBX\FBX SDK\2015.1\include\fbxsdk\scene\animation\fbxanimutilities.h</string>
+    </ArrayOfString>
+  </ArrayOfArrayOfString>
+  <ArrayOfArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\AssetDictionary.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\AssetDictionary.h</string>
     </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\FbxParser.cpp</string>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\FbxParser.h</string>
     </ArrayOfString>
     <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CCA.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\PlayerProxy.cpp</string>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\PlayerProxy.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\SceneObject.cpp</string>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\SceneObject.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>c:\program files (x86)\microsoft visual studio 14.0\vc\include\algorithm</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>c:\program files (x86)\microsoft visual studio 14.0\vc\include\xmemory0</string>
     </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Armature.cpp</string>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Armature.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\PrimitiveVisualizer.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\SceneObject.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\SceneObject.h</string>
     </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\DeviceResources.cpp</string>
@@ -95,26 +71,35 @@
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Resources\Foregrounds.xml</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\BCL.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Model.cpp</string>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Model.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CCA.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\MetaBallModel.cpp</string>
     </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CausalityApplication.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Material.h</string>
+      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\packages\Eigen.3.2.4\build\native\include\Eigen\src\Core\ReturnByValue.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\packages\Eigen.3.2.4\build\native\include\Eigen\src\Core\Assign.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\pch_bcl.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\BCL.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Filter.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\vector</string>
     </ArrayOfString>
   </ArrayOfArrayOfString>
   <ArrayOfArrayOfString>
+    <ArrayOfString>
+      <string>C:\Users\yupeng\Desktop\hungarian.c</string>
+    </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Resources\SelectorScene.xml</string>
     </ArrayOfString>

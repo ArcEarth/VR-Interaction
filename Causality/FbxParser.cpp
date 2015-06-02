@@ -1,5 +1,8 @@
+#include "pch_bcl.h"
 #include <fbxsdk.h>
 #include "FbxParser.h"
+#include "EigenExtension.h"
+#include <iostream>
 namespace fbx = fbxsdk_2015_1;
 
 using namespace fbx;
@@ -172,8 +175,6 @@ namespace Causality
 		void RasterizeFramesBuffer(_In_ FbxAnimStack* pAnimStack, _Out_ BehavierSpace::animation_type& anim)
 		{
 			auto numBones = m_Armature->size();
-			auto& frames = anim.AnimMatrix();
-			frames.resize(m_FrameCount, numBones * FeaturePerBone);
 			auto& buffer = anim.GetFrameBuffer();
 			buffer.resize(m_FrameCount);
 			for (auto& f : buffer)
@@ -238,6 +239,7 @@ namespace Causality
 				}
 			}
 
+			MatrixX Y (m_FrameCount, numBones * FeaturePerBone);
 			FbxTime time = pAnimStack->GetLocalTimeSpan().GetStart();
 			DirectX::Vector3 sq[2];
 			auto& mapped = Eigen::Matrix<float, 1, FeaturePerBone>::Map(&sq[0].x);
@@ -250,7 +252,7 @@ namespace Causality
 				{
 					using namespace DirectX;
 					using namespace Eigen;
-					auto& feature = frames.block<1, FeaturePerBone>(i, j * FeaturePerBone);
+					auto& feature = Y.block<1, FeaturePerBone>(i, j * FeaturePerBone);
 					auto& bone = buffer[i][j];
 					XMVECTOR q = bone.LclRotation.LoadA();
 					q = XMQuaternionLn(q);
@@ -259,6 +261,24 @@ namespace Causality
 					feature = mapped;
 				}
 				time += m_FrameInterval;
+			}
+
+			static const size_t	ScaledFramesCount = 90U;
+
+			using namespace std;
+			//cout << "Y : min = " << Y.minCoeff() << " , max = " << Y.maxCoeff() << endl;
+			Y = Eigen::resample(Y, Y.rows(), ScaledFramesCount);
+			//cout << "Y_resample : min = " << Y.minCoeff() << " , max = " << Y.maxCoeff() << endl;
+			//cout << "Y_centerd : min = " << Y.minCoeff() << " , max = " << Y.maxCoeff() << endl;
+
+			anim.AnimMatrix() = Y;
+
+			//Y.rowwise() -= Y.colwise().mean();
+			anim.QrYs.resize(numBones);
+			for (size_t boneIdx = 0; boneIdx < numBones; boneIdx++)
+			{
+				auto Yb = Y.middleCols<3>(boneIdx*FeaturePerBone);
+				anim.QrYs[boneIdx].compute(Yb,false);
 			}
 		}
 	};

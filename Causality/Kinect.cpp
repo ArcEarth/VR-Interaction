@@ -457,7 +457,7 @@ public:
 				frame[jId].UpdateGlobalData(frame[sk[jId]->ParentID()]);
 		}
 
-		player->PoseBuffer.Push(std::move(frame));
+		player->PushFrame(std::move(frame));
 
 		if (isNew)
 		{
@@ -483,7 +483,7 @@ public:
 		}
 	}
 
-	//static void FillFrameWithIBody(Kinematics::BoneDisplacementFrame& frame, IBody* pBody)
+	//static void FillFrameWithIBody(Kinematics::AffineFrame& frame, IBody* pBody)
 	//{
 	//	Joint joints[JointType_Count];
 	//	JointOrientation oris[JointType_Count];
@@ -585,7 +585,7 @@ Kinect::Kinect()
 //}
 
 Causality::TrackedBody::TrackedBody()
-	: FeatureBuffer(FeatureBufferCaptcity)
+	: FeatureBuffer(FeatureBufferCaptcity), RefCount(0) , Id(0), IsCurrentTracked(false), LastTrackedTime(0), LostFrameCount(0)
 {
 }
 
@@ -593,23 +593,28 @@ void Causality::TrackedBody::PushFrame(FrameType && frame)
 {
 	using namespace Eigen;
 	using namespace DirectX;
-	FeatureBuffer.push_back();
 
-	if (FeatureBuffer.size() > RecordFeatures)
-		FeatureBuffer.pop_front();
-
-	if (!FeatureBuffer.is_linearized())
-		FeatureBuffer.linearize();
-
-	auto& fb = FeatureBuffer.back();
-	Vector3* vs = reinterpret_cast<Vector3*>(fb.data());
-	for (size_t i = 0; i < JointType_Count; i++)
 	{
-		DirectX::XMVECTOR q = frame[i].LclRotation.LoadA();
-		q = XMQuaternionLn(q);
+		std::lock_guard<std::mutex> guard(BufferMutex);
 
-		vs[i * 2] = frame[i].EndPostion;
-		vs[i * 2 + 1] = q;
+		FeatureBuffer.push_back();
+
+		if (FeatureBuffer.size() > RecordFeatures)
+			FeatureBuffer.pop_front(); // everything works fine beside it invaliad the memery...
+
+		if (!FeatureBuffer.is_linearized())
+			FeatureBuffer.linearize();
+
+		auto& fb = FeatureBuffer.back();
+		Vector3* vs = reinterpret_cast<Vector3*>(fb.data());
+		for (size_t i = 0; i < JointType_Count; i++)
+		{
+			DirectX::XMVECTOR q = frame[i].LclRotation.LoadA();
+			q = XMQuaternionLn(q);
+
+			vs[i * 2] = frame[i].EndPostion;
+			vs[i * 2 + 1] = q;
+		}
 	}
 
 	PoseBuffer.Push(std::move(frame));
@@ -620,10 +625,19 @@ void Causality::TrackedBody::PushFrame(FrameType && frame)
 
 Eigen::Map<TrackedBody::FeatureMatrixType> Causality::TrackedBody::GetFeatureMatrix(time_seconds duration)
 {
+	using FeatureMatrixType = TrackedBody::FeatureMatrixType;
 	using namespace std;
 	int si = duration.count() * 30;
-	si = min(max(si, 0), (int)FeatureBuffer.size());
-	auto sidx = FeatureBuffer.size() - si;
-	auto head = &FeatureBuffer[sidx][0];
-	return Eigen::Matrix<float, TrackedBody::FeatureDimension*JointType_Count, -1>::Map(head, TrackedBody::FeatureDimension*JointType_Count,si);
+	if (FeatureBuffer.size() >= si)
+	{
+		std::lock_guard<mutex> guard(BufferMutex);
+		si = min(max(si, 0), (int)FeatureBuffer.size());
+		auto sidx = FeatureBuffer.size() - si;
+		auto head = &FeatureBuffer[sidx][0];
+		return FeatureMatrixType::Map(head, si, FeatureMatrixType::ColsAtCompileTime);
+	}
+	else
+	{
+		return FeatureMatrixType::Map((float*)nullptr,0, FeatureMatrixType::ColsAtCompileTime);
+	}
 }

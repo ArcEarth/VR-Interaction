@@ -38,6 +38,27 @@ namespace Causality
 
 	class TextBlock;
 
+	class HUDElement
+	{
+	public:
+		// for composition
+		Vector2 Position;
+		Vector2 Size;
+		float	Opticity;
+		
+	private:
+
+	};
+
+	class Plot2D : public HUDElement
+	{
+		template <class Iter, class Iter>
+		Plot2D(DirectX::Vector2 position,DirectX::Vector2 size,size_t n, Iter xItr, Iter yItr);
+
+	private:
+
+	};
+
 	class TextBlockFactory
 	{
 	public:

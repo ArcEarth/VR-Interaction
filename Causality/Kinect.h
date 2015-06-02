@@ -10,7 +10,11 @@
 #include "Common\DirectXMathExtend.h"
 #include "Armature.h"
 #include "Common\Filter.h"
+
+#define BOOST_CB_DISABLE_DEBUG
 #include <boost\circular_buffer.hpp>
+#undef BOOST_CB_DISABLE_DEBUG
+
 namespace Causality
 {
 #ifndef _HandType_
@@ -197,11 +201,11 @@ namespace Causality
 		TrackedBody(const TrackedBody &) = default;
 		TrackedBody(TrackedBody &&) = default;
 
-		typedef Causality::BoneDisplacementFrame FrameType;
+		typedef Causality::AffineFrame FrameType;
 
 		void PushFrame(FrameType && frame);
 
-		Causality::BoneDisplacementFrame& GetPoseFrame() const
+		Causality::AffineFrame& GetPoseFrame() const
 		{
 			return *PoseBuffer.GetLatest();
 		}
@@ -221,16 +225,16 @@ namespace Causality
 		}
 
 		// Default pose data, should we use this ?
-		// Causality::BoneDisplacementFrame RestFrame;
+		// Causality::AffineFrame RestFrame;
 
 		// Current pose data
-		typedef Causality::BoneDisplacementFrame FrameType;
+		typedef Causality::AffineFrame FrameType;
 		BufferedStreamViewer<FrameType>	 PoseBuffer;
 
 		static const size_t SampleRate = 30U; // Hz
 
 		static const size_t FeatureDimension = 6U;
-		typedef Eigen::Matrix<float, FeatureDimension*JointType_Count, -1> FeatureMatrixType;
+		typedef Eigen::Matrix<float, -1, FeatureDimension*JointType_Count,Eigen::RowMajor> FeatureMatrixType;
 		Eigen::Map<FeatureMatrixType> GetFeatureMatrix(time_seconds duration = time_seconds(10));
 
 		static const size_t RecordFeatures = SampleRate * 10U;
@@ -238,9 +242,11 @@ namespace Causality
 		// This buffer stores the time-re-sampled frame data as feature matrix
 		// This buffer is allocated as 30x30 frames size
 		// thus , it would be linearized every 30 seconds
+
+		std::mutex BufferMutex;
 		boost::circular_buffer<std::array<float, FeatureDimension*JointType_Count>> FeatureBuffer;
 
-		//Causality::BoneDisplacementFrame PoseFrame;
+		//Causality::AffineFrame PoseFrame;
 
 		// Hand States
 		std::array<HandState,2>	HandStates;

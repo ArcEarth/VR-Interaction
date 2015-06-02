@@ -2,6 +2,7 @@
 #include "BCL.h"
 #include <unordered_map>
 #include <memory>
+#include "cca.h"
 
 namespace Causality
 {
@@ -11,7 +12,7 @@ namespace Causality
 	// "Structure" information is not stored here
 
 	XM_ALIGN16
-	struct BoneDisplacement
+	struct Bone
 	{
 	public:
 		// Local Data
@@ -46,19 +47,19 @@ namespace Causality
 		// Update from Hirachy or Global
 		// FK Caculation
 		// Need this.LclRotation, this.LclScaling, and all Data for reference
-		void UpdateGlobalData(const BoneDisplacement& refernece);
+		void UpdateGlobalData(const Bone& refernece);
 		// Easy-IK Caculation with No-X-Rotation-Constraint and bone length will be modified if the transform is not isometric
-		void UpdateLocalDataByPositionOnly(const BoneDisplacement& reference);
+		void UpdateLocalDataByPositionOnly(const Bone& reference);
 		// Assuming Global position & orientation is known
-		void UpdateLocalData(const BoneDisplacement& reference);
+		void UpdateLocalData(const Bone& reference);
 	public:
 		// Static helper methods for caculate transform matrix
 		// Caculate the Transform Matrix from "FromState" to "ToState"
-		static DirectX::XMMATRIX TransformMatrix(const BoneDisplacement& from, const BoneDisplacement& to);
+		static DirectX::XMMATRIX TransformMatrix(const Bone& from, const Bone& to);
 		// Ingnore the LclScaling transform, have better performence than TransformMatrix
-		static DirectX::XMMATRIX RigidTransformMatrix(const BoneDisplacement& from, const BoneDisplacement& to);
+		static DirectX::XMMATRIX RigidTransformMatrix(const Bone& from, const Bone& to);
 		// Ingnore the LclScaling transform, may be useful in skinning with Dual-Quaternion
-		static DirectX::XMDUALVECTOR RigidTransformDualQuaternion(const BoneDisplacement& from, const BoneDisplacement& to);
+		static DirectX::XMDUALVECTOR RigidTransformDualQuaternion(const Bone& from, const Bone& to);
 
 	public:
 		// number of float elements per bone
@@ -213,23 +214,23 @@ namespace Causality
 		//concept frame_type& operator[]
 	};
 
-	class BoneDisplacementFrame : public AnimationFrame, public std::vector<BoneDisplacement,DirectX::AlignedAllocator<BoneDisplacement>>
+	class AffineFrame : public AnimationFrame, public std::vector<Bone,DirectX::AlignedAllocator<Bone>>
 	{
 	public:
-		typedef BoneDisplacementFrame self_type;
+		typedef AffineFrame self_type;
 
-		typedef public std::vector<BoneDisplacement, DirectX::AlignedAllocator<BoneDisplacement>> BaseType;
+		typedef public std::vector<Bone, DirectX::AlignedAllocator<Bone>> BaseType;
 		using BaseType::operator[];
 		//using BaseType::operator=;
 
-		BoneDisplacementFrame() = default;
-		explicit BoneDisplacementFrame(size_t size);
+		AffineFrame() = default;
+		explicit AffineFrame(size_t size);
 		// copy from default frame
-		explicit BoneDisplacementFrame(const IArmature& armature);
-		BoneDisplacementFrame(const BoneDisplacementFrame&) = default;
-		BoneDisplacementFrame(BoneDisplacementFrame&& rhs) { *this = std::move(rhs); }
-		BoneDisplacementFrame& operator=(const BoneDisplacementFrame&) = default;
-		BoneDisplacementFrame& operator=(BoneDisplacementFrame&& rhs)
+		explicit AffineFrame(const IArmature& armature);
+		AffineFrame(const AffineFrame&) = default;
+		AffineFrame(AffineFrame&& rhs) { *this = std::move(rhs); }
+		AffineFrame& operator=(const AffineFrame&) = default;
+		AffineFrame& operator=(AffineFrame&& rhs)
 		{
 			BaseType::_Assign_rv(std::move(rhs));
 			return *this;
@@ -245,11 +246,51 @@ namespace Causality
 		Eigen::VectorXf LocalRotationVector() const;
 		void UpdateFromLocalRotationVector(const IArmature& armature,const Eigen::VectorXf fv);
 
+		static const auto StdFeatureDimension = 6U;
+
+		template <class Derived>
+		void PopulateStdFeatureVector(Eigen::DenseBase<Derived> &fv) const
+		{
+			assert(fv.rows() == 1 && fv.cols() == (StdFeatureDimension * size()));
+			DirectX::Vector3 sq[2];
+			auto& mapped = Eigen::Matrix<float, 1, StdFeatureDimension>::Map(&sq[0].x);
+			for (size_t j = 0; j < size(); j++)
+			{
+				using namespace DirectX;
+				using namespace Eigen;
+				auto& feature = fv.middleCols<StdFeatureDimension>(j * StdFeatureDimension);
+				auto& bone = at(j);
+				XMVECTOR q = bone.LclRotation.LoadA();
+				q = XMQuaternionLn(q);
+				sq[0] = q;
+				sq[1] = bone.EndPostion;
+				feature = mapped;
+			}
+		}
+		template <class Derived>
+		void RebuildFromStdFeatureVector(const Eigen::DenseBase<Derived> &fv,const IArmature& armature)
+		{
+			assert(fv.rows() == 1 && fv.cols() == (StdFeatureDimension * size()));
+			using namespace DirectX;
+			using namespace Eigen;
+			const Vector3 (*sq)[2];
+			for (size_t j = 0; j < size(); j++)
+			{
+				auto& feature = fv.middleCols<StdFeatureDimension>(j * StdFeatureDimension);
+				auto& bone = at(j);
+				sq = reinterpret_cast<const Vector3 (*)[2]>(feature.data());
+				XMVECTOR q = XMQuaternionExp((*sq)[0].Load());
+				bone.LclRotation.StoreA(q);
+				bone.EndPostion = (*sq)[1];
+			}
+			this->RebuildGlobal(armature);
+		}
+
 		// Interpolate the local-rotation and scaling, "interpolate in Time"
-		static void Interpolate(BoneDisplacementFrame& out, const BoneDisplacementFrame &lhs, const BoneDisplacementFrame &rhs, float t, const IArmature& armature);
+		static void Interpolate(AffineFrame& out, const AffineFrame &lhs, const AffineFrame &rhs, float t, const IArmature& armature);
 
 		// Blend Two Animation Frame, "Interpolate in Space"
-		static void Blend(BoneDisplacementFrame& out, const BoneDisplacementFrame &lhs, const BoneDisplacementFrame &rhs, float* blend_weights, const IArmature& armature);
+		static void Blend(AffineFrame& out, const AffineFrame &lhs, const AffineFrame &rhs, float* blend_weights, const IArmature& armature);
 
 		static void TransformMatrix(DirectX::XMFLOAT3X4* pOut, const self_type &from, const self_type& to);
 		static void TransformMatrix(DirectX::XMFLOAT4X4* pOut, const self_type &from, const self_type& to);
@@ -259,7 +300,7 @@ namespace Causality
 		//}
 
 		// number of float elements per bone
-		static const auto BoneWidth = sizeof(BoneDisplacement) / sizeof(float);
+		static const auto BoneWidth = sizeof(Bone) / sizeof(float);
 		//! not the eigen vector in math !!!
 		typedef Eigen::Map<VectorX, Eigen::Aligned> EigenVectorType;
 
@@ -368,12 +409,12 @@ namespace Causality
 
 	};
 
-	class ArmatureKeyframeAnimation : public KeyframeAnimation<BoneDisplacementFrame>
+	class ArmatureFrameAnimation : public KeyframeAnimation<AffineFrame>
 	{
 	public:
-		typedef ArmatureKeyframeAnimation self_type;
-		typedef KeyframeAnimation<BoneDisplacementFrame> base_type;
-		typedef BoneDisplacementFrame frame_type;
+		typedef ArmatureFrameAnimation self_type;
+		typedef KeyframeAnimation<AffineFrame> base_type;
+		typedef AffineFrame frame_type;
 
 		self_type() = default;
 		self_type(const self_type& rhs) = default;
@@ -383,7 +424,7 @@ namespace Causality
 		{
 			*this = std::move(rhs);
 		}
-		explicit ArmatureKeyframeAnimation (std::istream& file);
+		explicit ArmatureFrameAnimation (std::istream& file);
 
 		self_type& operator=(const self_type&& rhs)
 		{
@@ -404,10 +445,10 @@ namespace Causality
 		// Feature Matrix of this animation
 		Eigen::MatrixXf& AnimMatrix() { return animMatrix; }
 
-		std::vector<Eigen::ColPivHouseholderQR<MatrixXf>> QRs;
+		std::vector<Eigen::MeanThinQr<Eigen::Matrix<float,-1,3>>> QrYs;
 
 		bool InterpolateFrames(double frameRate);
-		virtual bool GetFrameAt(BoneDisplacementFrame& outFrame, TimeScalarType time) const;
+		virtual bool GetFrameAt(AffineFrame& outFrame, TimeScalarType time) const;
 
 		enum DataType
 		{
@@ -418,9 +459,9 @@ namespace Causality
 		};
 
 		// Eigen interface
-		//Eigen::Map<Eigen::MatrixXf, Eigen::Aligned, Eigen::Stride<sizeof(float), sizeof(BoneDisplacement)>> DataMatrix(DataType data) const
+		//Eigen::Map<Eigen::MatrixXf, Eigen::Aligned, Eigen::Stride<sizeof(float), sizeof(Bone)>> DataMatrix(DataType data) const
 		//{
-		//	return Eigen::Map<Eigen::Matrix3Xf, Eigen::Aligned, Eigen::Stride<sizeof(float), sizeof(BoneDisplacement)>>(&frames[0][0]);
+		//	return Eigen::Map<Eigen::Matrix3Xf, Eigen::Aligned, Eigen::Stride<sizeof(float), sizeof(Bone)>>(&frames[0][0]);
 		//}
 
 	private:
@@ -432,7 +473,7 @@ namespace Causality
 	class ArmatureTransform
 	{
 	public:
-		typedef BoneDisplacementFrame frame_type;
+		typedef AffineFrame frame_type;
 		
 		const IArmature& SourceArmature() const { return *pSource; }
 		const IArmature& TargetArmature() const { return *pTarget; }
@@ -442,23 +483,32 @@ namespace Causality
 		int GetBindIndex(int sourceIdx) const;
 		int GetInverseBindIndex(int tragetIdx) const;
 
-		void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const
-		{
-			auto lr = source_frame.LocalRotationVector();
-			lr = (lr * transform_matrix).transpose();
-			target_frame.UpdateFromLocalRotationVector(TargetArmature(),lr);
-		}
+		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const = 0;
 
-		void TransformBack(_Out_ frame_type& source_frame, _In_ const frame_type& target_frame) const;
-
-		Eigen::MatrixXf& InternalMatrix();
-		const Eigen::MatrixXf& InternalMatrix() const;
+		virtual void TransformBack(_Out_ frame_type& source_frame, _In_ const frame_type& target_frame) const;
 
 	protected:
 		const IArmature	*pSource, *pTarget;
-		Eigen::MatrixXf transform_matrix;
 	};
 
+	class MatrixArmatureTransform : public ArmatureTransform
+	{
+	protected:
+		Eigen::MatrixXf transform_matrix;
+	public:
+		template<class Deverid>
+		void SetInternal(const Eigen::EigenBase<Deverid>& mat)
+		{
+			transform_matrix = mat;
+		}
+
+		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
+		{
+			auto lr = source_frame.LocalRotationVector();
+			lr = (lr * transform_matrix).transpose();
+			target_frame.UpdateFromLocalRotationVector(TargetArmature(), lr);
+		}
+	};
 
 	template <typename FrameType>
 	class RealTimeAnimation
@@ -473,10 +523,10 @@ namespace Causality
 		FrameType m_CurrentFrame;
 	};
 
-	class ArmatureRealTimeAnimation : public RealTimeAnimation<BoneDisplacementFrame>
+	class ArmatureRealTimeAnimation : public RealTimeAnimation<AffineFrame>
 	{
 	public:
-		typedef BoneDisplacementFrame frame_type;
+		typedef AffineFrame frame_type;
 
 		const IArmature& Armature() const;
 
@@ -486,13 +536,13 @@ namespace Causality
 
 	// Represent an semantic collection of animations
 	// It's the possible pre-defined actions for an given object
-	class BehavierSpace : protected std::map<std::string, ArmatureKeyframeAnimation>
+	class BehavierSpace : protected std::map<std::string, ArmatureFrameAnimation>
 	{
 	public:
-		typedef ArmatureKeyframeAnimation animation_type;
-		typedef BoneDisplacementFrame frame_type;
+		typedef ArmatureFrameAnimation animation_type;
+		typedef AffineFrame frame_type;
 		typedef BoneVelocityFrame velocity_frame_type;
-		typedef std::map<std::string, ArmatureKeyframeAnimation> base_type;
+		typedef std::map<std::string, ArmatureFrameAnimation> base_type;
 
 		using base_type::begin;
 		using base_type::end;
@@ -546,11 +596,11 @@ namespace Causality
 
 		// Using Local Position is bad : X rotation of Parent Joint is not considerd
 		Eigen::VectorXf			FrameFeatureVectorEndPointNormalized(const frame_type& frame) const;
-		Eigen::MatrixXf			AnimationMatrixEndPosition(const ArmatureKeyframeAnimation& animation) const;
-		void					CacAnimationMatrixEndPosition( _In_ const ArmatureKeyframeAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
+		Eigen::MatrixXf			AnimationMatrixEndPosition(const ArmatureFrameAnimation& animation) const;
+		void					CacAnimationMatrixEndPosition( _In_ const ArmatureFrameAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
 		// Basiclly, the difference's magnitude is acceptable, direction is bad
 		Eigen::VectorXf			FrameFeatureVectorLnQuaternion(const frame_type& frame) const;
-		void					CaculateAnimationFeatureLnQuaternionInto(_In_ const ArmatureKeyframeAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
+		void					CaculateAnimationFeatureLnQuaternionInto(_In_ const ArmatureFrameAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
 
 		// Evaluating a likelihood of the given frame is inside this space
 		float					PoseDistancePCAProjection(const frame_type& frame) const;
@@ -637,7 +687,7 @@ namespace Causality
 	class IArmature
 	{
 	public:
-		typedef BoneDisplacementFrame frame_type;
+		typedef AffineFrame frame_type;
 
 		virtual ~IArmature() {}
 

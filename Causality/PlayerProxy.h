@@ -7,32 +7,52 @@ namespace Causality
 {
 	using boost::circular_buffer;
 
-	struct ExtNode
+	enum SymetricTypeEnum
 	{
-		int				Index;				// Index for this chain
-		int				LoD;				// Level of detail
-		// Structural feature
-		bool			IsGrounded;			// Is this feature grounded? == foot semantic
-		bool			IsEndEffector;			// Is this feature a end effector?
-		bool			IsSymetric;			// Is this feature a symetric pair?
-		bool			IsEvenSymmetric;	// Even symmetry or odd symmtry
-		float			ExpandThreshold;	// The threshold to expand this part
-		int				GroundLevel;		// Distance to ground
-		int				GroundIdx;			
-		ExtNode*		GroundParent;		// Path to grounded bone
-		bool			IsLeft;				// Is this feature left part of a symtric feature
-		ExtNode*		SymetricPair;		// Path to grounded bone
-		// Motion and geometry feature
-		VectorX			Xd;					// Default or "Representative" parameters
-		MatrixX			Xt;					// Animated parameters
-		bool			IsActive;			// Is this feature "Active" in energy?
-		bool			IsStable;			// Is Current state a stable state
-		float			MotionEnergy;		// Motion Energy Level
-		float			PotientialEnergy;	// Potenial Energy Level
-		int				SpaceRepresentIdx;	// Index of the joint which represent it's postion
+		Symetric_None = 0,
+		Symetric_Left,
+		Symetric_Right,
+	};
 
-		int				FeatureDimension;	
-		BoundingOrientedBox OBbox;
+	// A Kinematic Block is a one-chain in the kinmatic tree, with additional anyalaze information 
+	// usually constructed from shrinking the kinmatic tree
+	// Each Block holds the children joints and other structural information
+	// It is also common to build Multi-Level-of-Detail Block Layers
+	struct KinematicBlock : public tree_node<KinematicBlock>
+	{
+		int					Index;				// Index for this block, valid only through this layer
+		int					LoD;				// Level of detail
+		vector<Joint*>		Joints;				// Contained Joints
+
+		// Structural feature
+		int					LoG;				// Level of Grounding
+		SymetricTypeEnum	SymetricType;		// symmetry type
+		float				ExpandThreshold;	// The threshold to expand this part
+		int					GroundIdx;			
+
+		KinematicBlock*		GroundParent;		// Path to grounded bone
+		KinematicBlock*		SymetricPair;		// Path to grounded bone
+
+		KinematicBlock*			LoDParent;			// Parent in LoD term
+		vector<KinematicBlock*> LoDChildren;	// Children in LoD term
+
+
+		// Motion and geometry feature
+		//bool				IsActive;			// Is this feature "Active" in energy?
+		//bool				IsStable;			// Is Current state a stable state
+		//float				MotionEnergy;		// Motion Energy Level
+		//float				PotientialEnergy;	// Potenial Energy Level
+
+		BoundingOrientedBox GetBoundingBox(const AffineFrame& frame) const;
+
+		VectorX				GetFeatureVector(const AffineFrame& frame) const;
+		void				SetFeatureVector(_Out_ AffineFrame& frame, _In_ const VectorX& feature) const;
+
+		bool				IsEndEffector() const;		// Is this feature a end effector?
+		bool				IsGrounded() const;			// Is this feature grounded? == foot semantic
+		bool				IsSymetric() const;			// Is this feature a symetric pair?
+		bool				IsLeft() const;				// Is this feature left part of a symtric feature
+		int					FeatureDimension() const;
 	};
 
 	struct CompactArmature
@@ -43,7 +63,7 @@ namespace Causality
 	class PlayerProxy : public SceneObject, public IRenderable
 	{
 	public:
-		typedef BoneDisplacementFrame frame_type;
+		typedef AffineFrame frame_type;
 
 		class ControlState
 		{
@@ -51,6 +71,7 @@ namespace Causality
 
 			const ArmatureTransform& Binding() const;
 			ArmatureTransform& Binding();
+			void SetBinding(ArmatureTransform* pBinding);
 
 			const KinematicSceneObject& Object() const;
 			KinematicSceneObject& Object();
@@ -61,11 +82,12 @@ namespace Causality
 
 
 			int						ID;
-			BoneDisplacementFrame	PotientialFrame;
+			AffineFrame	PotientialFrame;
+			float					SpatialMotionScore;
 
 		private:
 			KinematicSceneObject*	m_pSceneObject;
-			ArmatureTransform		m_Binding;
+			ArmatureTransform*		m_pBinding;
 		};
 
 		struct StateChangedEventArgs
@@ -88,7 +110,9 @@ namespace Causality
 		// End the selecting phase and enter the manipulating phase
 		void BeginManipulatingPhase();
 
-		bool IsIdel() const { return CurrentIdx == 0; }
+		int SelectControlStateByLatestFrames();
+
+		bool IsMapped() const { return CurrentIdx >= 0; }
 		const ControlState& CurrentState() const { return States[CurrentIdx]; }
 		ControlState& CurrentState() { return States[CurrentIdx]; }
 		const ControlState&	GetState(int state) const { return States[state]; }
@@ -96,9 +120,9 @@ namespace Causality
 		Event<const StateChangedEventArgs&> StateChanged;
 
 		void	Update(time_seconds const& time_delta) override;
-		bool	UpdatePlayerFrame(const BoneDisplacementFrame& frame);
+		bool	UpdatePlayerFrame(const AffineFrame& frame);
 
-		const IArmature&					BodyArmature() const { return *pPlayerArmature; };
+		const IArmature& BodyArmature() const { return *pPlayerArmature; };
 
 		// Inherited via IRenderable
 		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
