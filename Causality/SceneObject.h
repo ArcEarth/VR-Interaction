@@ -57,13 +57,7 @@ namespace Causality
 
 		SceneObject();
 
-		inline void AddChild(SceneObject* child)
-		{
-			if (child != nullptr)
-				append_children_back(child);
-		}
-
-		inline void add_child(SceneObject* child)
+		virtual void AddChild(SceneObject* child)
 		{
 			if (child != nullptr)
 				append_children_back(child);

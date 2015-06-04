@@ -1,17 +1,24 @@
 #pragma once
-#ifdef NOMINMAX
-#include <windows.h>
-#else
-#define NOMINMAX
-#include <windows.h>
-#undef NOMINMAX
-#endif
 #include "pch.h"
 #include "Interactive.h"
 #include "bcl.h"
 
 namespace Causality
 {
+
+	struct Rect
+	{
+		Vector2 Position;
+		Vector2 Size;
+
+		float Top() const { return Position.y; }
+		float Left() const { return Position.x; }
+		float Bottom() const { return Position.y + Size.y; }
+		float Right() const { return Position.x + Size.x; }
+		float Width() const { return Size.x; }
+		float Height() const { return Size.y; }
+	};
+
 	//ref class Window;
 	class NativeWindow;
 

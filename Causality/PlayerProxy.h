@@ -7,59 +7,6 @@ namespace Causality
 {
 	using boost::circular_buffer;
 
-	enum SymetricTypeEnum
-	{
-		Symetric_None = 0,
-		Symetric_Left,
-		Symetric_Right,
-	};
-
-	// A Kinematic Block is a one-chain in the kinmatic tree, with additional anyalaze information 
-	// usually constructed from shrinking the kinmatic tree
-	// Each Block holds the children joints and other structural information
-	// It is also common to build Multi-Level-of-Detail Block Layers
-	struct KinematicBlock : public tree_node<KinematicBlock>
-	{
-		int					Index;				// Index for this block, valid only through this layer
-		int					LoD;				// Level of detail
-		vector<Joint*>		Joints;				// Contained Joints
-
-		// Structural feature
-		int					LoG;				// Level of Grounding
-		SymetricTypeEnum	SymetricType;		// symmetry type
-		float				ExpandThreshold;	// The threshold to expand this part
-		int					GroundIdx;			
-
-		KinematicBlock*		GroundParent;		// Path to grounded bone
-		KinematicBlock*		SymetricPair;		// Path to grounded bone
-
-		KinematicBlock*			LoDParent;			// Parent in LoD term
-		vector<KinematicBlock*> LoDChildren;	// Children in LoD term
-
-
-		// Motion and geometry feature
-		//bool				IsActive;			// Is this feature "Active" in energy?
-		//bool				IsStable;			// Is Current state a stable state
-		//float				MotionEnergy;		// Motion Energy Level
-		//float				PotientialEnergy;	// Potenial Energy Level
-
-		BoundingOrientedBox GetBoundingBox(const AffineFrame& frame) const;
-
-		VectorX				GetFeatureVector(const AffineFrame& frame) const;
-		void				SetFeatureVector(_Out_ AffineFrame& frame, _In_ const VectorX& feature) const;
-
-		bool				IsEndEffector() const;		// Is this feature a end effector?
-		bool				IsGrounded() const;			// Is this feature grounded? == foot semantic
-		bool				IsSymetric() const;			// Is this feature a symetric pair?
-		bool				IsLeft() const;				// Is this feature left part of a symtric feature
-		int					FeatureDimension() const;
-	};
-
-	struct CompactArmature
-	{
-
-	};
-
 	class PlayerProxy : public SceneObject, public IRenderable
 	{
 	public:
@@ -73,21 +20,20 @@ namespace Causality
 			ArmatureTransform& Binding();
 			void SetBinding(ArmatureTransform* pBinding);
 
-			const KinematicSceneObject& Object() const;
-			KinematicSceneObject& Object();
+			const KinematicSceneObject& Target() const;
+			KinematicSceneObject& Target();
 
 			void SetSourceArmature(const IArmature& armature);
 
 			void SetTargetObject(KinematicSceneObject& object);
 
-
 			int						ID;
-			AffineFrame	PotientialFrame;
+			AffineFrame				PotientialFrame;
 			float					SpatialMotionScore;
 
 		private:
-			KinematicSceneObject*	m_pSceneObject;
-			ArmatureTransform*		m_pBinding;
+			KinematicSceneObject*		  m_pSceneObject;
+			unique_ptr<ArmatureTransform> m_pBinding;
 		};
 
 		struct StateChangedEventArgs
@@ -101,6 +47,7 @@ namespace Causality
 
 		PlayerProxy();
 		virtual ~PlayerProxy() override;
+		virtual void AddChild(SceneObject* pChild) override;
 
 		void Initialize();
 
@@ -161,16 +108,16 @@ namespace Causality
 		int									CurrentIdx;
 		std::vector<ControlState>			States;
 
-		static const size_t					FrameRate = 30U;
+		static const size_t					FrameRate = ANIM_STANDARD::SAMPLE_RATE;
+		static const size_t					ScaledMotionTime = ANIM_STANDARD::MAX_CLIP_DURATION; // second
+		static const size_t					ScaledFramesCount = ANIM_STANDARD::CLIP_FRAME_COUNT;
 		static const size_t					BufferTime = 10; // second
 		static const size_t					BufferFramesCount = FrameRate * BufferTime;
-		static const size_t					ScaledMotionTime = 3; // second
-		static const size_t					ScaledFramesCount = 90U;
 		static const size_t					JointCount = JointType_Count;
-		static const size_t					JointDemension = 6; // X-Y-Z Position
-		static const size_t					MinimumFrequency = 3; // 3/BufferTime Hz
-		static const size_t					MaximumFrequency = 10; // 10 Hz
-		static const size_t					BandWidth = MaximumFrequency - MinimumFrequency + 1;
+		static const size_t					JointDemension = FeatureType::Dimension; // X-Y-Z Position
+		static const size_t					MinHz = 3; // MinimumFrequency 3/BufferTime Hz
+		static const size_t					MaxHz = 10; // 10 Hz
+		static const size_t					HzWidth = MaxHz - MinHz + 1;
 
 		circular_buffer<frame_type>			FrameBuffer;
 

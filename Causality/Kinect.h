@@ -7,6 +7,7 @@
 #include "BCL.h"
 #include <wrl\client.h>
 #include <memory>
+#include <mutex>
 #include "Common\DirectXMathExtend.h"
 #include "Armature.h"
 #include "Common\Filter.h"
@@ -231,9 +232,9 @@ namespace Causality
 		typedef Causality::AffineFrame FrameType;
 		BufferedStreamViewer<FrameType>	 PoseBuffer;
 
-		static const size_t SampleRate = 30U; // Hz
+		static const size_t SampleRate = ANIM_STANDARD::SAMPLE_RATE; // Hz
 
-		static const size_t FeatureDimension = 6U;
+		static const size_t FeatureDimension = FeatureType::Dimension;
 		typedef Eigen::Matrix<float, -1, FeatureDimension*JointType_Count,Eigen::RowMajor> FeatureMatrixType;
 		Eigen::Map<FeatureMatrixType> GetFeatureMatrix(time_seconds duration = time_seconds(10));
 

@@ -58,13 +58,15 @@ void Causality::Scene::LoadFromXML(const string & xml_file)
 	nContent = nContent->FirstChildElement();
 	this->content = ParseSceneObject(*this, nContent, nullptr);
 
-	RebuildRenderViewCache();
+	UpdateRenderViewCache();
 
 	is_loaded = true;
 }
 
-void Causality::Scene::RebuildRenderViewCache()
+void Causality::Scene::UpdateRenderViewCache()
 {
+	if (!camera_dirty) return;
+	lock_guard<mutex> guard(content_mutex);
 	for (auto& obj : content->nodes())
 	{
 		auto pCamera = obj.As<Camera>();
@@ -74,6 +76,7 @@ void Causality::Scene::RebuildRenderViewCache()
 		if (pRenderable != nullptr)
 			renderables.push_back(pRenderable);
 	}
+	camera_dirty = false;
 }
 
 void ParseSceneAssets(AssetDictionary& assets, XMLElement* node)
@@ -385,7 +388,13 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	node = node->FirstChildElement();
 	while (node)
 	{
-		pObj->AddChild(ParseSceneObject(scene, node, pObj.get()).release());
+		auto pChild = ParseSceneObject(scene, node, pObj.get()).release();
+		{
+			std::lock_guard<mutex> guard(scene.ContentMutex());
+			pObj->AddChild(pChild);
+			//if (pChild->Is<Camera>())
+			scene.SignalCameraCache();
+		}
 		node = node->NextSiblingElement();
 	}
 
@@ -408,6 +417,8 @@ void ParseCreatureAttributes(KinematicSceneObject* pCreature, tinyxml2::XMLEleme
 		{
 			const std::string key(path + 1, path + strlen(path) - 1);
 			pCreature->SetBehavier(assets.GetBehavier(key));
+			if (pCreature->Behavier().Clips().size() > 0)
+				pCreature->StartAction(pCreature->Behavier().Clips().front().Name);
 		}
 	}
 	else

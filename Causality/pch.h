@@ -1,5 +1,11 @@
 ﻿#pragma once
-
+#ifdef NOMINMAX
+#include <windows.h>
+#else
+#define NOMINMAX
+#include <windows.h>
+#undef NOMINMAX
+#endif
 #include <wrl/client.h>
 #include <d3d11_2.h>
 #include <d2d1_2.h>

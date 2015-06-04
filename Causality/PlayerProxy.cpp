@@ -11,6 +11,8 @@ using namespace Causality;
 using namespace Eigen;
 using namespace std;
 
+BlockArmature g_PlayeerBlocks;
+
 class CcaArmatureTransform : public ArmatureTransform
 {
 public:
@@ -24,36 +26,65 @@ public:
 		bool useInvB;
 	};
 
-	std::vector<CcaMap> Maps;
+	vector<CcaMap> Maps;
 
 public:
 	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
 	{
-		const auto dF = frame_type::StdFeatureDimension;
-		const auto dY = 3;
-		RowVectorXf X(source_frame.size() * dF);
-		RowVectorXf Y(target_frame.size() * dF);
-		source_frame.PopulateStdFeatureVector(X);
-		target_frame.PopulateStdFeatureVector(Y); //! populate non-mapped with default values
+		//const auto dF = frame_type::StdFeatureDimension;
+		//const auto dY = 3;
+		//RowVectorXf X(source_frame.size() * dF);
+		//RowVectorXf Y(target_frame.size() * dF);
+		//source_frame.PopulateStdFeatureVector(X);
+		//target_frame.PopulateStdFeatureVector(Y); //! populate non-mapped with default values
 
-		for (const auto& map : Maps)
-		{
-			auto& Xp = X.middleCols<dF>(map.Jx * dF);
-			auto& Yp = Y.middleCols<dY>(map.Jy * dF);
-			auto U = ((Xp.rowwise() - map.uX) * map.A).eval();
-			if (map.useInvB)
-				Yp = U * map.invB;
-			else
-				Yp = map.svdBt.solve(U.transpose()).transpose(); // Y' ~ B' \ U'
-			Yp.rowwise() += map.uY;
-		}
+		//for (const auto& map : Maps)
+		//{
+		//	auto& Xp = X.middleCols<dF>(map.Jx * dF);
+		//	auto& Yp = Y.middleCols<dY>(map.Jy * dF);
+		//	ApplyCcaMap(map, Xp, Yp);
+		//}
 
-		target_frame.RebuildFromStdFeatureVector(Y, *pTarget);
+		//target_frame.RebuildFromStdFeatureVector(Y, *pTarget);
+	}
+
+	template <class DerivedX, class DerivedY>
+	static void ApplyCcaMap(_In_ const CcaMap& map, _In_ const DenseBase<DerivedX> &Xp, _Out_ DenseBase<DerivedY> &Yp)
+	{
+		auto U = ((Xp.rowwise() - map.uX) * map.A).eval();
+		if (map.useInvB)
+			Yp = U * map.invB;
+		else
+			Yp = map.svdBt.solve(U.transpose()).transpose(); // Y' ~ B' \ U'
+		Yp.rowwise() += map.uY;
 	}
 
 };
 
-std::pair<JointType, JointType> XFeaturePairs[] = {
+class BlockizedCcaArmatureTransform : public CcaArmatureTransform
+{
+public:
+	const BlockArmature *pSblocks,*pTblocks;
+
+	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
+	{
+		const auto& sblocks = *pSblocks;
+		const auto& tblocks = *pTblocks;
+		for (const auto& map : Maps)
+		{
+			auto pSb = sblocks[map.Jx];
+			auto pTb = tblocks[map.Jy];
+			auto X = pSb->GetFeatureVector(source_frame);
+			RowVectorXf Y(pTb->FeatureDimension());
+			ApplyCcaMap(map, X, Y);
+			pTb->SetFeatureVector(target_frame,Y);
+		}
+
+		target_frame.RebuildGlobal(*pTarget);
+	}
+};
+
+pair<JointType, JointType> XFeaturePairs[] = {
 	{JointType_SpineBase, JointType_SpineShoulder},
 	{ JointType_SpineShoulder, JointType_Head },
 	{JointType_ShoulderLeft, JointType_ElbowLeft},
@@ -92,10 +123,10 @@ float BoneRadius[JointType_Count] = {
 
 };
 
-static const size_t KeyJointCount = ARRAYSIZE(KeyJoints);
-
-static const size_t FeatureCount = (KeyJointCount * (KeyJointCount - 1)) / 2;
-static const size_t FeatureDim = FeatureCount * 3;
+//static const size_t KeyJointCount = ARRAYSIZE(KeyJoints);
+//
+//static const size_t FeatureCount = (KeyJointCount * (KeyJointCount - 1)) / 2;
+//static const size_t FeatureDim = FeatureCount * 3;
 
 VectorXf HumanFeatureFromFrame(const AffineFrame& frame)
 {
@@ -122,24 +153,42 @@ VectorXf HumanFeatureFromFrame(const AffineFrame& frame)
 	return X;
 }
 
-Causality::PlayerProxy::PlayerProxy()
-	: FrameBuffer(BufferFramesCount), pBody(nullptr)
+PlayerProxy::PlayerProxy()
+	: pBody(nullptr), FrameBuffer(BufferFramesCount)
 {
 	IsInitialized = false;
 	CurrentIdx = -1;
 }
 
-Causality::PlayerProxy::~PlayerProxy()
+PlayerProxy::~PlayerProxy()
 {
 	//std::ofstream fout("handpos.txt", std::ofstream::out);
 
 	//fout.close();
 }
 
-void Causality::PlayerProxy::Initialize()
+void PlayerProxy::AddChild(SceneObject* pChild)
+{
+	SceneObject::AddChild(pChild);
+	auto pObj = dynamic_cast<KinematicSceneObject*>(pChild);
+	if (pObj)
+	{
+		States.emplace_back();
+		States.back().SetSourceArmature(*pPlayerArmature);
+		States.back().SetTargetObject(*pObj);
+		pObj->SetOpticity(0.5f);
+	}
+}
+
+void PlayerProxy::Initialize()
 {
 	pKinect = Devices::Kinect::GetForCurrentView();
 	pPlayerArmature = &pKinect->Armature();
+	if (g_PlayeerBlocks.empty())
+	{
+		g_PlayeerBlocks.SetArmature(*pPlayerArmature);
+	}
+
 	//FrameBuffer.clear();
 	for (auto& child : children())
 	{
@@ -172,10 +221,10 @@ void Causality::PlayerProxy::Initialize()
 	IsInitialized = true;
 }
 
-int Causality::PlayerProxy::SelectControlStateByLatestFrames()
+int PlayerProxy::SelectControlStateByLatestFrames()
 {
 	auto& player = *pBody;
-	static std::ofstream flog("Xlog.txt");
+	static ofstream flog("Xlog.txt");
 
 	MatrixXf X = player.GetFeatureMatrix();
 	//? WARNNING! player.GetFeatureMatrix() is ROW Major!!!
@@ -184,6 +233,11 @@ int Causality::PlayerProxy::SelectControlStateByLatestFrames()
 	auto K = X.cols();
 
 	if (N*K == 0) return -1; // Feature Matrix is not ready yet
+
+
+	auto perm = g_PlayeerBlocks.GetJointPermutationMatrix(JointDemension);
+
+	X = X * perm;
 
 	cout << "X : min = " << X.minCoeff() << " , max = " << X.maxCoeff() << endl;
 	//cout << "X = " << X << endl;
@@ -200,7 +254,7 @@ int Causality::PlayerProxy::SelectControlStateByLatestFrames()
 	MatrixXf Xs = Xf.cwiseAbs2();
 
 	int idx;
-	VectorXf Ea = Xs.middleRows(3, 20).rowwise().sum().transpose();
+	VectorXf Ea = Xs.middleRows(MinHz, MaxHz).rowwise().sum().transpose();
 	Ea.middleRows(1, Ea.rows() - 2).maxCoeff(&idx); // Frequency 3 - 30
 	cout << Ea.transpose() << endl;
 
@@ -234,7 +288,7 @@ int Causality::PlayerProxy::SelectControlStateByLatestFrames()
 	int Ts = T / Ti;
 
 	size_t Ju = JointType_Count;
-	vector<vector<MeanThinQr<Matrix<float, -1, JointDemension>>>> QrXs(Ts);
+	vector<vector<MeanThinQr<MatrixXf>>> QrXs(Ts);
 	for (auto& v : QrXs)
 		v.resize(Ju);
 
@@ -245,6 +299,11 @@ int Causality::PlayerProxy::SelectControlStateByLatestFrames()
 	//Xs.rowwise() -= Xs.colwise().mean();
 	cout << "Xs : min = " << Xs.minCoeff() << " , max = " << Xs.maxCoeff() << endl;
 
+
+	vector<int> Juk(g_PlayeerBlocks.size());
+	for (size_t i = 0; i < Juk.size(); i++)
+		Juk[i] = i;
+
 	// Fuck it... 11,250,000 times of CCA(SVD) computation every guess
 	// 1,406,250 SVD for 5x5 setup, much more reasonable!
 	for (DenseIndex phi = 0; phi < T; phi += Ti)	//? <= 50 , we should optimze phase shifting search from rough to fine
@@ -252,16 +311,20 @@ int Causality::PlayerProxy::SelectControlStateByLatestFrames()
 		auto Xp = Xs.middleRows(T - phi, T);
 		for (size_t i = 0; i < Ju; i++)			//? <= 25 joint per USER?
 		{
-			auto Xk = Xp.middleCols<JointDemension>(i*JointDemension);
-			QrXs[phi/Ti][i].compute(Xk, false);
+			auto stCol = g_PlayeerBlocks[i]->AccumulatedJointCount * JointDemension;
+			auto cols = g_PlayeerBlocks[i]->FeatureDimension();
+
+			auto Xk = Xp.middleCols(stCol, cols);
+			QrXs[phi/Ti][i].compute(Xk, true);
 		}
 	}
 
 	//? HACK Juk Jck! Pre-reduce DOF
-	size_t Juk[] = { JointType_Head,JointType_ElbowLeft,JointType_ElbowRight,JointType_KneeLeft,JointType_KneeRight };
-	size_t Jck[] = { 8,12,17,22,35,40,45,50,54};
-	for (auto& jc : Jck)
-		jc -= 1;
+	//size_t Juk[] = { JointType_Head,JointType_ElbowLeft,JointType_ElbowRight,JointType_KneeLeft,JointType_KneeRight };
+
+	//size_t Jck[] = { 8,12,17,22,35,40,45,50,54};
+	//for (auto& jc : Jck)
+	//	jc -= 1;
 
 	////? HACK Ju
 	//Ju = std::size(Juk);
@@ -269,22 +332,25 @@ int Causality::PlayerProxy::SelectControlStateByLatestFrames()
 
 	for (auto& state : States)			//? <= 5 character
 	{
-		auto& object = state.Object();
+		auto& object = state.Target();
 		size_t Jc = object.Armature().size();
 
 		////? HACK Jc
 		//Jc = std::size(Jck);
+		vector<int> Jck(object.Behavier().Blocks().size());
+		for (size_t i = 0; i < Jck.size(); i++)
+			Jck[i] = i;
 
 		auto& anim = object.Behavier()["walk"];
 		//x for (auto& action : object.Behavier())	//? <= 5 animation per character
 		{
 			//auto& anim = action.second;
 			boost::multi_array<float, 3> Rm(boost::extents[Ts][Ju][Jc]);
-			std::fill_n(Rm.data(), Ts*Ju*Jc, .0f);
+			fill_n(Rm.data(), Ts*Ju*Jc, .0f);
 
-			float maxScore = std::numeric_limits<float>::min();
+			float maxScore = numeric_limits<float>::min();
 			DenseIndex maxPhi = -1;
-			std::vector<DenseIndex> maxMatching;
+			vector<DenseIndex> maxMatching;
 
 			//DenseIndex phi = 0;
 			for (DenseIndex phi = 0; phi < T; phi += Ti)	//? <= 50 , we should optimze phase shifting search from rough to fine
@@ -297,7 +363,7 @@ int Causality::PlayerProxy::SelectControlStateByLatestFrames()
 				{
 					auto& qrX = QrXs[phi / Ti][i];
 
-					auto Xk = Xp.middleCols<JointDemension>(i*JointDemension);
+					//auto Xk = Xp.middleCols<JointDemension>(i*JointDemension);
 					//cout << "X : min = " << Xk.minCoeff() << " , max = " << Xk.maxCoeff() << endl;
 
 					//int j = 17;
@@ -324,24 +390,27 @@ int Causality::PlayerProxy::SelectControlStateByLatestFrames()
 			}
 
 			state.SpatialMotionScore = maxScore;
-			auto pBinding = new CcaArmatureTransform();
+			//auto pBinding = new CcaArmatureTransform();
+			auto pBinding = new BlockizedCcaArmatureTransform();
 			state.SetBinding(pBinding);
-			cout << "Best assignment for " << state.Object().Name << " : " << anim.Name << endl;
+			cout << "Best assignment for " << state.Target().Name << " : " << anim.Name << endl;
 
-			int sdxass[] = {3,14,19,24,29};
-			for (size_t i = 0; i < std::size(sdxass); i++)
-				maxMatching[Juk[i]] = sdxass[i];
+			//int sdxass[] = {3,14,19,24,29};
+			//for (size_t i = 0; i < size(sdxass); i++)
+			//	maxMatching[Juk[i]] = sdxass[i];
 
 			for (auto i : Juk)
 			{
 				DenseIndex Jx = i, Jy = maxMatching[i];
 				if (Jy == -1) continue;
 
-				cout << pPlayerArmature->at(Jx)->Name() << " ==> " << state.Object().Armature()[Jy]->Name() << endl;
+				//cout << pPlayerArmature->at(Jx)->Name() << " ==> " << state.Target().Armature()[Jy]->Name() << endl;
 
 				pBinding->Maps.emplace_back();
 				pBinding->SetSourceArmature(*pPlayerArmature);
-				pBinding->SetTargetArmature(state.Object().Armature());
+				pBinding->SetTargetArmature(state.Target().Armature());
+				pBinding->pSblocks = &g_PlayeerBlocks;
+				pBinding->pTblocks = &state.Target().Behavier().Blocks();
 
 				auto& map = pBinding->Maps.back();
 				auto& qrX = QrXs[maxPhi / Ti][Jx];
@@ -375,7 +444,7 @@ int Causality::PlayerProxy::SelectControlStateByLatestFrames()
 }
 
 //x DON"T USE THIS
-std::pair<float, float> PlayerProxy::ExtractUserMotionPeriod()
+pair<float, float> PlayerProxy::ExtractUserMotionPeriod()
 {
 	MatrixXf
 		X(BufferFramesCount, JointCount * JointDemension);
@@ -404,21 +473,21 @@ std::pair<float, float> PlayerProxy::ExtractUserMotionPeriod()
 	{
 		int idx;
 		// filter frequency with 3-15 reoccurence times
-		JointReductedSpecturm.block<1, BandWidth>(j, MinimumFrequency).maxCoeff(&idx);
+		JointReductedSpecturm.block<1, HzWidth>(j, MinHz).maxCoeff(&idx);
 		JointPeriod[j] = 15.0f / (float)(idx + 3); // 450 frame/(30 frame/s)
 	}
 
 	auto overallSpectrum = JointReductedSpecturm.colwise().sum();
 
 	int idx;
-	overallSpectrum.block<1, BandWidth>(1, MinimumFrequency).maxCoeff(&idx);
+	overallSpectrum.block<1, HzWidth>(1, MinHz).maxCoeff(&idx);
 	return make_pair(.0f, idx);
 }
 
-void Causality::PlayerProxy::PrintFrameBuffer(int No)
+void PlayerProxy::PrintFrameBuffer(int No)
 {
-	int flag = std::ofstream::out | (No == 1 ? 0 : std::ofstream::app);
-	std::ofstream fout("handpos.csv", flag);
+	int flag = ofstream::out | (No == 1 ? 0 : ofstream::app);
+	ofstream fout("handpos.csv", flag);
 
 	//Matrix<float, Dynamic, FeatureDim> X(BufferFramesCount);
 	for (auto& frame : FrameBuffer)
@@ -443,7 +512,7 @@ void Causality::PlayerProxy::PrintFrameBuffer(int No)
 	fout.close();
 }
 
-void Causality::PlayerProxy::Update(time_seconds const & time_delta)
+void PlayerProxy::Update(time_seconds const & time_delta)
 {
 	using namespace std;
 	using namespace Eigen;
@@ -459,10 +528,10 @@ void Causality::PlayerProxy::Update(time_seconds const & time_delta)
 	if (IsMapped())
 	{
 		auto& state = CurrentState();
-		//state.Object().StopAction();
-		auto& cframe = state.Object().MapCurrentFrameForUpdate();
+		//state.Target().StopAction();
+		auto& cframe = state.Target().MapCurrentFrameForUpdate();
 		state.Binding().Transform(cframe, player.GetPoseFrame());
-		state.Object().ReleaseCurrentFrameFrorUpdate();
+		state.Target().ReleaseCurrentFrameFrorUpdate();
 		return;
 	}
 
@@ -476,7 +545,7 @@ void Causality::PlayerProxy::Update(time_seconds const & time_delta)
 		SelectControlStateByLatestFrames();
 		cout << "Mapped!!!!!!!!!" << endl;
 		if (IsMapped())
-			CurrentState().Object().StopAction();
+			CurrentState().Target().StopAction();
 	}
 }
 
@@ -488,7 +557,7 @@ bool PlayerProxy::UpdatePlayerFrame(const AffineFrame & frame)
 	{
 		auto& obj = States[i];
 		auto& binding = obj.Binding();
-		auto& kobj = obj.Object();
+		auto& kobj = obj.Target();
 		auto& armature = kobj.Armature();
 		auto& space = kobj.Behavier();
 
@@ -506,7 +575,7 @@ bool PlayerProxy::UpdatePlayerFrame(const AffineFrame & frame)
 
 	for (size_t i = 0; i < States.size(); i++)
 	{
-		States[i].Object().SetOpticity(StateProbality(i));
+		States[i].Target().SetOpticity(StateProbality(i));
 	}
 
 	int maxIdx = -1;
@@ -523,26 +592,26 @@ bool PlayerProxy::UpdatePlayerFrame(const AffineFrame & frame)
 	if (IsMapped())
 	{
 		auto& state = CurrentState();
-		auto& cframe = state.Object().MapCurrentFrameForUpdate();
+		auto& cframe = state.Target().MapCurrentFrameForUpdate();
 		state.Binding().Transform(cframe, frame);
-		state.Object().ReleaseCurrentFrameFrorUpdate();
+		state.Target().ReleaseCurrentFrameFrorUpdate();
 	}
 	return true;
 }
 
-bool Causality::PlayerProxy::IsVisible(const BoundingFrustum & viewFrustum) const
+bool PlayerProxy::IsVisible(const BoundingFrustum & viewFrustum) const
 {
 	return g_DebugView;
 }
 
-void Causality::PlayerProxy::Render(RenderContext & context)
+void PlayerProxy::Render(RenderContext & context)
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 
 	if (!IsConnected()) return;
 	auto& player = *pBody;
 
-	DirectX::Color color = DirectX::Colors::LimeGreen.v;
+	Color color = DirectX::Colors::LimeGreen.v;
 
 	if (IsMapped())
 		color.A(0.05f);
@@ -560,23 +629,23 @@ void Causality::PlayerProxy::Render(RenderContext & context)
 	}
 }
 
-void XM_CALLCONV Causality::PlayerProxy::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
+void XM_CALLCONV PlayerProxy::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 	DirectX::Visualizers::g_PrimitiveDrawer.SetView(view);
 	DirectX::Visualizers::g_PrimitiveDrawer.SetProjection(projection);
 }
 
-Causality::KinectVisualizer::KinectVisualizer()
+KinectVisualizer::KinectVisualizer()
 {
 	pKinect = Devices::Kinect::GetForCurrentView();
 }
 
-bool Causality::KinectVisualizer::IsVisible(const BoundingFrustum & viewFrustum) const
+bool KinectVisualizer::IsVisible(const BoundingFrustum & viewFrustum) const
 {
 	return true;
 }
 
-void Causality::KinectVisualizer::Render(RenderContext & context)
+void KinectVisualizer::Render(RenderContext & context)
 {
 	auto &players = pKinect->GetTrackedBodies();
 	using DirectX::Visualizers::g_PrimitiveDrawer;
@@ -597,31 +666,31 @@ void Causality::KinectVisualizer::Render(RenderContext & context)
 	}
 }
 
-void XM_CALLCONV Causality::KinectVisualizer::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
+void XM_CALLCONV KinectVisualizer::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 	DirectX::Visualizers::g_PrimitiveDrawer.SetView(view);
 	DirectX::Visualizers::g_PrimitiveDrawer.SetProjection(projection);
 }
 
-inline const ArmatureTransform & Causality::PlayerProxy::ControlState::Binding() const { return *m_pBinding; }
+inline const ArmatureTransform & PlayerProxy::ControlState::Binding() const { return *m_pBinding; }
 
-inline ArmatureTransform & Causality::PlayerProxy::ControlState::Binding() { return *m_pBinding; }
+inline ArmatureTransform & PlayerProxy::ControlState::Binding() { return *m_pBinding; }
 
-void Causality::PlayerProxy::ControlState::SetBinding(ArmatureTransform * pBinding)
+void PlayerProxy::ControlState::SetBinding(ArmatureTransform * pBinding)
 {
-	m_pBinding = pBinding;
+	m_pBinding.reset(pBinding);
 }
 
-inline const KinematicSceneObject & Causality::PlayerProxy::ControlState::Object() const { return *m_pSceneObject; }
+inline const KinematicSceneObject & PlayerProxy::ControlState::Target() const { return *m_pSceneObject; }
 
-inline KinematicSceneObject & Causality::PlayerProxy::ControlState::Object() { return *m_pSceneObject; }
+inline KinematicSceneObject & PlayerProxy::ControlState::Target() { return *m_pSceneObject; }
 
-inline void Causality::PlayerProxy::ControlState::SetSourceArmature(const IArmature & armature) { 
+inline void PlayerProxy::ControlState::SetSourceArmature(const IArmature & armature) { 
 	if (m_pBinding)
 		m_pBinding->SetSourceArmature(armature);
 }
 
-inline void Causality::PlayerProxy::ControlState::SetTargetObject(KinematicSceneObject & object) {
+inline void PlayerProxy::ControlState::SetTargetObject(KinematicSceneObject & object) {
 	m_pSceneObject = &object;
 	if (m_pBinding)
 		m_pBinding->SetTargetArmature(object.Armature());

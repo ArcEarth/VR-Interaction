@@ -40,14 +40,14 @@ namespace stdx
 
 	private:
 		template <typename T>
-		inline static void delete_s(std::enable_if_t<_DescendabtsOwnership, T>* &pData) {
+		inline static void internal_delete(std::enable_if_t<_DescendabtsOwnership, T>* &pData) {
 			if (pData) {
 				delete pData;
 				pData = nullptr;
 			}
 		}
 		template <typename T>
-		inline static void delete_s(std::enable_if_t<!_DescendabtsOwnership, T>* &pData) {
+		inline static void internal_delete(std::enable_if_t<!_DescendabtsOwnership, T>* &pData) {
 			pData = nullptr;
 		}
 
@@ -61,8 +61,8 @@ namespace stdx
 
 		~foward_tree_node()
 		{
-			delete_s<_Ty>(_sibling);
-			delete_s<_Ty>(_child);
+			internal_delete<_Ty>(_sibling);
+			internal_delete<_Ty>(_child);
 #ifdef _DEBUG
 			_parent = nullptr;
 #endif
@@ -827,20 +827,24 @@ namespace stdx
 		//Properties
 	private:
 		template <typename T>
-		inline static void delete_s(std::enable_if_t<_DescendabtsOwnership, T>* &pData) {
+		inline static void internal_delete(std::enable_if_t<_DescendabtsOwnership, T>* &pData) {
 			if (pData) {
 				delete pData;
+#ifdef _DEBUG
 				pData = nullptr;
+#endif
 			}
 		}
 
 		template <typename T>
-		inline static void delete_s(std::enable_if_t<!_DescendabtsOwnership, T>* &pData) {
+		inline static void internal_delete(std::enable_if_t<!_DescendabtsOwnership, T>* &pData) {
+#ifdef _DEBUG
 			pData = nullptr;
+#endif
 		}
 
 	public:
-		static pointer null;// = new tree_node();
+		//static pointer null = nullptr;// = new tree_node();
 
 		tree_node()
 			: _prev_sibling(nullptr), _next_sibling(nullptr), _first_child(nullptr), _last_child(nullptr), _parent(nullptr)
@@ -851,7 +855,7 @@ namespace stdx
 		{
 			auto child = _first_child;
 			while (child != nullptr)
-				delete_s<_Ty>(child);
+				internal_delete<_Ty>(child);
 #ifdef _DEBUG
 			_parent = nullptr;
 #endif
@@ -871,7 +875,12 @@ namespace stdx
 
 		bool is_null() const
 		{
-			return this == null;
+			return this == nullptr;
+		}
+
+		bool operator==(nullptr_t) const
+		{
+			return is_null();
 		}
 
 		// Logical Parent for this node
@@ -921,6 +930,23 @@ namespace stdx
 		// if this node is Logical Root
 		bool is_root() const {
 			return (!this->_parent);
+		}
+
+		// get the ultimate root of this tree-node
+		// Time is O(h) , where h is this node's height
+		pointer root()
+		{
+			pointer node = static_cast<pointer>(this);
+			while (node->_parent)
+				node = node->_parent;
+			return node;
+		}
+
+		// get the ultimate root of this tree-node
+		// Time is O(h) , where h is this node's height
+		const_pointer root() const
+		{
+			return const_cast<pointer>(static_cast<const_pointer>(this))->root();
 		}
 
 		// Modifiers
@@ -1406,8 +1432,8 @@ namespace stdx
 		typedef const_depth_first_iterator const_iterator;
 		typedef mutable_depth_first_iterator iterator;
 
-		//// Interators and ranges
-	public:
+		// Interators 
+	private:
 		// iterator throught this and all it's "next" siblings 
 		const_sibling_iterator next_siblings_begin() const {
 			return const_sibling_iterator(static_cast<const_pointer>(this));
@@ -1516,6 +1542,8 @@ namespace stdx
 			return mutable_sibling_iterator(nullptr);
 		}
 
+		// Ranges
+	public:
 		iterator_range<const_sibling_iterator>
 			children() const
 		{

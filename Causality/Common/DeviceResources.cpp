@@ -75,7 +75,7 @@ void DirectX::DeviceResources::SetNativeWindow(HWND hWnd)
 	RECT rect;
 	GetWindowRect(hWnd, &rect);
 	m_hWnd = hWnd;
-	m_logicalSize = Windows::Foundation::Size((float)(rect.right - rect.left),(float)(rect.bottom - rect.top));
+	m_logicalSize = Size((float)(rect.right - rect.left),(float)(rect.bottom - rect.top));
 	m_nativeOrientation = DisplayOrientations::None;
 	m_currentOrientation = DisplayOrientations::None;
 
@@ -96,7 +96,7 @@ void DirectX::DeviceResources::SetNativeWindow(HWND hWnd)
 	CreateWindowSizeDependentResources();
 }
 
-
+#if defined (__cplusplus_winrt)
 // This method is called when the CoreWindow is created (or re-created).
 void DirectX::DeviceResources::SetCoreWindow(CoreWindow^ window)
 {
@@ -104,7 +104,7 @@ void DirectX::DeviceResources::SetCoreWindow(CoreWindow^ window)
 	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
 
 	m_window = window;
-	m_logicalSize = Windows::Foundation::Size(window->Bounds.Width, window->Bounds.Height);
+	m_logicalSize = Size(window->Bounds.Width, window->Bounds.Height);
 	m_nativeOrientation = currentDisplayInformation->NativeOrientation;
 	m_currentOrientation = currentDisplayInformation->CurrentOrientation;
 	m_dpi = currentDisplayInformation->LogicalDpi;
@@ -112,6 +112,25 @@ void DirectX::DeviceResources::SetCoreWindow(CoreWindow^ window)
 
 	CreateWindowSizeDependentResources();
 }
+
+// This method is called when the XAML control is created (or re-created).
+void DirectX::DeviceResources::SetSwapChainPanel(SwapChainPanel^ panel)
+{
+	m_deviceHostType = DeviceHostType::Composition;
+	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
+
+	m_swapChainPanel = panel;
+	m_logicalSize = Size(static_cast<float>(panel->ActualWidth), static_cast<float>(panel->ActualHeight));
+	m_nativeOrientation = currentDisplayInformation->NativeOrientation;
+	m_currentOrientation = currentDisplayInformation->CurrentOrientation;
+	m_dpiScaleX = panel->CompositionScaleX;
+	m_dpiScaleY = panel->CompositionScaleY;
+	m_dpi = currentDisplayInformation->LogicalDpi;
+	m_d2dContext->SetDpi(m_dpi, m_dpi);
+
+	CreateWindowSizeDependentResources();
+}
+#endif
 
 
 // Configures resources that don't depend on the Direct3D device.
@@ -581,24 +600,6 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 
 	// Grayscale text anti-aliasing is recommended for all Windows Store apps.
 	m_d2dContext->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
-}
-
-// This method is called when the XAML control is created (or re-created).
-void DirectX::DeviceResources::SetSwapChainPanel(SwapChainPanel^ panel)
-{
-	m_deviceHostType = DeviceHostType::Composition;
-	DisplayInformation^ currentDisplayInformation = DisplayInformation::GetForCurrentView();
-
-	m_swapChainPanel = panel;
-	m_logicalSize = Windows::Foundation::Size(static_cast<float>(panel->ActualWidth), static_cast<float>(panel->ActualHeight));
-	m_nativeOrientation = currentDisplayInformation->NativeOrientation;
-	m_currentOrientation = currentDisplayInformation->CurrentOrientation;
-	m_dpiScaleX = panel->CompositionScaleX;
-	m_dpiScaleY = panel->CompositionScaleY;
-	m_dpi = currentDisplayInformation->LogicalDpi;
-	m_d2dContext->SetDpi(m_dpi, m_dpi);
-
-	CreateWindowSizeDependentResources();
 }
 
 // This method is called in the event handler for the SizeChanged event.

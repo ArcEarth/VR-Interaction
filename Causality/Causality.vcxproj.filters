@@ -16,17 +16,8 @@
     <Filter Include="Platform">
       <UniqueIdentifier>{b64aebbb-698d-4d0a-9fd0-86c726d4be67}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DirectX">
-      <UniqueIdentifier>{f24f9c7e-0490-4734-93ea-9aa8f494d0af}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\SkyBox">
       <UniqueIdentifier>{2a691754-e34e-4273-8bc7-b5354528fb65}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="DirectX\SourceFile">
-      <UniqueIdentifier>{4d83d3eb-44a5-411e-a775-704c51fd7ecc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="DirectX\Extern">
-      <UniqueIdentifier>{05dbf451-bb45-45f2-9739-0e29d673a86a}</UniqueIdentifier>
     </Filter>
     <Filter Include="StdX">
       <UniqueIdentifier>{dc52f287-d8be-4f4f-abbf-c96965a4a763}</UniqueIdentifier>
@@ -78,41 +69,8 @@
     <ClCompile Include="pch_bullet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Common\Material.cpp">
-      <Filter>DirectX\SourceFile</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\MetaBallModel.cpp">
-      <Filter>DirectX\SourceFile</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\PrimitiveVisualizer.cpp">
-      <Filter>DirectX\SourceFile</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\SpaceCurve.cpp">
-      <Filter>DirectX\SourceFile</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\Polygonizer.cpp">
-      <Filter>DirectX\SourceFile</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\Model.cpp">
-      <Filter>DirectX\SourceFile</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\Extern\tiny_obj_loader.cc">
-      <Filter>DirectX\Extern</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\pch_directX.cpp">
-      <Filter>DirectX\SourceFile</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\SkyDome.cpp">
-      <Filter>DirectX\SourceFile</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\DXGIFormatHelper.cpp">
-      <Filter>DirectX</Filter>
-    </ClCompile>
     <ClCompile Include="Kinect.cpp">
       <Filter>Platform\Platform.Devices</Filter>
-    </ClCompile>
-    <ClCompile Include="Common\Textures.cpp">
-      <Filter>DirectX\SourceFile</Filter>
     </ClCompile>
     <ClCompile Include="pch_bcl.cpp">
       <Filter>Source Files</Filter>
@@ -158,36 +116,6 @@
     <ClInclude Include="NativeWindow.h">
       <Filter>Platform</Filter>
     </ClInclude>
-    <ClInclude Include="Common\Textures.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\StepTimer.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\Renderable.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\DXGIFormatHelper.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\DirectXHelper.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\DeviceResources.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\ConstantBuffer.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\Carmera.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Content\ShaderStructures.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\Locatable.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
     <ClInclude Include="OculusRift.h">
       <Filter>Platform\Platform.Devices</Filter>
     </ClInclude>
@@ -196,21 +124,6 @@
     </ClInclude>
     <ClInclude Include="Content\CubeScene.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\ShaderEffect.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\Model.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\DeviceBuffers.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\DirectXMathExtend.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\Lights.h">
-      <Filter>DirectX</Filter>
     </ClInclude>
     <ClInclude Include="Interactive.h">
       <Filter>Header Files</Filter>
@@ -224,38 +137,11 @@
     <ClInclude Include="Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Common\Material.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
     <ClInclude Include="LeapMotion.h">
       <Filter>Platform\Platform.Devices</Filter>
     </ClInclude>
-    <ClInclude Include="Common\MetaBallModel.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\Polygonizer.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\BezierClip.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\SpaceCurve.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\PrimitiveVisualizer.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
     <ClInclude Include="pch_bullet.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\Extern\tiny_obj_loader.h">
-      <Filter>DirectX\Extern</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\pch_directX.h">
-      <Filter>DirectX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\SkyDome.h">
-      <Filter>DirectX</Filter>
     </ClInclude>
     <ClInclude Include="PrimaryCamera.h">
       <Filter>Header Files</Filter>

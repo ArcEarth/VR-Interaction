@@ -29,7 +29,7 @@ using namespace Causality;
 void Bone::UpdateGlobalData(const Bone & reference)
 {
 	XMVECTOR ParQ = reference.GblRotation.LoadA();
-	XMVECTOR Q = XMQuaternionMultiply(LclRotation.LoadA(),ParQ);
+	XMVECTOR Q = XMQuaternionMultiply(LclRotation.LoadA(), ParQ);
 	XMVECTOR S = reference.GblScaling.LoadA() * LclScaling.LoadA();
 	GblRotation.StoreA(Q);
 	GblScaling.StoreA(S);
@@ -338,11 +338,93 @@ Eigen::VectorXf BehavierSpace::FrameFeatureVectorLnQuaternion(const frame_type &
 	return fvector;
 }
 
+KinematicBlock* Causality::ShrinkChainToBlock(const Joint* pJoint)
+{
+	if (pJoint == nullptr || pJoint->is_null()) return nullptr;
+	KinematicBlock* pBlock = new KinematicBlock;
+
+	auto pChild = pJoint;
+	do
+	{
+		pBlock->Joints.push_back(pChild);
+		pJoint = pChild;
+		pChild = pChild->first_child();
+	} while (pChild && !pChild->next_sibling());
+
+	for (auto& child : pJoint->children())
+	{
+		auto childBlcok = ShrinkChainToBlock(&child);
+		pBlock->append_children_back(childBlcok);
+	}
+	return pBlock;
+}
+
+BehavierSpace::animation_type & BehavierSpace::operator[](const std::string & name)
+{
+	for (auto& clip : m_AnimClips)
+	{
+		if (clip.Name == name) return clip;
+	}
+	throw std::out_of_range("No animation with specified name exist in this aniamtion space.");
+}
+
+const BehavierSpace::animation_type & BehavierSpace::operator[](const std::string & name) const
+{
+	for (const auto& clip : m_AnimClips)
+	{
+		if (clip.Name == name) return clip;
+	}
+	throw std::out_of_range("No animation with specified name exist in this aniamtion space.");
+}
+
+void Causality::BehavierSpace::AddAnimationClip(animation_type && animation)
+{
+#ifdef _DEBUG
+	for (auto& clip : m_AnimClips)
+		if (clip.Name == animation.Name)
+		throw std::out_of_range("Name of animation is already existed.");
+#endif
+	m_AnimClips.emplace_back(std::move(animation));
+}
+
+BehavierSpace::animation_type & BehavierSpace::AddAnimationClip(const std::string & name)
+{
+#ifdef _DEBUG
+	for (auto& clip : m_AnimClips)
+		if (clip.Name == name)
+		throw std::out_of_range("Name of animation is already existed.");
+#endif
+	m_AnimClips.emplace_back(name);
+	auto& anim = m_AnimClips.back();
+	anim.SetArmature(*m_pArmature);
+	anim.SetDefaultFrame(m_pArmature->default_frame());
+	return anim;
+}
+
+bool Causality::BehavierSpace::Contains(const std::string & name) const
+{
+	for (auto& clip : m_AnimClips)
+	{
+		if (clip.Name == name) return true;
+	}
+	return false;
+}
+
+void Causality::BehavierSpace::UpdateBlock()
+{
+	auto& armature = *m_pArmature;
+	m_Blocks.SetArmature(armature);	
+}
+
 const IArmature & BehavierSpace::Armature() const { return *m_pArmature; }
 
 IArmature & BehavierSpace::Armature() { return *m_pArmature; }
 
-void BehavierSpace::SetArmature(IArmature & armature) { assert(this->empty()); m_pArmature = &armature; }
+void BehavierSpace::SetArmature(IArmature & armature) {
+	assert(this->Clips().empty()); 
+	m_pArmature = &armature; 
+	UpdateBlock();
+}
 
 const BehavierSpace::frame_type & BehavierSpace::RestFrame() const { return Armature().default_frame(); }
 
@@ -388,7 +470,7 @@ void Causality::BehavierSpace::CacAnimationMatrixEndPosition(const ArmatureFrame
 	const auto & frames = animation.GetFrameBuffer();
 	int K = animation.GetFrameBuffer().size();
 	int N = animation.Armature().size();
-	if (fmatrix.rows() != N*3 || fmatrix.cols() != K)
+	if (fmatrix.rows() != N * 3 || fmatrix.cols() != K)
 		fmatrix.resize(N * 3, K);
 	for (size_t i = 0; i < K; i++)
 	{
@@ -546,6 +628,11 @@ ArmatureFrameAnimation::ArmatureFrameAnimation(std::istream & file)
 	}
 }
 
+Causality::ArmatureFrameAnimation::ArmatureFrameAnimation(const std::string & name)
+	: base_type(name)
+{
+}
+
 bool ArmatureFrameAnimation::InterpolateFrames(double frameRate)
 {
 	float delta = (float)(1.0 / frameRate);
@@ -567,7 +654,7 @@ bool ArmatureFrameAnimation::InterpolateFrames(double frameRate)
 
 bool Causality::ArmatureFrameAnimation::GetFrameAt(AffineFrame & outFrame, TimeScalarType time) const
 {
-	double t = fmod(time.count(),Duration.count());
+	double t = fmod(time.count(), Duration.count());
 	int frameIdx = round(t / FrameInterval.count());
 	frameIdx = frameIdx % frames.size(); // ensure the index is none negative
 	outFrame = frames[frameIdx];
@@ -647,4 +734,63 @@ const JointSemanticProperty & Joint::AssignSemanticsBasedOnName()
 		this->Semantic += name2semantic[word_str];
 	}
 	return this->Semantic;
+}
+
+VectorX Causality::KinematicBlock::GetFeatureVector(const AffineFrame & frame) const
+{
+	return VectorX();
+}
+
+void Causality::KinematicBlock::SetFeatureVector(AffineFrame & frame, const VectorX & feature) const
+{
+}
+
+int Causality::KinematicBlock::FeatureDimension() const
+{
+	return Joints.size() * FeatureType::Dimension;
+}
+
+void Causality::BlockArmature::SetArmature(const IArmature & armature)
+{
+	m_pRoot.reset(ShrinkChainToBlock(armature.root()));
+	int idx = 0, accumIdx = 0;
+	for (auto& block : m_pRoot->nodes())
+	{
+		m_BlocksCache.push_back(&block);
+		block.Index = idx++;
+		block.AccumulatedJointCount = accumIdx;
+		accumIdx += block.Joints.size();
+	}
+}
+
+
+Eigen::PermutationMatrix<Eigen::Dynamic> Causality::BlockArmature::GetJointPermutationMatrix(size_t feature_dim) const
+{
+	using namespace Eigen;
+
+	// Perform a Column permutation so that feature for block wise is consist
+	// And remove the position data!!!
+
+	auto N = m_pArmature->size();
+	vector<int> indices(N);
+	int idx = 0;
+
+	for ( auto pBlock : m_BlocksCache)
+	{
+		for (auto& pj : pBlock->Joints)
+		{
+			indices[pj->ID()] = idx++;
+		}
+	}
+
+	MatrixXi a_indvec = VectorXi::Map(indices.data(), indices.size()).replicate(feature_dim, 1);
+	a_indvec.array() *= FeatureType::Dimension;
+	a_indvec.colwise() += Matrix<int, -1, 1>::LinSpaced(feature_dim, 0, feature_dim - 1);
+
+#ifdef _DEBUG
+	cout << a_indvec << endl;
+#endif
+
+	Eigen::PermutationMatrix<Eigen::Dynamic> perm(VectorXi::Map(a_indvec.data(), N*feature_dim));
+	return perm;
 }

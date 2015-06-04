@@ -15,6 +15,24 @@ namespace Causality
 		Eye_Count = 2,
 	};
 
+	struct StaticPose
+	{
+	public:
+		Quaternion	Orientation;
+		Vector3		Position;
+	};
+
+	struct DynamicPose
+	{
+		Quaternion	Orientation;
+		Vector3		Position;
+		Vector3		AngularVelocity;
+		Vector3		Velocity;
+		Vector3		AngularAcceleration;
+		Vector3		Acceleration;
+		double		TimeInSeconds;         // Absolute time of this state sample.
+	};
+
 	namespace Devices
 	{
 

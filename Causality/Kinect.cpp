@@ -609,11 +609,12 @@ void Causality::TrackedBody::PushFrame(FrameType && frame)
 		Vector3* vs = reinterpret_cast<Vector3*>(fb.data());
 		for (size_t i = 0; i < JointType_Count; i++)
 		{
-			DirectX::XMVECTOR q = frame[i].LclRotation.LoadA();
-			q = XMQuaternionLn(q);
+			FeatureType::Get(&vs[i].x, frame[i]);
+			//DirectX::XMVECTOR q = frame[i].LclRotation.LoadA();
+			//q = XMQuaternionLn(q);
 
-			vs[i * 2] = frame[i].EndPostion;
-			vs[i * 2 + 1] = q;
+			//vs[i * 2] = frame[i].EndPostion;
+			//vs[i * 2 + 1] = q;
 		}
 	}
 

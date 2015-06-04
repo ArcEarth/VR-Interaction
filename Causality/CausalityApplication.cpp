@@ -108,14 +108,6 @@ void Causality::App::OnStartup(Array<String^>^ args)
 	task<void> loadScene([&]() {
 		cout << "[Scene] Loading ...";
 		selector->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
-		for (auto& node : selector->Content()->descendants())
-		{
-			if (node.Name == "spider")
-			{
-				node.As<KinematicSceneObject>()->StartAction("walk");
-				break;
-			}
-		}
 		pKinect->Start();
 		cout << "[Scene] Loading Finished!";
 	});

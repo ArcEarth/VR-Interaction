@@ -9,7 +9,7 @@
 #include <d3d11_x.h>
 #define NO_D3D11_DEBUG_NAME
 #else
-#include <d3d11_1.h>
+#include <d3d11_2.h>
 #endif
 
 #if !defined(NO_D3D11_DEBUG_NAME) && ( defined(_DEBUG) || defined(PROFILE) )
@@ -67,6 +67,8 @@ namespace DirectX
 		HAS_MEMBER(weights, has_weights);
 
 	}
+
+#if defined (__cplusplus_winrt)
 	inline Platform::String^ ErrorDescription(HRESULT hr)
 	{
 		if (FACILITY_WINDOWS == HRESULT_FACILITY(hr))
@@ -88,9 +90,6 @@ namespace DirectX
 			return "Undifined Error Code";
 		}
 	}
-
-
-
 	inline void ThrowIfFailed(HRESULT hr)
 	{
 		if (FAILED(hr))
@@ -99,6 +98,41 @@ namespace DirectX
 			throw Platform::Exception::CreateException(hr);
 		}
 	}
+#else
+	inline TCHAR* ErrorDescription(HRESULT hr)
+	{
+		if (FACILITY_WINDOWS == HRESULT_FACILITY(hr))
+			hr = HRESULT_CODE(hr);
+		TCHAR* szErrMsg;
+
+		auto size = FormatMessage(
+			FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+			NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			(LPTSTR)&szErrMsg, 0, NULL);
+
+		if (!size) {
+			//std::string msg(szErrMsg);
+			//LocalFree(szErrMsg);
+			return szErrMsg;
+		}
+		else
+		{
+			return "Undifined Error Code";
+		}
+	}
+	inline void ThrowIfFailed(HRESULT hr)
+	{
+		if (FAILED(hr))
+		{
+			auto ErrMsg = ErrorDescription(hr);
+			throw std::exception(ErrMsg);
+		}
+	}
+#endif
+
+
+
+
 
 
 	// simliar to std::lock_guard for exception-safe Direct3D 11 resource locking

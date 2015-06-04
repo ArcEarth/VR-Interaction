@@ -1,6 +1,8 @@
 ﻿#pragma once
 #define NOMINMAX
+#if defined (__cplusplus_winrt)
 #include <agile.h>
+#endif
 #include <wrl\client.h>
 #include <Windows.h>
 #include <d3d11_2.h>
@@ -50,11 +52,50 @@ namespace DirectX
 
 		DeviceResources();
 		void SetNativeWindow(HWND hWnd);
+
+#if defined (__cplusplus_winrt)
+		typedef Windows::Foundation::Size Size;
+		typedef Windows::Graphics::Display::DisplayOrientations DisplayOrientations;
+
 		void SetCoreWindow(Windows::UI::Core::CoreWindow^ window);
 		void SetSwapChainPanel(Windows::UI::Xaml::Controls::SwapChainPanel^ panel);
-		void SetLogicalSize(Windows::Foundation::Size logicalSize);
+#else
+		enum class DisplayOrientations : unsigned int
+		{
+			Landscape = 1,
+			LandscapeFlipped = 4,
+			None = 0,
+			Portrait = 2,
+			PortraitFlipped = 8,
+		};
 
-		void SetCurrentOrientation(Windows::Graphics::Display::DisplayOrientations currentOrientation);
+		struct Size
+		{
+			float Width, Height;
+		};
+
+		struct Rect
+		{
+			Rect() : X(0),Y(0),Width(0),Height(0)
+			{}
+			Rect(float x, float y, float width, float height)
+				: X(x), Y(y), Width(width), Height(height)
+			{}
+
+			float X, Y, Width, Height;
+
+			float Top() const { return Y; }
+			float Left() const { return X; }
+			float Bottom() const { return Y + Height; }
+			float Right() const { return X + Width; }
+
+			bool IsEmpty() const { return Height * Width <= .0f; }
+			static Rect Empty;
+		};
+#endif
+		void SetLogicalSize(Size logicalSize);
+
+		void SetCurrentOrientation(DisplayOrientations currentOrientation);
 		void SetCurrentOrientation(DirectX::FXMVECTOR quaternion);
 		void SetDpi(float dpi);
 		void SetCompositionScale(float compositionScaleX, float compositionScaleY);
@@ -73,8 +114,8 @@ namespace DirectX
 		RenderTarget&			GetBackBufferRenderTarget()				{ return m_BackBuffer; }
 
 		// Device Accessors.
-		Windows::Foundation::Size GetOutputSize() const					{ return m_outputSize; }
-		Windows::Foundation::Size GetLogicalSize() const				{ return m_logicalSize; }
+		Size					GetOutputSize() const					{ return m_outputSize; }
+		Size					GetLogicalSize() const				{ return m_logicalSize; }
 
 		// D3D Accessors.
 		ID3D11Device2*			GetD3DDevice() const					{ return m_d3dDevice.Get(); }
@@ -138,28 +179,30 @@ namespace DirectX
 		//std::unique_ptr<DirectX::EffectFactory>		   m_EffectFactory;
 		std::shared_ptr<BasicEffect>				   m_pBasicEffect;
 		DeviceHostType								   m_deviceHostType;
+
+#if defined (__cplusplus_winrt)
 		// Cached reference to the XAML panel.
 		Windows::UI::Xaml::Controls::SwapChainPanel^   m_swapChainPanel;
 		// Cached reference to the Window.
 		Platform::Agile<Windows::UI::Core::CoreWindow> m_window;
-
+#endif
 		HWND										   m_hWnd;
 
 		// Cached device properties.
 		D3D_FEATURE_LEVEL								m_d3dFeatureLevel;
-		Windows::Foundation::Size						m_d3dRenderTargetSize;
-		Windows::Foundation::Size						m_outputSize;
-		Windows::Foundation::Size						m_logicalSize;
-		Windows::Graphics::Display::DisplayOrientations	m_nativeOrientation;
-		Windows::Graphics::Display::DisplayOrientations	m_currentOrientation;
+		Size											m_d3dRenderTargetSize;
+		Size											m_outputSize;
+		Size											m_logicalSize;
+		DisplayOrientations								m_nativeOrientation;
+		DisplayOrientations								m_currentOrientation;
 		float											m_dpi;
 		float											m_dpiScaleX;
 		float											m_dpiScaleY;
 		UINT											m_multiSampleLevel;
 		UINT											m_multiSampleQuality;
 		// Transforms used for display orientation.
-		D2D1::Matrix3x2F	m_orientationTransform2D;
-		DirectX::XMFLOAT4X4	m_orientationTransform3D;
+		D2D1::Matrix3x2F								m_orientationTransform2D;
+		DirectX::XMFLOAT4X4								m_orientationTransform3D;
 
 		// The IDeviceNotify can be held directly as it owns the DeviceResources.
 		IDeviceNotify* m_deviceNotify;

@@ -8,6 +8,7 @@
 #include "Common\Carmera.h"
 #include "AssetDictionary.h"
 #include "PrimaryCamera.h"
+#include <mutex>
 
 namespace Causality
 {
@@ -104,7 +105,11 @@ namespace Causality
 			scene_canvas = canvas;
 		}
 
-		void RebuildRenderViewCache();
+		void UpdateRenderViewCache();
+
+		void SignalCameraCache();
+
+		std::mutex&	ContentMutex();
 
 	private:
 		SceneTimeLineType			timeline_type;
@@ -118,6 +123,11 @@ namespace Causality
 
 		std::vector<Camera*>		cameras;
 		std::vector<IRenderable*>	renderables;
+
+		std::mutex					content_mutex;
+
+		bool						camera_dirty;
+		bool						object_dirty;
 
 		bool						is_paused;
 		bool						is_loaded;

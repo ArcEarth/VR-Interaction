@@ -20,8 +20,8 @@ namespace Causality
 		BehavierSpace*         m_Behavier;
 		StaticArmature*        m_Armature;
 
-		static const Eigen::DenseIndex FeaturePerBone = 6;
-		typedef Eigen::Array<Eigen::Array<float, 2, 3>, Eigen::Dynamic, Eigen::Dynamic> FramesMatrix;
+		static const Eigen::DenseIndex DimPerBone = FeatureType::Dimension;
+		//typedef Eigen::Array<Eigen::Array<float, 2, 3>, Eigen::Dynamic, Eigen::Dynamic> FramesMatrix;
 
 
 		vector<FbxNode*>		m_SkeletonNodes;
@@ -239,10 +239,10 @@ namespace Causality
 				}
 			}
 
-			MatrixX Y (m_FrameCount, numBones * FeaturePerBone);
-			FbxTime time = pAnimStack->GetLocalTimeSpan().GetStart();
+			MatrixX Y (m_FrameCount, numBones * DimPerBone);
+			auto time = pAnimStack->GetLocalTimeSpan().GetStart();
 			DirectX::Vector3 sq[2];
-			auto& mapped = Eigen::Matrix<float, 1, FeaturePerBone>::Map(&sq[0].x);
+			auto mapped = Eigen::Matrix<float, 1, DimPerBone>::Map(&sq[0].x);
 			for (size_t i = 0; i < m_FrameCount; i++)
 			{
 				buffer[i].Time = time_seconds(time.GetSecondDouble());
@@ -252,18 +252,21 @@ namespace Causality
 				{
 					using namespace DirectX;
 					using namespace Eigen;
-					auto& feature = Y.block<1, FeaturePerBone>(i, j * FeaturePerBone);
+					auto& feature = Y.block<1, DimPerBone>(i, j * DimPerBone);
 					auto& bone = buffer[i][j];
-					XMVECTOR q = bone.LclRotation.LoadA();
-					q = XMQuaternionLn(q);
-					sq[0] = q;
-					sq[1] = bone.EndPostion;
-					feature = mapped;
+
+					FeatureType::Get(feature, bone);
+
+					//XMVECTOR q = bone.LclRotation.LoadA();
+					//q = XMQuaternionLn(q);
+					//sq[0] = q;
+					//sq[1] = bone.EndPostion;
+					//feature = mapped;
 				}
 				time += m_FrameInterval;
 			}
 
-			static const size_t	ScaledFramesCount = 90U;
+			static const size_t	ScaledFramesCount = ANIM_STANDARD::CLIP_FRAME_COUNT;
 
 			using namespace std;
 			//cout << "Y : min = " << Y.minCoeff() << " , max = " << Y.maxCoeff() << endl;
@@ -274,11 +277,26 @@ namespace Causality
 			anim.AnimMatrix() = Y;
 
 			//Y.rowwise() -= Y.colwise().mean();
-			anim.QrYs.resize(numBones);
-			for (size_t boneIdx = 0; boneIdx < numBones; boneIdx++)
+			//anim.QrYs.resize(m_Behavier->Blocks().size());
+			//for (size_t boneIdx = 0; boneIdx < numBones; boneIdx++)
+			//{
+			//	auto Yb = Y.middleCols<3>(boneIdx*DimPerBone);
+			//	anim.QrYs[boneIdx].compute(Yb,false);
+			//}
+
+			//? We can do better by using a permutation matrix
+			anim.QrYs.resize(m_Behavier->Blocks().size());
+			const auto& blocks = m_Behavier->Blocks();
+			for (auto& block : blocks)
 			{
-				auto Yb = Y.middleCols<3>(boneIdx*FeaturePerBone);
-				anim.QrYs[boneIdx].compute(Yb,false);
+				auto i = block->Index;
+				auto& joints = block->Joints;
+				Eigen::MatrixXf Yb(Y.rows(), block->FeatureDimension());
+				for (size_t j = 0; j < joints.size(); j++)
+				{
+					Yb.middleCols<DimPerBone>(j * DimPerBone) = Y.middleCols<DimPerBone>(joints[j]->ID() * DimPerBone);
+				}
+				anim.QrYs[i].compute(Yb, true);
 			}
 		}
 	};

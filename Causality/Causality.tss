@@ -13,9 +13,6 @@
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\PrimaryCamera.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\ConsoleUtility\Source.cpp</string>
-    </ArrayOfString>
-    <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Scene.cpp</string>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Scene.h</string>
     </ArrayOfString>
@@ -33,7 +30,7 @@
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\EigenExtension.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>c:\Program Files\Autodesk\FBX\FBX SDK\2015.1\include\fbxsdk\scene\animation\fbxanimutilities.h</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\DXGIFormatHelper.cpp</string>
     </ArrayOfString>
   </ArrayOfArrayOfString>
   <ArrayOfArrayOfString>
@@ -75,13 +72,13 @@
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Model.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CausalityApplication.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
       <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\packages\Eigen.3.2.4\build\native\include\Eigen\src\Core\ReturnByValue.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\packages\Eigen.3.2.4\build\native\include\Eigen\src\Core\Assign.h</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Filter.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Content\SampleFpsTextRenderer.h</string>
     </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\pch_bcl.h</string>
@@ -90,13 +87,56 @@
       <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\BCL.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Filter.h</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\OculusRift.h</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\vector</string>
+      <string>d:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\packages\Eigen.3.2.4\build\native\include\Eigen\src\Core\Matrix.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Carmera.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\DeviceBuffers.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Renderable.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Material.cpp</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\agile.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\pch_directX.cpp</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\SkyDome.cpp</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\SpaceCurve.cpp</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\BezierClip.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\MetaBallModel.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\DirectXMathExtend.h</string>
     </ArrayOfString>
   </ArrayOfArrayOfString>
   <ArrayOfArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\OculusRift.cpp</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\PrimitiveVisualizer.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\PrimitiveVisualizer.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\NativeWindow.h</string>
+    </ArrayOfString>
     <ArrayOfString>
       <string>C:\Users\yupeng\Desktop\hungarian.c</string>
     </ArrayOfString>
@@ -104,13 +144,20 @@
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Resources\SelectorScene.xml</string>
     </ArrayOfString>
     <ArrayOfString>
-      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\PrimitiveVisualizer.h</string>
-    </ArrayOfString>
-    <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CausalityApplication.cpp</string>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CausalityApplication.h</string>
     </ArrayOfString>
     <ArrayOfString>
       <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Interactive.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Extern\tiny_obj_loader.cc</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\DirectXHelper.h</string>
+    </ArrayOfString>
+    <ArrayOfString>
+      <string>D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Common\Textures.cpp</string>
     </ArrayOfString>
   </ArrayOfArrayOfString>
 </ArrayOfArrayOfArrayOfString>

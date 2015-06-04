@@ -1,12 +1,58 @@
 ﻿#pragma once
 
 #include <wrl.h>
+#if defined (__cplusplus_winrt)
+#else
+#include <exception>
+#include <cstdint>
+typedef uint64_t uint64;
+typedef uint32_t uint32;
+#endif
+
 
 namespace DirectX
 {
 	// Helper class for animation and simulation timing.
 	class StepTimer
 	{
+	public:
+
+		void Throw()
+		{
+#if defined (__cplusplus_winrt)
+			throw ref new Platform::FailureException();
+#else
+			throw std::runtime_error("failed");
+#endif
+		}
+
+		// Integer format represents time using 10,000,000 ticks per second.
+		static const uint64 TicksPerSecond = 10000000;
+
+		static double TicksToSeconds(uint64 ticks) { return static_cast<double>(ticks) / TicksPerSecond; }
+		static uint64 SecondsToTicks(double seconds) { return static_cast<uint64>(seconds * TicksPerSecond); }
+	
+	private:
+		// Source timing data uses QPC units.
+		LARGE_INTEGER m_qpcFrequency;
+		LARGE_INTEGER m_qpcLastTime;
+		uint64 m_qpcMaxDelta;
+
+		// Derived timing data uses a canonical tick format.
+		uint64 m_elapsedTicks;
+		uint64 m_totalTicks;
+		uint64 m_leftOverTicks;
+
+		// Members for tracking the framerate.
+		uint32 m_frameCount;
+		uint32 m_framesPerSecond;
+		uint32 m_framesThisSecond;
+		uint64 m_qpcSecondCounter;
+
+		// Members for configuring fixed timestep mode.
+		bool m_isFixedTimeStep;
+		uint64 m_targetElapsedTicks;
+	
 	public:
 		StepTimer() : 
 			m_elapsedTicks(0),
@@ -21,12 +67,12 @@ namespace DirectX
 		{
 			if (!QueryPerformanceFrequency(&m_qpcFrequency))
 			{
-				throw ref new Platform::FailureException();
+				Throw();
 			}
 
 			if (!QueryPerformanceCounter(&m_qpcLastTime))
 			{
-				throw ref new Platform::FailureException();
+				Throw();
 			}
 
 			// Initialize max delta to 1/10 of a second.
@@ -54,12 +100,6 @@ namespace DirectX
 		void SetTargetElapsedTicks(uint64 targetElapsed)	{ m_targetElapsedTicks = targetElapsed; }
 		void SetTargetElapsedSeconds(double targetElapsed)	{ m_targetElapsedTicks = SecondsToTicks(targetElapsed); }
 
-		// Integer format represents time using 10,000,000 ticks per second.
-		static const uint64 TicksPerSecond = 10000000;
-
-		static double TicksToSeconds(uint64 ticks)			{ return static_cast<double>(ticks) / TicksPerSecond; }
-		static uint64 SecondsToTicks(double seconds)		{ return static_cast<uint64>(seconds * TicksPerSecond); }
-
 		// After an intentional timing discontinuity (for instance a blocking IO operation)
 		// call this to avoid having the fixed timestep logic attempt a set of catch-up 
 		// Update calls.
@@ -68,7 +108,7 @@ namespace DirectX
 		{
 			if (!QueryPerformanceCounter(&m_qpcLastTime))
 			{
-				throw ref new Platform::FailureException();
+				Throw();
 			}
 
 			m_leftOverTicks = 0;
@@ -86,7 +126,7 @@ namespace DirectX
 
 			if (!QueryPerformanceCounter(&currentTime))
 			{
-				throw ref new Platform::FailureException();
+				Throw();
 			}
 
 			uint64 timeDelta = currentTime.QuadPart - m_qpcLastTime.QuadPart;
@@ -158,26 +198,5 @@ namespace DirectX
 				m_qpcSecondCounter %= m_qpcFrequency.QuadPart;
 			}
 		}
-
-	private:
-		// Source timing data uses QPC units.
-		LARGE_INTEGER m_qpcFrequency;
-		LARGE_INTEGER m_qpcLastTime;
-		uint64 m_qpcMaxDelta;
-
-		// Derived timing data uses a canonical tick format.
-		uint64 m_elapsedTicks;
-		uint64 m_totalTicks;
-		uint64 m_leftOverTicks;
-
-		// Members for tracking the framerate.
-		uint32 m_frameCount;
-		uint32 m_framesPerSecond;
-		uint32 m_framesThisSecond;
-		uint64 m_qpcSecondCounter;
-
-		// Members for configuring fixed timestep mode.
-		bool m_isFixedTimeStep;
-		uint64 m_targetElapsedTicks;
 	};
 }

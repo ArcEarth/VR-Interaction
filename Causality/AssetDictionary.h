@@ -6,6 +6,8 @@
 #include "Armature.h"
 #include "RenderContext.h"
 #include <Effects.h>
+#include <ppltasks.h>
+
 namespace Causality
 {
 	class AssetDictionary;
@@ -18,6 +20,8 @@ namespace Causality
 
 		bool IsLoaded() const;
 	};
+
+	using concurrency::task;
 
 	// Controls the asset name resolve and loading
 	class AssetDictionary

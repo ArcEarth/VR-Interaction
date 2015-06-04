@@ -17,7 +17,7 @@ Causality::Scene::~Scene()
 
 void Causality::Scene::Update()
 {
-	if (is_paused || !is_loaded) return;
+	if (is_paused) return;
 	step_timer.Tick([this]() {
 		time_seconds deltaTime(step_timer.GetElapsedSeconds());
 		for (auto& pObj : content->nodes())
@@ -26,11 +26,18 @@ void Causality::Scene::Update()
 				pObj.Update(deltaTime);
 		}
 	});
+	if (camera_dirty)
+		UpdateRenderViewCache();
 }
+
+void Causality::Scene::SignalCameraCache() { camera_dirty = true; }
+
+std::mutex & Causality::Scene::ContentMutex() { return content_mutex; }
+
 
 void Causality::Scene::Render(RenderContext & context)
 {
-	if (!is_loaded) return;
+	// if (!is_loaded) return;
 
 	for (auto& pCamera : cameras)
 	{
