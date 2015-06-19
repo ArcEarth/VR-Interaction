@@ -830,17 +830,17 @@ namespace stdx
 		inline static void internal_delete(std::enable_if_t<_DescendabtsOwnership, T>* &pData) {
 			if (pData) {
 				delete pData;
-#ifdef _DEBUG
+//#ifdef _DEBUG
 				pData = nullptr;
-#endif
+//#endif
 			}
 		}
 
 		template <typename T>
 		inline static void internal_delete(std::enable_if_t<!_DescendabtsOwnership, T>* &pData) {
-#ifdef _DEBUG
+//#ifdef _DEBUG
 			pData = nullptr;
-#endif
+//#endif
 		}
 
 	public:

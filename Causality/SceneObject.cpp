@@ -253,10 +253,10 @@ void KeyboardMouseFirstPersonControl::OnKeyUp(const KeyboardEventArgs & e)
 
 	if (e.Key == VK_SPACE)
 	{
-		if (!this->ParentScene->IsPaused())
-			this->ParentScene->Pause();
+		if (!this->Scene->IsPaused())
+			this->Scene->Pause();
 		else
-			this->ParentScene->Resume();
+			this->Scene->Resume();
 	}
 
 	if (e.Key == VK_ESCAPE)

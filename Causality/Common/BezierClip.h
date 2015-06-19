@@ -40,6 +40,15 @@ namespace Geometrics
 				}
 			};
 
+			constexpr size_t Combination(size_t d, size_t n)
+			{
+				return (d < 0 || d > n) ? 0 : (((d == 0) || (n == d)) ? 1 : (Combination(d - 1, n - 1) + Combination(d, n - 1)));
+			}
+
+			// static_assert
+			//const static size_t C62 = Combination(2, 6);
+			//const static size_t C64 = Combination(4, 6);
+			//const static size_t C63 = Combination(3, 6);
 		}
 
 		template <typename _Ty , size_t _Order>
@@ -53,7 +62,11 @@ namespace Geometrics
 			typedef Internal::Combine<Order> CombinationType;
 			typedef BezierClipping SelfType;
 		protected:
-			const static Internal::Combine<Order> Combination;
+			//const static Internal::Combine<Order> Combination;
+			constexpr size_t Combination(size_t d)
+			{
+				return Internal::Combination(d, Order);
+			}
 
 			//protected:
 			//	/// <summary>
@@ -225,7 +238,7 @@ namespace Geometrics
 				_Ty value = (*this)[0] * Q[Order];
 				for (int i = 1; i <= Order; i++)
 				{
-					value += P[i] * Q[Order - i] * Combination[i] * (*this)[i];
+					value += P[i] * Q[Order - i] * Combination(i) * (*this)[i];
 				}
 
 				return value;
@@ -249,7 +262,7 @@ namespace Geometrics
 				for (int i = 1; i < Order; i++)
 				{
 					float cof = i - Order*t;
-					value += cof * P[i-1] * Q[Order - i - 1] * Combination[i] * (*this)[i];
+					value += cof * P[i-1] * Q[Order - i - 1] * Combination(i) * (*this)[i];
 				}
 
 				return value;

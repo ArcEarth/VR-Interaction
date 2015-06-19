@@ -16,6 +16,7 @@ namespace DirectX
 
 		typedef VertexPositionColor VertexType;
 		PrimitveDrawer();
+		explicit PrimitveDrawer(ID3D11DeviceContext *pContext);
 
 		void Initialize(ID3D11DeviceContext *pContext);
 
@@ -26,8 +27,6 @@ namespace DirectX
 		ID3D11DeviceContext* GetDeviceContext() const;
 
 		void Release();;
-
-		PrimitveDrawer(ID3D11DeviceContext *pContext);
 
 		void SetWorld(DirectX::CXMMATRIX World);
 

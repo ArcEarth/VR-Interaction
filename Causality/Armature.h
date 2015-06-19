@@ -7,17 +7,12 @@
 namespace Causality
 {
 	class IArmature;
+	class KinematicBlock;
+	class BlockArmature;
+	class AffineFrame;
 
 	// Pure pose and Dynamic data for a bone
 	// "Structure" information is not stored here
-
-	enum ANIM_STANDARD
-	{
-		SAMPLE_RATE = 30, // 30 Hz 
-		CLIP_FRAME_COUNT = 90, // 90 Frames for one clip
-		MAX_CLIP_DURATION = 3, // 3 second for one cyclic clip
-	};
-
 	XM_ALIGN16
 	struct Bone
 	{
@@ -28,12 +23,14 @@ namespace Causality
 
 		XM_ALIGN16
 		DirectX::Vector3	LclScaling; // Local Scaling , adjust this transform to adjust bone length
+		float				LclLength;  // offset should = 16 + 3x4 = 28, the Length before any Scaling
 
 		// Local Translation, represent the offset vector (Pe - Po) in current frame 
 		// Typical value should always be (0,l,0), where l = length of the bone
 		// Should be constant among time!!!
 		XM_ALIGN16
-		DirectX::Vector3	LclTranslation; 
+		DirectX::Vector3	LclTranslation;
+		float				LclTw; // Padding
 
 		// Global Data (dulplicate with Local)
 		// Global Rotation
@@ -41,14 +38,24 @@ namespace Causality
 		DirectX::Quaternion GblRotation;
 		XM_ALIGN16
 		DirectX::Vector3	GblScaling;
+		float				GblLength;		// Length of this bone, after scaling
+
 		// Global Position for the begining joint of this bone
 		// Aka : GblTranslation
 		XM_ALIGN16
-		DirectX::Vector3	OriginPosition;
-		XM_ALIGN16
 		DirectX::Vector3	EndPostion;
+		float				GblTw; // Padding
+
+		XM_ALIGN16
+		DirectX::Vector3	OriginPosition;
+
 		//DirectX::XMVECTOR EndJointPosition() const;
 		//bool DirtyFlag;
+
+		Bone()
+			: LclScaling(1.0f), LclLength(1.0f), GblScaling(1.0f), GblLength(1.0f)
+		{
+		}
 
 		void GetBoundingBox(DirectX::BoundingBox& out) const;
 		// Update from Hirachy or Global
@@ -79,57 +86,6 @@ namespace Causality
 		}
 	};
 
-
-	struct LclRotLnQuatFeature //: concept BoneFeature 
-	{
-		static const size_t Dimension = 3;
-
-		template <class Derived>
-		inline static void Get(_Out_ Eigen::DenseBase<Derived>& fv, _In_ const Bone& bone)
-		{
-			XM_ALIGN16 Vector3 qs;
-			DirectX::XMVECTOR q = bone.LclRotation.LoadA();
-			q = DirectX::XMQuaternionLn(q);
-			qs.StoreA(q);
-			fv = Eigen::Vector3f::MapAligned(&qs.x);
-		}
-
-		inline static void Get(float* pVector3, _In_ const Bone& bone)
-		{
-			using namespace DirectX;
-			XMVECTOR q = bone.LclRotation.LoadA();
-			q = XMQuaternionLn(q);
-			XMStoreFloat3(reinterpret_cast<XMFLOAT3*>(pVector3), q);
-		}
-
-		inline static Eigen::Vector3f Get(_In_ const Bone& bone)
-		{
-			Eigen::Vector3f fv;
-			Get(fv, bone);
-			return fv;
-		}
-
-		inline static void Set(_Out_ Bone& bone, _In_ float* pVector3)
-		{
-			using namespace DirectX;
-			XMVECTOR q = XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(pVector3));
-			q = XMQuaternionExp(q);
-			bone.LclRotation.StoreA(q);
-		}
-
-		template <class Derived>
-		inline static void Set(_Out_ Bone& bone, _In_ const Eigen::DenseBase<Derived>& fv)
-		{
-			// ensure continious storage
-			Eigen::Vector3f cfv = fv;
-			DirectX::XMVECTOR q = DirectX::XMLoadFloat3A(cfv.data());
-			q = DirectX::XMQuaternionExp(q);
-			bone.LclRotation.StoreA(q);
-		}
-	};
-
-	typedef LclRotLnQuatFeature FeatureType;
-
 	XM_ALIGN16
 	struct BoneVelocity
 	{
@@ -139,18 +95,15 @@ namespace Causality
 		DirectX::Vector3 AngelarVelocity;
 	};
 
-	enum RotationConstriantType
+	XM_ALIGN16
+	struct BoneSplineNode : public Bone, public BoneVelocity
 	{
-		Constraint_None = 0x0,
-		Constraint_Hinge = 0x1,
-		Constraint_Ball = 0x2,
 	};
 
 	struct RotationConstriant
 	{
-		RotationConstriantType Type;
-		DirectX::Vector3 UpperRotationBound;
-		DirectX::Vector3 LowerRotationBound;
+		DirectX::Vector3 UpperBound;
+		DirectX::Vector3 LowerBound;
 	};
 
 	enum JointSemantic
@@ -258,405 +211,6 @@ namespace Causality
 		//void SetRotationConstraint(const RotationConstriant&);
 	};
 
-	typedef time_seconds TimeScalarType;
-
-	struct AnimationFrame // Meta data for an animation frame
-	{
-	public:
-		TimeScalarType	Time;
-		std::string		Name;
-		bool			IsKeyframe;
-
-		//concept static Interpolate(self&out, const self& lhs, const self& rhs, float t);
-
-		//concept frame_type& operator[]
-	};
-
-	class AffineFrame : public AnimationFrame, public std::vector<Bone,DirectX::AlignedAllocator<Bone>>
-	{
-	public:
-		typedef AffineFrame self_type;
-
-		typedef public std::vector<Bone, DirectX::AlignedAllocator<Bone>> BaseType;
-		using BaseType::operator[];
-		//using BaseType::operator=;
-
-		AffineFrame() = default;
-		explicit AffineFrame(size_t size);
-		// copy from default frame
-		explicit AffineFrame(const IArmature& armature);
-		AffineFrame(const AffineFrame&) = default;
-		AffineFrame(AffineFrame&& rhs) { *this = std::move(rhs); }
-		AffineFrame& operator=(const AffineFrame&) = default;
-		AffineFrame& operator=(AffineFrame&& rhs)
-		{
-			BaseType::_Assign_rv(std::move(rhs));
-			return *this;
-		}
-
-		//const IArmature& Armature() const;
-		//// Which skeleton this state fram apply for
-		//IArmature* pArmature;
-
-		void RebuildGlobal(const IArmature& armature);
-		void RebuildLocal(const IArmature& armature);
-
-		Eigen::VectorXf LocalRotationVector() const;
-		void UpdateFromLocalRotationVector(const IArmature& armature,const Eigen::VectorXf fv);
-
-		static const auto StdFeatureDimension = FeatureType::Dimension;
-
-		template <class Derived>
-		void PopulateStdFeatureVector(Eigen::DenseBase<Derived> &fv) const
-		{
-			assert(fv.rows() == 1 && fv.cols() == (StdFeatureDimension * size()));
-			DirectX::Vector3 sq[2];
-			auto& mapped = Eigen::Matrix<float, 1, StdFeatureDimension>::Map(&sq[0].x);
-			for (size_t j = 0; j < size(); j++)
-			{
-				using namespace DirectX;
-				using namespace Eigen;
-				auto& feature = fv.middleCols<StdFeatureDimension>(j * StdFeatureDimension);
-				auto& bone = at(j);
-				FeatureType::Get(feature, bone);
-			}
-		}
-		template <class Derived>
-		void RebuildFromStdFeatureVector(const Eigen::DenseBase<Derived> &fv,const IArmature& armature)
-		{
-			assert(fv.rows() == 1 && fv.cols() == (StdFeatureDimension * size()));
-			using namespace DirectX;
-			using namespace Eigen;
-			const Vector3 (*sq)[2];
-			for (size_t j = 0; j < size(); j++)
-			{
-				auto& feature = fv.middleCols<StdFeatureDimension>(j * StdFeatureDimension);
-				auto& bone = at(j);
-				FeatureType::Set(bone, feature);
-			}
-			this->RebuildGlobal(armature);
-		}
-
-		// Interpolate the local-rotation and scaling, "interpolate in Time"
-		static void Interpolate(AffineFrame& out, const AffineFrame &lhs, const AffineFrame &rhs, float t, const IArmature& armature);
-
-		// Blend Two Animation Frame, "Interpolate in Space"
-		static void Blend(AffineFrame& out, const AffineFrame &lhs, const AffineFrame &rhs, float* blend_weights, const IArmature& armature);
-
-		static void TransformMatrix(DirectX::XMFLOAT3X4* pOut, const self_type &from, const self_type& to);
-		static void TransformMatrix(DirectX::XMFLOAT4X4* pOut, const self_type &from, const self_type& to);
-		//void BlendMatrixFrom(DirectX::XMFLOAT3X4* pOut, const StateFrame &from)
-		//{
-
-		//}
-
-		// number of float elements per bone
-		static const auto BoneWidth = sizeof(Bone) / sizeof(float);
-		//! not the eigen vector in math !!!
-		typedef Eigen::Map<VectorX, Eigen::Aligned> EigenVectorType;
-
-		// return a 20N x 1 column vector of this frame, where 20 = BoneWidth
-		EigenVectorType AsEigenVector()
-		{
-			return EigenVectorType(&(*this)[0].LclRotation.x,size() * BoneWidth);
-		}
-
-		typedef Eigen::Map<Eigen::Matrix<float, BoneWidth, Eigen::Dynamic>, Eigen::Aligned> EigenMatrixType;
-		// return a 20 x N matrix of this frame
-		EigenMatrixType AsEigenMatrix()
-		{
-			return EigenMatrixType(&(*this)[0].LclRotation.x, BoneWidth,size());
-		}
-	};
-
-	class BoneVelocityFrame : public std::vector<BoneVelocity>
-	{
-
-	};
-
-	class LinearFrame
-	{};
-	class SpineFrame
-	{};
-	class DicredFrame
-	{};
-
-	class AnimationManager
-	{
-
-	};
-
-	class IFrameAnimation
-	{
-
-	};
-
-	class LinearWarp
-	{
-	public:
-		TimeScalarType operator()(TimeScalarType t)
-		{
-			return t;
-		}
-	};
-
-
-	// The underline resources of an animation, not for "Play" Control
-	// Handles Interpolations and warps in Time
-	template <typename FrameType>
-	class KeyframeAnimation : public IFrameAnimation
-	{
-	public:
-		string					Name;
-		std::vector<FrameType>	KeyFrames;
-		TimeScalarType			Duration;
-		TimeScalarType			FrameInterval;
-		// A function map : (BeginTime,EndTime) -> (BeginTime,EndTime),  that handels the easing effect between frames
-		// Restriction : TimeWarp(KeyFrameTime(i)) must equals to it self
-		std::function<TimeScalarType(TimeScalarType)> TimeWarpFunction;
-	protected:
-		const FrameType * m_pDefaultFrame; // Use to generate
-	public:
-		typedef KeyframeAnimation self_type;
-
-		explicit KeyframeAnimation(const string& name)
-			: Name(name)
-		{}
-		KeyframeAnimation() = default;
-		KeyframeAnimation(const self_type& rhs) = default;
-		self_type& operator=(const self_type& rhs) = default;
-
-		KeyframeAnimation(self_type&& rhs)
-		{
-			*this = std::move(rhs);
-		}
-
-		inline self_type& operator=(const self_type&& rhs)
-		{
-			Name = std::move(rhs.Name);
-			KeyFrames = std::move(rhs.KeyFrames);
-			m_pDefaultFrame = rhs.m_pDefaultFrame;
-			Duration = rhs.Duration;
-			FrameInterval = rhs.FrameInterval;
-			TimeWarpFunction = std::move(rhs.TimeWarpFunction);
-			return *this;
-		}
-
-		const FrameType& DefaultFrame() const { return *m_pDefaultFrame; }
-		void SetDefaultFrame(const FrameType &default_frame)
-		{
-			m_pDefaultFrame = &default_frame;
-		}
-		// Duration of this clip
-		TimeScalarType	Length() const;
-		// Is this clip a loopable animation : last frame == first frame
-		bool			Loopable()  const;
-
-		// Frame operations
-	public:
-		bool InsertKeyFrame(TimeScalarType time, const FrameType& frame);
-		//bool InsertKeyFrame(TimeScalarType time, FrameType&& frame);
-		bool InsertKeyFrame(int idx, const FrameType& frame);
-		//bool InsertKeyFrame(int idx, FrameType&& frame);
-		bool RemoveKeyFrame(int idx);
-		const FrameType& GetKeyFrame(int idx) const;
-		bool ReplaceKeyFrame(int idx, const FrameType& frame);
-		bool Clear();
-
-	public:
-		// Frame Retrival
-		virtual bool GetFrameAt(FrameType& outFrame, TimeScalarType time) const;
-
-	};
-
-	class ArmatureFrameAnimation : public KeyframeAnimation<AffineFrame>
-	{
-	public:
-		typedef ArmatureFrameAnimation self_type;
-		typedef KeyframeAnimation<AffineFrame> base_type;
-		typedef AffineFrame frame_type;
-
-		self_type() = default;
-		self_type(const self_type& rhs) = default;
-		self_type& operator=(const self_type& rhs) = default;
-
-		self_type(self_type&& rhs)
-		{
-			*this = std::move(rhs);
-		}
-
-		explicit self_type(const std::string& name);
-		explicit self_type(std::istream& file);
-
-		self_type& operator=(const self_type&& rhs)
-		{
-			pArmature = rhs.pArmature;
-			frames = std::move(rhs.frames);
-			base_type::operator=(std::move(rhs));
-			return *this;
-		}
-
-		const IArmature& Armature() const { return *pArmature; }
-		void SetArmature(IArmature& armature) { pArmature = &armature; }
-		// get the pre-computed frame buffer which contains interpolated frame
-		const std::vector<frame_type>& GetFrameBuffer() const { return frames; }
-		std::vector<frame_type>& GetFrameBuffer() { return frames; }
-
-		// Feature Matrix of this animation, const version
-		const Eigen::MatrixXf& AnimMatrix() const { return animMatrix; }
-		// Feature Matrix of this animation
-		Eigen::MatrixXf& AnimMatrix() { return animMatrix; }
-
-		std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> QrYs;
-
-		bool InterpolateFrames(double frameRate);
-		virtual bool GetFrameAt(AffineFrame& outFrame, TimeScalarType time) const;
-
-		enum DataType
-		{
-			LocalRotation = 0,
-			GlobalRotation = 2,
-			OriginPosition = 3,
-			EndPositon = 4,
-		};
-
-		// Eigen interface
-		//Eigen::Map<Eigen::MatrixXf, Eigen::Aligned, Eigen::Stride<sizeof(float), sizeof(Bone)>> DataMatrix(DataType data) const
-		//{
-		//	return Eigen::Map<Eigen::Matrix3Xf, Eigen::Aligned, Eigen::Stride<sizeof(float), sizeof(Bone)>>(&frames[0][0]);
-		//}
-
-	private:
-		IArmature*			pArmature;
-		vector<frame_type>	frames;
-		Eigen::MatrixXf		animMatrix; // 20N x F matrix
-	};
-
-	class ArmatureTransform
-	{
-	public:
-		virtual ~ArmatureTransform()
-		{
-		}
-
-		typedef AffineFrame frame_type;
-		
-		const IArmature& SourceArmature() const { return *pSource; }
-		const IArmature& TargetArmature() const { return *pTarget; }
-		void SetSourceArmature(const IArmature& armature) { pSource = &armature; }
-		void SetTargetArmature(const IArmature& armature) { pTarget = &armature; }
-
-		int GetBindIndex(int sourceIdx) const;
-		int GetInverseBindIndex(int tragetIdx) const;
-
-		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const = 0;
-
-		virtual void TransformBack(_Out_ frame_type& source_frame, _In_ const frame_type& target_frame) const;
-
-	protected:
-		const IArmature	*pSource, *pTarget;
-	};
-
-	class MatrixArmatureTransform : public ArmatureTransform
-	{
-	protected:
-		Eigen::MatrixXf transform_matrix;
-	public:
-		template<class Deverid>
-		void SetInternal(const Eigen::EigenBase<Deverid>& mat)
-		{
-			transform_matrix = mat;
-		}
-
-		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
-		{
-			auto lr = source_frame.LocalRotationVector();
-			lr = (lr * transform_matrix).transpose();
-			target_frame.UpdateFromLocalRotationVector(TargetArmature(), lr);
-		}
-	};
-
-	template <typename FrameType>
-	class RealTimeAnimation
-	{
-		FrameType *m_pDefaultFrame; // Use to generate
-		const FrameType& DefaultFrame() const
-		{
-			return *m_pDefaultFrame;
-		}
-		void SetDefaultFrame(FrameType *default_frame)
-		{
-			m_pDefaultFrame = default_frame;
-		}
-		FrameType& CurrentFrame() { return m_CurrentFrame; }
-		const FrameType& CurrentFrame() const { return m_CurrentFrame; }
-		FrameType m_CurrentFrame;
-	};
-
-	class ArmatureRealTimeAnimation : public RealTimeAnimation<AffineFrame>
-	{
-	public:
-		typedef AffineFrame frame_type;
-
-		const IArmature& Armature() const;
-
-	private:
-		IArmature* pArmature;
-	};
-
-	class KinematicBlock;
-	// Shrink a Kinmatic Chain structure to a KinematicBlock
-	KinematicBlock* ShrinkChainToBlock(const Joint* pJoint);
-
-	enum AnimationPlayState
-	{
-		Stopped = 0,
-		Active = 1,
-		Paused = 2,
-	};
-
-	enum AnimationRepeatBehavior
-	{
-		NotRepeat = 0,
-		AlwaysRepeat = 1,
-	};
-
-	class StoryBoard
-	{
-	public:
-		// Play Control
-		void Begin();
-		void Stop();
-		void Pause();
-		void Resume();
-
-		// Play properties
-		AnimationRepeatBehavior GetRepeatBehavior() const;
-		void SetRepeatBehavior(AnimationRepeatBehavior behavior);
-
-		double GetSpeedRatio() const;
-		void SetSpeedRatio(double ratio) const;
-
-		// Timeline basic
-		TimeScalarType GetBeginTime() const;
-		void SetBeginTime(TimeScalarType time);
-		TimeScalarType GetEndTime() const;
-		void SetEndTime(TimeScalarType time);
-		TimeScalarType GetDuration();
-
-		// Time seeking
-		AnimationPlayState GetCurrentState() const;
-		TimeScalarType GetCurrentTime() const; // Shit! Name Collision with Windows Header!!! Dame te outdated C-style header!!!
-		void AdvanceTimeBy(TimeScalarType time);
-		void Seek(TimeScalarType time);
-
-		TypedEvent<StoryBoard> Completed;
-
-		std::vector<IFrameAnimation*> ChildrenAnimation;
-	protected:
-		AnimationPlayState CurrentState;
-	};
-
 	// Represent a model "segmentation" and it's hireachy
 	class IArmature
 	{
@@ -667,7 +221,7 @@ namespace Causality
 
 		virtual Joint* at(int index) = 0;
 		virtual Joint* root() = 0;
-		const Joint* root() const
+		inline const Joint* root() const
 		{
 			return const_cast<IArmature*>(this)->root();
 		}
@@ -697,15 +251,17 @@ namespace Causality
 
 
 
-		Joint* operator[](int idx)
+		inline Joint* operator[](int idx)
 		{
 			return at(idx);
 		}
 
-		const Joint* operator[](int idx) const
+		inline const Joint* operator[](int idx) const
 		{
 			return at(idx);
 		}
+
+		const Bone& default_bone(int index) const;
 
 		//std::vector<size_t> TopologyOrder;
 	};
@@ -715,92 +271,6 @@ namespace Causality
 		Symetric_None = 0,
 		Symetric_Left,
 		Symetric_Right,
-	};
-
-	// A Kinematic Block is a one-chain in the kinmatic tree, with additional anyalaze information 
-	// usually constructed from shrinking the kinmatic tree
-	// Each Block holds the children joints and other structural information
-	// It is also common to build Multi-Level-of-Detail Block Layers
-	struct KinematicBlock : public tree_node<KinematicBlock>
-	{
-		int					Index;				// Index for this block, valid only through this layer
-		int					LoD;				// Level of detail
-		vector<const Joint*>Joints;				// Contained Joints
-
-												// Structural feature
-		int					LoG;				// Level of Grounding
-		SymetricTypeEnum	SymetricType;		// symmetry type
-		float				ExpandThreshold;	// The threshold to expand this part
-		int					GroundIdx;
-
-		KinematicBlock*		GroundParent;		// Path to grounded bone
-		KinematicBlock*		SymetricPair;		// Path to grounded bone
-
-		KinematicBlock*			LoDParent;		// Parent in LoD term
-		vector<KinematicBlock*> LoDChildren;	// Children in LoD term
-
-		int					AccumulatedJointCount; // The count of joints that owned by blocks who have minor index
-
-		KinematicBlock()
-		{
-			Index = -1;
-			LoD = 0;
-			LoG = 0;
-			SymetricType = SymetricTypeEnum::Symetric_None;
-			ExpandThreshold = 0;
-			GroundIdx = 0;
-			GroundParent = 0;
-			SymetricPair = 0;
-			LoDParent = 0;
-		}
-		// Motion and geometry feature
-		//bool				IsActive;			// Is this feature "Active" in energy?
-		//bool				IsStable;			// Is Current state a stable state
-		//float				MotionEnergy;		// Motion Energy Level
-		//float				PotientialEnergy;	// Potenial Energy Level
-
-		BoundingOrientedBox GetBoundingBox(const AffineFrame& frame) const;
-
-		VectorX				GetFeatureVector(const AffineFrame& frame) const;
-		void				SetFeatureVector(_Out_ AffineFrame& frame, _In_ const VectorX& feature) const;
-
-		bool				IsEndEffector() const;		// Is this feature a end effector?
-		bool				IsGrounded() const;			// Is this feature grounded? == foot semantic
-		bool				IsSymetric() const;			// Is this feature a symetric pair?
-		bool				IsLeft() const;				// Is this feature left part of a symtric feature
-		int					FeatureDimension() const;
-	};
-
-	class BlockArmature
-	{
-	private:
-		std::unique_ptr<KinematicBlock> m_pRoot;
-		const IArmature*				m_pArmature;
-		std::vector<KinematicBlock*>	m_BlocksCache;
-	public:
-		typedef std::vector<KinematicBlock*> cache_type;
-
-		void SetArmature(const IArmature& armature);
-
-		BlockArmature() = default;
-		explicit BlockArmature(const IArmature& armature) { SetArmature(armature); }
-
-		bool   empty() const { return m_pArmature == nullptr; }
-		size_t size() const { return m_BlocksCache.size(); }
-
-		auto begin() { return m_BlocksCache.begin(); }
-		auto end() { return m_BlocksCache.end(); }
-		auto begin() const { return m_BlocksCache.begin(); }
-		auto end() const { return m_BlocksCache.end(); }
-
-		const IArmature& Armature() const { return *m_pArmature; }
-		KinematicBlock* Root() { return m_pRoot.get(); }
-		const KinematicBlock* Root() const { return m_pRoot.get(); }
-		KinematicBlock* operator[](int id) { return m_BlocksCache[id]; }
-		const KinematicBlock* operator[](int id) const { return m_BlocksCache[id]; }
-
-		// the matrix which alters joints into 
-		Eigen::PermutationMatrix<Eigen::Dynamic> GetJointPermutationMatrix(size_t feature_dim) const;
 	};
 
 	// The Skeleton which won't change it's structure in runtime
@@ -814,7 +284,7 @@ namespace Causality
 		size_t						RootIdx;
 		std::vector<joint_type>		Joints;
 		std::vector<size_t>			TopologyOrder;
-		frame_type					DefaultFrame;
+		frame_type					*DefaultFrame;
 
 	public:
 		template <template<class T> class Range>
@@ -862,22 +332,22 @@ namespace Causality
 		virtual joint_type* root() override;
 		virtual size_t size() const override;
 		virtual const frame_type& default_frame() const override;
-		frame_type& default_frame() { return DefaultFrame; }
-
+		frame_type& default_frame() { return *DefaultFrame; }
+		void set_default_frame(frame_type& frame);
 		// A topolical ordered joint index sequence
 		const std::vector<size_t>& joint_indices() const
 		{
 			return TopologyOrder;
 		}
 
-		auto joints() const -> decltype(adaptors::transform(TopologyOrder,function<const Joint&(int)>()))
+		auto joints() const //-> decltype(adaptors::transform(TopologyOrder,function<const Joint&(int)>()))
 		{
 			using namespace boost::adaptors;
 			function<const Joint&(int)> func = [this](int idx)->const joint_type& {return Joints[idx]; };
 			return transform(TopologyOrder, func);
 		}
 
-		auto joints() -> decltype(adaptors::transform(TopologyOrder, function<Joint&(int)>()))
+		auto joints() //-> decltype(adaptors::transform(TopologyOrder, function<Joint&(int)>()))
 		{
 			using namespace boost::adaptors;
 			function<Joint&(int)> func = [this](int idx)->joint_type&{ return Joints[idx]; };
@@ -917,91 +387,6 @@ namespace Causality
 
 	protected:
 		Joint* _root;
-	};
-
-	template<typename FrameType>
-	bool KeyframeAnimation<FrameType>::GetFrameAt(FrameType & outFrame, TimeScalarType time) const
-	{
-		return false;
-	}
-
-	// Represent an semantic collection of animations
-	// It's the possible pre-defined actions for an given object
-	class BehavierSpace
-	{
-	public:
-		typedef ArmatureFrameAnimation animation_type;
-		typedef AffineFrame frame_type;
-		typedef BoneVelocityFrame velocity_frame_type;
-		typedef vector<ArmatureFrameAnimation> container_type;
-
-	private:
-		IArmature*						m_pArmature;
-		BlockArmature					m_Blocks;
-		vector<animation_type>			m_AnimClips;
-
-	public:
-#pragma region Animation Clip Interfaces
-		container_type& Clips() { return m_AnimClips; }
-		const container_type& Clips() const { return m_AnimClips; }
-		animation_type& operator[](const std::string& name);
-		const animation_type& operator[](const std::string& name) const;
-		void AddAnimationClip(animation_type&& animation);
-		animation_type& AddAnimationClip(const std::string& name);
-		bool Contains(const std::string& name) const;
-#pragma endregion
-
-		const BlockArmature&	Blocks() const { return m_Blocks; }
-
-		void					UpdateBlock();
-
-		const IArmature&		Armature() const;
-		IArmature&				Armature();
-		void					SetArmature(IArmature& armature);
-		const frame_type&		RestFrame() const; // RestFrame should be the first fram in Rest Animation
-
-
-
-												   //! Legacy thing ...
-#pragma region Legacy Functions
-												   // Using Local Position is bad : X rotation of Parent Joint is not considerd
-		Eigen::VectorXf			FrameFeatureVectorEndPointNormalized(const frame_type& frame) const;
-		Eigen::MatrixXf			AnimationMatrixEndPosition(const ArmatureFrameAnimation& animation) const;
-		void					CacAnimationMatrixEndPosition(_In_ const ArmatureFrameAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
-		// Basiclly, the difference's magnitude is acceptable, direction is bad
-		Eigen::VectorXf			FrameFeatureVectorLnQuaternion(const frame_type& frame) const;
-		void					CaculateAnimationFeatureLnQuaternionInto(_In_ const ArmatureFrameAnimation& animation, _Out_ Eigen::MatrixXf& fmatrix) const;
-
-		// Evaluating a likelihood of the given frame is inside this space
-		float					PoseDistancePCAProjection(const frame_type& frame) const;
-		Eigen::RowVectorXf		PoseSquareDistanceNearestNeibor(const frame_type& frame) const;
-		Eigen::RowVectorXf		StaticSimiliartyEculidDistance(const frame_type& frame) const;
-
-		Eigen::VectorXf			CaculateFrameDynamicFeatureVectorJointVelocityHistogram(const frame_type& frame, const frame_type& prev_frame) const;
-		Eigen::RowVectorXf		DynamicSimiliarityJvh(const frame_type& frame, const frame_type& prev_frame) const;
-
-		// with 1st order dynamic
-		float FrameLikilihood(const frame_type& frame, const frame_type& prev_frame) const;
-		// without dynamic
-		float FrameLikilihood(const frame_type& frame) const;
-
-		vector<ArmatureTransform> GenerateBindings();
-
-		//float DynamicSimiliarityJvh(const velocity_frame_type& velocity_frame) const;
-	protected:
-		void CaculateXpInv();
-
-		float			SegmaDis; // Distribution dervite of pose-distance
-
-		std::vector<DirectX::Vector3> Sv; // Buffer for computing feature vector
-
-		Eigen::VectorXf Wb; // The weights for different "Bones" , default to "Flat"
-
-		Eigen::VectorXf X0; // Feature vector of Rest Frame
-		Eigen::MatrixXf X; // Feature vector matrix = [ X1-X0 X2-X0 X3-X0 ... XN-X0]
-		Eigen::MatrixXf XpInv; // PersudoInverse of X;
-		Eigen::MatrixXf Xv; // Feature vector matrix for frame dyanmic = [ Xv1-Xv0 Xv2-X0 Xv3-Xv0 ... XvN-Xv0]
-#pragma endregion
 	};
 
 }

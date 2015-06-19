@@ -85,10 +85,9 @@ namespace Causality
 		AssetDictionary& Assets() { return assets; }
 		const AssetDictionary& Assets() const { return assets; }
 
-		Camera *PrimaryCamera()
-		{
-			return primary_cameral;
-		}
+		Camera *PrimaryCamera();
+
+		bool SetAsPrimaryCamera(Camera* camera);
 
 		RenderContext& GetRenderContext() { return render_context; }
 		const RenderContext& GetRenderContext() const { return render_context; }

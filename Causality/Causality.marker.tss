@@ -2,23 +2,16 @@
 <ArrayOfTabHighlightState xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <TabHighlightState>
     <extensions>
-      <string>Kinect.h</string>
-      <string>Kinect.cpp</string>
+      <string>Armature.h</string>
+      <string>Armature.cpp</string>
     </extensions>
-    <highlightIndex>4</highlightIndex>
+    <highlightIndex>3</highlightIndex>
   </TabHighlightState>
   <TabHighlightState>
     <extensions>
-      <string>PlayerProxy.h</string>
-      <string>PlayerProxy.cpp</string>
+      <string>SceneParser.cpp</string>
+      <string>SceneParser.h</string>
     </extensions>
-    <highlightIndex>4</highlightIndex>
-  </TabHighlightState>
-  <TabHighlightState>
-    <extensions>
-      <string>FbxParser.cpp</string>
-      <string>FbxParser.h</string>
-    </extensions>
-    <highlightIndex>4</highlightIndex>
+    <highlightIndex>3</highlightIndex>
   </TabHighlightState>
 </ArrayOfTabHighlightState>

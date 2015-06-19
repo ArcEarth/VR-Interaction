@@ -30,12 +30,12 @@ namespace Causality
 		virtual ~Object() = default;
 	};
 
-	class ObjectManager
-	{
-	public:
-		static ObjectManager GlobalObjectManager;
+	//class ObjectManager
+	//{
+	//public:
+	//	static ObjectManager GlobalObjectManager;
 
-	private:
-		std::unordered_map<id_t, Object*> objects_map;
-	};
+	//private:
+	//	std::unordered_map<id_t, Object*> objects_map;
+	//};
 }

@@ -1,5 +1,4 @@
 #pragma once
-#include "pch.h"
 #include "Interactive.h"
 #include "bcl.h"
 
@@ -28,7 +27,7 @@ namespace Causality
 	{
 	public:
 		template <class TDerived>
-		static int Invoke(Platform::Array<Platform::String^>^ args)
+		static int Invoke(const std::vector<std::string>& args)
 		{
 			Current = std::make_unique<TDerived>();
 			return Current->Run(args);
@@ -46,7 +45,7 @@ namespace Causality
 		{
 		}
 
-		int Run(Platform::Array<Platform::String^>^ args)
+		int Run(const std::vector<std::string>& args)
 		{
 			OnStartup(args);
 			while (!exitProposal)
@@ -68,7 +67,7 @@ namespace Causality
 
 		void Exit();
 
-		virtual void OnStartup(Platform::Array<Platform::String^>^ args) = 0;
+		virtual void OnStartup(const std::vector<std::string>& args) = 0;
 		virtual void OnExit() = 0;
 		virtual void OnIdle() = 0;
 
@@ -94,7 +93,7 @@ namespace Causality
 		~IWindow() {}
 
 		virtual HWND Handle() const = 0;
-		virtual void Initialize(Platform::String^ title, unsigned int width, unsigned int height, bool fullScreen = false) = 0;
+		virtual void Initialize(const std::string& title, unsigned int width, unsigned int height, bool fullScreen = false) = 0;
 		virtual void Show() = 0;
 		virtual void Hide() = 0;
 		virtual void Focus() = 0;
@@ -163,7 +162,7 @@ namespace Causality
 			: hWnd(NULL)
 		{}
 		// Inherited via IWindow
-		virtual void Initialize(Platform::String ^ title, unsigned int width, unsigned int height, bool fullScreen = false) override;
+		virtual void Initialize(const std::string& title, unsigned int width, unsigned int height, bool fullScreen = false) override;
 		virtual void Show() override;
 		virtual void Hide() override;
 		virtual void Focus() override;
@@ -188,7 +187,7 @@ namespace Causality
 	public:
 		NativeWindow();
 		~NativeWindow();
-		void Initialize(Platform::String^ title, unsigned int width, unsigned int height, bool fullScreen = false);
+		virtual void Initialize(const std::string& title, unsigned int width, unsigned int height, bool fullScreen = false) override;
 
 		void Show();
 		void Hide();
@@ -224,11 +223,11 @@ namespace Causality
 		}
 
 	private:
-		Platform::String^	m_Title;
+		std::wstring			m_Title;
 		HWND				m_hWnd;
 		HINSTANCE			m_hInstance;
 		bool				m_FullScreen;
-		Rect		m_Boundary;
+		Rect				m_Boundary;
 	};
 
 	//ref class Window sealed

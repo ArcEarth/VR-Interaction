@@ -1,11 +1,12 @@
 #pragma once
 #include "Common\Model.h"
 //#include "BulletPhysics.h"
-#include "Armature.h"
 #include <memory>
 #include "Object.h"
 #include "RenderContext.h"
 #include "Interactive.h"
+#include "Armature.h"
+#include "CharacterBehavier.h"
 
 namespace Causality
 {
@@ -105,7 +106,7 @@ namespace Causality
 	public:
 		string								Name;
 		string								Tag;
-		Scene								*ParentScene;
+		Scene								*Scene;
 
 	protected:
 		Matrix4x4							m_GlobalTransform;
@@ -178,7 +179,7 @@ namespace Causality
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 	};
 
-	class ControlState;
+	class CharacterController;
 	// Represent an SceneObjecy
 	class KinematicSceneObject : public RenderableSceneObject
 	{
@@ -219,7 +220,7 @@ namespace Causality
 		frame_type						        m_CurrentFrame;
 
 		bool									m_DirtyFlag;
-		std::vector<ControlState*>				m_Controls;
+		std::vector<CharacterController*>				m_Controls;
 	};
 
 	// Represent an ControlObject

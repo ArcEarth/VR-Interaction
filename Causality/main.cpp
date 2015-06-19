@@ -1,11 +1,19 @@
 // Source.cpp : Defines the entry point for the console application.
 //
-#include "pch.h"
+#include "pch_bcl.h"
 #include "CausalityApplication.h"
 //#include <fbxsdk.h>
 
 using namespace std;
 using namespace Leap;
+using namespace Causality;
+using namespace DirectX;
+
+#include <Windows.h>
+#include <string>
+#include <vector>
+
+#if defined(__cplusplus_winrt)
 using namespace Platform;
 using namespace Windows::Globalization;
 using namespace Windows::ApplicationModel;
@@ -16,17 +24,24 @@ using namespace Windows::UI::Input;
 using namespace Windows::System;
 using namespace Windows::Foundation;
 using namespace Windows::Graphics::Display;
-using namespace Causality;
-using namespace DirectX;
-
-//std::shared_ptr<NativeWindow> window;
-//std::shared_ptr<DirectX::DeviceResources> deviceResources;
-//std::unique_ptr<Causality::DXAppMain> m_main;
-
 
 [Platform::MTAThread]
-int main(Platform::Array<Platform::String^>^ args)
+int WinMain(Platform::Array<Platform::String^>^ args)
+#else
+int CALLBACK WinMain(
+	_In_ HINSTANCE hInstance,
+	_In_ HINSTANCE hPrevInstance,
+	_In_ LPSTR     lpCmdLine,
+	_In_ int       nCmdShow
+	)
+#endif
 {
+	std::vector<std::string> args;
+	//for (size_t i = 0; i < argc; i++)
+	//{
+	//	args[i] = argv[i];
+	//}
+
 	return Application::Invoke<Causality::App>(args);
 
 	//Leap::Controller controller;

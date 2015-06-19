@@ -6,10 +6,15 @@
 #include <iostream>
 #include <chrono>
 #include <wrl\event.h>
+#include "ArmatureBlock.h"
 
 using namespace Causality;
 using namespace Causality::Devices;
 using namespace Microsoft::WRL;
+
+extern BlockArmature g_PlayeerBlocks;
+extern bool			 g_EnableInputFeatureLocalization;
+
 
 template <class T>
 inline void SafeRelease(T*& pCom)
@@ -29,7 +34,7 @@ void erase_if(ContainerT& items, const PredicateT& predicate) {
 	}
 };
 
-JointType Kinect::JointsParent[JointType_Count] = {
+JointType KinectSensor::JointsParent[JointType_Count] = {
 	JointType_SpineBase, // JointType_SpineBase, Root
 	JointType_SpineBase, // JointType_SpineMid
 	JointType_SpineShoulder, // JointType_Neck
@@ -92,7 +97,7 @@ struct FilteredPlayer : public TrackedBody
 	std::array<Vector3DynamicFilter, JointType_Count> JointFilters;
 };
 
-class Kinect::Impl
+class KinectSensor::Impl
 {
 
 
@@ -101,9 +106,10 @@ public:
 	time_t											LastFrameTime = 0;
 	float											FrameRate = 30;
 
-	Kinect*											pWrapper;
+	KinectSensor*									pWrapper;
 	DirectX::Plane									FloorPlane;
 	DirectX::Matrix4x4								LocalMatrix;
+
 	// Current Kinect
 	Microsoft::WRL::ComPtr<IKinectSensor>			m_pKinectSensor;
 	Microsoft::WRL::ComPtr<ICoordinateMapper>		m_pCoordinateMapper;
@@ -127,7 +133,7 @@ public:
 		if (TrackedBody::BodyArmature == nullptr)
 		{
 			int parents[JointType_Count];
-			std::copy_n(Kinect::JointsParent, (int) JointType_Count, parents);
+			std::copy_n(KinectSensor::JointsParent, (int) JointType_Count, parents);
 			TrackedBody::BodyArmature = std::make_unique<Causality::StaticArmature>(JointType_Count, parents, JointNames);
 		}
 		using namespace Microsoft::WRL;
@@ -327,8 +333,8 @@ public:
 		// Process experied bodies
 		for (auto itr = m_Players.begin(), end = m_Players.end(); itr != end;)
 		{
-			itr->IsCurrentTracked = false;
-			if (++(itr->LostFrameCount) >= (int)LostThreshold)
+			itr->m_IsTracked = false;
+			if (++(itr->m_LostFrameCount) >= (int)LostThreshold)
 			{
 				pWrapper->OnPlayerLost(*itr);
 				std::cout << "Player Lost : ID = " << itr->Id << std::endl;
@@ -378,8 +384,9 @@ public:
 				{
 					m_Players.emplace_back();
 					player = &m_Players.back();
+					player->m_pKinectSensor = this->pWrapper;
 					player->Id = Id;
-					player->IsCurrentTracked = isTracked;
+					player->m_IsTracked = isTracked;
 
 					std::cout << "New Player Detected : ID = " << Id << std::endl;
 					isNew = true;
@@ -391,7 +398,7 @@ public:
 			}
 			else if (player != nullptr) // Handel Losted player
 			{
-				if (player->LostFrameCount > 3)
+				if (player->m_LostFrameCount > 3)
 				{
 					//for (auto& filter : player->JointFilters)
 					//{
@@ -399,12 +406,12 @@ public:
 					//}
 				}
 
-				if (!isNew && player->IsCurrentTracked) // Maybe wait for couple of frames?
+				if (!isNew && player->m_IsTracked) // Maybe wait for couple of frames?
 				{
 					pWrapper->OnPlayerLost(*player);
 					std::cout << "Player Lost : ID = " << Id << std::endl;
 				}
-				player->IsCurrentTracked = false;
+				player->m_IsTracked = false;
 			}
 
 			//SafeRelease(ppBodies[i]);
@@ -418,14 +425,14 @@ public:
 		::Joint joints[JointType_Count];
 		JointOrientation oris[JointType_Count];
 
-		UINT64 Id;
-		pBody->get_TrackingId(&Id);
+		const static DirectX::XMVECTORF32 g_XMNegateXZ = { -1.0f, 1.0f, -1.0f, 1.0f };
 
-		player->IsCurrentTracked = true;
-		player->LostFrameCount = 0;
+		player->m_IsTracked = true;
+		player->m_LostFrameCount = 0;
 
 		pBody->GetJoints(ARRAYSIZE(joints), joints);
 		pBody->GetJointOrientations(ARRAYSIZE(oris), oris);
+		player->m_Distance = joints[0].Position.Z;
 
 		TrackedBody::FrameType frame(JointType::JointType_Count);
 		frame.Time = std::chrono::system_clock::from_time_t(time).time_since_epoch();
@@ -433,6 +440,11 @@ public:
 		// WARNING!!! This may be ill-formed if transform contains shear or other non-rigid transformation
 		DirectX::XMVECTOR junk, rotation;
 		DirectX::XMMATRIX transform = LocalMatrix;
+		// Flip X and Z, X is due to mirrow effect, Z is due to Kinect uses LH coordinates
+		transform.r[0] = DirectX::XMVectorNegate(transform.r[0]);
+		transform.r[2] = DirectX::XMVectorNegate(transform.r[2]);
+
+		// Extract the rotation to apply
 		DirectX::XMMatrixDecompose(&junk, &rotation, &junk, transform);
 
 		for (int j = 0; j < JointType_Count; j++)
@@ -440,45 +452,65 @@ public:
 			//auto& filter = player->JointFilters[j];
 			DirectX::XMVECTOR ep = DirectX::XMLoadFloat3(reinterpret_cast<DirectX::Vector3*>(&joints[j].Position));
 			ep = DirectX::XMVector3TransformCoord(ep, transform);
+			DirectX::XMVECTOR bp = DirectX::XMLoadFloat3(reinterpret_cast<DirectX::Vector3*>(&joints[JointsParent[j]].Position));
+			//frame[j].GblLength = DirectX::XMVectorGetX(DirectX::XMVector3Length(ep - bp));
+			//frame[j].LclLength = frame[j];
+
 			//? Why not filtering?
 			//! We are tracking gestures here, keep the raw data is better!
 			frame[j].EndPostion = ep; // filter.Apply(ep);
 			ep = DirectX::XMLoadFloat4(reinterpret_cast<DirectX::Quaternion*>(&oris[j].Orientation));
+			ep *= g_XMNegateXZ.v;
 			frame[j].GblRotation = DirectX::XMQuaternionMultiply(ep, rotation);
 		}
 
-		auto& sk = *TrackedBody::BodyArmature;
-		for (const auto& jId : sk.joint_indices())
+		auto& armature = *TrackedBody::BodyArmature;
+
+		for (auto jId : armature.joint_indices())
 		{
-			if (jId < JointType_Count)
-				frame[jId].UpdateLocalData(frame[sk[jId]->ParentID()]);
-			else
-				// Update 'intermediate" joints if not presented in Kinect
-				frame[jId].UpdateGlobalData(frame[sk[jId]->ParentID()]);
+			// Update 'intermediate" joints if not presented in Kinect
+			auto pId = armature[jId]->ParentID();
+			if (jId > JointType_Count)
+			{
+				frame[jId].UpdateGlobalData(frame[pId]);
+			}
+			DirectX::XMVECTOR q = frame[jId].GblRotation.LoadA();
+			if (DirectX::XMVector4Equal(q, DirectX::XMVectorZero()))
+			{
+				if (pId != -1)
+					q = frame[pId].GblRotation.LoadA();
+				else
+					q = DirectX::XMQuaternionIdentity();
+				frame[jId].GblRotation.StoreA(q);
+			}
+
 		}
+
+		frame.RebuildLocal(armature);
 
 		player->PushFrame(std::move(frame));
 
 		if (isNew)
 		{
 			pWrapper->OnPlayerTracked(*player);
-			std::cout << "New Player Tracked : ID = " << Id << std::endl;
+			std::cout << "New Player Tracked : ID = " << player->Id << std::endl;
 		}
 		else
 		{
-			player->OnPoseChanged(*player);
+
+			//player->OnFrameArrived(*player, frame);
 			HandState state;
 			pBody->get_HandLeftState(&state);
-			if (state != player->HandStates[0])
+			if (state != player->m_HandStates[0])
 			{
-				player->HandStates[0] = state;
-				player->OnHandStateChanged(*player, HandType_LEFT, state);
+				player->m_HandStates[0] = state;
+				//player->OnHandStateChanged(*player, HandType_LEFT, state);
 			}
 			pBody->get_HandRightState(&state);
-			if (state != player->HandStates[1])
+			if (state != player->m_HandStates[1])
 			{
-				player->HandStates[1] = state;
-				player->OnHandStateChanged(*player, HandType_RIGHT, state);
+				player->m_HandStates[1] = state;
+				//player->OnHandStateChanged(*player, HandType_RIGHT, state);
 			}
 		}
 	}
@@ -500,9 +532,9 @@ public:
 	//}
 };
 
-std::weak_ptr<Kinect> Kinect::wpCurrentDevice;
+std::weak_ptr<KinectSensor> KinectSensor::wpCurrentDevice;
 
-std::shared_ptr<Kinect> Causality::Devices::Kinect::GetForCurrentView()
+std::shared_ptr<KinectSensor> Causality::Devices::KinectSensor::GetForCurrentView()
 {
 	if (wpCurrentDevice.expired())
 	{
@@ -516,31 +548,31 @@ std::shared_ptr<Kinect> Causality::Devices::Kinect::GetForCurrentView()
 	}
 }
 
-Kinect::~Kinect()
+KinectSensor::~KinectSensor()
 {
 }
 
-bool Kinect::IsConnected() const
+bool KinectSensor::IsConnected() const
 {
 	return pImpl->IsActive();
 }
 
-void Kinect::SetDeviceCoordinate(const DirectX::Matrix4x4 & mat)
+void KinectSensor::SetDeviceCoordinate(const DirectX::Matrix4x4 & mat)
 {
 	pImpl->LocalMatrix = mat;
 }
 
-const DirectX::Matrix4x4 & Kinect::GetDeviceCoordinate()
+const DirectX::Matrix4x4 & KinectSensor::GetDeviceCoordinate()
 {
 	return pImpl->LocalMatrix;
 }
 
-void Kinect::ProcessFrame()
+void KinectSensor::ProcessFrame()
 {
 	pImpl->ProcessFrame();
 }
 
-bool Causality::Devices::Kinect::Start()
+bool Causality::Devices::KinectSensor::Start()
 {
 	BufferedStreamViewer<int> buffer;
 	decltype(buffer) buffer2(buffer);
@@ -548,28 +580,32 @@ bool Causality::Devices::Kinect::Start()
 	return pImpl->StartTracking();
 }
 
-void Causality::Devices::Kinect::Stop()
+void Causality::Devices::KinectSensor::Stop()
 {
 	pImpl->StopTracking();
 }
 
-const std::list<TrackedBody>& Kinect::GetTrackedBodies()
+const std::list<TrackedBody>& KinectSensor::GetTrackedBodies() const
+{
+	return pImpl->m_Players;
+}
+std::list<TrackedBody>& KinectSensor::GetTrackedBodies()
 {
 	return pImpl->m_Players;
 }
 
 // Static Constructors!!!
 
-std::shared_ptr<Kinect> Kinect::CreateDefault()
+std::shared_ptr<KinectSensor> KinectSensor::CreateDefault()
 {
-	std::shared_ptr<Kinect> pKinect(new Kinect);
+	std::shared_ptr<KinectSensor> pKinect = std::make_shared<KinectSensor>();
 	if (SUCCEEDED(pKinect->pImpl->Initalize()))
 		return pKinect;
 	else
 		return nullptr;
 }
 
-Kinect::Kinect()
+KinectSensor::KinectSensor()
 	:pImpl(new Impl)
 {
 	pImpl->pWrapper = this;
@@ -584,61 +620,152 @@ Kinect::Kinect()
 //{
 //}
 
-Causality::TrackedBody::TrackedBody()
-	: FeatureBuffer(FeatureBufferCaptcity), RefCount(0) , Id(0), IsCurrentTracked(false), LastTrackedTime(0), LostFrameCount(0)
+Causality::TrackedBody::TrackedBody(size_t bufferSize)
+	: RefCount(0) , Id(0), m_IsTracked(false), m_LastTrackedTime(0), m_LostFrameCount(0), m_FrameBuffer(bufferSize)
 {
 }
 
 void Causality::TrackedBody::PushFrame(FrameType && frame)
 {
-	using namespace Eigen;
-	using namespace DirectX;
+	m_FrameBuffer.Push(std::move(frame));
+	OnFrameArrived(*this, *m_FrameBuffer.PeekLatest());
+}
 
+Causality::AffineFrame & Causality::TrackedBody::PullLatestFrame() const
+{
+	return *m_FrameBuffer.MoveToLatest();
+}
+
+float Causality::TrackedBody::DistanceToSensor() const
+{
+	return m_Distance;
+}
+
+void Causality::TrackedBody::AddRef() {
+	++RefCount;
+}
+
+void Causality::TrackedBody::Release() {
+	--RefCount;
+}
+
+Causality::TrackedBodySelector::TrackedBodySelector(KinectSensor * pKinect, SelectionMode mode)
+	:pCurrent(nullptr), pKinect(nullptr), mode(None)
+{
+	Initialize(pKinect, mode);
+}
+
+Causality::TrackedBodySelector::~TrackedBodySelector()
+{
+	if (pKinect)
 	{
-		std::lock_guard<std::mutex> guard(BufferMutex);
+		con_tracked.disconnect();
+		con_lost.disconnect();
+	}
+}
 
-		FeatureBuffer.push_back();
-
-		if (FeatureBuffer.size() > RecordFeatures)
-			FeatureBuffer.pop_front(); // everything works fine beside it invaliad the memery...
-
-		if (!FeatureBuffer.is_linearized())
-			FeatureBuffer.linearize();
-
-		auto& fb = FeatureBuffer.back();
-		Vector3* vs = reinterpret_cast<Vector3*>(fb.data());
-		for (size_t i = 0; i < JointType_Count; i++)
+void Causality::TrackedBodySelector::OnPlayerTracked(TrackedBody & body)
+{
+	if ((!pCurrent || !(mode & Sticky)))
+	{
+		if (!pCurrent || ( mode == SelectionMode::Closest && body.DistanceToSensor() < pCurrent->DistanceToSensor()))
 		{
-			FeatureType::Get(&vs[i].x, frame[i]);
-			//DirectX::XMVECTOR q = frame[i].LclRotation.LoadA();
-			//q = XMQuaternionLn(q);
+			ChangePlayer(&body);
+		}
+	}
+}
 
-			//vs[i * 2] = frame[i].EndPostion;
-			//vs[i * 2 + 1] = q;
+void Causality::TrackedBodySelector::OnPlayerLost(TrackedBody & body)
+{
+	if (pCurrent && body == *pCurrent)
+	{
+		ReSelectFromAllTrackedBodies();
+	}
+}
+
+void Causality::TrackedBodySelector::ReSelectFromAllTrackedBodies()
+{
+	TrackedBody *pBestPlayer = nullptr;
+
+	if (mode & Closest)
+	{
+		float distance = 100000;
+		for (auto& player : pKinect->GetTrackedBodies())
+		{
+			if (player.IsTracked() && player != *pCurrent && distance > player.DistanceToSensor())
+			{
+				pBestPlayer = &player;
+				distance = player.DistanceToSensor();
+			}
+		}
+	}
+	else // Eariest tracked player
+	{
+		for (auto& player : pKinect->GetTrackedBodies())
+		{
+			if (player.IsTracked() && player != *pCurrent)
+			{
+				pBestPlayer = &player;
+				break;
+			}
 		}
 	}
 
-	PoseBuffer.Push(std::move(frame));
-
-	// Regularize frames at here
+	ChangePlayer(pBestPlayer);
 
 }
 
-Eigen::Map<TrackedBody::FeatureMatrixType> Causality::TrackedBody::GetFeatureMatrix(time_seconds duration)
+void Causality::TrackedBodySelector::Reset() {
+	fpTrackedBodyChanged(pCurrent, nullptr);
+	if (pCurrent)
+		pCurrent->Release();
+	pCurrent = nullptr;
+}
+
+void Causality::TrackedBodySelector::Initialize(Devices::KinectSensor * pKinect, SelectionMode mode)
 {
-	using FeatureMatrixType = TrackedBody::FeatureMatrixType;
-	using namespace std;
-	int si = duration.count() * 30;
-	if (FeatureBuffer.size() >= si)
+	this->mode = mode;
+	if (pKinect)
 	{
-		std::lock_guard<mutex> guard(BufferMutex);
-		si = min(max(si, 0), (int)FeatureBuffer.size());
-		auto sidx = FeatureBuffer.size() - si;
-		auto head = &FeatureBuffer[sidx][0];
-		return FeatureMatrixType::Map(head, si, FeatureMatrixType::ColsAtCompileTime);
+		this->pKinect = pKinect->GetRef();
+		con_tracked =
+			pKinect->OnPlayerTracked += MakeEventHandler(&TrackedBodySelector::OnPlayerTracked, this);
+		con_tracked = 
+			pKinect->OnPlayerLost += MakeEventHandler(&TrackedBodySelector::OnPlayerLost, this);
 	}
-	else
+}
+
+void Causality::TrackedBodySelector::ChangePlayer(TrackedBody * pNewPlayer)
+{
+	auto pOld = pCurrent;
+	con_frame.disconnect();
+	pCurrent = pNewPlayer;
+	con_frame = pCurrent->OnFrameArrived.connect(fpFrameArrived);
+
+	if (pCurrent) pCurrent->AddRef();
+
+	fpTrackedBodyChanged(pOld, pCurrent);
+
+	if (pOld)
+		pOld->Release();
+}
+
+void Causality::TrackedBodySelector::SetFrameCallback(const FrameEventFunctionType & callback) {
+	fpFrameArrived = callback;
+	if (con_frame.connected())
 	{
-		return FeatureMatrixType::Map((float*)nullptr,0, FeatureMatrixType::ColsAtCompileTime);
+		con_frame.disconnect();
+		con_frame = pCurrent->OnFrameArrived.connect(fpFrameArrived);
 	}
+}
+
+void Causality::TrackedBodySelector::SetPlayerChangeCallback(const PlayerEventFunctionType & callback) { 
+	fpTrackedBodyChanged = callback; 
+}
+
+void Causality::TrackedBodySelector::ChangeSelectionMode(SelectionMode mdoe)
+{
+	this->mode = mode;
+	if (pCurrent)
+		ReSelectFromAllTrackedBodies();
 }

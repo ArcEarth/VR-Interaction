@@ -1,4 +1,5 @@
-﻿#include "DeviceResources.h"
+﻿#include "pch_directX.h"
+#include "DeviceResources.h"
 #include "DirectXHelper.h"
 #include <algorithm>
 #include <cmath>
@@ -7,11 +8,13 @@
 using namespace D2D1;
 using namespace DirectX;
 using namespace Microsoft::WRL;
+#if defined (__cplusplus_winrt)
 using namespace Windows::Foundation;
 using namespace Windows::Graphics::Display;
 using namespace Windows::UI::Core;
 using namespace Windows::UI::Xaml::Controls;
 using namespace Platform;
+#endif
 
 // Constants used to calculate screen rotations.
 namespace ScreenRotation
@@ -272,20 +275,18 @@ void DirectX::DeviceResources::CreateDeviceResources()
 	m_pBasicEffect = std::make_shared<DirectX::BasicEffect>(device.Get());
 }
 
-
 void DirectX::DeviceResources::CreateSwapChainForComposition(IDXGIFactory2* dxgiFactory, DXGI_SWAP_CHAIN_DESC1 *pSwapChainDesc)
 {
+#if defined (__cplusplus_winrt)
 	// When using XAML interop, the swap chain must be created for composition.
 	DirectX::ThrowIfFailed(
 		dxgiFactory->CreateSwapChainForComposition(
-		m_d3dDevice.Get(),
-		pSwapChainDesc,
-		nullptr,
-		&m_swapChain
-		)
-		);
-
-	// Associate swap chain with SwapChainPanel
+			m_d3dDevice.Get(),
+			pSwapChainDesc,
+			nullptr,
+			&m_swapChain
+			)
+		);	// Associate swap chain with SwapChainPanel
 	// UI changes will need to be dispatched back to the UI thread
 	m_swapChainPanel->Dispatcher->RunAsync(CoreDispatcherPriority::High, ref new DispatchedHandler([=]()
 	{
@@ -299,8 +300,11 @@ void DirectX::DeviceResources::CreateSwapChainForComposition(IDXGIFactory2* dxgi
 			panelNative->SetSwapChain(m_swapChain.Get())
 			);
 	}, CallbackContext::Any));
+#else
 
+#endif
 }
+
 
 // These resources need to be recreated every time the window size is changed.
 void DirectX::DeviceResources::CreateWindowSizeDependentResources() 
@@ -423,6 +427,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 				&m_swapChain)
 				);
 			break;
+#if defined (__cplusplus_winrt)
 		case DirectX::DeviceHostType::CoreWindow:
 			DirectX::ThrowIfFailed(
 				dxgiFactory->CreateSwapChainForCoreWindow(
@@ -434,6 +439,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 				)
 				);
 			break;
+#endif
 		case DirectX::DeviceHostType::Composition:
 			CreateSwapChainForComposition(dxgiFactory.Get(), &swapChainDesc);
 			break;
@@ -484,7 +490,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		break;
 
 	default:
-		throw ref new FailureException();
+		throw std::exception("Failed to initialize");
 	}
 
 	HRESULT hr =
@@ -603,7 +609,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 }
 
 // This method is called in the event handler for the SizeChanged event.
-void DirectX::DeviceResources::SetLogicalSize(Windows::Foundation::Size logicalSize)
+void DirectX::DeviceResources::SetLogicalSize(Size logicalSize)
 {
 	if (m_logicalSize != logicalSize)
 	{

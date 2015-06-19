@@ -1,5 +1,5 @@
 #include "MetaBallModel.h"
-#include <iostream>
+//#include <iostream>
 #include <set>
 #include <map>
 #include <unordered_map>
@@ -20,7 +20,7 @@
 using namespace DirectX;
 using namespace Geometrics;
 
-const Metaball::ClipType::CombinationType Metaball::ClipType::Combination;
+//const Metaball::ClipType::CombinationType Metaball::ClipType::Combination;
 
 static void CreateBoundingBoxFromSpheres( BoundingBox& Out, size_t Count, const BoundingSphere* pSpheres, size_t Stride )
 {
@@ -731,7 +731,7 @@ DirectX::XMVECTOR MetaBallModel::FindClosestSurfacePoint2(DirectX::FXMVECTOR vPo
 	if (step >= maxStep)
 	{
 		return g_XMQNaN;
-		std::cout<<"Error  : Can't find closest point for "<<Vector3(vPoint)<<", field value = "<<field<<std::endl;
+		//std::cout<<"Error  : Can't find closest point for "<<Vector3(vPoint)<<", field value = "<<field<<std::endl;
 	}
 
 	return vPos;

@@ -63,6 +63,18 @@ void Causality::Scene::LoadFromXML(const string & xml_file)
 	is_loaded = true;
 }
 
+Camera * Causality::Scene::PrimaryCamera()
+{
+	return primary_cameral;
+}
+
+bool Causality::Scene::SetAsPrimaryCamera(Camera * camera)
+{
+	if (camera->Scene != this) return false;
+	primary_cameral = camera;
+	return true;
+}
+
 void Causality::Scene::UpdateRenderViewCache()
 {
 	if (!camera_dirty) return;
@@ -125,8 +137,9 @@ AssetDictionary::mesh_type& ParseMeshAsset(AssetDictionary& assets, XMLElement* 
 				auto& mesh = assets.LoadMesh(node->Attribute("name"), src);
 				return mesh;
 			}
-			else
+			else (ref.extension().string() == ".fbx")
 			{
+
 				// throw;
 			}
 		}
@@ -383,7 +396,7 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	}
 
 	if (pObj)
-		pObj->ParentScene = &scene;
+		pObj->Scene = &scene;
 
 	node = node->FirstChildElement();
 	while (node)
@@ -397,11 +410,6 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 		}
 		node = node->NextSiblingElement();
 	}
-
-	// suffix construction 
-	auto pController = dynamic_cast<PlayerProxy*>(pObj.get());
-	if (pController)
-		pController->Initialize();
 
 	return pObj;
 }
@@ -417,8 +425,14 @@ void ParseCreatureAttributes(KinematicSceneObject* pCreature, tinyxml2::XMLEleme
 		{
 			const std::string key(path + 1, path + strlen(path) - 1);
 			pCreature->SetBehavier(assets.GetBehavier(key));
+			auto& behavier = pCreature->Behavier();
 			if (pCreature->Behavier().Clips().size() > 0)
-				pCreature->StartAction(pCreature->Behavier().Clips().front().Name);
+			{
+				if (behavier.Contains("walk"))
+					pCreature->StartAction("walk");
+				else
+					pCreature->StartAction(behavier.Clips().front().Name);
+			}
 		}
 	}
 	else
@@ -442,6 +456,7 @@ void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causali
 	node->QueryBoolAttribute("enable_stereo", &enable_stereo);
 	float fov = 70, aspect = 1, hfov, wfov;
 	float _near = 0.01f, _far = 100.0f;
+	bool is_primary = false;
 	Vector3 focus = (XMVECTOR)pCamera->GetPosition() + XMVector3Rotate(Camera::Foward, pCamera->GetOrientation());
 
 	GetAttribute(node, "background", pCamera->Background);
@@ -450,6 +465,13 @@ void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causali
 	GetAttribute(node, "far", _far);
 	GetAttribute(node, "focus", focus);
 	GetAttribute(node, "aspect", aspect);
+	GetAttribute(node, "primary", is_primary);
+
+	pCamera->Scene = &scene;
+	if (is_primary || scene.PrimaryCamera() == nullptr)
+	{
+		scene.SetAsPrimaryCamera(pCamera);
+	}
 
 	pCamera->SetRenderContext(scene.GetRenderContext());
 	pCamera->FocusAt(focus, g_XMIdentityR1.v);

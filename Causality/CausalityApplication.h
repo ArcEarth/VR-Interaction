@@ -37,7 +37,7 @@ namespace Causality
 		~App();
 
 		// Inherited via Application
-		virtual void OnStartup(Platform::Array<Platform::String^>^ args) override;
+		virtual void OnStartup(const std::vector<std::string>& args) override;
 		virtual void OnExit() override;
 		virtual void OnIdle() override;
 
@@ -70,7 +70,7 @@ namespace Causality
 
 		// Extern Devices
 		std::shared_ptr<Devices::OculusRift>			pRift;
-		std::shared_ptr<Devices::Kinect>				pKinect;
+		std::shared_ptr<Devices::KinectSensor>				pKinect;
 		std::shared_ptr<Devices::LeapMotion>			pLeap;
 
 		// Application Logic object

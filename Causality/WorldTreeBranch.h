@@ -23,6 +23,7 @@ namespace Causality
 
 	typedef std::map<unsigned, std::vector<ProblistiscAffineTransform>> SuperpositionMap;
 
+	class WorldBranch;
 	// One problistic frame for current state
 	class WorldBranch : public stdx::foward_tree_node<WorldBranch, false>
 	{
@@ -37,6 +38,36 @@ namespace Causality
 			Mask_Unfocused_Object = 0x3,
 			Mask_Subject = 0x1,
 		};
+
+	public:
+		std::string												Name;
+
+	protected:
+		float													_Liklyhood;
+
+		std::unique_ptr<std::thread>							pWorkerThread;
+		std::condition_variable									queuePending;
+		std::mutex												queueMutex;
+	protected:
+		// Evolution caculation object
+		std::shared_ptr<btBroadphaseInterface>					pBroadphase = nullptr;
+		// Set up the collision configuration and dispatcher
+		std::shared_ptr<btDefaultCollisionConfiguration>		pCollisionConfiguration = nullptr;
+		std::shared_ptr<btCollisionDispatcher>					pDispatcher = nullptr;
+		// The actual physics solver
+		std::shared_ptr<btSequentialImpulseConstraintSolver>	pSolver = nullptr;
+		std::shared_ptr<btDynamicsWorld>						pDynamicsWorld = nullptr;
+
+	public:
+		// Object states evolution with time and interaction subjects
+		std::map<std::string, std::shared_ptr<PhysicalRigid>>	Items;
+
+		DirectX::AffineTransform								SubjectTransform;
+
+
+		bool													IsDirty;
+		bool													IsEnabled;
+
 
 	public:
 		static void InitializeBranchPool(int size, bool autoExpandation = true);
@@ -88,33 +119,5 @@ namespace Causality
 		// Internal evolution algorithm as-if this branch is a "Leaf"
 		void InternalEvolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
 
-	public:
-		std::string												Name;
-
-	protected:
-		float													_Liklyhood;
-
-		std::unique_ptr<std::thread>							pWorkerThread;
-		std::condition_variable									queuePending;
-		std::mutex												queueMutex;
-	protected:
-		// Evolution caculation object
-		std::shared_ptr<btBroadphaseInterface>					pBroadphase = nullptr;
-		// Set up the collision configuration and dispatcher
-		std::shared_ptr<btDefaultCollisionConfiguration>		pCollisionConfiguration = nullptr;
-		std::shared_ptr<btCollisionDispatcher>					pDispatcher = nullptr;
-		// The actual physics solver
-		std::shared_ptr<btSequentialImpulseConstraintSolver>	pSolver = nullptr;
-		std::shared_ptr<btDynamicsWorld>						pDynamicsWorld = nullptr;
-
-	public:
-		// Object states evolution with time and interaction subjects
-		std::map<std::string, std::shared_ptr<PhysicalRigid>>	Items;
-
-		DirectX::AffineTransform								SubjectTransform;
-
-
-		bool													IsDirty;
-		bool													IsEnabled;
 	};
 }

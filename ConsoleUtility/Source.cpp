@@ -1,5 +1,8 @@
 #include "auto_pch.h"
 #include "Source.h"
+#include "..\Causality\CCA.h"
+#include "..\Causality\EigenExtension.h"
+#include <iomanip>
 
 using namespace DirectX;
 using namespace std;
@@ -162,6 +165,89 @@ void PrintNode(FbxNode* pNode) {
 
 int main(int argc, wchar_t** argv)
 {
+	using namespace Eigen;
+
+	// Resample Test
+	Eigen::VectorXf v(6);
+	v << 0, 1, 3, 7, 3, 1;
+	cout << " X = " << v.transpose() << endl;;
+	laplacian_smooth(v);
+	cout << " Y = " << v.transpose() << endl;;
+
+	// CCA Test
+	Eigen::MatrixXf X(6,3), Y(6,3);
+	//X<< 1, 0, 0,
+	//	0, 1, 0,
+	//	0, 0, 1,
+	//	1, 0, 0,
+	//	0, 1, 0,
+	//	0, 0, 1;
+	//Y<< 0, 2, 0,
+	//	0, 0, 2,
+	//	2, 0, 0,
+	//	0, 2, 0,
+	//	0, 0, 2,
+	//	2, 0, 0;
+	X <<
+		0.8147, 0.2785, 0.9572,
+		0.9058, 0.5469, 0.4854,
+		0.1270, 0.9575, 0.8003,
+		0.9134, 0.9649, 0.1419,
+		0.6324, 0.1576, 0.4218,
+		0.0975, 0.9706, 0.9157;
+	Y <<
+		0.7922, 0.6787, 0.7060,
+		0.9595, 0.7577, 0.0318,
+		0.6557, 0.7431, 0.2769,
+		0.0357, 0.3922, 0.0462,
+		0.8491, 0.6555, 0.0971,
+		0.9340, 0.1712, 0.8235;
+
+	cout << setprecision(3) << setw(5);
+	cout << "X = \n" << X << endl;
+	cout << "Y = \n" << Y << endl;
+
+	//PCA test
+	Eigen::Pca<MatrixXf> pca(X);
+	cout << "principle compoenets = \n" << pca.components() << endl;
+	cout << "projected coordinates = \n" << pca.coordinates() << endl;
+
+
+	system("PAUSE");
+	exit(0);
+
+	Eigen::MeanThinQr<Eigen::MatrixXf> qrX(X),qrY(Y);
+	cout << "QR(X) : " << endl;
+	cout << "Qx = \n" << qrX.matrixQ() << endl;
+	cout << "Rx = \n" << qrX.m_R << endl;
+	cout << "Px = " << qrX.colsPermutation().indices().transpose() << endl;
+
+	cout << "QR(Y) : " << endl;
+	cout << "Qy = \n" << qrY.matrixQ() << endl;
+	cout << "Ry = \n" << qrY.m_R << endl;
+	cout << "Py = " << qrY.colsPermutation().indices().transpose() << endl;
+	cout << "Qy * Ry = \n" << qrY.matrixQ() * qrY.matrixR() << endl;
+
+	Eigen::Cca cca;
+	cca.computeFromQr(qrX, qrY,true);
+	cout << "CCA : " << endl;
+	cout << "A = \n" << cca.matrixA() << endl;
+	cout << "B = \n" << cca.matrixB() << endl;
+	cout << "r = \n" << cca.correlaltions().transpose() << endl;
+
+	MatrixXf Xz = X.rowwise() - qrX.mean();
+	MatrixXf Yz = Y.rowwise() - qrY.mean();
+	cout << DebugLog(Xz);
+	cout << DebugLog(Yz);
+
+	MatrixXf U = Xz * cca.matrixA();
+	MatrixXf V = Yz * cca.matrixB();
+	cout << DebugLog(U);
+	cout << DebugLog(V);
+
+	exit(0);
+
+
 	path animation_file(R"(D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Resources\Animations\Horse_Run.fbx)");
 	//path animation_file(
 	//	R"(D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\Resources\Models\spider.fbx)");

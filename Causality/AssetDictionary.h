@@ -4,21 +4,68 @@
 #include "Common\Model.h"
 #include <boost\filesystem.hpp>
 #include "Armature.h"
+#include "CharacterBehavier.h"
 #include "RenderContext.h"
 #include <Effects.h>
 #include <ppltasks.h>
+#include <typeinfo>
+#include "FbxParser.h"
 
 namespace Causality
 {
 	class AssetDictionary;
 
-	struct AssetReference
+	class asset_base
 	{
 	public:
-		AssetDictionary&		Dictionary;
-		boost::filesystem::path Source;
+		AssetDictionary*		dictionary() { return _dictionary; }
+		string					source();
+		bool					is_loaded() { return _loaded; }
 
-		bool IsLoaded() const;
+	protected:
+		size_t						_ref_count;
+		AssetDictionary*			_dictionary;
+		bool						_loaded;
+		string						_ref_path;
+	};
+
+	template <class T>
+	class asset;
+
+	template <class T>
+	class asset_ptr
+	{
+	public:
+		T* get() { return  &_ptr->get(); }
+		const T* get() const { return  &_ptr->get(); }
+		operator T*() { return _ptr; }
+		operator const T*() const { return _ptr; }
+
+	private:
+		asset<T>* _ptr;
+	};
+
+	template <class T>
+	class asset : public asset_base
+	{
+	public:
+		T&						get() { return _Tdata; }
+		asset_ptr<T>			get_ptr();
+
+	private:
+		union
+		{
+			T	_Tdata;
+			char _Bytes[sizeof(T)];
+		};
+	};
+
+	class asset_dictionary
+	{
+		typedef std::function<bool(void*, const char*)> creation_function_type;
+		map<std::type_index, creation_function_type> creators;
+	private:
+		map<string, void*> _resources;
 	};
 
 	using concurrency::task;
@@ -28,7 +75,7 @@ namespace Causality
 	{
 	public:
 		using path = boost::filesystem::path;
-		using mesh_type = DirectX::Scene::GeometryModel;
+		using mesh_type = DirectX::Scene::IModelNode;
 		using texture_type = DirectX::Texture;
 		using audio_clip_type = int;
 		using animation_clip_type = ArmatureFrameAnimation;
@@ -40,7 +87,8 @@ namespace Causality
 		~AssetDictionary();
 
 		//Synchronize loading methods
-		mesh_type&		     LoadMesh(const string & key, const string& fileName);
+		mesh_type*		     LoadObjMesh(const string & key, const string& fileName);
+		mesh_type*		     LoadFbxMesh(const string & key, const string& fileName);
 		texture_type&	     LoadTexture(const string & key, const string& fileName);
 		armature_type&	     LoadArmature(const string & key, const string& fileName);
 		animation_clip_type& LoadAnimation(const string& key, const string& fileName);
@@ -63,8 +111,8 @@ namespace Causality
 		{
 			auto itr = meshes.find(key);
 			if (itr != meshes.end())
-				return itr->second;
-			return itr->second;
+				return *itr->second;
+			return *itr->second;
 		}
 
 		texture_type&				GetTexture(const string& key)
@@ -138,7 +186,7 @@ namespace Causality
 		map<string, task<mesh_type*>>		loading_meshes;
 		map<string, task<texture_type*>>	loading_textures;
 
-		map<string, mesh_type>				meshes;
+		map<string, mesh_type*>				meshes;
 		map<string, texture_type>			textures;
 		map<string, animation_clip_type>	animations;
 		map<string, audio_clip_type>		audios;
@@ -150,21 +198,6 @@ namespace Causality
 		cptr<ID3D11InputLayout>				pInputLayout;
 		// other assets
 		map<string, any>					assets;
-	};
-
-	struct MeshReference : AssetReference
-	{
-		AssetDictionary::mesh_type& Get();
-	};
-
-	struct TextureReference : AssetReference
-	{
-		AssetDictionary::texture_type& Get();
-	};
-
-	struct AudioReference : AssetReference
-	{
-		AssetDictionary::audio_clip_type& Get();
 	};
 
 }

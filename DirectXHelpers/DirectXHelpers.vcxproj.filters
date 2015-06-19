@@ -48,6 +48,9 @@
     <ClCompile Include="..\Causality\Common\DXGIFormatHelper.cpp">
       <Filter>DirectX\SourceFile</Filter>
     </ClCompile>
+    <ClCompile Include="..\Causality\Common\DeviceResources.cpp">
+      <Filter>DirectX\SourceFile</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Causality\Common\Carmera.h">

@@ -7,6 +7,7 @@ Causality::Scene::Scene()
 {
 	is_paused = false;
 	is_loaded = false;
+	primary_cameral = nullptr;
 }
 
 Causality::Scene::~Scene()

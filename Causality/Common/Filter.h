@@ -50,6 +50,166 @@ namespace Causality
 
 	};
 
+	template <class _Ty, class _TScaler>
+	struct default_lerp
+	{
+		_Ty operator()(const _Ty& lhs, const _Ty&rhs, _TScaler t)
+		{
+			return lhs + (rhs - lhs) * t;
+		}
+	};
+
+	template <class _TVector, class _TScaler>
+	struct conversion_to_scalar
+		: public std::unary_function<_TVector, _TScaler>
+	{
+		_TScaler operator()(const _TVector& lhs)
+		{
+			return (_TScaler)lhs;
+		}
+	};
+
+
+#ifdef DIRECTX_MATH_VERSION
+	struct QuaternionWrapper : public DirectX::Quaternion
+	{
+		using DirectX::Quaternion::Quaternion;
+		using DirectX::Quaternion::operator DirectX::XMVECTOR;
+
+		QuaternionWrapper& operator +=(const QuaternionWrapper& rhs)
+		{
+			using namespace DirectX;
+			XMVECTOR ql = XMLoadFloat4(this);
+			XMVECTOR qr = XMLoadFloat4(&rhs);
+			ql = XMQuaternionMultiply(ql, qr);
+			XMStoreFloat4(this, ql);
+		}
+
+		QuaternionWrapper& operator -=(const QuaternionWrapper& rhs)
+		{
+			using namespace DirectX;
+			XMVECTOR ql = XMLoadFloat4(this);
+			XMVECTOR qr = XMLoadFloat4(&rhs);
+			qr = XMQuaternionInverse(rhs);
+			ql = XMQuaternionMultiply(ql, qr);
+			XMStoreFloat4(this, ql);
+		}
+
+		QuaternionWrapper& operator *=(float rhs)
+		{
+			using namespace DirectX;
+
+			float angle;
+			XMVECTOR q = XMLoadFloat4(this);
+			XMVECTOR axis;
+			XMQuaternionToAxisAngle(&axis, &angle, q);
+			angle *= rhs;
+			q = XMQuaternionRotationAxis(axis, angle);
+			XMStoreFloat4(this, q);
+		}
+
+		static inline QuaternionWrapper SLerp(const QuaternionWrapper& lhs, const QuaternionWrapper&rhs, float t)
+		{
+			using namespace DirectX;
+			QuaternionWrapper result;
+			XMVECTOR ql = XMLoadFloat4(&lhs);
+			XMVECTOR qr = XMLoadFloat4(&rhs);
+			ql = XMQuaternionSlerp(ql, qr, t);
+			XMStoreFloat4(&result, ql);
+			return result;
+		}
+
+		float RotationAngle() const
+		{
+			using namespace DirectX;
+			float angle;
+			XMVECTOR q = XMLoadFloat4(this);
+			XMVECTOR axis;
+			XMQuaternionToAxisAngle(&axis, &angle, q);
+			return angle;
+		}
+	};
+
+	template <>
+	struct default_lerp<QuaternionWrapper, float>
+	{
+		using _Ty = QuaternionWrapper;
+		using _TScaler = float;
+		_Ty operator()(const _Ty& lhs, const _Ty&rhs, _TScaler t)
+		{
+			return QuaternionWrapper::Lerp(lhs, rhs, t);
+		}
+	};
+
+	template <>
+	struct conversion_to_scalar<DirectX::XMFLOAT2, float>
+		: public std::unary_function<DirectX::XMFLOAT2, float>
+	{
+		float operator()(const DirectX::XMFLOAT2& lhs)
+	{
+		DirectX::XMVECTOR v = DirectX::XMLoadFloat2(&lhs);
+		v = DirectX::XMVector2Length(v);
+		return DirectX::XMVectorGetX(v);
+	}
+	};
+	template <>
+	struct conversion_to_scalar<DirectX::XMFLOAT2A, float>
+		: public std::unary_function<DirectX::XMFLOAT2A, float>
+	{
+		float operator()(const DirectX::XMFLOAT2A& lhs)
+	{
+		DirectX::XMVECTOR v = DirectX::XMLoadFloat2A(&lhs);
+		v = DirectX::XMVector2Length(v);
+		return DirectX::XMVectorGetX(v);
+	}
+	};
+	template <>
+	struct conversion_to_scalar<DirectX::XMFLOAT3, float>
+		: public std::unary_function<DirectX::XMFLOAT3, float>
+	{
+		float operator()(const DirectX::XMFLOAT3& lhs)
+	{
+		DirectX::XMVECTOR v = DirectX::XMLoadFloat3(&lhs);
+		v = DirectX::XMVector3Length(v);
+		return DirectX::XMVectorGetX(v);
+	}
+	};
+	template <>
+	struct conversion_to_scalar<DirectX::XMFLOAT3A, float>
+		: public std::unary_function<DirectX::XMFLOAT3A, float>
+	{
+		float operator()(const DirectX::XMFLOAT3A& lhs)
+	{
+		DirectX::XMVECTOR v = DirectX::XMLoadFloat3A(&lhs);
+		v = DirectX::XMVector3Length(v);
+		return DirectX::XMVectorGetX(v);
+	}
+	};
+	template <>
+	struct conversion_to_scalar<DirectX::XMFLOAT4, float>
+		: public std::unary_function<DirectX::XMFLOAT4, float>
+	{
+		float operator()(const DirectX::XMFLOAT4& lhs)
+	{
+		DirectX::XMVECTOR v = DirectX::XMLoadFloat4(&lhs);
+		v = DirectX::XMVector4Length(v);
+		return DirectX::XMVectorGetX(v);
+	}
+	};
+	template <>
+	struct conversion_to_scalar<DirectX::XMFLOAT4A, float>
+		: public std::unary_function<DirectX::XMFLOAT4A, float>
+	{
+		float operator()(const DirectX::XMFLOAT4A& lhs)
+	{
+		DirectX::XMVECTOR v = DirectX::XMLoadFloat4A(&lhs);
+		v = DirectX::XMVector4Length(v);
+		return DirectX::XMVectorGetX(v);
+	}
+	};
+#endif
+
+
 	//////////////////////////////////////////////////////////////////////
 	//
 	// Low Pass Filter 
@@ -113,84 +273,6 @@ namespace Causality
 
 	};
 
-	template <class _TVector, class _TScaler>
-	struct conversion_to_scalar
-		: public std::unary_function<_TVector, _TScaler>
-	{
-		_TScaler operator()(const _TVector& lhs)
-		{
-			return (_TScaler) lhs;
-		}
-	};
-
-#ifdef DIRECTX_MATH_VERSION
-	template <>
-	struct conversion_to_scalar<DirectX::XMFLOAT2, float>
-		: public std::unary_function<DirectX::XMFLOAT2, float>
-	{
-		float operator()(const DirectX::XMFLOAT2& lhs)
-		{
-			DirectX::XMVECTOR v = DirectX::XMLoadFloat2(&lhs);
-			v = DirectX::XMVector2Length(v);
-			return DirectX::XMVectorGetX(v);
-		}
-	};
-	template <>
-	struct conversion_to_scalar<DirectX::XMFLOAT2A, float>
-		: public std::unary_function<DirectX::XMFLOAT2A, float>
-	{
-		float operator()(const DirectX::XMFLOAT2A& lhs)
-		{
-			DirectX::XMVECTOR v = DirectX::XMLoadFloat2A(&lhs);
-			v = DirectX::XMVector2Length(v);
-			return DirectX::XMVectorGetX(v);
-		}
-	};
-	template <>
-	struct conversion_to_scalar<DirectX::XMFLOAT3,float>
-		: public std::unary_function<DirectX::XMFLOAT3, float>
-	{
-		float operator()(const DirectX::XMFLOAT3& lhs)
-		{
-			DirectX::XMVECTOR v = DirectX::XMLoadFloat3(&lhs);
-			v = DirectX::XMVector3Length(v);
-			return DirectX::XMVectorGetX(v);
-		}
-	};
-	template <>
-	struct conversion_to_scalar<DirectX::XMFLOAT3A, float>
-		: public std::unary_function<DirectX::XMFLOAT3A, float>
-	{
-		float operator()(const DirectX::XMFLOAT3A& lhs)
-		{
-			DirectX::XMVECTOR v = DirectX::XMLoadFloat3A(&lhs);
-			v = DirectX::XMVector3Length(v);
-			return DirectX::XMVectorGetX(v);
-		}
-	};
-	template <>
-	struct conversion_to_scalar<DirectX::XMFLOAT4, float>
-		: public std::unary_function<DirectX::XMFLOAT4, float>
-	{
-		float operator()(const DirectX::XMFLOAT4& lhs)
-		{
-			DirectX::XMVECTOR v = DirectX::XMLoadFloat4(&lhs);
-			v = DirectX::XMVector4Length(v);
-			return DirectX::XMVectorGetX(v);
-		}
-	};
-	template <>
-	struct conversion_to_scalar<DirectX::XMFLOAT4A, float>
-		: public std::unary_function<DirectX::XMFLOAT4A, float>
-	{
-		float operator()(const DirectX::XMFLOAT4A& lhs)
-		{
-			DirectX::XMVECTOR v = DirectX::XMLoadFloat4A(&lhs);
-			v = DirectX::XMVector4Length(v);
-			return DirectX::XMVectorGetX(v);
-		}
-	}; 
-#endif
 
 #ifdef DX_MATH_EXT_H
 	template <>
@@ -226,6 +308,16 @@ namespace Causality
 			return DirectX::XMVectorGetX(v);
 		}
 	};
+
+	template <>
+	struct conversion_to_scalar<QuaternionWrapper, float>
+		: public std::unary_function<QuaternionWrapper, float>
+	{
+		float operator()(const QuaternionWrapper& lhs)
+		{
+			return lhs.RotationAngle();
+		}
+	};
 #endif
 
 	//////////////////////////////////////////////////////////////////////
@@ -240,7 +332,7 @@ namespace Causality
 	//		mCutoffFrequencyHigh
 	//		mVelocityLow (mm/s) the speed at which mCutoffFrequencyLow is reached 
 	//		mVelocityHigh (mm/s) the speed at which mCutoffFrequencyHigh is reached
-	template <class TValue, class TScaler = double, class TNormalOperator = conversion_to_scalar<TValue, TScaler>>
+	template <class TValue, class TScaler = double, class TNormalOperator = conversion_to_scalar<TValue, TScaler>, class TLerpOperator = default_lerp<TValue,TScaler>>
 	class LowPassDynamicFilter : public LowPassFilter<TValue, TScaler>
 	{
 	protected:
@@ -248,12 +340,14 @@ namespace Causality
 		TValue					m_LastPositionForVelocity;
 		TScaler					m_CutoffFrequencyHigh, m_VelocityLow, m_VelocityHigh;
 		TNormalOperator			mf_GetNormal;
+		TLerpOperator			mf_Lerp;
 
 	public:
 		LowPassDynamicFilter(TScaler* updateFrequency) : LowPassFilter<TValue, TScaler>(updateFrequency), m_VelocityFilter(updateFrequency) {  };
 		LowPassDynamicFilter() = default;
 		virtual const TValue& Apply(const TValue &value)
 		{
+			using namespace std;
 
 			// special case if first time being used
 			if (m_FirstTime)
@@ -276,7 +370,6 @@ namespace Causality
 			// interpolate between frequencies depending on velocity
 
 			TScaler t = (mf_GetNormal(vel) - m_VelocityLow) / (m_VelocityHigh - m_VelocityLow);
-			using namespace std;
 			t = min(max(t, zero), one);
 			TScaler cutoff((m_CutoffFrequencyHigh * t) + (m_CutoffFrequency * (one - t)));
 			TScaler Te(one / updateFrequency);		// the sampling period (in seconds)
@@ -284,7 +377,10 @@ namespace Causality
 
 			t = one / (one + (Tau / Te));
 
-			m_Delta = t * (value - m_PrevValue);
+
+			m_Delta = mf_Lerp(m_PrevValue, value, t);
+
+			m_Delta -= m_PrevValue;
 
 			m_PrevValue += m_Delta;
 

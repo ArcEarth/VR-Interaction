@@ -1,6 +1,5 @@
 #pragma once
 #include "Common\Locatable.h"
-#include "Common\Model.h"
 #include <btBulletCollisionCommon.h>
 #include <btBulletDynamicsCommon.h>
 #include <BulletCollision\CollisionDispatch\btGhostObject.h>

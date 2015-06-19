@@ -72,6 +72,13 @@ namespace DirectX
 		struct Size
 		{
 			float Width, Height;
+			Size() : Width(0),Height(0) {}
+			Size(float width, float height) : Width(width), Height(height) {}
+			bool operator == (const Size & rhs) const
+			{
+				return Width == rhs.Width && Height == rhs.Height;
+			}
+			bool operator != (const Size& rhs) const { return !((*this) == rhs); }
 		};
 
 		struct Rect

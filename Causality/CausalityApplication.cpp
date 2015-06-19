@@ -1,7 +1,7 @@
-#include "pch.h"
+#include "pch_bcl.h"
 #include "CausalityApplication.h"
-#include "Content\CubeScene.h"
-#include "Content\SampleFpsTextRenderer.h"
+//#include "Content\CubeScene.h"
+//#include "Content\SampleFpsTextRenderer.h"
 #include <CommonStates.h>
 #include "Common\PrimitiveVisualizer.h"
 
@@ -9,7 +9,7 @@ using namespace Causality;
 using namespace std;
 using namespace DirectX;
 using namespace DirectX::Scene;
-using namespace Platform;
+//using namespace Platform;
 using namespace boost;
 //std::unique_ptr<Causality::DXAppMain> m_main;
 
@@ -55,23 +55,23 @@ void Application::Exit()
 	PostQuitMessage(0);
 }
 
-void Causality::App::OnStartup(Array<String^>^ args)
+void Causality::App::OnStartup(const std::vector<std::string>& args)
 {
 	ResourceDirectory = filesystem::current_path() / "Resources";
 	
 	// Initialize Windows
 	pConsole = make_shared<DebugConsole>();
-	pConsole->Initialize(ref new String(L"CausalityDebug"), 800, 600, false);
+	pConsole->Initialize(std::string("CausalityDebug"), 800, 600, false);
 
 	//pRift = Devices::OculusRift::GetForCurrentView();
 
 	pWindow = make_shared<NativeWindow>();
 	if (!pRift)
-		pWindow->Initialize(ref new String(L"Causality"), 1280, 720, false);
+		pWindow->Initialize(std::string("Causality"), 1280, 720, false);
 	else
 	{
 		auto res = pRift->Resoulution();
-		pWindow->Initialize(ref new String(L"Causality"),(unsigned) res.x, (unsigned) res.y, false);
+		pWindow->Initialize(std::string("Causality"),(unsigned) res.x, (unsigned) res.y, false);
 	}
 	//bool useOvr = Devices::OculusRift::Initialize();
 
@@ -95,7 +95,7 @@ void Causality::App::OnStartup(Array<String^>^ args)
 	//		pRift = nullptr;
 	//}
 	//pLeap = Devices::LeapMotion::GetForCurrentView();;
-	pKinect = Devices::Kinect::GetForCurrentView();
+	pKinect = Devices::KinectSensor::GetForCurrentView();
 	//auto loadingScene = new Scene;
 	//Scenes.emplace_back(loadingScene);
 	//loadingScene->SetRenderDeviceAndContext(pDevice, pContext);
@@ -107,8 +107,14 @@ void Causality::App::OnStartup(Array<String^>^ args)
 	selector->SetCanvas(pDeviceResources->GetBackBufferRenderTarget());
 	task<void> loadScene([&]() {
 		cout << "[Scene] Loading ...";
+		CoInitializeEx(NULL, COINIT::COINIT_APARTMENTTHREADED);
+		
 		selector->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
+
+		pKinect->SetDeviceCoordinate(selector->PrimaryCamera()->GetViewMatrix(0));
 		pKinect->Start();
+
+		CoUninitialize();
 		cout << "[Scene] Loading Finished!";
 	});
 }

@@ -103,12 +103,12 @@ namespace DirectX
 	{
 		if (FACILITY_WINDOWS == HRESULT_FACILITY(hr))
 			hr = HRESULT_CODE(hr);
-		TCHAR* szErrMsg;
-
+		static TCHAR szErrMsg[256];
+		static TCHAR dfErrMsg[] = L"Unrecongnized Error Code";
 		auto size = FormatMessage(
-			FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+			FORMAT_MESSAGE_FROM_SYSTEM,
 			NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-			(LPTSTR)&szErrMsg, 0, NULL);
+			szErrMsg, ARRAYSIZE(szErrMsg), NULL);
 
 		if (!size) {
 			//std::string msg(szErrMsg);
@@ -117,7 +117,7 @@ namespace DirectX
 		}
 		else
 		{
-			return "Undifined Error Code";
+			return dfErrMsg;
 		}
 	}
 	inline void ThrowIfFailed(HRESULT hr)
@@ -125,7 +125,9 @@ namespace DirectX
 		if (FAILED(hr))
 		{
 			auto ErrMsg = ErrorDescription(hr);
-			throw std::exception(ErrMsg);
+			std::wstring_convert<std::codecvt_utf8<TCHAR>, TCHAR> utfconvt;
+			auto str = utfconvt.to_bytes(ErrMsg);
+			throw std::exception(str.c_str());
 		}
 	}
 #endif

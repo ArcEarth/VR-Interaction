@@ -2,53 +2,6 @@
 #include <Eigen\Dense>
 
 namespace Eigen {
-	//template<typename _MatrixType> class CCA
-	//{
-	//public:
-
-	//	/** \brief Synonym for the template parameter \p _MatrixType. */
-	//	typedef _MatrixType MatrixType;
-
-	//	enum {
-	//		RowsAtCompileTime = MatrixType::RowsAtCompileTime,
-	//		ColsAtCompileTime = MatrixType::ColsAtCompileTime,
-	//		Options = MatrixType::Options,
-	//		MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
-	//		MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime
-	//	};
-
-	//	/** \brief Scalar type for matrices of type #MatrixType. */
-	//	typedef typename MatrixType::Scalar Scalar;
-	//	typedef typename NumTraits<Scalar>::Real RealScalar;
-	//	typedef typename MatrixType::Index Index;
-
-	//	/** \brief Complex scalar type for #MatrixType.
-	//	*
-	//	* This is \c std::complex<Scalar> if #Scalar is real (e.g.,
-	//	* \c float or \c double) and just \c Scalar if #Scalar is
-	//	* complex.
-	//	*/
-	//	typedef std::complex<RealScalar> ComplexScalar;
-
-	//	/** \brief Type for vector of eigenvalues as returned by eigenvalues().
-	//	*
-	//	* This is a column vector with entries of type #ComplexScalar.
-	//	* The length of the vector is the size of #MatrixType.
-	//	*/
-	//	typedef Matrix<ComplexScalar, ColsAtCompileTime, 1, Options & ~RowMajor, MaxColsAtCompileTime, 1> EigenvalueType;
-
-	//	/** \brief Type for matrix of eigenvectors as returned by eigenvectors().
-	//	*
-	//	* This is a square matrix with entries of type #ComplexScalar.
-	//	* The size is the same as the size of #MatrixType.
-	//	*/
-	//	typedef Matrix<ComplexScalar, RowsAtCompileTime, ColsAtCompileTime, Options, MaxRowsAtCompileTime, MaxColsAtCompileTime> EigenvectorsType;
-
-	//	CCA()
-	//	{
-
-	//	}
-	//};
 
 	// zero mean and Decompose X, thus (X + repmat(uX,n,1)) * E = [Q 0] * [R ; 0]
 	template< class _MatrixType>
@@ -87,6 +40,7 @@ namespace Eigen {
 		inline const PermutationType& colsPermutation() const { return m_E; }
 
 		MeanThinQr()
+			: m_rank(0)
 		{
 		}
 
@@ -97,6 +51,12 @@ namespace Eigen {
 
 		void compute(const MatrixType& X, bool zeroMean = true)
 		{
+			if (X.size() == 0)
+			{
+				m_rank = 0;
+				return;
+			}
+
 			m_cols = X.cols();
 			m_rows = X.rows();
 
@@ -125,6 +85,86 @@ namespace Eigen {
 
 	};
 
+	template<class _MatrixType>
+	struct Pca
+	{
+	public:
+		typedef _MatrixType MatrixType;
+		enum {
+			RowsAtCompileTime = MatrixType::RowsAtCompileTime,
+			ColsAtCompileTime = MatrixType::ColsAtCompileTime,
+			Options = MatrixType::Options,
+			MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
+			MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime
+		};
+
+		typedef typename MatrixType::Scalar Scalar;
+		typedef typename MatrixType::RealScalar RealScalar;
+		typedef typename MatrixType::Index Index;
+
+		typedef Matrix<Scalar, _MatrixType::ColsAtCompileTime, _MatrixType::ColsAtCompileTime> PrincipleComponentsType;
+		typedef Matrix<Scalar, 1, _MatrixType::ColsAtCompileTime> RowVectorType;
+	private:
+		PrincipleComponentsType m_Comps;
+		RowVectorType			m_Variences;
+		RowVectorType			m_Mean;
+		MatrixXf				m_Coords;
+	public:
+		Pca()
+		{
+		}
+
+		Pca(const MatrixType& X)
+		{
+			compute(X);
+		}
+
+		void compute(const MatrixType& X, bool computeCoords = true)
+		{
+			m_Mean = X.colwise().mean();
+			auto Xz = (X.rowwise() - m_Mean).eval();
+
+			auto svd = Xz.jacobiSvd(ComputeThinV);
+			m_Comps = svd.matrixV();
+			m_Variences = svd.singularValues();
+			m_Variences = m_Variences.cwiseAbs2();
+
+			if (computeCoords)
+				m_Coords = Xz * m_Comps;
+		}
+
+		// the demension after projection
+		DenseIndex reducedRank(float cut_threshold_percentage) const 
+		{ 
+			int rank;
+			float cut_threshold = m_Variences[0] * cut_threshold_percentage;
+			auto cols = m_Variences.size();
+			for (rank = 0; rank < cols && m_Variences[rank] > cut_threshold; rank++);
+			return rank;
+		}
+		// column-wise principle components matrix
+		auto components(DenseIndex nCols = -1) const {
+			if (nCols < 0)
+				nCols = m_Coords.cols();
+			return m_Comps.leftCols(nCols);
+		}
+		// projected coordinates
+		auto coordinates(DenseIndex nCols = -1) const
+		{
+			// you must spificy computeCoords = true in construction
+			assert(m_Coords.size() > 0);
+
+			if (nCols < 0)
+				nCols = m_Coords.cols();
+			return m_Coords.leftCols(nCols);
+		}
+		const auto& variences() const
+		{
+			return m_Variences;
+		}
+		const auto& mean() const { return m_Mean; }
+
+	};
 	// Canonical correlation analysis
 	// X : n x dX input vectors
 	// Y : n x dY input vectors
@@ -279,11 +319,13 @@ namespace Eigen {
 		uY = qrY.mean();
 
 		d = min(rankX, rankY);
+		if (d == 0)
+			return *this;
 
 		// Get matrix Q,R and covQXY
 		auto covQXY = (qrX.matrixQ().transpose() * qrY.matrixQ()).eval();
 
-		//cout << DebugLog(covQXY);
+		//std::cout << DebugLog(covQXY);
 
 		// SVD
 		unsigned int option = computeAB ? ComputeThinU | ComputeThinV : 0;
@@ -305,9 +347,15 @@ namespace Eigen {
 			// B = rY \ V * sqrt(n-1)
 			A.topRows(rankX).noalias() = rX.solve(svd.matrixU().leftCols(d)) * sqrtf(n - 1.0f); // A : rankX x d
 			B.topRows(rankY).noalias() = rY.solve(svd.matrixV().leftCols(d)) * sqrtf(n - 1.0f); // B : rankY x d
-																								// Put coefficients back to their full size and their correct order
-			A = qrX.colsPermutation().inverse() * A; // A : dX x d
-			B = qrY.colsPermutation().inverse() * B; // B : dY x d
+			//std::cout << DebugLog(svd.matrixU());
+			//std::cout << DebugLog(svd.matrixV());
+
+			//std::cout << DebugLog(A);
+			//std::cout << DebugLog(B);
+
+			// Put coefficients back to their full size and their correct order
+			A = qrX.colsPermutation() * A; // A : dX x d
+			B = qrY.colsPermutation() * B; // B : dY x d
 
 			//cout << DebugLog(A);
 			//cout << DebugLog(B);

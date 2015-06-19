@@ -41,22 +41,6 @@
 #include <SimpleMath.h>
 #include "Common\DirectXMathExtend.h"
 
-//DirectX Toolkit
-#include <Effects.h>
-#include <CommonStates.h>
-#include <VertexTypes.h>
-#include <PrimitiveBatch.h>
-#include <GeometricPrimitive.h>
-
-// XML Parsing
-#include <tinyxml2.h>
-
-// Boost
-#include <boost\filesystem.hpp>
-
-// Leap motion
-#include <Leap.h>
-
 // Bullet physics
 #ifndef BT_NO_SIMD_OPERATOR_OVERLOADS
 #define BT_NO_SIMD_OPERATOR_OVERLOADS

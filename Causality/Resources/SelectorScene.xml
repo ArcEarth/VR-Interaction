@@ -1,36 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene gravity="0,-0.1,0">
-	<scene.assets>
-		<mesh name="cube_mesh" src="cube.obj"></mesh>
-	    <mesh name="baseball_bat_mesh" src="baseball_bat.obj"></mesh>
-	    <mesh name="bunny_mesh" src="cube.obj"></mesh>
-	    <armature name="bunny_armature" src="bunny.skl"></armature>
-	    <!--<behavier name="bunny_behavier" armature="{bunny_armature}" >
+  <scene.assets>
+    <!--<mesh name="cube_mesh" src="cube.obj"></mesh>
+    <mesh name="baseball_bat_mesh" src="baseball_bat.obj"></mesh>
+    <mesh name="bunny_mesh" src="cube.obj"></mesh>-->
+    <!--<armature name="bunny_armature" src="bunny.skl"></armature>-->
+    <!--<behavier name="bunny_behavier" armature="{bunny_armature}" >
 		    <animation_clip name="move" src="bunny.move.kfa"></animation_clip>
 		    <animation_clip name="ear_bunce" src="bunny.ear_bunce.kfa"></animation_clip>
 	    </behavier>-->
-      <behavier name="spider_behavier" src="spider.fbx">
-      </behavier>
-	</scene.assets>
-	<scene.content>
-	  	<grid name="root">
-	  		<coordinate_axis/>
-			<camera name="primary_camera" background="#FFFFFFFF" position="0,0.5,2.5" focus="0,0,0" up="0,1,0">
-				<first_person_keyboard_mouse_control />
-			</camera>
+    <mesh name="spider_mesh" src="spider.fbx"></mesh>
+    <mesh name="horse_mesh" src="Horse.FBX"></mesh>
+    <behavier name="spider_behavier" src="spider.fbx"></behavier>
+    <behavier name="horse_behavier" src="Horse.FBX">
+      <behavier.actions>
+        <action name="run" src="Horse_Run.fbx"/>
+        <action name="walk" src="Horse_Walk.fbx"/>
+        <action name="idel" src="Horse_Idle.fbx"/>
+      </behavier.actions>
+    </behavier>
+  </scene.assets>
+  <scene.content>
+    <grid name="root">
+      <coordinate_axis/>
+      <camera name="primary_camera" background="#FFFFFFFF" position="0,0.5,2.5" focus="0,0,0" up="0,1,0">
+        <first_person_keyboard_mouse_control />
+      </camera>
 
-	<!-- 		<object name="ground" position="-2.0,-0.02,-2.0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>
+      <!-- 		<object name="ground" position="-2.0,-0.02,-2.0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>
  -->
-			<skydome name="sky" background="SkyBox\GrimmNight"/>
-			<player_controller name="player" position="0,1.0,0">
-<!-- 				<creature name="bunny" position="-1.0,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
+      <skydome name="sky" background="SkyBox\GrimmNight"/>
+      <player_controller name="player" position="0,1.0,0">
+        <!-- 				<creature name="bunny" position="-1.0,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
 				<creature name="bunny2" position="-0.5,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
  -->
-        <creature name="spider" position="0,0,0" scale="0.0025" behavier="{spider_behavier}"></creature>
- 				<!--<kinect_visualizer/>-->
-			</player_controller>
-		</grid>
-	</scene.content>
+        <!--<creature name="horse" positon="-2.0,0,0" scale ="0.01" behavier="{horse_behavier}" action="walk"></creature>-->
+        <creature name="spider" position="1,0,0" scale="0.0025" behavier="{spider_behavier}" action="walk" mesh="{spider_mesh}"></creature>
+        <!--<kinect_visualizer/>-->
+      </player_controller>
+    </grid>
+  </scene.content>
 
   <!--<skin_model src="Bird.obj">
     <skin_model.armature>

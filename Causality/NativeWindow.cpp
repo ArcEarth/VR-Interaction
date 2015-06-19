@@ -1,3 +1,4 @@
+#include "pch_bcl.h"
 #include "NativeWindow.h"
 
 namespace Causality
@@ -103,7 +104,7 @@ namespace Causality
 		Close();
 	}
 
-	void NativeWindow::Initialize(Platform::String^ title, unsigned int screenWidth, unsigned int screenHeight, bool fullScreen)
+	void NativeWindow::Initialize(const std::string& title, unsigned int screenWidth, unsigned int screenHeight, bool fullScreen)
 	{
 		WNDCLASSEX wc;
 		DEVMODE dmScreenSettings;
@@ -113,7 +114,7 @@ namespace Causality
 		m_hInstance = GetModuleHandle(NULL);
 
 		// Give the application a name.
-		m_Title = title;
+		m_Title.assign(title.begin(),title.end());
 
 		// Setup the windows class with default settings.
 		wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
@@ -126,7 +127,7 @@ namespace Causality
 		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 		wc.hbrBackground = (HBRUSH) GetStockObject(WHITE_BRUSH);
 		wc.lpszMenuName = NULL;
-		wc.lpszClassName = m_Title->Data();
+		wc.lpszClassName = m_Title.c_str();
 		wc.cbSize = sizeof(WNDCLASSEX);
 
 		// Register the window class.
@@ -209,7 +210,7 @@ namespace Causality
 		m_hWnd = NULL;
 
 		// Remove the application instance.
-		UnregisterClass(m_Title->Data(), m_hInstance);
+		UnregisterClass(m_Title.c_str(), m_hInstance);
 		m_hInstance = NULL;
 
 		return;
@@ -322,7 +323,7 @@ void CursorHandler::SetCursorPosition(const DirectX::Vector2 & pos)
 {
 }
 
-void DebugConsole::Initialize(Platform::String ^ title, unsigned int width, unsigned int height, bool fullScreen)
+void DebugConsole::Initialize(const std::string& title, unsigned int width, unsigned int height, bool fullScreen)
 {
 	if (!AllocConsole())
 		return;

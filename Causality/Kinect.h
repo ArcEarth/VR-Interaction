@@ -10,7 +10,9 @@
 #include <mutex>
 #include "Common\DirectXMathExtend.h"
 #include "Armature.h"
+#include "Animations.h"
 #include "Common\Filter.h"
+#include "BoneFeatures.h"
 
 #define BOOST_CB_DISABLE_DEBUG
 #include <boost\circular_buffer.hpp>
@@ -18,6 +20,11 @@
 
 namespace Causality
 {
+	namespace Devices
+	{
+		class KinectSensor;
+	}
+
 #ifndef _HandType_
 #define _HandType_
 	typedef enum _HandType HandType;
@@ -97,8 +104,8 @@ namespace Causality
 		//	SequenceCaching = 1,
 		//}
 
-		BufferedStreamViewer(size_t BufferSize = 65536U)
-			: m_paused(false) , m_Capicity(BufferSize)
+		BufferedStreamViewer(size_t BackBufferSize = 30U)
+			: m_paused(false) , m_Capicity(BackBufferSize)
 		{
 		}
 
@@ -136,7 +143,7 @@ namespace Causality
 			m_StreamingBuffer.emplace_back(std::move(frame));
 		}
 
-		pointer GetNext() const
+		pointer MoveNext() const
 		{
 			if (m_StreamingBuffer.empty()) return nullptr;
 
@@ -153,7 +160,7 @@ namespace Causality
 			return &m_ReadingBuffer;
 		}
 
-		pointer GetLatest() const 
+		pointer MoveToLatest() const 
 		{
 			if (m_StreamingBuffer.empty()) return &m_ReadingBuffer;
 
@@ -163,6 +170,11 @@ namespace Causality
 			m_StreamingBuffer.clear();
 
 			return &m_ReadingBuffer;
+		}
+
+		pointer PeekLatest() const
+		{
+			return &m_StreamingBuffer.back();
 		}
 
 		std::deque<_Ty>& LockBuffer()
@@ -176,7 +188,7 @@ namespace Causality
 			m_BufferMutex.unlock();
 		}
 
-		bool empty() const
+		bool Empty() const
 		{
 			return m_StreamingBuffer.empty();
 		}
@@ -190,98 +202,179 @@ namespace Causality
 		bool						m_paused;
 		size_t						m_Capicity;
 		mutable _Ty					m_ReadingBuffer;
-		mutable std::deque<_Ty, _Alloc >	m_StreamingBuffer;
+		mutable std::deque<_Ty, _Alloc > m_StreamingBuffer;
 		mutable std::mutex			m_BufferMutex;
 	};
 
+	typedef Causality::AffineFrame BodyFrame;
 
-	struct TrackedBody
+	// TrackedBody will host frames streaming from the Sensor
+	// You can select to process all frams incoming or the lastest one only
+	class TrackedBody
 	{
 	public:
-		TrackedBody();
-		TrackedBody(const TrackedBody &) = default;
-		TrackedBody(TrackedBody &&) = default;
+		typedef Causality::AffineFrame		FrameType;
 
-		typedef Causality::AffineFrame FrameType;
+		typedef LowPassDynamicFilter<Vector3, float>			Vector3DynamicFilter;
+		typedef LowPassDynamicFilter<QuaternionWrapper, float>  QuaternionDynamicFilter;
+
+		// Allows KinectSensor to modify
+	private:
+		friend Devices::KinectSensor;
+
+		int						RefCount;
+		uint64_t				Id;
+		bool					m_IsTracked;
+		time_t					m_LastTrackedTime;
+		int						m_LostFrameCount;
+		float					m_Distance;
+		Devices::KinectSensor	*m_pKinectSensor;
+
+		// Current pose data
+		BufferedStreamViewer<FrameType>		m_FrameBuffer;
+
+		// Hand States
+		std::array<HandState, 2>			m_HandStates;
 
 		void PushFrame(FrameType && frame);
 
-		Causality::AffineFrame& GetPoseFrame() const
-		{
-			return *PoseBuffer.GetLatest();
-		}
+	public:
+		TrackedBody(size_t bufferSize = 30U);
+		TrackedBody(const TrackedBody &) = default;
+		TrackedBody(TrackedBody &&) = default;
 
+		bool operator==(const TrackedBody& rhs) const { return Id == rhs.Id; }
+		bool operator!=(const TrackedBody& rhs) const { return !(Id == rhs.Id); }
 
+		// Frame management
+		Causality::AffineFrame& PullLatestFrame() const;
+		Causality::AffineFrame& PullNextFrame() const;
+
+		Causality::AffineFrame& CurrentFrame() const;
+
+		// Accessers
+		Devices::KinectSensor& GetSensor() const { return *m_pKinectSensor; }
+		time_t	  GetLastTrackedTime() const { return m_LastTrackedTime; }
+		uint64_t  GetTrackId() const { return Id; }
+		HandState GetHandState(HandType hand) const { return m_HandStates[hand]; }
+		bool	  IsTracked() const { return m_IsTracked; }
+		float	  DistanceToSensor() const;
+
+		// Events
+		Event<const TrackedBody&, const FrameType&>	OnFrameArrived;
 	public:
 		// Skeleton Structure and basic body parameter
 		// Shared through all players since they have same structure
 		static std::unique_ptr<StaticArmature> BodyArmature;
 
-		void AddRef() {
-			++RefCount;
-		}
-
-		void Release() {
-			--RefCount;
-		}
-
-		// Default pose data, should we use this ?
-		// Causality::AffineFrame RestFrame;
-
-		// Current pose data
-		typedef Causality::AffineFrame FrameType;
-		BufferedStreamViewer<FrameType>	 PoseBuffer;
-
-		static const size_t SampleRate = ANIM_STANDARD::SAMPLE_RATE; // Hz
-
-		static const size_t FeatureDimension = FeatureType::Dimension;
-		typedef Eigen::Matrix<float, -1, FeatureDimension*JointType_Count,Eigen::RowMajor> FeatureMatrixType;
-		Eigen::Map<FeatureMatrixType> GetFeatureMatrix(time_seconds duration = time_seconds(10));
-
-		static const size_t RecordFeatures = SampleRate * 10U;
-		static const size_t FeatureBufferCaptcity = RecordFeatures * 3;
-		// This buffer stores the time-re-sampled frame data as feature matrix
-		// This buffer is allocated as 30x30 frames size
-		// thus , it would be linearized every 30 seconds
-
-		std::mutex BufferMutex;
-		boost::circular_buffer<std::array<float, FeatureDimension*JointType_Count>> FeatureBuffer;
-
-		//Causality::AffineFrame PoseFrame;
-
-		// Hand States
-		std::array<HandState,2>	HandStates;
-
-		int			RefCount;
-
-		uint64_t	Id;
-		bool		IsCurrentTracked;
-
-		time_t		LastTrackedTime;
-		int			LostFrameCount;
-
-		typedef LowPassDynamicFilter<Vector3, float> Vector3DynamicFilter;
-
-		//std::array<Vector3DynamicFilter, JointType_Count> JointFilters;
-
-		Event<const TrackedBody&, HandType, HandState>	OnHandStateChanged;
-		Event<const TrackedBody&>						OnPoseChanged;
+		void AddRef();
+		void Release();
 	};
 
+	class ITrackedBodySelector abstract
+	{
+	public:
+		virtual TrackedBody* ReselectBody() = 0;
+	};
+
+	/// <summary>
+	/// Helper class for Selecting sensor tracked bodies.
+	/// Specify the behavier by seting the Selection Mode.
+	/// Act as a Smart pointer to the actual body.
+	/// Provide callback for notifying selected body changed and recieved a frame.
+	/// </summary>
+	class TrackedBodySelector
+	{
+	public:
+		enum SelectionMode
+		{
+			None = 0,
+			Sticky = 1,
+			Closest = 2,
+			ClosestStickly = 3,
+			PreferLeft = 4,
+			PreferRight = 8,
+		};
+	private:
+		typedef std::function<void(const TrackedBody&, const TrackedBody::FrameType&)> FrameEventFunctionType;
+		typedef std::function<void(TrackedBody*, TrackedBody*)> PlayerEventFunctionType;
+		FrameEventFunctionType	fpFrameArrived;
+		PlayerEventFunctionType	fpTrackedBodyChanged;
+
+		TrackedBody*						pCurrent;
+		shared_ptr<Devices::KinectSensor>	pKinect;
+
+		SelectionMode			mode;
+		EventConnection			con_tracked;
+		EventConnection			con_lost;
+		EventConnection			con_frame;
+
+	public:
+		explicit TrackedBodySelector(Devices::KinectSensor* pKinect, SelectionMode mode = Sticky);
+		~TrackedBodySelector();
+		void Reset();
+		void Initialize(Devices::KinectSensor* pKinect, SelectionMode mode = Sticky);
+		void ChangePlayer(TrackedBody* pNewPlayer);
+
+		void SetFrameCallback(const FrameEventFunctionType& callback);
+		void SetPlayerChangeCallback(const PlayerEventFunctionType& callback);
+
+		void OnPlayerTracked(TrackedBody& body);
+		void OnPlayerLost(TrackedBody& body);
+		void ReSelectFromAllTrackedBodies();
+
+		operator bool() const { return pCurrent != nullptr; }
+		bool operator == (nullptr_t) const { return pCurrent == nullptr; }
+		bool operator != (nullptr_t) const { return pCurrent != nullptr; }
+
+		TrackedBody* operator->()
+		{
+			return pCurrent;
+		}
+
+		const TrackedBody* operator->() const
+		{
+			return pCurrent;
+		}
+
+		TrackedBody& operator*()
+		{
+			return *pCurrent;
+		}
+
+		const TrackedBody& operator*() const 
+		{
+			return *pCurrent;
+		}
+
+		const TrackedBody* Get() const { return pCurrent; }
+		TrackedBody* Get() { return pCurrent; }
+
+		void ChangeSelectionMode(SelectionMode mdoe);
+
+		SelectionMode CurrentSelectionMode() const
+		{
+			return mode;
+		}
+
+	};
 
 	namespace Devices
 	{
-
 		// An aggregate of Kinect Resources
-		class Kinect
+		class KinectSensor : public std::enable_shared_from_this<KinectSensor>
 		{
 		public:
-			static std::weak_ptr<Kinect> wpCurrentDevice;
-			static std::shared_ptr<Kinect> GetForCurrentView();
+			typedef std::weak_ptr<KinectSensor>		Weakptr;
+			typedef std::shared_ptr<KinectSensor>	Refptr;
+
+			static Weakptr	wpCurrentDevice;
+			static Refptr	GetForCurrentView();
 
 			const StaticArmature& Armature() const { return *TrackedBody::BodyArmature; }
+			Refptr GetRef() { return shared_from_this(); }
 
-			~Kinect();
+			~KinectSensor();
 
 			bool IsConnected() const;
 
@@ -306,13 +399,15 @@ namespace Causality
 			bool Resume();
 
 			// Return the list of CURRENT Tracked bodies
-			const std::list<TrackedBody> &GetTrackedBodies();
+			const std::list<TrackedBody> &GetTrackedBodies() const;
+			std::list<TrackedBody> &GetTrackedBodies();
 
 			// Static Constructors!!!
-			static std::shared_ptr<Kinect> CreateDefault();
-		protected:
+			static Refptr CreateDefault();
 
-			Kinect();
+		public:
+			// You should not use this
+			KinectSensor();
 
 		public:
 			static JointType JointsParent[JointType_Count];

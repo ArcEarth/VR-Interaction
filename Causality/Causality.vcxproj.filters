@@ -36,15 +36,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Common\DeviceResources.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="pch.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Content\SampleFpsTextRenderer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -54,65 +45,62 @@
     <ClCompile Include="OculusRift.cpp">
       <Filter>Platform\Platform.Devices</Filter>
     </ClCompile>
-    <ClCompile Include="Content\CubeScene.cpp">
+    <ClCompile Include="LeapMotion.cpp">
+      <Filter>Platform\Platform.Devices</Filter>
+    </ClCompile>
+    <ClCompile Include="Kinect.cpp">
+      <Filter>Platform\Platform.Devices</Filter>
+    </ClCompile>
+    <ClCompile Include="AssetDictionary.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CausalityApplication.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="LeapMotion.cpp">
-      <Filter>Platform\Platform.Devices</Filter>
-    </ClCompile>
-    <ClCompile Include="BulletPhysics.cpp">
+    <ClCompile Include="FbxParser.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="pch_bullet.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Kinect.cpp">
-      <Filter>Platform\Platform.Devices</Filter>
     </ClCompile>
     <ClCompile Include="pch_bcl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Armature.cpp">
-      <Filter>Causality</Filter>
-    </ClCompile>
-    <ClCompile Include="AssetDictionary.cpp">
-      <Filter>Causality</Filter>
+    <ClCompile Include="PlayerProxy.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PrimaryCamera.cpp">
-      <Filter>Causality</Filter>
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Scene.cpp">
-      <Filter>Causality</Filter>
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Armature.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SceneObject.cpp">
-      <Filter>Causality</Filter>
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SceneParser.cpp">
-      <Filter>Causality</Filter>
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SelectorScene.cpp">
-      <Filter>Causality</Filter>
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PlayerProxy.cpp">
-      <Filter>Causality</Filter>
+    <ClCompile Include="ArmatureBlock.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FbxParser.cpp">
-      <Filter>Causality</Filter>
+    <ClCompile Include="Animations.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CharacterBehavier.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AnimationAnalyzer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SkinningModel.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="pch.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Content\SampleFpsTextRenderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\CompositeFlag.h">
-      <Filter>Platform\Platform.Fundation</Filter>
-    </ClInclude>
     <ClInclude Include="NativeWindow.h">
       <Filter>Platform</Filter>
     </ClInclude>
@@ -121,9 +109,6 @@
     </ClInclude>
     <ClInclude Include="Content\OculusDisortionRenderer.h">
       <Filter>Platform\Platform.Devices</Filter>
-    </ClInclude>
-    <ClInclude Include="Content\CubeScene.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Interactive.h">
       <Filter>Header Files</Filter>
@@ -139,9 +124,6 @@
     </ClInclude>
     <ClInclude Include="LeapMotion.h">
       <Filter>Platform\Platform.Devices</Filter>
-    </ClInclude>
-    <ClInclude Include="pch_bullet.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PrimaryCamera.h">
       <Filter>Header Files</Filter>
@@ -185,9 +167,6 @@
     <ClInclude Include="pch_bcl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="BulletPhysics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="BasicShapeModel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -207,6 +186,27 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FbxParser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ArmatureBlock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Animations.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CharacterBehavier.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BoneFeatures.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\CompositeFlag.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimationAnalyzer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SkinningModel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

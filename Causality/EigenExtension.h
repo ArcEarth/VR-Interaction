@@ -1,7 +1,9 @@
 #pragma once
 #include <Eigen\Dense>
 #include <Eigen\fft>
+#include <Eigen\Sparse>
 #include <algorithm>
+#include "Common\BezierClip.h"
 
 #include <cstdlib>
 #include <cstdint>
@@ -9,32 +11,205 @@
 
 namespace Eigen {
 
+	enum SplineBoundryType
+	{
+		OpenLoop = 0,
+		CloseLoop = 1, // Cyclic boundry
+	};
+
+	namespace Internal
+	{
+		constexpr DenseIndex prow(DenseIndex j)
+		{
+			return (j > 1) ? (2 * j + 1) : (j == 0 ? 0 : 3);
+		}
+	}
+
+	// Apply Laplacian smooth in Row-wise sense (Each row is treated as a data point)
+	template <class InputDerived>
+	inline void laplacian_smooth(DenseBase<InputDerived> &X, unsigned IterationTimes = 2)
+	{
+		auto N = X.rows();
+		using traits = internal::traits<InputDerived>;
+		using Scalar = typename traits::Scalar;
+		typedef Array<Scalar, traits::RowsAtCompileTime, traits::ColsAtCompileTime> MatrixType;
+		typedef Map<MatrixType, 0, Stride<Dynamic, Dynamic>> MapType;
+		MatrixType Cache (X.rows(),X.cols());
+
+		MapType MapX(&X(0,0), X.rows(), X.cols(), Stride<Dynamic, Dynamic>(X.outerStride(), X.innerStride()));
+		MapType MapCache(Cache.data(), Cache.rows(), Cache.cols(), Stride<Dynamic, Dynamic>(Cache.outerStride(), Cache.innerStride()));
+		MapType BUFF[2] = {MapX,MapCache};
+
+		unsigned int src = 0, dst = 1;
+		for (unsigned int k = 0; k < IterationTimes; k++)
+		{
+			BUFF[dst].row(0) = BUFF[src].row(0);
+			BUFF[dst].row(N - 1) = BUFF[src].row(N - 1);
+
+			BUFF[dst].middleRows(1, N - 2) = 0.5f * (BUFF[src].topRows(N-2) + BUFF[src].bottomRows(N-2));
+			dst = !dst;
+			src = !src;
+		}
+
+		if (dst == 0)
+		{
+			X = Cache;
+		}
+	}
+
+	// Cyclic boundary condition
+	// Cublic-Bezier interpolation
+	// Uniform sample assumption
 	template <class InputDerived> inline 
 	Matrix< typename internal::traits<InputDerived>::Scalar,
 			Dynamic,
 			internal::traits<InputDerived>::ColsAtCompileTime>
-	resample(const MatrixBase<InputDerived> &X, DenseIndex p, DenseIndex q)
+	cublic_bezier_resample(const DenseBase<InputDerived> &X, DenseIndex nr, SplineBoundryType boundryType = OpenLoop)
 	{
+		using xtype = DenseBase<InputDerived>;
 		using traits = internal::traits<InputDerived>;
 		typedef typename traits::Scalar Scalar;
 		using namespace std;
+		typedef Stride<traits::OuterStrideAtCompileTime, traits::InnerStrideAtCompileTime == Dynamic? Dynamic : traits::InnerStrideAtCompileTime * 2> StrideType;
+		typedef Matrix<Scalar, Dynamic , traits::ColsAtCompileTime> StrideMatrixType;
+		typedef Matrix<Scalar, 1, traits::ColsAtCompileTime> VectorType;
+		typedef Matrix< typename internal::traits<InputDerived>::Scalar, Dynamic, traits::ColsAtCompileTime> ResampledMatrixType;
+		typedef Geometrics::Bezier::BezierClipping<Matrix<Scalar, 1, traits::ColsAtCompileTime>, 3U> BezeirType;
 
-		assert(!X.IsRowMajor);
-		auto n = X.rows();
-		auto m = n * q / p;
-		auto c = max(m, n);
-		
-		Matrix<std::complex<Scalar>, Dynamic, 1> Xf(c);
-		Matrix< traits::Scalar, Dynamic, traits::ColsAtCompileTime> Xr(m, X.cols());
-		//Xr.resize(m, X.cols());
-		Xf.setZero();
-
-		FFT<Scalar> fft;
-		for (size_t i = 0; i < X.cols(); i++)
+		auto N = X.rows();
+		auto K = X.cols();
+		StrideMatrixType T(N, K); // Scaled Tagents
+		T.topRows(N - 1) = X.middleRows(1, N - 1);
+		if (boundryType == OpenLoop)
 		{
-			fft.fwd(Xf.data(), X.col(i).data(),n);
-			fft.inv(Xr.col(i).data(), Xf.data(),m);
+			T.row(0) -= X.row(0);
+			T.row(N - 1) = X.row(N - 1);
 		}
+		else
+		{
+			T.row(0) -= X.row(N-1);
+			T.row(N - 1) = X.row(0);
+		}
+		T.bottomRows(N - 1) -= X.middleRows(0, N - 1);
+		if (boundryType == OpenLoop)
+		{
+			T.middleRows(1, N - 2) /= 6.0f;
+			T.row(0) /= 3.0f;
+			T.row(N - 1) /= 3.0f;
+		}
+		else
+		{
+			T /= 6.0f;
+		}
+
+		//cout << "T = \n" << T << endl;
+
+
+
+		float ti;
+		int Segs = N;
+		if (boundryType == OpenLoop)
+			ti = (float)(N - 1) / (float)(nr-1);
+		else
+			ti = (float)(N) / (float)(nr);
+
+		ResampledMatrixType Xr(nr, K);
+		BezeirType bezier;
+		for (int i = 0, j = -1; i < nr; i++)
+		{
+			float r = fmodf(i * ti, 1.0f);
+			auto k = (int)floorf(i * ti);
+
+			if (k > j)
+			{
+				bezier[0] = X.row(k);
+				bezier[3] = X.row((k + 1) % N);
+				bezier[1] = bezier[0] + T.row(k);
+				bezier[2] = bezier[3] - T.row((k + 1) % N);
+				j = k;
+			}
+			Xr.row(i) = bezier(r);
+		}
+
+		return Xr;
+
+
+		//assert(!xtype::IsRowMajor);
+		//assert(X.rows() >= 4 && X.rows() % 2 == 0);
+		//if (X.rows() % 2 != 0)
+		//{
+		//	// Do something!!!
+		//}
+
+		//auto N = X.rows() / 2;
+		//auto K = X.cols();
+
+		//if (N == 2)
+		//{ 
+		//}
+
+		//// Open-2xN path
+		//Map<const StrideMatrixType, 0, StrideType> P(&X(3,0), N - 1, K, StrideType(X.outerStride(), X.innerStride() * 2));
+
+		//// R has actually N-1 rows
+		//Map<const StrideMatrixType, 0, StrideType> R(&X(4,0), N - 2, K, StrideType(X.outerStride(), X.innerStride() * 2));
+
+		////cout << "P = \n" << P << endl;
+		////cout << "R = \n" << R << endl;
+
+		//StrideMatrixType T(N, K);
+
+		//VectorType K0 = 27 * X.row(1) - 20 * X.row(0) - 7 * X.row(3);
+		//VectorType K1 = 27 * X.row(2) - 20 * X.row(3) - 7 * X.row(0);
+
+		//T.row(0) = K0 / 9.0f - K1 / 18.0f;
+		//T.row(1) = K0 / 18.0f - K1 / 9.0f;
+
+		//for (size_t i = 2; i < N; i++)
+		//{
+		//	T.row(i) = T.row(i - 1) - (4.0f / 3.0f) * (2 * R.row(i - 2) - P.row(i - 2) - P.row(i - 1));
+		//}
+		//
+		////cout << "T = \n" << T << endl;
+
+		//typedef Geometrics::Bezier::BezierClipping<Matrix<Scalar, 1, traits::ColsAtCompileTime>, 3U> BezeirType;
+		//BezeirType bezier;
+
+		//ResampledMatrixType Xr(nr,K);
+
+		//float ti = (float)(N-0.5f) / (float)(nr - 1);
+
+		//bezier[0] = X.row(0);
+		//bezier[3] = X.row(3);
+		//bezier[1] = bezier[0] + T.row(0);
+		//bezier[2] = bezier[3] - T.row(1);
+
+		//float r = 0;
+		//for (int i = 0, j = 0; i < nr - 1; i++)
+		//{
+		//	if (i * ti >= 1.5f)
+		//	{
+		//		r = fmodf(i * ti - 1.5f, 1.0f);
+		//		auto k = (int)floorf(i * ti - 0.5f);
+
+		//		if (k > j)
+		//		{
+		//			bezier[0] = P.row(k - 1);
+		//			bezier[3] = P.row(k);
+		//			bezier[1] = bezier[0] + T.row(k);
+		//			bezier[2] = bezier[3] - T.row(k + 1);
+		//			j = k;
+		//		}
+		//		Xr.row(i) = bezier(r);
+		//	}
+		//	else
+		//	{
+		//		r = (i * ti) / 1.5f;
+		//		Xr.row(i) = bezier(r);
+		//	}
+		//}
+		//Xr.row(nr - 1) = X.row(X.rows() - 1);
+
 		return Xr;
 	}
 

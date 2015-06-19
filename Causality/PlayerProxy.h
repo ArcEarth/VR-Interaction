@@ -2,98 +2,115 @@
 #include "SceneObject.h"
 #include "Kinect.h"
 #include <boost\circular_buffer.hpp>
+#include "Animations.h"
 
 namespace Causality
 {
 	using boost::circular_buffer;
 
+	class CharacterController
+	{
+	public:
+
+		const ArmatureTransform& Binding() const;
+		ArmatureTransform& Binding();
+		void SetBinding(ArmatureTransform* pBinding);
+
+		const KinematicSceneObject& Character() const;
+		KinematicSceneObject& Character();
+
+		void SetSourceArmature(const IArmature& armature);
+
+		void SetTargetObject(KinematicSceneObject& object);
+
+		int						ID;
+		AffineFrame				PotientialFrame;
+		float					SpatialMotionScore;
+
+	private:
+		KinematicSceneObject*		  m_pSceneObject;
+		unique_ptr<ArmatureTransform> m_pBinding;
+	};
+
 	class PlayerProxy : public SceneObject, public IRenderable
 	{
 	public:
+#pragma region Constants
+		static const size_t					FrameRate = ANIM_STANDARD::SAMPLE_RATE;
+		static const size_t					ScaledMotionTime = ANIM_STANDARD::MAX_CLIP_DURATION; // second
+		static const size_t					StretchedSampleCount = ANIM_STANDARD::CLIP_FRAME_COUNT;
+
+		static const size_t					BufferTime = 5; // second
+		static const size_t					BufferFramesCount = FrameRate * BufferTime;
+
+		static const size_t					JointCount = JointType_Count;
+
+		static const size_t					JointDemension = InputFeature::Dimension; // X-Y-Z Position
+
+		static const size_t					MinHz = 3; // MinimumFrequency 3/BufferTime Hz
+		static const size_t					MaxHz = 10; // 10 Hz
+		static const size_t					HzWidth = MaxHz - MinHz + 1;
+
+		static const size_t					SampleRate = ANIM_STANDARD::SAMPLE_RATE; // Hz
+		static const size_t					RecordFeatures = SampleRate * 10U;
+		static const size_t					FeatureDimension = InputFeature::Dimension;
+		static const size_t					FeatureBufferCaptcity = RecordFeatures * 5;
+#pragma endregion
+
+#pragma region Typedefs
 		typedef AffineFrame frame_type;
+		typedef Eigen::Matrix<float, -1, FeatureDimension*JointType_Count, Eigen::RowMajor> FeatureMatrixType;
+#pragma endregion
 
-		class ControlState
-		{
-		public:
-
-			const ArmatureTransform& Binding() const;
-			ArmatureTransform& Binding();
-			void SetBinding(ArmatureTransform* pBinding);
-
-			const KinematicSceneObject& Target() const;
-			KinematicSceneObject& Target();
-
-			void SetSourceArmature(const IArmature& armature);
-
-			void SetTargetObject(KinematicSceneObject& object);
-
-			int						ID;
-			AffineFrame				PotientialFrame;
-			float					SpatialMotionScore;
-
-		private:
-			KinematicSceneObject*		  m_pSceneObject;
-			unique_ptr<ArmatureTransform> m_pBinding;
-		};
+		// Character Map State
+		bool							IsMapped() const;
+		const CharacterController&		CurrentController() const;
+		CharacterController&			CurrentController();
+		const CharacterController&		GetController(int state) const;
 
 		struct StateChangedEventArgs
 		{
 			int OldStateIndex;
 			int NewStateIndex;
 			float Confidence;
-			ControlState& OldState;
-			ControlState& NewState;
+			CharacterController& OldState;
+			CharacterController& NewState;
 		};
+		Event<const StateChangedEventArgs&> StateChanged;
 
+		// SceneObject interface
 		PlayerProxy();
 		virtual ~PlayerProxy() override;
 		virtual void AddChild(SceneObject* pChild) override;
 
-		void Initialize();
-
-		// Enter the selecting phase
-		void BeginSelectingPhase();
-
-		// End the selecting phase and enter the manipulating phase
-		void BeginManipulatingPhase();
-
-		int SelectControlStateByLatestFrames();
-
-		bool IsMapped() const { return CurrentIdx >= 0; }
-		const ControlState& CurrentState() const { return States[CurrentIdx]; }
-		ControlState& CurrentState() { return States[CurrentIdx]; }
-		const ControlState&	GetState(int state) const { return States[state]; }
-
-		Event<const StateChangedEventArgs&> StateChanged;
-
+		// Render / UI Thread 
 		void	Update(time_seconds const& time_delta) override;
-		bool	UpdatePlayerFrame(const AffineFrame& frame);
-
-		const IArmature& BodyArmature() const { return *pPlayerArmature; };
 
 		// Inherited via IRenderable
 		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
 		virtual void Render(RenderContext & context) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
-		std::pair<float, float> ExtractUserMotionPeriod();
+		// PlayerSelector Interface
+		const TrackedBodySelector&	GetPlayer() const { return playerSelector; }
+		TrackedBodySelector&		GetPlayer() { return playerSelector; }
+		const IArmature&			PlayerArmature() const { return *pPlayerArmature; };
 
-		// Body Connection management
-		bool IsConnected() const { return pBody != nullptr; }
-		void Connect(TrackedBody* body) { 
-			ResetConnection();
-			pBody = body; 
-			if (pBody)
-				pBody->AddRef();
-		}
-		TrackedBody* ConnectedBody() const { return pBody; }
-		void ResetConnection() { 
-			if (pBody)
-			{
-				pBody->Release();
-				pBody = nullptr;
-			}
-		}
+	protected:
+		// Helper methods
+		bool	UpdateByFrame(const AffineFrame& frame);
+
+		Eigen::Map<FeatureMatrixType> 
+			GetPlayerFeatureMatrix(time_seconds duration);
+
+		int		MapCharacterByLatestMotion();
+
+
+		friend TrackedBodySelector;
+		// Kinect streaming thread
+		void StreamPlayerFrame(const TrackedBody& body, const TrackedBody::FrameType& frame);
+		void ResetPlayer(TrackedBody* pOld, TrackedBody* pNew);
+		void ClearPlayerFeatureBuffer();
 
 	protected:
 		bool								IsInitialized;
@@ -101,74 +118,44 @@ namespace Causality
 		const IArmature*					pPlayerArmature;
 		int									Id;
 
-		std::shared_ptr<Devices::Kinect>	pKinect;
-		TrackedBody*						pBody;
+		Devices::KinectSensor::Refptr		pKinect;
+		TrackedBodySelector					playerSelector;
 		
 
 		int									CurrentIdx;
-		std::vector<ControlState>			States;
+		std::vector<CharacterController>	Controllers;
 
-		static const size_t					FrameRate = ANIM_STANDARD::SAMPLE_RATE;
-		static const size_t					ScaledMotionTime = ANIM_STANDARD::MAX_CLIP_DURATION; // second
-		static const size_t					ScaledFramesCount = ANIM_STANDARD::CLIP_FRAME_COUNT;
-		static const size_t					BufferTime = 10; // second
-		static const size_t					BufferFramesCount = FrameRate * BufferTime;
-		static const size_t					JointCount = JointType_Count;
-		static const size_t					JointDemension = FeatureType::Dimension; // X-Y-Z Position
-		static const size_t					MinHz = 3; // MinimumFrequency 3/BufferTime Hz
-		static const size_t					MaxHz = 10; // 10 Hz
-		static const size_t					HzWidth = MaxHz - MinHz + 1;
+		std::mutex							BufferMutex;
 
-		circular_buffer<frame_type>			FrameBuffer;
+		// This buffer stores the time-re-sampled frame data as feature matrix
+		// This buffer is allocated as 30x30 frames size
+		// thus , it would be linearized every 30 seconds
+		boost::circular_buffer<
+			std::array<float,FeatureDimension*JointType_Count>> 
+			FeatureBuffer;
+
+
+	
+
+
+
+
+		// deperacte
+		//circular_buffer<frame_type>			FrameBuffer;
 
 		VectorX								StateProbality;
 		VectorX								Likilihood;
 		MatrixX								TransferMatrix;
 
 	protected:
-		void PrintFrameBuffer(int No);
+		// Enter the selecting phase
+		void BeginSelectingPhase();
+		// End the selecting phase and enter the manipulating phase
+		void BeginManipulatingPhase();
+
+		std::pair<float, float> ExtractUserMotionPeriod();
+		//void PrintFrameBuffer(int No);
 	};
-
-	struct SkeletonBlock
-	{
-		DirectX::XMVECTOR Scale;
-		DirectX::XMVECTOR CenterFromParentCenter;
-		JointType SkeletonJoint;
-		int ParentBlockIndex;
-	};
-
-	const SkeletonBlock g_SkeletonBlocks [] = {
-		{ { 0.75f, 1.0f, 0.5f, 0.0f },{ 0.0f, 0.0f, 0.0f, 0.0f }, JointType_SpineMid, -1 },      //  0 - lower torso
-		{ { 0.75f, 1.0f, 0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_SpineShoulder, 0 },  //  1 - upper torso
-
-		{ { 0.25f, 0.25f, 0.25f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_Neck, 1 },         //  2 - neck
-		{ { 0.5f, 0.5f, 0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_Head, 2 },            //  3 - head
-
-		{ { 0.35f, 0.4f, 0.35f, 0.0f },{ 0.5f, 1.0f, 0.0f, 0.0f }, JointType_ShoulderLeft, 1 },  //  4 - Left shoulderblade
-		{ { 0.25f, 1.0f, 0.25f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_ElbowLeft, 4 },     //  5 - Left upper arm
-		{ { 0.15f, 1.0f, 0.15f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_WristLeft, 5 },     //  6 - Left forearm
-		{ { 0.10f, 0.4f, 0.30f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_HandLeft, 6 },      //  7 - Left hand
-
-		{ { 0.35f, 0.4f, 0.35f, 0.0f },{ -0.5f, 1.0f, 0.0f, 0.0f }, JointType_ShoulderRight, 1 },//   8 - Right shoulderblade
-		{ { 0.25f, 1.0f, 0.25f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_ElbowRight, 8 },    //   9 - Right upper arm
-		{ { 0.15f, 1.0f, 0.15f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_WristRight, 9 },    //  10 - Right forearm
-		{ { 0.10f, 0.4f, 0.30f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_HandRight, 10 },    //  11 - Right hand
-
-		{ { 0.35f, 0.4f, 0.35f, 0.0f },{ 0.5f, 0.0f, 0.0f, 0.0f }, JointType_HipLeft, 0 },       //  12 - Left hipblade
-		{ { .4f, 1.0f, .4f, 0.0f },{ 0.5f, 0.0f, 0.0f, 0.0f }, JointType_KneeLeft, 12 },         //  13 - Left thigh
-		{ { .3f, 1.0f, .3f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_AnkleLeft, 13 },        //  14 - Left calf
-		//{ { .35f, .6f, .20f, 0.0f }, { 0.0f, 1.0f, 0.0f, 0.0f }, JointType_FootLeft , 14 },     //     - Left foot
-
-		{ { 0.35f, 0.4f, 0.35f, 0.0f },{ -0.5f, 0.0f, 0.0f, 0.0f }, JointType_HipRight, 0 },     //  15  - Right hipblade
-		{ { .4f, 1.0f, .4f, 0.0f },{ -0.5f, 0.0f, 0.0f, 0.0f }, JointType_KneeRight, 15 },       //  16  - Right thigh
-		{ { .3f, 1.0f, .3f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_AnkleRight, 16 },       //  17  - Right calf
-		//{ { .35f, .6f, .20f, 0.0f }, { 0.0f, 1.0f, 0.0f, 0.0f }, JointType_FootRight, 18 },     //      - Right foot
-
-	};
-
-	const UINT BLOCK_COUNT = _countof(g_SkeletonBlocks);
-	const UINT BODY_COUNT = 6;
-	const UINT JOINT_COUNT = 25;
 
 	class KinectVisualizer : public SceneObject, public IRenderable
 	{
@@ -180,6 +167,6 @@ namespace Causality
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 	protected:
-		std::shared_ptr<Devices::Kinect>	pKinect;
+		std::shared_ptr<Devices::KinectSensor>	pKinect;
 	};
 }

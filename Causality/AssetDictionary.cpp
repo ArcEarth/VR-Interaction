@@ -2,6 +2,7 @@
 #include "AssetDictionary.h"
 #include "Common\DirectXHelper.h"
 #include "FbxParser.h"
+#include "SkinningModel.h"
 
 using namespace Causality;
 using namespace boost::filesystem;
@@ -23,18 +24,37 @@ inline std::wstring towstring(const string& str)
 	return std::wstring(str.begin(), str.end());
 }
 
-AssetDictionary::mesh_type & Causality::AssetDictionary::LoadMesh(const string & key, const string & fileName)
+AssetDictionary::mesh_type * Causality::AssetDictionary::LoadObjMesh(const string & key, const string & fileName)
 {
-	mesh_type::CreateFromObjFile(&meshes[key], render_device, (mesh_directory / fileName).wstring(), texture_directory.wstring());
-	auto& mesh = meshes[key];
+	typedef DirectX::Scene::GeometryModel mesh_type;
+	auto *pObjModel = new mesh_type;
+	DirectX::Scene::GeometryModel::CreateFromObjFile(pObjModel, render_device, (mesh_directory / fileName).wstring(), texture_directory.wstring());
+	meshes[key] = pObjModel;
+	auto& mesh = *pObjModel;
 	for (auto& part : mesh.Parts)
 	{
 		//!+ This is A CHEAP HACK!!!! 
 		part.pEffect = default_effect;
 		if (part.pMaterial)
 			part.pMaterial->Effect = GetEffect(part.pMaterial->Name);
-		part.pMesh->pInputLayout = GetInputLayout<AssetDictionary::mesh_type::VertexType>();
+		part.pMesh->pInputLayout = GetInputLayout<mesh_type::VertexType>();
 	}
+	return meshes[key];
+}
+
+AssetDictionary::mesh_type * Causality::AssetDictionary::LoadFbxMesh(const string & key, const string & fileName)
+{
+	typedef Causality::SkinAnimateModel model_type;
+
+	FbxAnimationParser fbx;
+	fbx.ImportMesh(fileName);
+	auto datas = fbx.GetMeshs();
+	if (datas.size() == 0)
+		return nullptr;
+
+	auto pModel = model_type::CreateFromSkinMeshData(&datas.front());
+
+	meshes[key] = pModel.get();
 	return meshes[key];
 }
 
@@ -67,19 +87,20 @@ AssetDictionary::animation_clip_type& Causality::AssetDictionary::LoadAnimation(
 Causality::BehavierSpace & AssetDictionary::LoadBehavierFbx(const string & key, const string & fileName)
 {
 	FbxAnimationParser fbxparser;
-	auto behavier = fbxparser.LoadFromFile((mesh_directory / fileName).string());
-	auto rtnval = behavier.get();
-	if (behavier)
+	auto result = fbxparser.ImportBehavier((mesh_directory / fileName).string());
+	BehavierSpace* behavier = nullptr;
+	if (result)
 	{
-		behaviers[key] = behavier.release();
+		behaviers[key] = fbxparser.GetBehavier();
+		fbxparser.GetBehavier();
 	}
-	return *rtnval;
+	return *behavier;
 }
 
 task<AssetDictionary::mesh_type*>& Causality::AssetDictionary::LoadMeshAsync(const string & key, const string & fileName)
 {
 	using namespace std::placeholders;
-	task<mesh_type*> load_mesh([this, key,fileName] () { return &this->LoadMesh(key,fileName); });
+	task<mesh_type*> load_mesh([this, key,fileName] () { return &this->LoadObjMesh(key,fileName); });
 	loading_meshes[fileName] = std::move(load_mesh);
 	return loading_meshes[fileName];
 }
