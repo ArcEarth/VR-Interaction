@@ -13,49 +13,47 @@ namespace Causality
 
 	// Pure pose and Dynamic data for a bone
 	// "Structure" information is not stored here
-	XM_ALIGN16
-	struct Bone
+	// Each bone is a affine transform (Scale-Rotate-Translate) 
+	// the bone will store this transform in Local frame and global frame
+	XM_ALIGNATTR
+	struct Bone : public DirectX::AlignedNew<DirectX::XM_ALIGNMENT>
 	{
 	public:
 		// Local Data
-		XM_ALIGN16
+		XM_ALIGNATTR
 		DirectX::Quaternion LclRotation;
-
-		XM_ALIGN16
-		DirectX::Vector3	LclScaling; // Local Scaling , adjust this transform to adjust bone length
-		float				LclLength;  // offset should = 16 + 3x4 = 28, the Length before any Scaling
-
 		// Local Translation, represent the offset vector (Pe - Po) in current frame 
 		// Typical value should always be (0,l,0), where l = length of the bone
 		// Should be constant among time!!!
-		XM_ALIGN16
+		XM_ALIGNATTR
 		DirectX::Vector3	LclTranslation;
-		float				LclTw; // Padding
+		float				LclTw; // Padding, w-coff of local translation
+
+		XM_ALIGNATTR
+		DirectX::Vector3	LclScaling; // Local Scaling , adjust this transform to adjust bone length
+		float				LclLength;  // offset should = 16 + 3x4 = 28, the Length before any Scaling
 
 		// Global Data (dulplicate with Local)
 		// Global Rotation
-		XM_ALIGN16
+		XM_ALIGNATTR
 		DirectX::Quaternion GblRotation;
-		XM_ALIGN16
+		XM_ALIGNATTR
 		DirectX::Vector3	GblScaling;
 		float				GblLength;		// Length of this bone, after scaling
 
-		// Global Position for the begining joint of this bone
-		// Aka : GblTranslation
-		XM_ALIGN16
-		DirectX::Vector3	EndPostion;
+		// Global Position for the ending joint of this bone
+		// Aka : End-Position
+		XM_ALIGNATTR
+		DirectX::Vector3	GblTranslation;
 		float				GblTw; // Padding
 
-		XM_ALIGN16
-		DirectX::Vector3	OriginPosition;
+		//XM_ALIGNATTR
+		//DirectX::Vector3	OriginPosition;	// Reference point of a bone
 
 		//DirectX::XMVECTOR EndJointPosition() const;
 		//bool DirtyFlag;
 
-		Bone()
-			: LclScaling(1.0f), LclLength(1.0f), GblScaling(1.0f), GblLength(1.0f)
-		{
-		}
+		Bone();
 
 		void GetBoundingBox(DirectX::BoundingBox& out) const;
 		// Update from Hirachy or Global
@@ -66,6 +64,11 @@ namespace Causality
 		void UpdateLocalDataByPositionOnly(const Bone& reference);
 		// Assuming Global position & orientation is known
 		void UpdateLocalData(const Bone& reference);
+
+		inline const DirectX::AffineTransform& LocalTransform() const { return reinterpret_cast<const DirectX::AffineTransform&>(*this); }
+		inline DirectX::AffineTransform& LocalTransform() { return reinterpret_cast<DirectX::AffineTransform&>(*this); }
+		inline const DirectX::AffineTransform& GlobalTransform() const { return reinterpret_cast<const DirectX::AffineTransform&>(this->GblRotation); }
+		inline DirectX::AffineTransform& GlobalTransform() { return reinterpret_cast<DirectX::AffineTransform&>(this->GblRotation); }
 	public:
 		// Static helper methods for caculate transform matrix
 		// Caculate the Transform Matrix from "FromState" to "ToState"
@@ -86,16 +89,18 @@ namespace Causality
 		}
 	};
 
-	XM_ALIGN16
+	static_assert(offsetof(Bone, GblRotation) == sizeof(DirectX::AffineTransform),"Compilier not supported.");
+
+	XM_ALIGNATTR
 	struct BoneVelocity
 	{
-		XM_ALIGN16
+		XM_ALIGNATTR
 		DirectX::Vector3 LinearVelocity;
-		XM_ALIGN16
+		XM_ALIGNATTR
 		DirectX::Vector3 AngelarVelocity;
 	};
 
-	XM_ALIGN16
+	XM_ALIGNATTR
 	struct BoneSplineNode : public Bone, public BoneVelocity
 	{
 	};
@@ -282,9 +287,9 @@ namespace Causality
 
 	private:
 		size_t						RootIdx;
-		std::vector<joint_type>		Joints;
-		std::vector<size_t>			TopologyOrder;
-		frame_type					*DefaultFrame;
+		vector<joint_type>			Joints;
+		vector<size_t>				TopologyOrder;
+		uptr<frame_type>			DefaultFrame;
 
 	public:
 		template <template<class T> class Range>
@@ -319,13 +324,7 @@ namespace Causality
 		StaticArmature(self_type&& rhs);
 
 		self_type& operator=(const self_type& rhs) = delete;
-		self_type& operator=(self_type&& rhs)
-		{
-			this->DefaultFrame = std::move(rhs.DefaultFrame);
-			this->Joints = std::move(rhs.Joints);
-			this->TopologyOrder = std::move(rhs.TopologyOrder);
-			this->RootIdx = rhs.RootIdx;
-		}
+		self_type& operator=(self_type&& rhs);
 
 		//void GetBlendMatrices(_Out_ DirectX::XMFLOAT4X4* pOut);
 		virtual joint_type* at(int index) override;
@@ -333,7 +332,7 @@ namespace Causality
 		virtual size_t size() const override;
 		virtual const frame_type& default_frame() const override;
 		frame_type& default_frame() { return *DefaultFrame; }
-		void set_default_frame(frame_type& frame);
+		void set_default_frame(uptr<frame_type> &&pFrame);
 		// A topolical ordered joint index sequence
 		const std::vector<size_t>& joint_indices() const
 		{

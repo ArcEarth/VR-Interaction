@@ -14,14 +14,29 @@ namespace Causality
 	const size_t MaxBlendSize = 16U;
 	const size_t ReducedBlendSize = 4U;
 
-
-	struct FbxAnimationParser::Impl
+	inline DirectX::Vector4 ToDx(const fbx::FbxDouble4& v4)
+	{
+		return DirectX::Vector4(v4[0], v4[1], v4[2], v4[3]);
+	}
+	inline DirectX::Vector3 ToDx(const fbx::FbxDouble3& v3)
+	{
+		return DirectX::Vector3(v3[0], v3[1], v3[2]);
+	}
+	inline DirectX::Vector2 ToDx(const fbx::FbxDouble2& v2)
+	{
+		return DirectX::Vector2(v2[0], v2[1]);
+	}
+	inline DirectX::Color ToDxColor(const fbx::FbxDouble3& v3)
+	{
+		return DirectX::Color(v3[0], v3[1], v3[2]);
+	}
+	struct FbxParser::Impl
 	{
 	public:
-		weak_ptr<FbxManager>   sw_SdkManager;
-		shared_ptr<FbxManager> m_SdkManger;
-		vector<FbxMesh*>		m_MeshNodes;
-		vector<FbxNode*>		m_BoneNodes;
+		weak_ptr<fbx::FbxManager>   sw_SdkManager;
+		shared_ptr<fbx::FbxManager> m_SdkManger;
+		vector<fbx::FbxMesh*>		m_MeshNodes;
+		vector<fbx::FbxNode*>		m_BoneNodes;
 
 		BehavierSpace*         m_Behavier;
 		StaticArmature*        m_Armature;
@@ -34,8 +49,9 @@ namespace Causality
 		FbxTime					m_FrameInterval;
 		FbxTime					m_AnimationTime;
 		int						m_NodeIdx = 0;
+		bool					m_Rewind;
 
-		int GetBoneNodeId(const FbxNode* pBone) const
+		int GetBoneNodeId(const fbx::FbxNode* pBone) const
 		{
 			auto itr = std::find(m_BoneNodes.begin(), m_BoneNodes.end(), pBone);
 			if (itr == m_BoneNodes.end())
@@ -52,66 +68,42 @@ namespace Causality
 				binaryFile << v[i];
 			}
 		}
-		void writeVector(std::ostream & binaryFile, const fbxsdk_2015_1::FbxVector4 & v)
+		void writeVector(std::ostream & binaryFile, const fbx::FbxVector4 & v)
 		{
 			binaryFile << (float)v[0] << (float)v[1] << (float)v[2] << (float)v[3];
 		}
-		void writeVector(std::ostream & binaryFile, const fbxsdk_2015_1::FbxVector2 & v)
+		void writeVector(std::ostream & binaryFile, const fbx::FbxVector2 & v)
 		{
 			binaryFile << (float)v[0] << (float)v[1];
 		}
 
 
-		SkinMeshData BuildSkinnedMesh(const FbxMesh* pMesh)
+		SkinMeshData BuildSkinnedMesh(fbx::FbxMesh* pMesh)
 		{
-			auto numVertices = pMesh->GetControlPointsCount();
+			assert(pMesh->IsTriangleMesh());
+
+			auto numPositions = pMesh->GetControlPointsCount();
 
 			// Vertices
-			auto vertices = pMesh->GetControlPoints();
+			auto positions = pMesh->GetControlPoints();
 
 			// Polygons
 			auto indices = pMesh->GetPolygonVertices();
 
 			// Assume all polygons are triangle
-			bool triangleized = true;
 			auto numPolygons = pMesh->GetPolygonCount();
-			for (size_t i = 0; i < numPolygons; i++)
-			{
-				if (pMesh->GetPolygonSize(i) != 3)
-				{
-					triangleized = false;
-					break;
-				}
-			};
-			assert(triangleized);
+
 			auto numIndices = numPolygons * 3;
 
-			// Get UV & Normals
-			FbxLayerElementArrayTemplate<fbx::FbxVector4> *pNormals;
-			FbxLayerElementArrayTemplate<fbx::FbxVector4> *pTangents;
-			FbxLayerElementArrayTemplate<fbx::FbxVector2> *pUVs;
-			pMesh->GetNormals(&pNormals);
-			pMesh->GetTextureUV(&pUVs);
-			pMesh->GetTangents(&pTangents);
-			//if (pTangents == nullptr)
-			//{
-			//	pMesh->GenerateTangentsData(0);
-			//	pMesh->GetTangents(&pTangents);
-			//}
-			auto& normals = *pNormals;
-			auto& uvs = *pUVs;
-			auto& tagents = *pTangents;
-
-
 			// Get Skinning data
-			std::vector<std::array<float, MaxBlendSize>> blendWeights(numVertices);
-			std::vector<std::array<uint8_t, MaxBlendSize>> blendIndices(numVertices);
-			std::vector<int> filled(numVertices);
-			std::fill_n(filled.begin(), numVertices, 0);
+			std::vector<std::array<float, MaxBlendSize>> blendWeights(numPositions);
+			std::vector<std::array<uint8_t, MaxBlendSize>> blendIndices(numPositions);
+			std::vector<int> filled(numPositions);
+			std::fill_n(filled.begin(), numPositions, 0);
 
 			// Maxium blend bones per vertex
-			ZeroMemory(blendWeights.data(), sizeof(float[MaxBlendSize])*numVertices);
-			ZeroMemory(blendIndices.data(), sizeof(uint8_t[MaxBlendSize])*numVertices);
+			ZeroMemory(blendWeights.data(), sizeof(float[MaxBlendSize])*numPositions);
+			ZeroMemory(blendIndices.data(), sizeof(uint8_t[MaxBlendSize])*numPositions);
 
 			auto numDef = pMesh->GetDeformerCount();
 			size_t numBones;
@@ -119,8 +111,8 @@ namespace Causality
 			for (int i = 0; i < numDef; i++)
 			{
 				fbx::FbxStatus states;
-				auto pDeformer = pMesh->GetDeformer(i,&states);
-				assert (pDeformer->GetDeformerType() == FbxDeformer::eSkin);
+				auto pDeformer = pMesh->GetDeformer(i, &states);
+				assert(pDeformer->GetDeformerType() == FbxDeformer::eSkin);
 				fbx::FbxSkin* pSkin = static_cast<fbx::FbxSkin*>(pDeformer);
 				auto numClusters = pSkin->GetClusterCount();
 				numBones = numClusters;
@@ -145,24 +137,15 @@ namespace Causality
 				}
 			}
 
-			SkinMeshData mesh;
-			mesh.Name = pMesh->GetName();
-			mesh.BonesCount = numBones;
-			mesh.IndexCount = numIndices;
-			mesh.VertexCount = numVertices;
-			mesh.Vertices = new SkinMeshData::VertexType[numVertices];
-			mesh.Indices = new SkinMeshData::IndexType[mesh.IndexCount];
-			std::copy(indices, indices + numIndices, mesh.Indices);
+			std::vector<SkinMeshData::VertexType> vertices(numPositions);
 
-			for (size_t i = 0; i < numVertices; i++)
+
+			// Per control-point geometry data
+			for (size_t i = 0; i < numPositions; i++)
 			{
-				auto & v = mesh.Vertices[i];
-				v.position = DirectX::XMFLOAT3(vertices[i][0], vertices[i][1], vertices[i][2]);
-				v.normal = DirectX::XMFLOAT3(normals[i][0], normals[i][1], normals[i][2]);
-				if (pTangents)
-					v.tangent = DirectX::XMFLOAT4(tagents[i][0], tagents[i][1], tagents[i][2], tagents[i][3]);
-				v.SetColor(DirectX::Colors::White);
-				v.textureCoordinate = DirectX::XMFLOAT2(uvs[i][0], uvs[i][1]);
+				auto & v = vertices[i];
+				v.position = DirectX::XMFLOAT3(positions[i][0], positions[i][1], positions[i][2]);
+				v.SetColor(DirectX::Colors::White.v);
 
 				if (filled[i] > ReducedBlendSize)
 				{
@@ -180,15 +163,243 @@ namespace Causality
 					float total = blendWeights[i][0] + blendWeights[i][1] + blendWeights[i][2] + blendWeights[i][3];
 
 					// if not, it will be significant artificts
-					assert(total > 0.6f);
-					auto v = DirectX::XMLoadFloat4(&blendWeights[i][0]);
-					v /= total;
-					DirectX::XMStoreFloat4(&blendWeights[i][0], v);
+					assert(total > 0.8f);
+					blendWeights[i][0] += 1 - total;
+
+					//auto v = DirectX::XMLoadFloat4(&blendWeights[i][0]);
+					//v /= total;
+					//DirectX::XMStoreFloat4(&blendWeights[i][0], v);
 				}
 
 				v.SetBlendIndices(DirectX::XMUINT4(blendIndices[i][0], blendIndices[i][1], blendIndices[i][2], blendIndices[i][3]));
 				v.SetBlendWeights(reinterpret_cast<DirectX::XMFLOAT4&>(blendWeights[i]));
 			}
+
+			// Surface layer data
+			// Get UV & Normals
+
+			// Do not Overwite, Vertex normal not face normal, Cunter-Clock-wise
+			pMesh->GenerateNormals(false, true, false);
+			// Do not Overwite
+			pMesh->GenerateTangentsDataForAllUVSets(false);
+
+			auto numLayer = pMesh->GetLayerCount();
+			auto leUV = pMesh->GetLayer(0)->GetUVs();
+			auto leTagent = pMesh->GetLayer(0)->GetTangents();
+			auto leNormal = pMesh->GetLayer(0)->GetNormals();
+
+			auto enrMap = leNormal->GetMappingMode();
+			auto enrRef = leNormal->GetReferenceMode();
+			auto euvMap = leUV->GetMappingMode();
+			auto euvRef = leUV->GetReferenceMode();
+			auto etgMap = leTagent->GetMappingMode();
+			auto etgRef = leTagent->GetReferenceMode();
+
+			// assert Tagent shares the same map/ref mode with UVs
+			assert(euvMap == etgMap);
+
+			float episilon = 0.0001f;
+
+			switch (enrMap)
+			{
+			case fbx::FbxLayerElement::eByControlPoint:
+				for (size_t i = 0; i < numPositions; i++)
+				{
+					int id = i;
+					if (enrRef == fbx::FbxLayerElement::eIndexToDirect)
+						id = leNormal->GetIndexArray().GetAt(i);
+					fbx::FbxDouble3 norfbx = leNormal->GetDirectArray().GetAt(id);
+
+					vertices[i].normal = ToDx(norfbx);
+				}
+				break;
+			case fbx::FbxLayerElement::eByPolygonVertex:
+			{
+				assert(leNormal->GetDirectArray().GetCount() == numIndices);
+				int copyIdx = numPositions;
+				typedef std::vector<std::pair<DirectX::Vector3, int>> uvstatckelem;
+				std::vector<uvstatckelem> vertexNRs(numPositions);
+				for (int ip = 0; ip < numPolygons; ip++)
+				{
+					for (size_t j = 0; j < 3U; j++)
+					{
+						auto idV = pMesh->GetPolygonVertex(ip, j);
+
+						int idNr = ip * 3 + j;
+						if (enrRef == fbx::FbxLayerElement::eIndexToDirect)
+							idNr = leNormal->GetIndexArray().GetAt(idNr);
+
+						auto snrfbx = leNormal->GetDirectArray().GetAt(idNr); // new surface uv
+						DirectX::Vector3 snr(snrfbx[0], snrfbx[1], snrfbx[2]);
+						auto& nrs = vertexNRs[idV];
+						bool flag = false;
+
+						if (nrs.empty())
+						{
+							nrs.emplace_back(snr, idV);
+							vertices[idV].normal = snr;
+						}
+						else
+						{
+							for (auto& nr : nrs)
+							{
+								if (DirectX::Vector3::DistanceSquared(nr.first, snr) < episilon)
+								{
+									indices[ip * 3 + j] = nr.second;
+									flag = true;
+									break;
+								}
+							}
+							if (!flag)
+							{
+								// This means we need to duplicate a vertex
+								indices[ip * 3 + j] = numPositions;
+								nrs.emplace_back(snr, numPositions++);
+								vertices.push_back(vertices[idV]);
+								vertices.back().normal = snr;
+								//vertices.back().SetColor(DirectX::Colors::Green);
+							}
+						}
+					}
+				}
+			}
+
+			break;
+			default:
+				throw std::exception("not supported.");
+				break;
+			}
+
+			switch (euvMap)
+			{
+			case fbx::FbxLayerElement::eByControlPoint:
+				for (size_t i = 0; i < numPositions; i++)
+				{
+					int id = i;
+					if (euvRef == fbx::FbxLayerElement::eIndexToDirect)
+						id = leUV->GetIndexArray().GetAt(i);
+					fbx::FbxDouble2 uvfbx = leUV->GetDirectArray().GetAt(id);
+
+					vertices[i].textureCoordinate = ToDx(uvfbx);
+				}
+				break;
+			case fbx::FbxLayerElement::eByPolygonVertex:
+			{
+				int copyIdx = numPositions;
+				typedef std::vector<std::pair<DirectX::Vector2, int>> uvstatckelem;
+				std::vector<uvstatckelem> vertexUVs(numPositions);
+				for (int ip = 0; ip < numPolygons; ip++)
+				{
+					for (size_t j = 0; j < 3U; j++)
+					{
+						auto idV = pMesh->GetPolygonVertex(ip, j);
+						auto idTx = pMesh->GetTextureUVIndex(ip, j);
+						auto suvfbx = leUV->GetDirectArray().GetAt(idTx); // new surface uv
+						DirectX::Vector2 suv(suvfbx[0], suvfbx[1]);
+						auto& uvs = vertexUVs[idV];
+						bool flag = false;
+
+						if (uvs.empty())
+						{
+							uvs.emplace_back(suv, idV);
+							vertices[idV].textureCoordinate = suv;
+
+							auto idTg = ip * 3 + j;
+							if (etgRef == fbx::FbxLayerElement::eIndexToDirect)
+								idTg = leNormal->GetIndexArray().GetAt(idTg);
+
+							auto stgfbx = leTagent->GetDirectArray().GetAt(idTg); // new surface uv
+							DirectX::Vector4 stg(stgfbx[0], stgfbx[1], stgfbx[2], stgfbx[3]);
+							vertices[idV].tangent = stg;
+						}
+						else
+						{
+							for (auto& uv : uvs)
+							{
+								if (DirectX::Vector2::DistanceSquared(uv.first, suv) < episilon)
+								{
+									indices[ip * 3 + j] = uv.second;
+									flag = true;
+									break;
+								}
+							}
+							if (!flag)
+							{
+								// This means we need to duplicate a vertex
+								indices[ip * 3 + j] = numPositions;
+								uvs.emplace_back(suv, numPositions++);
+								vertices.push_back(vertices[idV]);
+								vertices.back().textureCoordinate = suv;
+
+								auto idTg = ip * 3 + j;
+								if (etgRef == fbx::FbxLayerElement::eIndexToDirect)
+									idTg = leNormal->GetIndexArray().GetAt(idTg);
+
+								auto stgfbx = leTagent->GetDirectArray().GetAt(idTg); // new surface uv
+								DirectX::Vector4 stg(stgfbx[0], stgfbx[1], stgfbx[2], stgfbx[3]);
+								vertices.back().tangent = stg;
+								//vertices.back().SetColor(DirectX::Colors::Green);
+							}
+						}
+					}
+				}
+			}
+
+			break;
+			default:
+				throw std::exception("not supported.");
+				break;
+			}
+
+			SkinMeshData mesh;
+			mesh.Name = pMesh->GetName();
+			mesh.BonesCount = numBones;
+			mesh.IndexCount = numIndices;
+			mesh.VertexCount = numPositions;
+			mesh.Vertices = new SkinMeshData::VertexType[numPositions];
+			mesh.Indices = new SkinMeshData::IndexType[mesh.IndexCount];
+			if (m_Rewind)
+			{
+				for (int i = 0; i < numPolygons; i++)
+				{
+					for (int j = 0; j < 3; j++)
+					{
+						mesh.Indices[i * 3 + j] = indices[i * 3 + 2 - j];
+					}
+				}
+				for (auto& v : vertices)
+				{
+					v.textureCoordinate.y = 1.0f - v.textureCoordinate.y;
+				}
+			}
+			else
+				std::copy(indices, indices + numIndices, mesh.Indices);
+			std::copy(vertices.begin(), vertices.end(), mesh.Vertices);
+
+
+			// Material
+			auto pPhong = pMesh->GetNode()->GetSrcObject<FbxSurfacePhong>();
+			if (pPhong)
+			{
+				auto& mat = mesh.Material;
+				mat.AmbientColor = ToDxColor(pPhong->Ambient.Get());
+				mat.DiffuseColor = ToDxColor(pPhong->Diffuse.Get());
+				mat.SpecularColor = ToDxColor(pPhong->Specular.Get());
+				mat.EmissiveColor = ToDxColor(pPhong->Emissive.Get());
+				auto pTexture = pPhong->Ambient.GetSrcObject<fbx::FbxFileTexture>();
+				if (pTexture)
+					mat.AmbientMapName = pTexture->GetFileName();
+				pTexture = pPhong->Diffuse.GetSrcObject<fbx::FbxFileTexture>();
+				if (pTexture)
+					mat.DiffuseMapName = pTexture->GetFileName();
+				pTexture = pPhong->Specular.GetSrcObject<fbx::FbxFileTexture>();
+				if (pTexture)
+					mat.SpecularMapName = pTexture->GetFileName();
+				pTexture = pPhong->Emissive.GetSrcObject<fbx::FbxFileTexture>();
+				if (pTexture)
+					mat.EmissiveMapName = pTexture->GetFileName();
+			}
+
 			return mesh;
 		}
 
@@ -257,6 +468,7 @@ namespace Causality
 			auto numBones = m_BoneNodes.size();
 			m_ParentMap.resize(numBones);
 			std::vector<const char*> boneNames(numBones);
+
 			for (size_t nodeIdx = 0; nodeIdx < numBones; nodeIdx++)
 			{
 				auto pNode = m_BoneNodes[nodeIdx];
@@ -283,6 +495,24 @@ namespace Causality
 			}
 
 			auto pArmature = new StaticArmature(numBones, m_ParentMap.data(), boneNames.data());
+			auto &default_frame = pArmature->default_frame();
+
+			default_frame.resize(numBones);
+			for (size_t nodeIdx = 0; nodeIdx < numBones; nodeIdx++)
+			{
+				auto pNode = m_BoneNodes[nodeIdx];
+
+				auto lclM = pNode->EvaluateLocalTransform();
+				auto t = lclM.GetT();
+				auto q = lclM.GetQ();
+				auto s = lclM.GetS();
+				auto& bone = default_frame[nodeIdx];
+				bone.LclRotation = Quaternion(q[0], q[1], q[2], q[3]);//q;
+				bone.LclScaling = Vector3(s[0], s[1], s[2]);
+				bone.LclTranslation = Vector3(t[0], t[1], t[2]);
+			}
+			default_frame.RebuildGlobal(*pArmature);
+
 			return pArmature;
 		}
 
@@ -312,7 +542,7 @@ namespace Causality
 			// Use the first argument as the filename for the importer.
 			if (!lImporter->Initialize(lFilename, -1, lSdkManager->GetIOSettings())) {
 				printf("Call to FbxImporter::Initialize() failed.\n");
-				printf("Error returned: %s\n\n", "What a f**k");
+				printf("Please check the file path : ""%s""", lFilename);
 				return nullptr;
 			}
 
@@ -327,7 +557,7 @@ namespace Causality
 			return lScene;
 		}
 
-		bool Load(const string & file, unsigned mode)
+		bool Load(const string & file, unsigned mode, const char* anim_name = nullptr)
 		{
 
 			auto lScene = ImportSceneFromFile(file);
@@ -357,7 +587,7 @@ namespace Causality
 			}
 
 			if (mode & (unsigned)Mode::ImportAnimations)
-				ImportAnimtionsToBehavierProfile(lScene);
+				ImportAnimtionsToBehavierProfile(lScene, anim_name);
 
 			m_MeshNodes.clear();
 			m_BoneNodes.clear();
@@ -395,13 +625,6 @@ namespace Causality
 			auto numBones = m_Armature->size();
 			auto& buffer = anim.GetFrameBuffer();
 
-			m_Armature->set_default_frame(*(new AffineFrame));
-			auto& default_frame = m_Armature->default_frame();
-			bool builtDefault = default_frame.empty();;
-
-			if (builtDefault)
-				default_frame.resize(numBones);
-
 			static const size_t	StretchedSampleCount = ANIM_STANDARD::CLIP_FRAME_COUNT;
 			auto frameCount = StretchedSampleCount;
 
@@ -412,42 +635,40 @@ namespace Causality
 			anim.FrameInterval = anim.Duration / frameCount;
 
 			buffer.resize(frameCount);
-			for (auto& f : buffer)
+
+			std::vector<float> prev_angs(numBones);
+			std::vector<DirectX::Vector3> prev_axiss(numBones);
+			FbxTime time = pAnimStack->GetLocalTimeSpan().GetStart();
+			for (int i = 0; i < frameCount; i++)
 			{
-				f.resize(numBones);
-			}
-
-			for (size_t nodeIdx = 0; nodeIdx < numBones; nodeIdx++)
-			{
-				auto pNode = m_BoneNodes[nodeIdx];
-				FbxTime time = pAnimStack->GetLocalTimeSpan().GetStart();
-				auto pParent = pNode->GetParent();
-				const char *name = pNode->GetName();
-				const char *parName = nullptr;
-				if (pParent)
+				auto& frame = buffer[i];
+				frame.resize(numBones);
+				for (size_t nodeIdx = 0; nodeIdx < numBones; nodeIdx++)
 				{
-					parName = pParent->GetName();
-				}
+					auto pNode = m_BoneNodes[nodeIdx];
+					//auto pParent = pNode->GetParent();
+					//const char *name = pNode->GetName();
+					//const char *parName = nullptr;
+					//if (pParent)
+					//{
+					//	parName = pParent->GetName();
+					//}
 
-				if (builtDefault)
-				{
-					auto lclM = pNode->EvaluateLocalTransform();
-					auto t = lclM.GetT();
-					auto q = lclM.GetQ();
-					auto s = lclM.GetS();
-					auto& bone = default_frame[nodeIdx];
-					bone.LclRotation = Quaternion(q[0], q[1], q[2], q[3]);//q;
-					bone.LclScaling = Vector3(s[0], s[1], s[2]);
-					bone.LclTranslation = Vector3(t[0], t[1], t[2]);
-				}
+					//auto lt = pNode->LclTranslation.EvaluateValue(time);
+					//auto lr = pNode->LclRotation.EvaluateValue(time);
+					//auto ls = pNode->LclScaling.EvaluateValue(time);
+					//auto rp = pNode->RotationPivot.EvaluateValue(time);
+					//auto sp = pNode->ScalingPivot.EvaluateValue(time);
+					//auto rf = pNode->RotationOffset.EvaluateValue(time);
+					//auto sf = pNode->ScalingOffset.EvaluateValue(time);
+					//auto ptr = pNode->PostRotation.EvaluateValue(time);
+					//auto prr = pNode->PreRotation.EvaluateValue(time);
 
-				float prev_ang;
-				DirectX::XMVECTOR prev_axis;
-				for (int i = 0; i < frameCount; i++)
-				{
-					//auto t = pNode->LclTranslation.EvaluateValue(time);
-					//auto r = pNode->LclRotation.EvaluateValue(time);
-					//auto s = pNode->LclScaling.EvaluateValue(time);
+					//FbxQuaternion qprr,qlr,qk;
+					//qprr.ComposeSphericalXYZ(prr);
+					//qlr.ComposeSphericalXYZ(lr);
+					//qk = qlr * qprr;
+					//qprr *= qlr;
 
 					//FbxEuler::EOrder lRotationOrder;
 					//pNode->GetRotationOrder(FbxNode::eSourcePivot, lRotationOrder);
@@ -473,12 +694,15 @@ namespace Causality
 					//fbxq.ComposeSphericalXYZ(rd);
 					//DirectX::Quaternion q(fbxq[0], fbxq[1], fbxq[2], fbxq[3]);
 
-					auto& bone = buffer[i][nodeIdx];
+					auto& bone = frame[nodeIdx];
 					bone.LclRotation = Quaternion(q[0], q[1], q[2], q[3]);//q;
 
 					// Fix Quaternion 
 					{
 						using namespace DirectX;
+						XMVECTOR prev_axis = prev_axiss[nodeIdx].Load();
+						float prev_ang = prev_angs[nodeIdx];
+
 						XMVECTOR q = bone.LclRotation.LoadA();
 						XMVECTOR axis;
 						float ang;
@@ -494,275 +718,212 @@ namespace Causality
 							XMQuaternionToAxisAngle(&axis, &ang, q);
 						}
 
-						prev_ang = ang;
-						prev_axis = axis;
+						prev_angs[nodeIdx] = ang;
+						prev_axiss[nodeIdx] = axis;
 					}
 
 					bone.LclScaling = Vector3(s[0], s[1], s[2]);
 					bone.LclTranslation = Vector3(t[0], t[1], t[2]);
 					//bone.GblScaling = Vector3(gs[0], gs[1], gs[2]);
 					//bone.GblRotation = Quaternion(gq[0], gq[1], gq[2], gq[3]);
-					//bone.EndPostion = Vector3(gt[0], gt[1], gt[2]);
-
-					time += interval;
+					//bone.GblTranslation = Vector3(gt[0], gt[1], gt[2]);
 				}
+				//frame.Time = time_seconds(time.GetSecondDouble());
+				frame.RebuildGlobal(*m_Armature);
+
+				time += interval;
 			}
 
-			if (builtDefault)
-			{
-				default_frame.RebuildGlobal(*m_Armature);
-			}
-
-			MatrixX Y(frameCount, numBones * DimPerBone);
-			auto time = pAnimStack->GetLocalTimeSpan().GetStart();
-			for (size_t i = 0; i < frameCount; i++)
-			{
-				buffer[i].Time = time_seconds(time.GetSecondDouble());
-				buffer[i].RebuildGlobal(*m_Armature);
-				time += frameCount;
-			}
-
-			DirectX::Vector3 sq[2];
-			auto mapped = Eigen::Matrix<float, 1, DimPerBone>::Map(&sq[0].x);
-			for (size_t i = 0; i < frameCount; i++)
-			{
-				for (size_t j = 0; j < numBones; j++)
-				{
-					using namespace DirectX;
-					using namespace Eigen;
-					auto& feature = Y.block<1, DimPerBone>(i, j * DimPerBone);
-					auto& bone = buffer[i][j];
-
-					CharacterFeature::Get(feature, bone);
-				}
-			}
-
-			using namespace std;
-			//cout << "Y : min = " << Y.minCoeff() << " , max = " << Y.maxCoeff() << endl;
-			//Y = Eigen::resample(Y, Y.rows(), StretchedSampleCount);
-			//cout << "Y_resample : min = " << Y.minCoeff() << " , max = " << Y.maxCoeff() << endl;
-			//cout << "Y_centerd : min = " << Y.minCoeff() << " , max = " << Y.maxCoeff() << endl;
-
-			anim.animMatrix = Y;
-
-			//if (anim.Name == "walk")
-			//{
-			//	ofstream fout("Ylog.txt");
-			//	fout << Y;
-			//	fout.close();
-			//}
-			//Y.rowwise() -= Y.colwise().mean();
-			//anim.QrYs.resize(m_Behavier->Blocks().size());
-			//for (size_t boneIdx = 0; boneIdx < numBones; boneIdx++)
-			//{
-			//	auto Yb = Y.middleCols<3>(boneIdx*DimPerBone);
-			//	anim.QrYs[boneIdx].compute(Yb,false);
-			//}
-
-			Eigen::FFT<float> fft;
-			Eigen::MatrixXcf Yf(Y.rows(), Y.cols());
-			for (size_t i = 0; i < Y.cols(); i++)
-			{
-				fft.fwd(Yf.col(i).data(), Y.col(i).data(), Y.rows());
-			}
-
-			{
-				Eigen::VectorXf Ecd = Yf.middleRows(1, 5).cwiseAbs2().colwise().sum();
-				auto Ecjm = Eigen::Matrix<float, DimPerBone, -1>::Map(Ecd.data(), DimPerBone, numBones);
-				anim.Ecj = Ecjm.colwise().sum();
-				// Do not normalize normalize yet.
-			}
-
-			//? We can do better by using a permutation matrix
-			const auto& blocks = m_Behavier->Blocks();
-			auto bSize = blocks.size();
-
-			anim.Ecb.resize(bSize);
-			anim.QrYs.resize(bSize);
-			anim.PcaYs.resize(bSize);
-			anim.Ys.resize(bSize);
-			anim.Ysp.setZero(DimPerBone, bSize);
-			for (auto& block : blocks)
-			{
-				auto i = block->Index;
-				auto& joints = block->Joints;
-
-				auto lastJid = joints.back()->ID();
-				auto vtc = anim.Ysp.col(i);
-				for (const auto& frame : buffer)
-				{
-					vtc += Eigen::Vector3f::MapAligned(&frame[lastJid].EndPostion.x);
-				}
-				vtc /= frameCount;
-
-				Eigen::MatrixXf Yb(Y.rows(), block->GetFeatureDim<CharacterFeature>());
-				for (size_t j = 0; j < joints.size(); j++)
-				{
-					Yb.middleCols<DimPerBone>(j * DimPerBone) = Y.middleCols<DimPerBone>(joints[j]->ID() * DimPerBone);
-					anim.Ecb(i) = max(anim.Ecb(i), anim.Ecj(joints[j]->ID()));
-				}
-
-				anim.Ys[i] = Yb;
-
-				if (i == 14 && anim.Name == "walk")
-				{
-					const Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
-					ofstream b14lnq("J14.csv");
-					b14lnq << Yb.format(CSVFormat) << endl;
-					b14lnq.close();
-				}
-
-				auto & pca = anim.PcaYs[i];
-				pca.compute(Yb, true);
-				auto d = pca.reducedRank(PcaCutoff);
-				anim.QrYs[i].compute(pca.coordinates(d), true);
-
-				using namespace DirectX;
-				using DirectX::operator+=;
-				auto jid = block->Joints.back()->ID();
-				auto sum = XMVectorZero();
-				for (auto& frame : buffer)
-				{
-					auto v = frame[jid].EndPostion.LoadA();
-					sum += v;
-				}
-				sum /= buffer.size();
-				auto pData = reinterpret_cast<XMFLOAT3*>(anim.Ysp.col(i).data());
-				XMStoreFloat3(pData, sum);
-
-				//sum = XMVector3Normalize(sum);
-			}
-
-			for (auto& block : blocks)
-			{
-				auto i = block->Index;
-				auto& joints = block->Joints;
-				if (block->parent() != nullptr)
-				{
-					auto pi = block->parent()->Index;
-					anim.Ysp.col(i) -= anim.Ysp.col(pi);
-				}
-			}
-			anim.Ysp.colwise().normalize();
+			//CaculateAnimationFeatures(anim);
 		}
-	};
 
-	FbxAnimationParser::FbxAnimationParser(const string & file, unsigned mode)
+#pragma region CaculateAnimationFeatures
+		//void CaculateAnimationFeatures(Causality::ArmatureFrameAnimation & anim)
+		//{
+		//	auto& buffer = anim.GetFrameBuffer();
+		//	int numBones = m_Armature->size();
+		//	size_t frameCount = ANIM_STANDARD::CLIP_FRAME_COUNT;
+
+		//	MatrixX Y(frameCount, numBones * DimPerBone);
+		//	DirectX::Vector3 sq[2];
+		//	auto mapped = Eigen::Matrix<float, 1, DimPerBone>::Map(&sq[0].x);
+		//	for (size_t i = 0; i < frameCount; i++)
+		//	{
+		//		for (size_t j = 0; j < numBones; j++)
+		//		{
+		//			using namespace DirectX;
+		//			using namespace Eigen;
+		//			auto& feature = Y.block<1, DimPerBone>(i, j * DimPerBone);
+		//			auto& bone = buffer[i][j];
+
+		//			CharacterFeature::Get(feature, bone);
+		//		}
+		//	}
+
+		//	using namespace std;
+
+		//	anim.animMatrix = Y;
+
+		//	Eigen::FFT<float> fft;
+		//	Eigen::MatrixXcf Yf(Y.rows(), Y.cols());
+		//	for (size_t i = 0; i < Y.cols(); i++)
+		//	{
+		//		fft.fwd(Yf.col(i).data(), Y.col(i).data(), Y.rows());
+		//	}
+
+		//	{
+		//		Eigen::VectorXf Ecd = Yf.middleRows(1, 5).cwiseAbs2().colwise().sum();
+		//		auto Ecjm = Eigen::Matrix<float, DimPerBone, -1>::Map(Ecd.data(), DimPerBone, numBones);
+		//		anim.Ecj = Ecjm.colwise().sum();
+		//		// Do not normalize normalize yet.
+		//	}
+
+		//	//? We can do better by using a permutation matrix
+		//	const auto& blocks = m_Behavier->Blocks();
+		//	auto bSize = blocks.size();
+
+		//	anim.Ecb.resize(bSize);
+		//	anim.QrYs.resize(bSize);
+		//	anim.PcaYs.resize(bSize);
+		//	anim.Ys.resize(bSize);
+		//	anim.Ysp.setZero(DimPerBone, bSize);
+		//	for (auto& block : blocks)
+		//	{
+		//		auto i = block->Index;
+		//		auto& joints = block->Joints;
+
+		//		auto lastJid = joints.back()->ID();
+		//		auto vtc = anim.Ysp.col(i);
+		//		for (const auto& frame : buffer)
+		//		{
+		//			vtc += Eigen::Vector3f::MapAligned(&frame[lastJid].GblTranslation.x);
+		//		}
+		//		vtc /= frameCount;
+
+		//		Eigen::MatrixXf Yb(Y.rows(), block->GetFeatureDim<CharacterFeature>());
+		//		for (size_t j = 0; j < joints.size(); j++)
+		//		{
+		//			Yb.middleCols<DimPerBone>(j * DimPerBone) = Y.middleCols<DimPerBone>(joints[j]->ID() * DimPerBone);
+		//			anim.Ecb(i) = max(anim.Ecb(i), anim.Ecj(joints[j]->ID()));
+		//		}
+
+		//		anim.Ys[i] = Yb;
+
+		//		if (i == 14 && anim.Name == "walk")
+		//		{
+		//			const Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
+		//			ofstream b14lnq("J14.csv");
+		//			b14lnq << Yb.format(CSVFormat) << endl;
+		//			b14lnq.close();
+		//		}
+
+		//		auto & pca = anim.PcaYs[i];
+		//		pca.compute(Yb, true);
+		//		auto d = pca.reducedRank(PcaCutoff);
+		//		anim.QrYs[i].compute(pca.coordinates(d), true);
+
+		//		using namespace DirectX;
+		//		using DirectX::operator+=;
+		//		auto jid = block->Joints.back()->ID();
+		//		auto sum = XMVectorZero();
+		//		for (auto& frame : buffer)
+		//		{
+		//			auto v = frame[jid].GblTranslation.LoadA();
+		//			sum += v;
+		//		}
+		//		sum /= buffer.size();
+		//		auto pData = reinterpret_cast<XMFLOAT3*>(anim.Ysp.col(i).data());
+		//		XMStoreFloat3(pData, sum);
+
+		//		//sum = XMVector3Normalize(sum);
+		//	}
+
+		//	for (auto& block : blocks)
+		//	{
+		//		auto i = block->Index;
+		//		auto& joints = block->Joints;
+		//		if (block->parent() != nullptr)
+		//		{
+		//			auto pi = block->parent()->Index;
+		//			anim.Ysp.col(i) -= anim.Ysp.col(pi);
+		//		}
+		//	}
+		//	anim.Ysp.colwise().normalize();
+		//}
+	};
+#pragma endregion
+
+	FbxParser::FbxParser(const string & file, unsigned mode)
 	{
 		Load(file, mode);
 	}
 
-	void FbxAnimationParser::SetBehavierProfile(BehavierSpace * pBehav)
+	void FbxParser::SetBehavierProfile(BehavierSpace * pBehav)
 	{
 		m_pImpl->m_Behavier = pBehav;
 	}
 
-	bool FbxAnimationParser::Load(const string & file, unsigned mode)
+	bool FbxParser::Load(const string & file, unsigned mode)
 	{
 		if (!m_pImpl)
-			m_pImpl.reset(new FbxAnimationParser::Impl);
+			m_pImpl.reset(new FbxParser::Impl);
 		return m_pImpl->Load(file, mode);
 	}
 
-	bool FbxAnimationParser::ImportBehavier(const string & file)
+	bool FbxParser::ImportBehavier(const string & file)
 	{
 		if (!m_pImpl)
-			m_pImpl.reset(new FbxAnimationParser::Impl);
+			m_pImpl.reset(new FbxParser::Impl);
 		return m_pImpl->Load(file, (unsigned)Mode::CreateBehavierAndArmature | (unsigned)Mode::ImportAnimations);
 	}
 
-	bool FbxAnimationParser::ImportMesh(const string & file)
+	bool FbxParser::ImportArmature(const string & file)
 	{
 		if (!m_pImpl)
-			m_pImpl.reset(new FbxAnimationParser::Impl);
+			m_pImpl.reset(new FbxParser::Impl);
+		return m_pImpl->Load(file, (unsigned)Mode::CreateBehavierAndArmature);
+	}
+
+	bool FbxParser::ImportMesh(const string & file, bool rewind)
+	{
+		if (!m_pImpl)
+			m_pImpl.reset(new FbxParser::Impl);
+		// SKIN MESH DEBUG!!!
+		//m_pImpl->m_SkinnedMeshes.emplace_back();
+		//auto& mesh = m_pImpl->m_SkinnedMeshes.back();
+
+		m_pImpl->m_Rewind = rewind;
 		return m_pImpl->Load(file, (unsigned)Mode::ImportMeshs);
 	}
 
-	bool FbxAnimationParser::ImportAnimation(const string & file, const string & animationName)
+	bool FbxParser::ImportAnimation(const string & file, const string & animationName)
 	{
 		if (!m_pImpl)
-			m_pImpl.reset(new FbxAnimationParser::Impl);
-		return m_pImpl->Load(file, (unsigned)Mode::ImportAnimations);
+			m_pImpl.reset(new FbxParser::Impl);
+		return m_pImpl->Load(file, (unsigned)Mode::ImportAnimations, animationName.c_str());
 	}
 
-	const std::list<SkinMeshData>& FbxAnimationParser::GetMeshs()
+	const std::list<SkinMeshData>& FbxParser::GetMeshs()
 	{
 		return m_pImpl->m_SkinnedMeshes;
 	}
 
-	StaticArmature * FbxAnimationParser::GetArmature()
+	StaticArmature * FbxParser::GetArmature()
 	{
 		return m_pImpl->m_Armature;
 	}
 
-	BehavierSpace* FbxAnimationParser::GetBehavier()
+	BehavierSpace* FbxParser::GetBehavier()
 	{
 		return m_pImpl->m_Behavier;
 	}
 
-	FbxAnimationParser::~FbxAnimationParser()
+	FbxParser::~FbxParser()
 	{
 
 	}
-	FbxAnimationParser::FbxAnimationParser()
+	FbxParser::FbxParser()
 	{
 
-	}
-
-	ArmatureFrameAnimation BinaryFileLoader::LoadAnimationClipFromFile(const string & filename)
-	{
-		return ArmatureFrameAnimation();
-	}
-
-	SkinMeshData BinaryFileLoader::LoadSkinnedMeshFromFile(const string & filename)
-	{
-		SkinMeshData mesh;
-		using namespace std;
-		ifstream fin(filename, ios::binary | ios::in);
-		mesh.Deserialize(fin);
-		return mesh;
-	}
-
-	SkinMeshData::SkinMeshData()
-	{
-		VertexCount = 0;
-		IndexCount = 0;
-		BonesCount = 0;
-		Vertices = nullptr;
-		Indices = nullptr;
-	}
-
-	void SkinMeshData::Release()
-	{
-		if (Vertices)
-		{
-			delete Vertices;
-			Vertices = nullptr;
-		}
-		if (Indices)
-		{
-			delete Indices;
-			Indices = nullptr;
-		}
-	}
-
-	void SkinMeshData::Serialize(std::ostream & binary) const
-	{
-		binary << VertexCount << IndexCount << BonesCount << (uint32_t)sizeof(SkinMeshData::VertexType) << (uint32_t)sizeof(SkinMeshData::IndexType);
-		binary.write(reinterpret_cast<const char*>(Vertices), sizeof(SkinMeshData::VertexType)*VertexCount);
-		binary.write(reinterpret_cast<const char*>(Indices), sizeof(SkinMeshData::IndexType)*IndexCount);
-	}
-
-	void SkinMeshData::Deserialize(std::istream & binary)
-	{
-		uint32_t VertexSizeInByte, IndexSizeInByte;
-		binary >> VertexCount >> IndexCount >> BonesCount >> VertexSizeInByte >> IndexSizeInByte;
-
-		assert(IndexCount % PolygonSize == 0);
-		assert(sizeof(SkinMeshData::VertexType) == VertexSizeInByte);
-		assert(sizeof(SkinMeshData::IndexType) == IndexSizeInByte);
-
-		binary.read(reinterpret_cast<char*>(Vertices), sizeof(SkinMeshData::VertexType)*VertexCount);
-		binary.read(reinterpret_cast<char*>(Indices), sizeof(SkinMeshData::IndexType)*IndexCount);
 	}
 }

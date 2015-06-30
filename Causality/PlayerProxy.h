@@ -1,5 +1,5 @@
 #pragma once
-#include "SceneObject.h"
+#include "CharacterObject.h"
 #include "Kinect.h"
 #include <boost\circular_buffer.hpp>
 #include "Animations.h"
@@ -8,31 +8,43 @@ namespace Causality
 {
 	using boost::circular_buffer;
 
+	class AnimationAnalyzer;
+
 	class CharacterController
 	{
 	public:
+		~CharacterController();
+		void Initialize(const IArmature& player, CharacterObject& character);
 
 		const ArmatureTransform& Binding() const;
 		ArmatureTransform& Binding();
 		void SetBinding(ArmatureTransform* pBinding);
 
-		const KinematicSceneObject& Character() const;
-		KinematicSceneObject& Character();
+		const CharacterObject& Character() const;
+		CharacterObject& Character();
 
-		void SetSourceArmature(const IArmature& armature);
-
-		void SetTargetObject(KinematicSceneObject& object);
+		void UpdateTargetCharacter(const AffineFrame& sourceFrame) const;
 
 		int						ID;
 		AffineFrame				PotientialFrame;
 		float					SpatialMotionScore;
+		Vector3					MapRefPos;
+		Vector3					CMapRefPos;
 
-	private:
-		KinematicSceneObject*		  m_pSceneObject;
-		unique_ptr<ArmatureTransform> m_pBinding;
+		AnimationAnalyzer& GetAnimationInfo(const string& name);
+
+	public:
+		CharacterObject*							m_pCharacter;
+		map<string, AnimationAnalyzer*>				m_Analyzers;
+		uptr<ArmatureTransform>						m_pBinding;
+
+		void SetSourceArmature(const IArmature& armature);
+
+		void SetTargetCharacter(CharacterObject& object);
+
 	};
 
-	class PlayerProxy : public SceneObject, public IRenderable
+	class PlayerProxy : public SceneObject, public IRenderable, public IAppComponent, public IKeybordInteractive
 	{
 	public:
 #pragma region Constants
@@ -67,16 +79,19 @@ namespace Causality
 		const CharacterController&		CurrentController() const;
 		CharacterController&			CurrentController();
 		const CharacterController&		GetController(int state) const;
+		CharacterController&			GetController(int state) ;
 
-		struct StateChangedEventArgs
-		{
-			int OldStateIndex;
-			int NewStateIndex;
-			float Confidence;
-			CharacterController& OldState;
-			CharacterController& NewState;
-		};
-		Event<const StateChangedEventArgs&> StateChanged;
+		virtual void					OnKeyUp(const KeyboardEventArgs&e) override;
+		virtual void					OnKeyDown(const KeyboardEventArgs&e) override;
+		//struct StateChangedEventArgs
+		//{
+		//	int OldStateIndex;
+		//	int NewStateIndex;
+		//	float Confidence;
+		//	CharacterController& OldState;
+		//	CharacterController& NewState;
+		//};
+		//Event<const StateChangedEventArgs&> StateChanged;
 
 		// SceneObject interface
 		PlayerProxy();
@@ -103,6 +118,7 @@ namespace Causality
 		Eigen::Map<FeatureMatrixType> 
 			GetPlayerFeatureMatrix(time_seconds duration);
 
+		void	SetActiveController(int idx);
 		int		MapCharacterByLatestMotion();
 
 
@@ -123,7 +139,7 @@ namespace Causality
 		
 
 		int									CurrentIdx;
-		std::vector<CharacterController>	Controllers;
+		std::list<CharacterController>		Controllers;
 
 		std::mutex							BufferMutex;
 

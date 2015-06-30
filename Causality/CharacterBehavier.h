@@ -33,6 +33,7 @@ namespace Causality
 #pragma endregion
 
 		const BlockArmature&	Blocks() const { return m_Blocks; }
+		BlockArmature&	Blocks() { return m_Blocks; }
 
 		void					UpdateBlock();
 

@@ -18,14 +18,19 @@ using namespace Causality;
 //	XMVECTOR Q = XMQuaternionMultiply(ParQ, LclRotation);
 //	GblRotation = Q;
 //
-//	OriginPosition = reference.EndPostion;
+//	OriginPosition = reference.GblTranslation;
 //	//XMVECTOR V = LclScaling;
 //	//V = XMVectorMultiply(V, g_XMIdentityR1.v);
 //	//V = XMVector3Rotate(V, Q);
 //
 //	V = XMVectorAdd(V, OriginPosition);
-//	EndPostion = V;
+//	GblTranslation = V;
 //}
+
+Bone::Bone()
+	: LclScaling(1.0f), LclLength(1.0f), GblScaling(1.0f), GblLength(1.0f), LclTw(1.0f), GblTw(1.0f)
+{
+}
 
 void Bone::UpdateGlobalData(const Bone & reference)
 {
@@ -35,7 +40,7 @@ void Bone::UpdateGlobalData(const Bone & reference)
 	GblRotation.StoreA(Q);
 	GblScaling.StoreA(S);
 
-	OriginPosition = reference.EndPostion; // should be a constriant
+	//OriginPosition = reference.GblTranslation; // should be a constriant
 
 	XMVECTOR V = LclTranslation.LoadA();
 
@@ -46,22 +51,22 @@ void Bone::UpdateGlobalData(const Bone & reference)
 	GblLength = XMVectorGetX(XMVector3Length(V));
 
 	V = XMVector3Rotate(V, ParQ);
-	V = XMVectorAdd(V, OriginPosition.LoadA());
+	V = XMVectorAdd(V, reference.GblTranslation.LoadA());
 
-	EndPostion.StoreA(V);
+	GblTranslation.StoreA(V);
 }
 
 // This will assuming LclTranslation is not changed
 void Bone::UpdateLocalData(const Bone& reference)
 {
-	OriginPosition = reference.EndPostion;
+	//OriginPosition = reference.GblTranslation;
 	XMVECTOR InvParQ = reference.GblRotation;
 	InvParQ = XMQuaternionInverse(InvParQ); // PqInv
 	XMVECTOR Q = GblRotation;
 	Q = XMQuaternionMultiply(Q, InvParQ);
 	LclRotation.StoreA(Q);
 
-	Q = (XMVECTOR)EndPostion - (XMVECTOR)reference.EndPostion;
+	Q = (XMVECTOR)GblTranslation - (XMVECTOR)reference.GblTranslation;
 	//Q = XMVector3Length(Q);
 	//Q = XMVectorSelect(g_XMIdentityR1.v, Q, g_XMIdentityR1.v);
 
@@ -83,7 +88,7 @@ void Bone::UpdateLocalData(const Bone& reference)
 
 void Bone::UpdateLocalDataByPositionOnly(const Bone & reference)
 {
-	XMVECTOR v0 = (XMVECTOR)this->OriginPosition - (XMVECTOR)reference.OriginPosition;
+	XMVECTOR v0 = this->GblTranslation.LoadA() - reference.GblTranslation.LoadA();
 	v0 = DirectX::XMVector3InverseRotate(v0, reference.GblRotation);
 
 	LclScaling = { 1.0f, XMVectorGetX(XMVector3Length(v0)), 1.0f };
@@ -101,11 +106,20 @@ void Bone::UpdateLocalDataByPositionOnly(const Bone & reference)
 DirectX::XMMATRIX Bone::TransformMatrix(const Bone & from, const Bone & to)
 {
 	using DirectX::operator+=;
+	using namespace DirectX;
 
-	XMMATRIX MScaling = XMMatrixScalingFromVector((XMVECTOR)to.LclScaling / (XMVECTOR)from.LclScaling);
-	XMVECTOR VRotationOrigin = XMVectorSelect(g_XMSelect1110.v, (DirectX::XMVECTOR)from.OriginPosition, g_XMSelect1110.v);
+	//XMMATRIX Maf = 
+	//	XMMatrixAffineTransformation(
+	//		to.GblScaling.LoadA() / from.GblScaling.LoadA(),
+	//		from.OriginPosition.LoadA(),
+	//		XMQuaternionMultiply(XMQuaternionInverse(from.GblRotation.LoadA()), to.GblRotation.LoadA()),
+	//		to.OriginPosition);
+	//return Maf;
+
+	XMMATRIX MScaling = XMMatrixScalingFromVector(to.GblScaling.LoadA() / from.GblScaling.LoadA());
+	XMVECTOR VRotationOrigin = XMVectorSelect(g_XMSelect1110.v, from.GblTranslation.LoadA(), g_XMSelect1110.v);
 	XMMATRIX MRotation = XMMatrixRotationQuaternion(XMQuaternionInverse(from.GblRotation));
-	XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, to.OriginPosition, g_XMSelect1110.v);
+	XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, to.GblTranslation.LoadA(), g_XMSelect1110.v);
 
 	XMMATRIX M = XMMatrixTranslationFromVector(-VRotationOrigin);
 	M = XMMatrixMultiply(M, MRotation);
@@ -113,6 +127,13 @@ DirectX::XMMATRIX Bone::TransformMatrix(const Bone & from, const Bone & to)
 	MRotation = XMMatrixRotationQuaternion(to.GblRotation);
 	M = XMMatrixMultiply(M, MRotation);
 	M.r[3] += VTranslation;
+
+	//XMVECTOR toEnd = XMVector3Transform(from.OriginPosition.LoadA(), M);
+	//XMVECTOR toEndAf = XMVector3Transform(from.OriginPosition.LoadA(), Maf);
+
+	//if (
+	//	XMVector4Greater(XMVector3LengthSq(toEnd - to.GblTranslation.LoadA()), XMVectorReplicate(0.001)))
+	//	std::cout << "NO!!!!" << std::endl;
 	return M;
 }
 
@@ -120,16 +141,16 @@ DirectX::XMMATRIX Bone::RigidTransformMatrix(const Bone & from, const Bone & to)
 {
 	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
 	rot = XMQuaternionMultiply(rot, to.GblRotation);
-	XMVECTOR tra = (XMVECTOR)to.OriginPosition - (XMVECTOR)from.OriginPosition;
-	return XMMatrixRigidTransform(from.OriginPosition, rot, tra);
+	XMVECTOR tra = to.GblTranslation.LoadA() - from.GblTranslation.LoadA();
+	return XMMatrixRigidTransform(from.GblTranslation.LoadA(), rot, tra);
 }
 
 DirectX::XMDUALVECTOR Bone::RigidTransformDualQuaternion(const Bone & from, const Bone & to)
 {
 	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
 	rot = XMQuaternionMultiply(rot, to.GblRotation);
-	XMVECTOR tra = (XMVECTOR)to.OriginPosition - (XMVECTOR)from.OriginPosition;
-	return XMDualQuaternionRigidTransform(from.OriginPosition, rot, tra);
+	XMVECTOR tra = to.GblTranslation.LoadA() - from.GblTranslation.LoadA();
+	return XMDualQuaternionRigidTransform(from.GblTranslation.LoadA(), rot, tra);
 }
 
 StaticArmature::StaticArmature(std::istream & file)
@@ -138,7 +159,7 @@ StaticArmature::StaticArmature(std::istream & file)
 	file >> jointCount;
 
 	Joints.resize(jointCount);
-	DefaultFrame = new AffineFrame(jointCount);
+	DefaultFrame.reset(new AffineFrame(jointCount));
 
 	// Joint line format: 
 	// Hip(Name) -1(ParentID)
@@ -160,7 +181,7 @@ StaticArmature::StaticArmature(std::istream & file)
 
 		Vector4 vec;
 		file >> vec.x >> vec.y >> vec.z >> vec.w;
-		bone.LclRotation = XMQuaternionRotationRollPitchYawFromVectorRH(vec);
+		bone.LclRotation = XMQuaternionRotationRollPitchYawFromVector(vec);
 		bone.LclScaling.y = vec.w;
 	}
 
@@ -171,7 +192,7 @@ StaticArmature::StaticArmature(std::istream & file)
 StaticArmature::StaticArmature(size_t JointCount, int * Parents, const char* const* Names)
 	: Joints(JointCount)
 {
-	DefaultFrame = new AffineFrame(JointCount);
+	DefaultFrame.reset(new AffineFrame(JointCount));
 	for (size_t i = 0; i < JointCount; i++)
 	{
 		Joints[i].SetID(i);
@@ -194,13 +215,19 @@ StaticArmature::~StaticArmature()
 
 }
 
-inline StaticArmature::StaticArmature(self_type && rhs)
+StaticArmature::StaticArmature(self_type && rhs)
+{
+	*this = std::move(rhs);
+}
+
+StaticArmature::self_type & StaticArmature::operator=(self_type && rhs)
 {
 	using std::move;
 	RootIdx = rhs.RootIdx;
 	Joints = move(rhs.Joints);
 	TopologyOrder = move(rhs.TopologyOrder);
 	DefaultFrame = move(rhs.DefaultFrame);
+	return *this;
 }
 
 //void GetBlendMatrices(_Out_ DirectX::XMFLOAT4X4* pOut);
@@ -225,7 +252,7 @@ const IArmature::frame_type & StaticArmature::default_frame() const
 	// TODO: insert return statement here
 }
 
-void Causality::StaticArmature::set_default_frame(frame_type & frame) { DefaultFrame = &frame; }
+void Causality::StaticArmature::set_default_frame(uptr<frame_type> && frame) { DefaultFrame = std::move(frame); }
 
 void StaticArmature::CaculateTopologyOrder()
 {

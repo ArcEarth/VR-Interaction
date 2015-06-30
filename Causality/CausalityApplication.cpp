@@ -86,7 +86,7 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 	pDevice.Attach(pDeviceResources->GetD3DDevice());
 	pContext.Attach(pDeviceResources->GetD3DDeviceContext());
 
-	Visualizers::g_PrimitiveDrawer.Initialize(pDeviceResources->GetD3DDeviceContext());
+	Visualizers::g_PrimitiveDrawer.Initialize(pContext);
 
 	// Oculus Rift
 	//if (pRift)
@@ -111,7 +111,10 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 		
 		selector->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
 
-		pKinect->SetDeviceCoordinate(selector->PrimaryCamera()->GetViewMatrix(0));
+		XMMATRIX kinectCoord = XMMatrixRigidTransform(
+			XMQuaternionRotationRollPitchYaw(-XM_PI / 12.0f, XM_PI, 0), // Orientation
+			XMVectorSet(0, 0.0, 1.0f, 1.0f)); // Position
+		pKinect->SetDeviceCoordinate(kinectCoord);
 		pKinect->Start();
 
 		CoUninitialize();
@@ -198,6 +201,7 @@ void Causality::App::OnIdle()
 		pScene->Update();
 	}
 
+	pDeviceResources->GetBackBufferRenderTarget().Clear(pContext);
 	for (auto& pScene : Scenes)
 	{
 		pScene->Render(pContext);

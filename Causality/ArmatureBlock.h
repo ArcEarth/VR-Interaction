@@ -3,6 +3,7 @@
 
 namespace Causality
 {
+
 	// A Kinematic Block is a one-chain in the kinmatic tree, with additional anyalaze information 
 	// usually constructed from shrinking the kinmatic tree
 	// Each Block holds the children joints and other structural information
@@ -28,6 +29,14 @@ namespace Causality
 
 		int					AccumulatedJointCount; // The count of joints that owned by blocks who have minor index
 
+		// Local Animation Domination properties
+		KinematicBlock*			Dominator;
+		list<KinematicBlock*>	Slaves;
+
+		// Saliansy properties
+		int					ActiveActionCount;
+		list<string>		ActiveActions;
+
 		KinematicBlock()
 		{
 			Index = -1;
@@ -39,6 +48,8 @@ namespace Causality
 			GroundParent = 0;
 			SymetricPair = 0;
 			LoDParent = 0;
+			Dominator = 0;
+			ActiveActionCount = 0;
 		}
 		// Motion and geometry feature
 		//bool				IsActive;			// Is this feature "Active" in energy?
@@ -60,6 +71,8 @@ namespace Causality
 		bool				IsGrounded() const;			// Is this feature grounded? == foot semantic
 		bool				IsSymetric() const;			// Is this feature a symetric pair?
 		bool				IsLeft() const;				// Is this feature left part of a symtric feature
+		bool				IsDominated() const;
+		bool				HasSlaves() const;
 	};
 
 	// Shrink a Kinmatic Chain structure to a KinematicBlock
@@ -77,8 +90,9 @@ namespace Causality
 
 		void SetArmature(const IArmature& armature);
 
+		explicit BlockArmature(const IArmature& armature);
+
 		BlockArmature() = default;
-		explicit BlockArmature(const IArmature& armature) { SetArmature(armature); }
 
 		bool   empty() const { return m_pArmature == nullptr; }
 		size_t size() const { return m_BlocksCache.size(); }
@@ -87,6 +101,10 @@ namespace Causality
 		auto end() { return m_BlocksCache.end(); }
 		auto begin() const { return m_BlocksCache.begin(); }
 		auto end() const { return m_BlocksCache.end(); }
+		auto rbegin() { return m_BlocksCache.rbegin(); }
+		auto rend() { return m_BlocksCache.rend(); }
+		auto rbegin() const { return m_BlocksCache.rbegin(); }
+		auto rend() const { return m_BlocksCache.rend(); }
 
 		const IArmature& Armature() const { return *m_pArmature; }
 		KinematicBlock* Root() { return m_pRoot.get(); }

@@ -12,19 +12,19 @@ namespace Causality
 		MAX_CLIP_DURATION = 3, // 3 second for one cyclic clip
 	};
 
-	struct AnimationFrame // Meta data for an animation frame
+	template <typename Ty>
+	struct KeyFrame // Meta data for an animation frame
 	{
 	public:
-		TimeScalarType	Time;
 		std::string		Name;
-		bool			IsKeyframe;
-
+		TimeScalarType	Time;
+		Ty				Frame;
 		//concept static Lerp(self&out, const self& lhs, const self& rhs, float t);
 
 		//concept frame_type& operator[]
 	};
 
-	class AffineFrame : public AnimationFrame, public std::vector<Bone, DirectX::AlignedAllocator<Bone>>
+	class AffineFrame : public std::vector<Bone, DirectX::AlignedAllocator<Bone>>
 	{
 	public:
 		typedef AffineFrame self_type;
@@ -59,8 +59,8 @@ namespace Causality
 		// Blend Two Animation Frame, "Blend different parts in Space"
 		static void Blend(AffineFrame& out, const AffineFrame &lhs, const AffineFrame &rhs, float* blend_weights, const IArmature& armature);
 
-		static void TransformMatrix(DirectX::XMFLOAT3X4* pOut, const self_type &from, const self_type& to);
-		static void TransformMatrix(DirectX::XMFLOAT4X4* pOut, const self_type &from, const self_type& to);
+		static void TransformMatrix(DirectX::XMFLOAT3X4* pOut, const self_type &from, const self_type& to, size_t numOut = 0);
+		static void TransformMatrix(DirectX::XMFLOAT4X4* pOut, const self_type &from, const self_type& to, size_t numOut = 0);
 		//void BlendMatrixFrom(DirectX::XMFLOAT3X4* pOut, const StateFrame &from)
 		//{
 
@@ -102,9 +102,14 @@ namespace Causality
 
 	};
 
+	template <typename FrameType>
 	class IFrameAnimation
 	{
+	public:
+		virtual ~IFrameAnimation()
+		{}
 
+		virtual bool GetFrameAt(FrameType& outFrame, TimeScalarType time) const = 0;
 	};
 
 	class LinearWarp
@@ -120,13 +125,13 @@ namespace Causality
 	// The underline resources of an animation, not for "Play" Control
 	// Handles Interpolations and warps in Time
 	template <typename FrameType>
-	class KeyframeAnimation : public IFrameAnimation
+	class KeyframeAnimation : public IFrameAnimation<FrameType>
 	{
 	public:
-		string					Name;
-		std::vector<FrameType>	KeyFrames;
-		TimeScalarType			Duration;
-		TimeScalarType			FrameInterval;
+		string								Name;
+		std::list<KeyFrame<FrameType>>		KeyFrames;
+		TimeScalarType						Duration;
+		TimeScalarType						FrameInterval;
 		// A function map : (BeginTime,EndTime) -> (BeginTime,EndTime),  that handels the easing effect between frames
 		// Restriction : TimeWarp(KeyFrameTime(i)) must equals to it self
 		std::function<TimeScalarType(TimeScalarType)> TimeWarpFunction;
@@ -220,7 +225,7 @@ namespace Causality
 		std::vector<frame_type>& GetFrameBuffer() { return frames; }
 
 		bool InterpolateFrames(double frameRate);
-		virtual bool GetFrameAt(AffineFrame& outFrame, TimeScalarType time) const;
+		virtual bool GetFrameAt(AffineFrame& outFrame, TimeScalarType time) const override;
 
 		enum DataType
 		{
@@ -243,14 +248,14 @@ namespace Causality
 		IArmature*			pArmature;
 		size_t				bonesCount;
 		vector<frame_type>	frames;
-	public:
-		Eigen::MatrixXf		animMatrix; // 20N x F matrix
-		Eigen::RowVectorXf  Ecj;	// Jointwise Energy
-		Eigen::RowVectorXf	Ecb;	// Blockwise Energy
-		Eigen::Matrix<float,3,-1> Ysp;	// Spatial traits
-		std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> QrYs;
-		std::vector<Eigen::Pca<Eigen::MatrixXf>> PcaYs;
-		std::vector<Eigen::MatrixXf> Ys;
+	//public:
+	//	Eigen::MatrixXf		animMatrix; // 20N x F matrix
+	//	Eigen::RowVectorXf  Ecj;	// Jointwise Energy
+	//	Eigen::RowVectorXf	Ecb;	// Blockwise Energy
+	//	Eigen::Matrix<float,3,-1> Ysp;	// Spatial traits
+	//	std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> QrYs;
+	//	std::vector<Eigen::Pca<Eigen::MatrixXf>> PcaYs;
+	//	std::vector<Eigen::MatrixXf> Ys;
 	};
 
 	class ArmatureTransform
@@ -351,7 +356,7 @@ namespace Causality
 
 		TypedEvent<StoryBoard> Completed;
 
-		std::vector<IFrameAnimation*> ChildrenAnimation;
+		//std::vector<IFrameAnimation*> ChildrenAnimation;
 	protected:
 		AnimationPlayState CurrentState;
 	};

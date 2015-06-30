@@ -5,6 +5,7 @@
 #include <memory>
 #include "Textures.h"
 #include <boost\any.hpp>
+#include "MaterialData.h"
 
 namespace DirectX
 {
@@ -14,9 +15,10 @@ namespace DirectX
 		class IMaterial abstract
 		{
 		public:
-			virtual IEffect* GetRequestedEffect() const = 0;
+			virtual void SetupEffect(IEffect *pEffect) const = 0;
+			virtual void CreateDeviceResources(ID3D11Device* pDevice, bool forceUpdate = false);;
 
-			virtual ~IMaterial() {}
+			virtual ~IMaterial();
 			//virtual Color	GetColor(const char* key) const = 0;
 			//virtual float	GetFloat(const char* key) const = 0;
 			//virtual int		GetInt(const char* key) const = 0;
@@ -59,7 +61,7 @@ namespace DirectX
 				auto itr = find(key);
 				if (itr != end())
 					return boost::any_cast<T>(itr->second);
-				else 
+				else
 					return T();
 			}
 
@@ -82,29 +84,13 @@ namespace DirectX
 
 			size_t Size() const { return size(); }
 
-			const std::map<std::string, boost::any>& Properties() const 
-			{ return *this; }
+			const std::map<std::string, boost::any>& Properties() const
+			{
+				return *this;
+			}
 		};
 
-		class IPhongMaterial abstract
-		{
-			// Phong model
-			virtual Color GetAmbientColor() const = 0;
-			//virtual void SetAmbientColor(const Color& color) = 0;
-			virtual Color GetDiffuseColor() const = 0;
-			//virtual void SetDiffuseColor(const Color& color) = 0;
-			virtual Color GetSpecularColor() const = 0;
-			//virtual void SetSpecularColor(const Color& color) = 0;
-			virtual float GetAlpha() const = 0;
-			//virtual void SetAlpha(float alpha) const = 0;
-
-			virtual ID3D11ShaderResourceView *GetDiffuseMap() const = 0;
-			virtual ID3D11ShaderResourceView *GetNormalMap() const = 0;
-			virtual ID3D11ShaderResourceView *GetDisplaceMap() const = 0;
-			virtual ID3D11ShaderResourceView *GetSpecularMap() const = 0;
-		};
-
-		class Material : public IMaterial, public PropertyMap, public IPhongMaterial
+		class Material : public IMaterial, public PropertyMap
 		{
 		public:
 			std::string RequstedEffectName;
@@ -139,14 +125,14 @@ namespace DirectX
 			Color		                GetSpecularColor() const { return GetColor("SpecularColor"); }
 			float		                GetSpecularPower() const { return GetFloat("SpecularPower"); }
 			float		                GetOpacity() const { return GetFloat("Opacity"); }
-			ID3D11ShaderResourceView*	GetDiffuseMap() const override { return GetTexture("DiffuseMap"); }
-			ID3D11ShaderResourceView*	GetNormalMap() const override { return GetTexture("NormalMap"); }
-			ID3D11ShaderResourceView*	GetDisplaceMap() const override { return GetTexture("DisplaceMap"); }
-			ID3D11ShaderResourceView*	GetSpecularMap() const override { return GetTexture("SpecularMap"); }
+			ID3D11ShaderResourceView*	GetDiffuseMap() const { return GetTexture("DiffuseMap"); }
+			ID3D11ShaderResourceView*	GetNormalMap() const { return GetTexture("NormalMap"); }
+			ID3D11ShaderResourceView*	GetDisplaceMap() const { return GetTexture("DisplaceMap"); }
+			ID3D11ShaderResourceView*	GetSpecularMap() const { return GetTexture("SpecularMap"); }
 
 			void		SetColor(const std::string& key, const Color& value)
 			{
-				Set(key,value);
+				Set(key, value);
 			}
 			void		SetFloat(const std::string& key, float value)
 			{
@@ -170,38 +156,39 @@ namespace DirectX
 			}
 		};
 
-		struct PhongMaterial : public Material
+		struct PhongMaterial : public IMaterial, public PhongMaterialData
 		{
 		public:
 			using SRVComPtr = Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>;
 
 			PhongMaterial();
+			PhongMaterial(const PhongMaterialData& data, const std::wstring &lookupDirectory, ID3D11Device* pDevice = nullptr);
+			~PhongMaterial();
 			static std::vector<std::shared_ptr<PhongMaterial>> CreateFromMtlFile(ID3D11Device* pDevice, const std::wstring &file, const std::wstring &lookupDirectory);
+			static std::shared_ptr<PhongMaterial> CreateFromMaterialData(const PhongMaterialData &data, const std::wstring &lookupDirectory, ID3D11Device* pDevice = nullptr);
 
-			IEffect*	Effect;
-			std::string Name;
-			Color		AmbientColor;
-			Color		DiffuseColor;
-			Color		SpecularColor;
-			Color		EmmsiveColor;
-			float		SpecularPower;
-			float		Alpha;
+			void CreateDeviceResources(ID3D11Device* pDevice, bool forceUpdate = false) override;
 
+			IEffect*	pDefaultRequestEffect;
+
+			SRVComPtr	AmbientMap;
 			SRVComPtr	DiffuseMap;
+			SRVComPtr	EmissiveMap;
 			SRVComPtr	NormalMap;
 			SRVComPtr	DisplaceMap;
 			SRVComPtr	SpecularMap;
 
 			// Inherited via IMaterial
-			virtual IEffect* GetRequestedEffect() const override { return Effect; }
-			virtual Color GetAmbientColor() const override;
-			virtual Color GetDiffuseColor() const override;
-			virtual Color GetSpecularColor() const override;
-			virtual float GetAlpha() const override;
-			virtual ID3D11ShaderResourceView * GetDiffuseMap() const override;
-			virtual ID3D11ShaderResourceView * GetNormalMap() const override;
-			virtual ID3D11ShaderResourceView * GetSpecularMap() const override;
-			virtual ID3D11ShaderResourceView * GetDisplaceMap() const override;
+			virtual void SetupEffect(IEffect *pEffect) const override;
+
+			Color GetAmbientColor() const;
+			Color GetDiffuseColor() const;
+			Color GetSpecularColor() const;
+			float GetAlpha() const;
+			ID3D11ShaderResourceView * GetDiffuseMap() const;
+			ID3D11ShaderResourceView * GetNormalMap() const;
+			ID3D11ShaderResourceView * GetSpecularMap() const ;
+			ID3D11ShaderResourceView * GetDisplaceMap() const ;
 		};
 	}
 }

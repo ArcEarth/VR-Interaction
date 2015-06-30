@@ -92,7 +92,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_MBCS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_MBCS;_CRT_SECURE_NO_WARNINGS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch_directX.h</PrecompiledHeaderFile>
     </ClCompile>
@@ -104,7 +104,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_MBCS;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_MBCS;_CRT_SECURE_NO_WARNINGS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch_directX.h</PrecompiledHeaderFile>
     </ClCompile>
@@ -235,11 +235,13 @@
     <ClInclude Include="..\Causality\Common\Lights.h" />
     <ClInclude Include="..\Causality\Common\Locatable.h" />
     <ClInclude Include="..\Causality\Common\Material.h" />
+    <ClInclude Include="..\Causality\Common\MaterialData.h" />
     <ClInclude Include="..\Causality\Common\Model.h" />
     <ClInclude Include="..\Causality\Common\pch_directX.h" />
     <ClInclude Include="..\Causality\Common\PrimitiveVisualizer.h" />
     <ClInclude Include="..\Causality\Common\Renderable.h" />
     <ClInclude Include="..\Causality\Common\ShaderEffect.h" />
+    <ClInclude Include="..\Causality\Common\MeshData.h" />
     <ClInclude Include="..\Causality\Common\SkyDome.h" />
     <ClInclude Include="..\Causality\Common\StepTimer.h" />
     <ClInclude Include="..\Causality\Common\Textures.h" />

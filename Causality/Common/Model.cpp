@@ -10,14 +10,31 @@
 #include "Extern\tiny_obj_loader.h"
 #include <boost\filesystem.hpp>
 #include <CommonStates.h>
+#include "MeshData.h"
+#include <algorithm>
 
-using namespace DirectX::Scene;
+//using namespace Causality;
 using namespace DirectX;
+using namespace DirectX::Scene;
 using namespace std;
 using namespace stdx;
 using namespace boost::filesystem;
 
-void DirectX::Scene::MeshBuffer::Draw(ID3D11DeviceContext *pContext) const
+void DirectX::Scene::MeshBuffer::CreateInputLayout(ID3D11Device * pDevice, IEffect * pEffect)
+{
+	assert(pDevice != nullptr);
+	assert(pEffect != nullptr);
+	assert(pInputElements != nullptr);
+
+	void const* shaderByteCode;
+	size_t byteCodeLength;
+	pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
+	ThrowIfFailed(
+		pDevice->CreateInputLayout(pInputElements, InputElementCount, shaderByteCode, byteCodeLength, &pInputLayout)
+		);
+}
+
+void MeshBuffer::Draw(ID3D11DeviceContext *pContext) const
 {
 	if (pInputLayout)
 		pContext->IASetInputLayout(pInputLayout.Get());
@@ -47,16 +64,21 @@ void DirectX::Scene::MeshBuffer::Draw(ID3D11DeviceContext *pContext) const
 	return;
 }
 
-bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryModel *pResult, ID3D11Device * pDevice, const std::wstring & fileName, const std::wstring & textureDir)
+DefaultStaticModel * DefaultStaticModel::CreateFromObjFile(const std::wstring & fileName, ID3D11Device * pDevice, const std::wstring & textureDir)
 {
 	typedef VertexPositionNormalTexture VertexType;
 	using namespace tinyobj;
 	vector<shape_t> shapes;
 	vector<material_t> materis;
 	path file(fileName);
-	pResult->_Name = file.filename().replace_extension().string();
 	auto dir = file.parent_path();
 	auto result = tinyobj::LoadObj(shapes, materis, file.string().c_str(), (dir.string() + "\\").c_str());
+
+	if (!result.empty())
+		return nullptr; // error happend while loading obj file
+
+	DefaultStaticModel *pResult = new DefaultStaticModel();
+	pResult->_Name = file.filename().replace_extension().string();
 
 	std::vector<std::shared_ptr<MeshBuffer>> Meshs;
 	std::vector<std::shared_ptr<PhongMaterial>> Materials;
@@ -140,22 +162,10 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 		Parts.back().pMesh = mesh;
 
 		auto& part = Parts.back();
-		auto& box = Parts.back().BoundBox;
-		BoundingBox::CreateFromPoints(box, N, (XMFLOAT3*) shape.mesh.positions.data(), sizeof(float) * 3);
-		float scale = std::max(box.Extents.x, std::max(box.Extents.y, box.Extents.z));
-		for (auto& p : shape.mesh.positions)
-		{
-			p /= scale;
-		}
 
-		//BoundingOrientedBox::CreateFromPoints(part.BoundOrientedBox, N, (XMFLOAT3*) shape.mesh.positions.data(), sizeof(float) * 3);
-		CreateBoundingOrientedBoxFromPoints(part.BoundOrientedBox, N, (XMFLOAT3*) shape.mesh.positions.data(), sizeof(float) * 3);
-		XMStoreFloat3(&part.BoundOrientedBox.Center, XMLoadFloat3(&part.BoundOrientedBox.Center) * scale);
-		XMStoreFloat3(&part.BoundOrientedBox.Extents, XMLoadFloat3(&part.BoundOrientedBox.Extents) * scale);
-		for (auto& p : shape.mesh.positions)
-		{
-			p *= scale;
-		}
+		DirectX::CreateBoundingBoxesFromPoints(part.BoundBox, part.BoundOrientedBox,
+			N, (XMFLOAT3*)shape.mesh.positions.data(), sizeof(XMFLOAT3));
+
 		mesh->VertexCount = N;
 		mesh->IndexCount = shape.mesh.indices.size();
 		mesh->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -167,29 +177,14 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 		iOffset += mesh->IndexCount;
 	}
 
-	Positions = stride_range<Vector3>((Vector3*) &Vertices[0].position, sizeof(VertexType), Vertices.size());
-	Normals = stride_range<Vector3>((Vector3*) &Vertices[0].normal, sizeof(VertexType), Vertices.size());
-	TexCoords = stride_range<Vector2>((Vector2*) &Vertices[0].textureCoordinate, sizeof(VertexType), Vertices.size());
+	Positions = stride_range<Vector3>((Vector3*)&Vertices[0].position, sizeof(VertexType), Vertices.size());
+	Normals = stride_range<Vector3>((Vector3*)&Vertices[0].normal, sizeof(VertexType), Vertices.size());
+	TexCoords = stride_range<Vector2>((Vector2*)&Vertices[0].textureCoordinate, sizeof(VertexType), Vertices.size());
 
-	BoundingBox::CreateFromPoints(pResult->BoundBox, Positions.size(), &Positions[0], sizeof(VertexType));
+	DirectX::CreateBoundingBoxesFromPoints(pResult->BoundBox, pResult->BoundOrientedBox,
+		Positions.size(), &Positions[0], sizeof(VertexType));
 
-	float scale = std::max(pResult->BoundBox.Extents.x, std::max(pResult->BoundBox.Extents.y, pResult->BoundBox.Extents.z));
-	XMVECTOR s = XMVectorReplicate(scale);
-	for (auto& p : Positions)
-	{
-		p = (XMVECTOR) p / s;
-	}
-	CreateBoundingOrientedBoxFromPoints(pResult->BoundOrientedBox, Positions.size(), &Positions[0], sizeof(VertexType));
-	//BoundingOrientedBox::CreateFromPoints(BoundOrientedBox, Positions.size(), &Positions[0], sizeof(VertexType));
 	BoundingSphere::CreateFromPoints(pResult->BoundSphere, Positions.size(), &Positions[0], sizeof(VertexType));
-	for (auto& p : Positions)
-	{
-		p = (XMVECTOR) p * s;
-	}
-	XMStoreFloat3(&pResult->BoundOrientedBox.Center, XMLoadFloat3(&pResult->BoundOrientedBox.Center) * s);
-	XMStoreFloat3(&pResult->BoundOrientedBox.Extents, XMLoadFloat3(&pResult->BoundOrientedBox.Extents) * s);
-	XMStoreFloat3(&pResult->BoundSphere.Center, XMLoadFloat3(&pResult->BoundSphere.Center) * s);
-	pResult->BoundSphere.Radius *= scale;
 
 	for (auto& mat : materis)
 	{
@@ -236,25 +231,70 @@ bool DirectX::Scene::GeometryModel::CreateFromObjFile(DirectX::Scene::GeometryMo
 		part.pMesh->pVertexBuffer = pVertexBuffer;
 		part.pMesh->pIndexBuffer = pIndexBuffer;
 	}
+	return pResult;;
+}
+
+bool DefaultStaticModel::IsInMemery() const
+{
+	return Vertices.size() > 0 && Facets.size() > 0;
+}
+
+bool DefaultStaticModel::CreateDeviceResource(ID3D11Device * pDevice)
+{
+
+	for (size_t i = 0; i < Parts.size(); i++)
+	{
+		auto &part = Parts[i];
+		part.pMesh->pVertexBuffer.Reset();
+		part.pMesh->pIndexBuffer.Reset();
+	}
+
+	// Device Dependent Resources Creation
+	auto pVertexBuffer = DirectX::CreateVertexBuffer(pDevice, Vertices.size(), &Vertices[0]);
+	if (!pVertexBuffer)
+		return false;
+	auto pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, Facets.size() * 3, &Facets[0].V0);
+	if (!pIndexBuffer)
+		return false;
+
+	for (size_t i = 0; i < Parts.size(); i++)
+	{
+		auto &part = Parts[i];
+		part.pMesh->pVertexBuffer = pVertexBuffer;
+		part.pMesh->pIndexBuffer = pIndexBuffer;
+	}
 	return true;
 }
 
-void DirectX::Scene::GeometryModel::CreateDeviceResource(ID3D11Device * pDevice)
-{
-	// Device Dependent Resources Creation
-	auto pVertexBuffer = DirectX::CreateVertexBuffer(pDevice, Vertices.size(), &Vertices[0]);
-	auto pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, Facets.size() * 3, &Facets[0].V0);
-
-}
-
-CompositionModel * DirectX::Scene::GeometryModel::ReleaseCpuResource()
+void DefaultStaticModel::ReleaseDynamicResource()
 {
 	Vertices.clear();
 	Facets.clear();
-	return this;
 }
 
-void DirectX::Scene::CollectionModel::AddChild(const std::shared_ptr<IModelNode>& model, const MatrixTransform & transform)
+bool DefaultStaticModel::Serialize(std::ostream & binary) const
+{
+	return false;
+}
+
+bool DefaultStaticModel::Deserialize(std::istream & binary)
+{
+	return false;
+}
+
+bool DefaultStaticModel::Reload()
+{
+	return false;
+}
+
+DefaultStaticModel::DefaultStaticModel() {}
+
+DefaultStaticModel::~DefaultStaticModel()
+{
+
+}
+
+void CollectionModel::AddChild(const std::shared_ptr<IModelNode>& model, const MatrixTransform & transform)
 {
 	//model->SetParent(this);
 	Children.emplace_back();
@@ -265,7 +305,7 @@ void DirectX::Scene::CollectionModel::AddChild(const std::shared_ptr<IModelNode>
 	//BoundingOrientedBox::CreateFromBoundingBox()
 }
 
-void DirectX::Scene::CollectionModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect * pEffect)
+void CollectionModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect * pEffect)
 {
 	XMMATRIX world = transform;
 	for (auto& child : Children)
@@ -276,45 +316,24 @@ void DirectX::Scene::CollectionModel::Render(ID3D11DeviceContext * pContext, con
 	}
 }
 
-void DirectX::Scene::ModelPart::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
+void ModelPart::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
 {
 	if (pEffect == nullptr)
 	{
 		pEffect = this->pEffect.get(); // pMaterial->GetRequestEffect
 	}
 
-	auto pMEffect = dynamic_cast<BasicEffect*>(pEffect);
-	if (pMEffect )
+	if (pMaterial)
 	{
-		if (pMaterial)
-		{
-			pMEffect->SetAlpha(pMaterial->GetAlpha());
-			if (pMaterial->GetDiffuseMap())
-			{
-				pMEffect->SetTextureEnabled(true);
-				pMEffect->SetTexture(pMaterial->GetDiffuseMap());
-				pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
-			}
-			else
-			{
-				pMEffect->SetTextureEnabled(false);
-				pMEffect->SetDiffuseColor(pMaterial->GetDiffuseColor());
-			}
-			pMEffect->SetSpecularColor(pMaterial->GetSpecularColor());
-		}
-		else
-		{
-			pMEffect->SetTextureEnabled(false);
-			pMEffect->SetDiffuseColor(Colors::Gray);
-			pMEffect->SetSpecularColor(Colors::White);
-		}
+		pMaterial->SetupEffect(pEffect);
 	}
+
 	if (pEffect)
 		pEffect->Apply(pContext);
 	pMesh->Draw(pContext);
 }
 
-void DirectX::Scene::CompositionModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect* pEffect)
+void CompositionModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect* pEffect)
 {
 	XMMATRIX world = transform;
 	auto pEffectM = dynamic_cast<IEffectMatrices*>(pEffect);
@@ -365,30 +384,30 @@ void DirectX::Scene::CompositionModel::Render(ID3D11DeviceContext * pContext, co
 //	return sphere;
 //}
 //
-//void XM_CALLCONV DirectX::Scene::IModelNode::SetModelMatrix(DirectX::FXMMATRIX model)
+//void XM_CALLCONV IModelNode::SetModelMatrix(DirectX::FXMMATRIX model)
 //{
 //	XMStoreFloat4x4(&LocalMatrix, model);
 //}
 //
-//XMMATRIX DirectX::Scene::IModelNode::GetModelMatrix() const
+//XMMATRIX IModelNode::GetModelMatrix() const
 //{
 //	return XMLoadFloat4x4(&LocalMatrix);
 //}
 
-//void XM_CALLCONV DirectX::Scene::LocalMatrixHolder::SetModelMatrix(DirectX::FXMMATRIX model)
+//void XM_CALLCONV LocalMatrixHolder::SetModelMatrix(DirectX::FXMMATRIX model)
 //{
 //	XMStoreFloat4x4(&LocalMatrix,model);
 //}
 //
-//XMMATRIX DirectX::Scene::LocalMatrixHolder::GetModelMatrix() const
+//XMMATRIX LocalMatrixHolder::GetModelMatrix() const
 //{
 //	return XMLoadFloat4x4(&LocalMatrix);
 //}
 
-void DirectX::Scene::MonolithModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect * pEffect)
+void MonolithModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect * pEffect)
 {
-	if (pEffect == nullptr && pMaterial)
-		pEffect = pMaterial->GetRequestedEffect();
+	if (pEffect == nullptr && ModelPart::pEffect)
+		pEffect = ModelPart::pEffect.get();
 
 	auto pMat = dynamic_cast<IEffectMatrices*>(pEffect);
 	if (pMat)
@@ -397,33 +416,359 @@ void DirectX::Scene::MonolithModel::Render(ID3D11DeviceContext * pContext, const
 	ModelPart::Render(pContext, pEffect);
 }
 
-std::shared_ptr<MeshBuffer> DirectX::Scene::GeometricPrimtives::CreateCube()
+std::shared_ptr<MeshBuffer> GeometricPrimtives::CreateCube()
 {
 	return std::shared_ptr<MeshBuffer>();
 }
 
-BoundingBox DirectX::Scene::MonolithModel::GetBoundingBox() const
+BoundingBox MonolithModel::GetBoundingBox() const
 {
 	return ModelPart::BoundBox;
 }
 
-BoundingOrientedBox DirectX::Scene::MonolithModel::GetOrientedBoundingBox() const
+BoundingOrientedBox MonolithModel::GetOrientedBoundingBox() const
 {
 	return ModelPart::BoundOrientedBox;
 }
 
 // Inherited via IModelNode
 
-BoundingBox DirectX::Scene::CollectionModel::GetBoundingBox() const { return BoundBox; }
+BoundingBox CollectionModel::GetBoundingBox() const { return BoundBox; }
 
-//BoundingOrientedBox DirectX::Scene::CollectionModel::GetOrientedBoundingBox() const { return BoundOrientedBox; }
+//BoundingOrientedBox CollectionModel::GetOrientedBoundingBox() const { return BoundOrientedBox; }
 
 // Inherited via IModelNode
 
-BoundingBox DirectX::Scene::CompositionModel::GetBoundingBox() const { return BoundBox; }
+BoundingBox CompositionModel::GetBoundingBox() const { return BoundBox; }
 
-BoundingOrientedBox DirectX::Scene::CompositionModel::GetOrientedBoundingBox() const { return BoundOrientedBox; }
+BoundingOrientedBox CompositionModel::GetOrientedBoundingBox() const { return BoundOrientedBox; }
 
-DirectX::Scene::IModelNode::~IModelNode()
+IModelNode::~IModelNode()
 {
+}
+
+// Check if the data have been loaded to CPU memery
+bool DefaultSkinningModel::IsInMemery() const
+{
+	return m_Vertices != nullptr;
+}
+
+// Create GPU objects using Vertex/Index Buffer in CPU
+bool DefaultSkinningModel::CreateDeviceResource(ID3D11Device *pDevice)
+{
+	pMesh = std::make_shared<MeshBuffer>();
+	try
+	{
+		pMesh->CreateDeviceResources(pDevice, m_Vertices.get(), m_VertexCount, m_Indices.get(), m_IndexCount);
+		pMaterial->CreateDeviceResources(pDevice,false);
+	}
+	catch (const std::exception&)
+	{
+		return false;
+	}
+	return true;
+}
+// Release the Vertex/Index Buffer in CPU memery
+void DefaultSkinningModel::ReleaseDynamicResource()
+{
+	m_Vertices.reset();
+	m_Indices.reset();
+	Vertices.reset();
+	Facets.reset();
+	Positions.reset();
+	Normals.reset();
+	TexCoords.reset();
+	Tagents.reset();
+	BlendWeights.reset();
+	BlendIndices.reset();
+}
+
+void DefaultSkinningModel::ResetRanges()
+{
+	Vertices.reset(m_Vertices.get(), sizeof(VertexType), m_VertexCount);
+	Facets.reset(reinterpret_cast<TriangleType*>(m_Indices.get()),
+		sizeof(TriangleType),
+		m_VertexCount / 3);
+	Positions.reset(reinterpret_cast<Vector3*>(&m_Vertices[0].position),
+		sizeof(VertexType), m_VertexCount);
+	Normals.reset(reinterpret_cast<Vector3*>(&m_Vertices[0].normal),
+		sizeof(VertexType), m_VertexCount);
+	TexCoords.reset(reinterpret_cast<Vector2*>(&m_Vertices[0].textureCoordinate),
+		sizeof(VertexType), m_VertexCount);
+	Tagents.reset(reinterpret_cast<Vector4*>(&m_Vertices[0].tangent),
+		sizeof(VertexType), m_VertexCount);
+	BlendWeights.reset(&m_Vertices[0].weights,
+		sizeof(VertexType), m_VertexCount);
+	BlendIndices.reset(&m_Vertices[0].indices,
+		sizeof(VertexType), m_VertexCount);
+}
+
+size_t DirectX::Scene::DefaultSkinningModel::GetBonesCount() const
+{
+	return BoneTransforms.size();
+}
+
+DirectX::XMMATRIX * DirectX::Scene::DefaultSkinningModel::GetBoneTransforms()
+{
+	return reinterpret_cast<XMMATRIX*>(BoneTransforms.data());
+}
+
+IDynamicAsset::~IDynamicAsset()
+{
+
+}
+
+// Check if the GPU buffer is flaged as DYNAMIC
+
+bool IDynamicAsset::IsDeviceResourceDynamic() const
+{
+	return false;
+}
+
+// Check if the data have been loaded to CPU memery
+
+bool IDynamicAsset::IsInMemery() const { return false; }
+
+bool IDynamicAsset::IsInDevice() const { return false; }
+
+// Release the Vertex/Index Buffer in CPU memery
+
+
+// Update GPU buffers using Vertex/Index Buffer in CPU
+
+bool IDynamicAsset::UpdateDeviceResource(ID3D11DeviceContext * pContext)
+{
+	return false;
+}
+
+void IDynamicAsset::ReleaseDynamicResource()
+{}
+
+// To a amx binary stream , default to false
+
+bool IDynamicAsset::Serialize(std::ostream & binary) const
+{
+	return false;
+}
+
+// from a amx binary stream
+
+bool IDynamicAsset::Deserialize(std::istream & binary)
+{
+	return false;
+}
+
+
+DefaultSkinningModel::DefaultSkinningModel() {}
+
+DefaultSkinningModel::~DefaultSkinningModel()
+{
+
+}
+
+SkinMeshData::SkinMeshData()
+{
+	VertexCount = 0;
+	IndexCount = 0;
+	BonesCount = 0;
+	Vertices = nullptr;
+	Indices = nullptr;
+}
+
+void SkinMeshData::Release()
+{
+	if (Vertices)
+	{
+		delete Vertices;
+		Vertices = nullptr;
+	}
+	if (Indices)
+	{
+		delete Indices;
+		Indices = nullptr;
+	}
+}
+
+void SkinMeshData::Serialize(std::ostream & binary) const
+{
+	binary << VertexCount << IndexCount << BonesCount << (uint32_t)sizeof(SkinMeshData::VertexType) << (uint32_t)sizeof(SkinMeshData::IndexType);
+	binary.write(reinterpret_cast<const char*>(Vertices), sizeof(SkinMeshData::VertexType)*VertexCount);
+	binary.write(reinterpret_cast<const char*>(Indices), sizeof(SkinMeshData::IndexType)*IndexCount);
+}
+
+void SkinMeshData::Deserialize(std::istream & binary)
+{
+	uint32_t VertexSizeInByte, IndexSizeInByte;
+	binary >> VertexCount >> IndexCount >> BonesCount >> VertexSizeInByte >> IndexSizeInByte;
+
+	assert(IndexCount % PolygonSize == 0);
+	assert(sizeof(SkinMeshData::VertexType) == VertexSizeInByte);
+	assert(sizeof(SkinMeshData::IndexType) == IndexSizeInByte);
+
+	binary.read(reinterpret_cast<char*>(Vertices), sizeof(SkinMeshData::VertexType)*VertexCount);
+	binary.read(reinterpret_cast<char*>(Indices), sizeof(SkinMeshData::IndexType)*IndexCount);
+}
+
+
+// To a amx binary stream
+bool DefaultSkinningModel::Serialize(std::ostream& binary) const {
+	SkinMeshData data;
+	data.Serialize(binary);
+	return true;
+}
+// from a amx binary stream
+bool DefaultSkinningModel::Deserialize(std::istream& binary)
+{
+	SkinMeshData data;
+	data.Deserialize(binary);
+	return true;
+}
+
+// Reload from file to CPU
+bool DefaultSkinningModel::Reload()
+{
+	return false;
+}
+
+void DirectX::Scene::DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4 & transform, IEffect * pEffect)
+{
+	if (pEffect == nullptr) pEffect = this->pEffect.get();
+	auto pSkinning = dynamic_cast<IEffectSkinning*>(pEffect);
+	if (pSkinning)
+	{
+		pSkinning->SetWeightsPerVertex(4U);
+		//pSkinning->ResetBoneTransforms();
+		pSkinning->SetBoneTransforms(reinterpret_cast<const XMMATRIX*>(BoneTransforms.data()), BoneTransforms.size());
+	}
+	else
+	{
+		//throw std::exception("Effect don't support skinning interface.");
+	}
+	MonolithModel::Render(pContext, transform, pEffect);
+}
+
+
+void DefaultSkinningModel::SetFromSkinMeshData(SkinMeshData* pData, const std::wstring& textureDir)
+{
+	m_VertexCount = pData->VertexCount;
+	m_IndexCount = pData->IndexCount;
+	m_BonesCount = pData->BonesCount;
+	m_Vertices.reset(pData->Vertices);
+	m_Indices.reset(pData->Indices);
+	pMaterial = PhongMaterial::CreateFromMaterialData(pData->Material, textureDir);
+	BoneTransforms.resize(m_BonesCount);
+	DirectX::CreateBoundingBoxesFromPoints(BoundBox,BoundOrientedBox,
+		m_VertexCount, &m_Vertices[0].position, sizeof(SkinMeshData::VertexType));
+	ResetRanges();
+}
+
+DefaultSkinningModel* DefaultSkinningModel::CreateFromAmxFile(const std::string& file, ID3D11Device* pDevice)
+{
+	SkinMeshData data;
+	std::ifstream fin(file, std::ios::binary);
+	data.Deserialize(fin);
+	auto pModel = new DefaultSkinningModel();
+	pModel->SetFromSkinMeshData(&data);
+	if (pDevice)
+		pModel->CreateDeviceResource(pDevice);
+	return pModel;
+}
+
+DefaultSkinningModel * DirectX::Scene::DefaultSkinningModel::CreateFromData(SkinMeshData * pData, const std::wstring& textureDir, ID3D11Device* pDevice)
+{
+	auto pModel = new DefaultSkinningModel();
+	pModel->SetFromSkinMeshData(pData);
+	if (pDevice)
+	{
+		pModel->CreateDeviceResource(pDevice);
+	}
+	return pModel;
+}
+
+DefaultSkinningModel * DefaultSkinningModel::CreateCube(ID3D11Device * pDevice, float size)
+{
+	// A cube has six faces, each one pointing in a different direction.
+	const int FaceCount = 6;
+
+	static const XMVECTORF32 faceNormals[FaceCount] =
+	{
+		{ 0,  0,  1 },
+		{ 0,  0, -1 },
+		{ 1,  0,  0 },
+		{ -1,  0,  0 },
+		{ 0,  1,  0 },
+		{ 0, -1,  0 },
+	};
+
+	static const XMVECTORF32 textureCoordinates[4] =
+	{
+		{ 1, 0 },
+		{ 1, 1 },
+		{ 0, 1 },
+		{ 0, 0 },
+	};
+
+	std::vector<VertexType> vertices;
+	std::vector<IndexType> indices;
+
+	size *= 0.5f;
+
+	// Create each face in turn.
+	for (int i = 0; i < FaceCount; i++)
+	{
+		XMVECTOR normal = faceNormals[i];
+
+		// Get two vectors perpendicular both to the face normal and to each other.
+		XMVECTOR basis = (i >= 4) ? g_XMIdentityR2 : g_XMIdentityR1;
+
+		XMVECTOR side1 = XMVector3Cross(normal, basis);
+		XMVECTOR side2 = XMVector3Cross(normal, side1);
+
+		// Six indices (two triangles) per face.
+		size_t vbase = vertices.size();
+		indices.push_back(vbase + 0);
+		indices.push_back(vbase + 1);
+		indices.push_back(vbase + 2);
+
+		indices.push_back(vbase + 0);
+		indices.push_back(vbase + 2);
+		indices.push_back(vbase + 3);
+
+		XMVECTOR tagent = g_XMOne;
+		XMVECTOR color = Colors::White;
+		XMUINT4 bindices;
+		XMVECTOR bweights = g_XMIdentityR0;
+		// Four vertices per face.
+		vertices.push_back(VertexType((normal - side1 - side2) * size, normal, tagent, color, textureCoordinates[0], bindices, bweights));
+		vertices.push_back(VertexType((normal - side1 + side2) * size, normal, tagent, color, textureCoordinates[1], bindices, bweights));
+		vertices.push_back(VertexType((normal + side1 + side2) * size, normal, tagent, color, textureCoordinates[2], bindices, bweights));
+		vertices.push_back(VertexType((normal + side1 - side2) * size, normal, tagent, color, textureCoordinates[3], bindices, bweights));
+	}
+
+	assert((indices.size() % 3) == 0);
+	for (auto it = indices.begin(); it != indices.end(); it += 3)
+	{
+		std::swap(*it, *(it + 2));
+	}
+
+	for (auto it = vertices.begin(); it != vertices.end(); ++it)
+	{
+		it->textureCoordinate.x = (1.f - it->textureCoordinate.x);
+	}
+
+	SkinMeshData data;
+	data.BonesCount = 1;
+	data.IndexCount = indices.size();
+	data.VertexCount = vertices.size();
+	data.Vertices = new VertexType[data.VertexCount];
+	data.Indices = new IndexType[data.IndexCount];
+	std::copy_n(vertices.data(), data.VertexCount, data.Vertices);
+	std::copy_n(indices.data(), data.IndexCount, data.Indices);
+
+	auto pModel = new DefaultSkinningModel();
+	pModel->SetFromSkinMeshData(&data);
+	if (pDevice)
+		pModel->CreateDeviceResource(pDevice);
+
+	return pModel;
 }

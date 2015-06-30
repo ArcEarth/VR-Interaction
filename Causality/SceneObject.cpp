@@ -4,103 +4,11 @@
 #include "Common\PrimitiveVisualizer.h"
 
 using namespace Causality;
+using namespace DirectX;
+using namespace DirectX::Scene;
 
-bool Causality::g_DebugView = true;
-
-KinematicSceneObject::frame_type & KinematicSceneObject::MapCurrentFrameForUpdate()
-{
-	return m_CurrentFrame;
-	m_DirtyFlag = true;
-}
-
-void KinematicSceneObject::ReleaseCurrentFrameFrorUpdate()
-{
-	m_DirtyFlag = true;
-}
-
-IArmature & KinematicSceneObject::Armature() { return m_pBehavier->Armature(); }
-
-const IArmature & KinematicSceneObject::Armature() const { return m_pBehavier->Armature(); }
-
-BehavierSpace & KinematicSceneObject::Behavier() { return *m_pBehavier; }
-
-const BehavierSpace & KinematicSceneObject::Behavier() const { return *m_pBehavier; }
-
-void KinematicSceneObject::SetBehavier(BehavierSpace & behaver) { m_pBehavier = &behaver; }
-
-bool Causality::KinematicSceneObject::StartAction(const string & key, time_seconds begin_time, bool loop, time_seconds transition_time)
-{
-	auto& anim = (*m_pBehavier)[key];
-	m_pCurrentAction = &anim;
-	m_CurrentActionTime = begin_time;
-	m_LoopCurrentAction = loop;
-	return true;
-}
-
-bool Causality::KinematicSceneObject::StopAction(time_seconds transition_time)
-{
-	m_pCurrentAction = nullptr;
-	m_LoopCurrentAction = false;
-	return true;
-}
-
-void Causality::KinematicSceneObject::SetFreeze(bool freeze)
-{
-}
-
-void Causality::KinematicSceneObject::Update(time_seconds const & time_delta)
-{
-	if (m_pCurrentAction != nullptr)
-	{
-		m_CurrentActionTime += time_delta;
-		m_pCurrentAction->GetFrameAt(m_CurrentFrame, m_CurrentActionTime);
-	}
-}
-
-bool Causality::KinematicSceneObject::IsVisible(const BoundingFrustum & viewFrustum) const
-{
-	return m_isVisable;
-}
-
-void Causality::KinematicSceneObject::Render(RenderContext & pContext)
-{
-	if (g_DebugView)
-	{
-		using namespace DirectX;
-		using Visualizers::g_PrimitiveDrawer;
-		const auto& frame = m_CurrentFrame;
-		//g_PrimitiveDrawer.Begin();
-		//const auto& dframe = Armature().default_frame();
-		DirectX::XMVECTOR color = DirectX::Colors::Yellow.v;
-		color = DirectX::XMVectorSetW(color, Opticity());
-
-		auto trans = this->TransformMatrix();
-		for (auto& bone : frame)
-		{
-			XMVECTOR e0 = bone.OriginPosition.LoadA();
-			XMVECTOR e1 = bone.EndPostion.LoadA();
-			e0 = XMVector3Transform(e0,trans);
-			e1 = XMVector3Transform(e1, trans);
-			g_PrimitiveDrawer.DrawCylinder(e0, e1, 0.01f, color);
-			g_PrimitiveDrawer.DrawSphere(e1, 0.02, color);
-		}
-		//g_PrimitiveDrawer.End();
-
-	} else
-		RenderableSceneObject::Render(pContext);
-}
-
-void XM_CALLCONV Causality::KinematicSceneObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
-{
-	if (g_DebugView)
-	{
-		using namespace DirectX;
-		using Visualizers::g_PrimitiveDrawer;
-		g_PrimitiveDrawer.SetView(view);
-		g_PrimitiveDrawer.SetProjection(projection);
-	}
-	RenderableSceneObject::UpdateViewMatrix(view, projection);
-}
+bool Causality::g_DebugView = false;
+bool Causality::g_ShowCharacterMesh = true;
 
 Causality::SceneObject::~SceneObject()
 {
@@ -146,40 +54,39 @@ void SceneObject::SetScale(const Vector3 & s)
 	AffineTransform::Scale = s;
 }
 
-DirectX::Scene::IModelNode * RenderableSceneObject::RenderModel(int LoD)
+DirectX::Scene::IModelNode * VisualObject::RenderModel(int LoD)
 {
 	return m_pRenderModel;
 }
 
-const DirectX::Scene::IModelNode * RenderableSceneObject::RenderModel(int LoD) const
+const DirectX::Scene::IModelNode * VisualObject::RenderModel(int LoD) const
 {
 	return m_pRenderModel;
 }
 
-void RenderableSceneObject::SetRenderModel(DirectX::Scene::IModelNode * pMesh, int LoD)
+void VisualObject::SetRenderModel(DirectX::Scene::IModelNode * pMesh, int LoD)
 {
 	m_pRenderModel = pMesh;
 }
 
-void RenderableSceneObject::Render(RenderContext & pContext)
+void VisualObject::Render(RenderContext & pContext)
 {
-	//m_pRenderModel->SetModelMatrix(this->GlobalTransformMatrix());
-	m_pRenderModel->Render(pContext, GlobalTransformMatrix());
+	if (m_pRenderModel)
+		m_pRenderModel->Render(pContext, GlobalTransformMatrix());
 }
 
-void XM_CALLCONV RenderableSceneObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
+void XM_CALLCONV VisualObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
-	return;
 }
 
-Causality::RenderableSceneObject::RenderableSceneObject()
+Causality::VisualObject::VisualObject()
 {
 	m_isVisable = true;
 	m_opticity = 1.0f;
 	m_isFocuesd = false;
 }
 
-bool RenderableSceneObject::IsVisible(const BoundingFrustum & viewFrustum) const
+bool VisualObject::IsVisible(const BoundingFrustum & viewFrustum) const
 {
 	if (!m_isVisable) return false;
 	auto box = m_pRenderModel->GetOrientedBoundingBox();
@@ -220,7 +127,7 @@ void KeyboardMouseFirstPersonControl::Update(time_seconds const& time_delta)
 	{
 		XMVECTOR disp = XMVector3Normalize(CameraVeclocity);
 		disp = XMVector3Rotate(disp, m_pTarget->GetOrientation());
-		disp *= Speed * (float) time_delta.count();
+		disp *= Speed * (float)time_delta.count();
 		m_pTarget->Move(disp);
 	}
 }
@@ -250,6 +157,10 @@ void KeyboardMouseFirstPersonControl::OnKeyUp(const KeyboardEventArgs & e)
 		CameraVeclocity -= Vector3{ -1,0,0 };
 	if (e.Key == 'D')
 		CameraVeclocity -= Vector3{ 1,0,0 };
+	if (e.Key == 'K')
+		g_DebugView = !g_DebugView;
+	if (e.Key == 'T')
+		g_ShowCharacterMesh = !g_ShowCharacterMesh;
 
 	if (e.Key == VK_SPACE)
 	{
@@ -286,13 +197,13 @@ void KeyboardMouseFirstPersonControl::OnMouseMove(const CursorMoveEventArgs & e)
 {
 	using namespace DirectX;
 	if (!IsTrackingCursor) return;
-	auto yaw = e.PositionDelta.x / 1000.0f * XM_PI;
-	auto pitch = e.PositionDelta.y / 1000.0f * XM_PI;
+	auto yaw = -e.PositionDelta.x / 1000.0f * XM_PI;
+	auto pitch = -e.PositionDelta.y / 1000.0f * XM_PI;
 	AddationalYaw += yaw;
 	AddationalPitch += pitch;
 	if (m_pTarget)
 	{
-		XMVECTOR extrinsic = XMQuaternionRotationRollPitchYawRH(AddationalPitch, AddationalYaw, 0);
+		XMVECTOR extrinsic = XMQuaternionRotationRollPitchYaw(AddationalPitch, AddationalYaw, 0);
 		XMVECTOR intial = InitialOrientation;
 		intial = XMQuaternionMultiply(extrinsic, intial);
 		m_pTarget->SetOrientation(intial);
@@ -311,7 +222,7 @@ void Causality::CoordinateAxis::Render(RenderContext & context)
 	using namespace DirectX;
 	g_PrimitiveDrawer.DrawSphere({ .0f,.0f,.0f,0.02f }, Colors::Cyan);
 
-	float Ar = 0.03f, Al = ub, Almr = Al-Ar, Alpr = Al + Ar;
+	float Ar = 0.03f, Al = ub, Almr = Al - Ar, Alpr = Al + Ar;
 	g_PrimitiveDrawer.Begin();
 
 	for (float x = lb; x <= ub; x += minorIdent)
@@ -320,7 +231,7 @@ void Causality::CoordinateAxis::Render(RenderContext & context)
 		g_PrimitiveDrawer.DrawLine({ x,.0f,-Al }, { x,.0f,Al }, Colors::LightGray);
 	}
 
-	for (float x = lb; x <= ub; x+=majorIdent)
+	for (float x = lb; x <= ub; x += majorIdent)
 	{
 		g_PrimitiveDrawer.DrawLine({ -Al,.0f,x }, { Al,.0f,x }, Colors::Black);
 		g_PrimitiveDrawer.DrawLine({ x,.0f,-Al }, { x,.0f,Al }, Colors::Black);

@@ -55,6 +55,7 @@ namespace Causality
 		// Inherit from IScene
 		virtual void Update() override;
 		virtual void Render(RenderContext& context) override;
+		void SetupEffectsViewProject(const DirectX::XMMATRIX &v, const DirectX::XMMATRIX &p);
 		virtual void Load() override;
 		virtual void Release() override;
 

@@ -3,6 +3,7 @@
 #include <ppltasks.h>	// For create_task
 #include <fstream>
 #include <filesystem>
+#include <wrl\client.h>
 #include <VertexTypes.h>
 
 #if defined(_XBOX_ONE) && defined(_TITLE)

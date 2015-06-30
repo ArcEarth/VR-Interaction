@@ -24,13 +24,16 @@
 
 #include <SimpleMath.h>
 
-#ifndef XM_ALIGN16
-#define XM_ALIGN16 _MM_ALIGN16
+#ifndef XM_ALIGNATTR
+#define XM_ALIGNATTR _MM_ALIGN16
 #endif
 namespace DirectX
 {
 	const float XM_EPSILON = 1.192092896e-7f;
 	const float XM_INFINITY = 1e12f;
+
+	// vector alignment of XMVECTOR
+	const size_t XM_ALIGNMENT = alignof(XMVECTOR);
 
 	XMGLOBALCONST XMVECTORF32 g_XMNegtiveXZ = { -1.0f,1.0f,-1.0f,1.0f };
 
@@ -108,29 +111,20 @@ namespace DirectX
 #endif
 	}
 
-
-	// Derive from this to customize operator new and delete for
-	// types that have special heap alignment requirements.
-	//
-	// Example usage:
-	//
-	//      _declspec(align(16)) struct MyAlignedType : public AlignedNew<MyAlignedType>
-	template<typename TDerived>
+	template<size_t alignment>
 	struct AlignedNew
 	{
+		static_assert(alignment > 8, "AlignedNew is only useful for types with > 8 byte alignment. Did you forget a _declspec(align) on TDerived?");
 		// Allocate aligned memory.
 		static void* operator new (size_t size)
 		{
-			const size_t alignment = __alignof(TDerived);
 
-			static_assert(alignment > 8, "AlignedNew is only useful for types with > 8 byte alignment. Did you forget a _declspec(align) on TDerived?");
+		void* ptr = _aligned_malloc(size, alignment);
 
-			void* ptr = _aligned_malloc(size, alignment);
+		if (!ptr)
+			throw std::bad_alloc();
 
-			if (!ptr)
-				throw std::bad_alloc();
-
-			return ptr;
+		return ptr;
 		}
 
 
@@ -569,12 +563,13 @@ namespace DirectX
 	inline XMVECTOR XM_CALLCONV XMQuaternionEulerAngleABC<2, 1, 0>(FXMVECTOR q)
 	{
 #if defined(_XM_NO_INTRINSICS_)
-		float q0 = q.m128_f32[3], q1 = q.m128_f32[1], q2 = q.m128_f32[2], q3 = q.m128_f32[3];
+		float q0 = q.vector4_f32[3], q1 = q.vector4_f32[1], q2 = q.vector4_f32[2], q3 = q.vector4_f32[3];
 		XMVECTOR euler;
-		euler.m128_f32[0] = atan2(2 * (q0*q1 + q2*q3), 1 - 2 * (q1*q1 + q2*q2));
-		euler.m128_f32[1] = asinf(2 * (q0*q2 - q3*q1));
-		euler.m128_f32[2] = atan2(2 * (q0*q3 + q2*q1), 1 - 2 * (q2*q2 + q3*q3));
-#elif defined(_XM_SSE_INTRINSICS_) 
+		euler.vector4_f32[0] = atan2(2 * (q0*q1 + q2*q3), 1 - 2 * (q1*q1 + q2*q2));
+		euler.vector4_f32[1] = asinf(2 * (q0*q2 - q3*q1));
+		euler.vector4_f32[2] = atan2(2 * (q0*q3 + q2*q1), 1 - 2 * (q2*q2 + q3*q3));
+		return euler;
+#elif defined(_XM_SSE_INTRINSICS_) || defined(_XM_ARM_NEON_INTRINSICS_)
 
 		XMVECTOR q20 = XMVectorSwizzle<1, 1, 3, 3>(q);
 		XMVECTOR q13 = XMVectorSwizzle<0, 0, 2, 2>(q);
@@ -1095,27 +1090,6 @@ namespace DirectX
 		return XMQuaternionEulerAngleABC<AxisY, AxisX, AxisZ>(q);
 	}
 
-	inline XMVECTOR XM_CALLCONV XMQuaternionRotationRollPitchYawRH
-		(
-			float Pitch,
-			float Yaw,
-			float Roll
-			)
-	{
-		XMVECTOR Angles = XMVectorSet(Pitch, Yaw, Roll, 0.0f);
-		Angles = XMVectorNegate(Angles);
-		return XMQuaternionRotationRollPitchYawFromVector(Angles);
-	}
-
-	inline XMVECTOR XM_CALLCONV XMQuaternionRotationRollPitchYawFromVectorRH
-		(
-			FXMVECTOR eular //<Pitch, Yaw, Roll, 0>
-			)
-	{
-		XMVECTOR Angles = XMVectorNegate(eular);
-		return XMQuaternionRotationRollPitchYawFromVector(Angles);
-	}
-
 #ifdef _MSC_VER
 #pragma endregion
 #endif
@@ -1157,6 +1131,125 @@ namespace DirectX
 		//auto q = XMQuaternionRotationMatrix(rot);
 	}
 
+	inline XMVECTOR CaculatePrincipleAxisFromPoints(_In_ size_t Count,
+		_In_reads_bytes_(sizeof(XMFLOAT3) + Stride*(Count - 1)) const XMFLOAT3* pPoints, _In_ size_t Stride, float pointsUpperBound)
+	{
+		XMVECTOR InvScale = XMVectorReplicate(1.0f / pointsUpperBound);
+		XMVECTOR CenterOfMass = XMVectorZero();
+
+		// Compute the center of mass and inertia tensor of the points.
+		for (size_t i = 0; i < Count; ++i)
+		{
+			XMVECTOR Point = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(reinterpret_cast<const uint8_t*>(pPoints) + i * Stride));
+
+			CenterOfMass += Point * InvScale; // Only Modify is here, normalize scales to 1 to prevent float overflow
+		}
+
+		CenterOfMass *= XMVectorReciprocal(XMVectorReplicate(float(Count)));
+		XMVECTOR NegCenterOfMass = -CenterOfMass;
+
+		// Compute the inertia tensor of the points around the center of mass.
+		// Using the center of mass is not strictly necessary, but will hopefully
+		// improve the stability of finding the eigenvectors.
+		XMVECTOR XX_YY_ZZ = XMVectorZero();
+		XMVECTOR XY_XZ_YZ = XMVectorZero();
+
+		for (size_t i = 0; i < Count; ++i)
+		{
+			XMVECTOR Point = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(reinterpret_cast<const uint8_t*>(pPoints) + i * Stride));
+			Point = XMVectorMultiplyAdd(Point, InvScale, NegCenterOfMass); // normalize scales to 1 to prevent float overflow
+
+			XX_YY_ZZ += Point * Point;
+
+			XMVECTOR XXY = XMVectorSwizzle<XM_SWIZZLE_X, XM_SWIZZLE_X, XM_SWIZZLE_Y, XM_SWIZZLE_W>(Point);
+			XMVECTOR YZZ = XMVectorSwizzle<XM_SWIZZLE_Y, XM_SWIZZLE_Z, XM_SWIZZLE_Z, XM_SWIZZLE_W>(Point);
+
+			XY_XZ_YZ += XXY * YZZ;
+		}
+
+		XMVECTOR v1, v2, v3;
+
+		// Compute the eigenvectors of the inertia tensor.
+		DirectX::Internal::CalculateEigenVectorsFromCovarianceMatrix(XMVectorGetX(XX_YY_ZZ), XMVectorGetY(XX_YY_ZZ),
+			XMVectorGetZ(XX_YY_ZZ),
+			XMVectorGetX(XY_XZ_YZ), XMVectorGetY(XY_XZ_YZ),
+			XMVectorGetZ(XY_XZ_YZ),
+			&v1, &v2, &v3);
+
+		// Put them in a matrix.
+		XMMATRIX R;
+
+		R.r[0] = XMVectorSetW(v1, 0.f);
+		R.r[1] = XMVectorSetW(v2, 0.f);
+		R.r[2] = XMVectorSetW(v3, 0.f);
+		R.r[3] = g_XMIdentityR3.v;
+
+		// Multiply by -1 to convert the matrix into a right handed coordinate 
+		// system (Det ~= 1) in case the eigenvectors form a left handed 
+		// coordinate system (Det ~= -1) because XMQuaternionRotationMatrix only 
+		// works on right handed matrices.
+		XMVECTOR Det = XMMatrixDeterminant(R);
+
+		if (XMVector4Less(Det, XMVectorZero()))
+		{
+			R.r[0] *= g_XMNegativeOne.v;
+			R.r[1] *= g_XMNegativeOne.v;
+			R.r[2] *= g_XMNegativeOne.v;
+		}
+
+		// Get the rotation quaternion from the matrix.
+		XMVECTOR vOrientation = XMQuaternionRotationMatrix(R);
+
+		// Make sure it is normal (in case the vectors are slightly non-orthogonal).
+		vOrientation = XMQuaternionNormalize(vOrientation);
+
+		return vOrientation;
+		//// Rebuild the rotation matrix from the quaternion.
+		//R = XMMatrixRotationQuaternion(vOrientation);
+
+		//// Build the rotation into the rotated space.
+		//XMMATRIX InverseR = XMMatrixTranspose(R);
+	}
+
+	// Create AABB & OBB from points, also normalize points extents to prevent float overflow during caculating principle axis
+	inline void CreateBoundingBoxesFromPoints(_Out_ BoundingBox& aabb, _Out_ BoundingOrientedBox& obb, _In_ size_t Count,
+		_In_reads_bytes_(sizeof(XMFLOAT3) + Stride*(Count - 1)) const XMFLOAT3* pPoints, _In_ size_t Stride) {
+		BoundingBox::CreateFromPoints(aabb, Count, pPoints, Stride);
+		float pointsUpperBound = XMMax(XMMax(aabb.Extents.x, aabb.Extents.y), aabb.Extents.z);
+
+
+		XMVECTOR vOrientation = CaculatePrincipleAxisFromPoints(Count, pPoints, Stride, pointsUpperBound);
+
+		// Rebuild the rotation matrix from the quaternion.
+		XMMATRIX R = XMMatrixRotationQuaternion(vOrientation);
+
+		// Build the rotation into the rotated space.
+		XMMATRIX InverseR = XMMatrixTranspose(R);
+
+		// Find the minimum OBB using the eigenvectors as the axes.
+		XMVECTOR vMin, vMax;
+
+		vMin = vMax = XMVector3TransformNormal(XMLoadFloat3(pPoints), InverseR);
+
+		for (size_t i = 1; i < Count; ++i)
+		{
+			XMVECTOR Point = XMVector3TransformNormal(XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(reinterpret_cast<const uint8_t*>(pPoints) + i * Stride)),
+				InverseR);
+
+			vMin = XMVectorMin(vMin, Point);
+			vMax = XMVectorMax(vMax, Point);
+		}
+
+		// Rotate the center into world space.
+		XMVECTOR vCenter = (vMin + vMax) * 0.5f;
+		vCenter = XMVector3TransformNormal(vCenter, R);
+
+		// Store center, extents, and orientation.
+		XMStoreFloat3(&obb.Center, vCenter);
+		XMStoreFloat3(&obb.Extents, (vMax - vMin) * 0.5f);
+		XMStoreFloat4(&obb.Orientation, vOrientation);
+	}
+
 	inline XMMATRIX XM_CALLCONV XMMatrixScalingFromCenter(FXMVECTOR scale, FXMVECTOR center)
 	{
 		XMMATRIX m = XMMatrixScalingFromVector(scale);
@@ -1189,11 +1282,15 @@ namespace DirectX
 
 
 	// Composition of Translation and Rotation
-	struct RigidTransform
+	XM_ALIGNATTR
+	struct RigidTransform : public DirectX::AlignedNew<XM_ALIGNMENT>
 	{
 	public:
+		XM_ALIGNATTR
 		Quaternion  Rotation;
+		XM_ALIGNATTR
 		Vector3		Translation;
+		float		Tw; // padding
 
 		RigidTransform()
 		{}
@@ -1244,14 +1341,18 @@ namespace DirectX
 	};
 
 	// Composition of Translation/Rotation/Scale
+	XM_ALIGNATTR
 	struct AffineTransform : public RigidTransform
 	{
+		XM_ALIGNATTR
+		Vector3 Scale;
+		float Sw; // Padding
+
 		static AffineTransform Identity()
 		{
 			return AffineTransform();
 		}
 
-		Vector3 Scale;
 
 		AffineTransform()
 			: Scale(1.0f)

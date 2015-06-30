@@ -70,7 +70,7 @@ namespace Causality
 
 		// Extern Devices
 		std::shared_ptr<Devices::OculusRift>			pRift;
-		std::shared_ptr<Devices::KinectSensor>				pKinect;
+		std::shared_ptr<Devices::KinectSensor>			pKinect;
 		std::shared_ptr<Devices::LeapMotion>			pLeap;
 
 		// Application Logic object

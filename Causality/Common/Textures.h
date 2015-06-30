@@ -357,7 +357,9 @@ namespace DirectX{
 
 		void Clear(ID3D11DeviceContext *pDeviceContext , FXMVECTOR Color = g_XMIdentityR3)
 		{
-			pDeviceContext->ClearRenderTargetView(m_pRenderTargetView.Get(),reinterpret_cast<const float*>(&Color));
+			DirectX::Color col = Color;
+			if (m_pRenderTargetView)
+				pDeviceContext->ClearRenderTargetView(m_pRenderTargetView.Get(),&col.x);
 		}
 
 	protected:

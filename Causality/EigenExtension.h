@@ -215,7 +215,7 @@ namespace Eigen {
 
 	namespace impl
 	{
-		template <class Derived> inline
+		template <class Derived>
 		inline void compute_slack(
 			const DenseIndex x,
 			std::vector<typename Derived::Scalar>& slack,

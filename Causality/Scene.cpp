@@ -2,6 +2,7 @@
 #include "Scene.h"
 
 using namespace Causality;
+using namespace std;
 
 Causality::Scene::Scene()
 {
@@ -19,6 +20,7 @@ Causality::Scene::~Scene()
 void Causality::Scene::Update()
 {
 	if (is_paused) return;
+	lock_guard<mutex> guard(content_mutex);
 	step_timer.Tick([this]() {
 		time_seconds deltaTime(step_timer.GetElapsedSeconds());
 		for (auto& pObj : content->nodes())
@@ -39,8 +41,9 @@ std::mutex & Causality::Scene::ContentMutex() { return content_mutex; }
 void Causality::Scene::Render(RenderContext & context)
 {
 	// if (!is_loaded) return;
+	lock_guard<mutex> guard(content_mutex);
 
-	for (auto& pCamera : cameras)
+	for (auto pCamera : cameras)
 	{
 		pCamera->BeginFrame();
 		for (size_t view = 0; view < pCamera->ViewCount(); view++)
@@ -50,13 +53,7 @@ void Causality::Scene::Render(RenderContext & context)
 			auto p = pCamera->GetProjectionMatrix(view);
 			auto& viewFrustum = pCamera->GetViewFrustum(view);
 
-			auto default_effect = assets.GetEffect("");
-			auto pEm = dynamic_cast<DirectX::IEffectMatrices*>(default_effect);
-			if (pEm)
-			{
-				pEm->SetView(v);
-				pEm->SetProjection(p);
-			}
+			SetupEffectsViewProject(v, p);
 
 			for (auto& pRenderable : renderables)
 			{
@@ -68,6 +65,20 @@ void Causality::Scene::Render(RenderContext & context)
 			}
 		}
 		pCamera->EndFrame();
+	}
+}
+
+void Causality::Scene::SetupEffectsViewProject(const DirectX::XMMATRIX &v, const DirectX::XMMATRIX &p)
+{
+	auto& effects = assets.GetEffects();
+	for (auto& pEff : effects)
+	{
+		auto pME = dynamic_cast<DirectX::IEffectMatrices*>(pEff);
+		if (pME)
+		{
+			pME->SetView(v);
+			pME->SetProjection(p);
+		}
 	}
 }
 

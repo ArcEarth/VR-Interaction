@@ -119,8 +119,12 @@ public:
 	Microsoft::WRL::Wrappers::Event					m_FrameReadyEvent;
 
 	std::list<TrackedBody>							m_Players;
-	std::thread										m_Thread;
+	std::unique_ptr<std::thread>					m_pThread;
 
+	Impl()
+	{
+
+	}
 public:
 	bool IsActive() const
 	{
@@ -246,7 +250,7 @@ public:
 
 		m_pBodyFrameReader->put_IsPaused(FALSE);
 
-		m_Thread = std::thread([this](){
+		m_pThread = std::make_unique<std::thread>([this](){
 			while (m_FrameReadyEvent.IsValid())
 			{
 				auto result = WaitForSingleObject(m_FrameReadyEvent.Get(), 0);
@@ -290,7 +294,8 @@ public:
 
 		m_pBodyFrameReader->UnsubscribeFrameArrived(reinterpret_cast<WAITABLE_HANDLE>(m_FrameReadyEvent.Get()));
 		m_FrameReadyEvent.Detach();
-		m_Thread.join();
+		if (m_pThread)
+			m_pThread->join();
 	}
 
 	bool HasNewFrame() const
@@ -435,14 +440,15 @@ public:
 		player->m_Distance = joints[0].Position.Z;
 
 		TrackedBody::FrameType frame(JointType::JointType_Count);
-		frame.Time = std::chrono::system_clock::from_time_t(time).time_since_epoch();
+		//frame.Time = std::chrono::system_clock::from_time_t(time).time_since_epoch();
 
 		// WARNING!!! This may be ill-formed if transform contains shear or other non-rigid transformation
 		DirectX::XMVECTOR junk, rotation;
 		DirectX::XMMATRIX transform = LocalMatrix;
+
 		// Flip X and Z, X is due to mirrow effect, Z is due to Kinect uses LH coordinates
 		transform.r[0] = DirectX::XMVectorNegate(transform.r[0]);
-		transform.r[2] = DirectX::XMVectorNegate(transform.r[2]);
+		//transform.r[2] = DirectX::XMVectorNegate(transform.r[2]);
 
 		// Extract the rotation to apply
 		DirectX::XMMatrixDecompose(&junk, &rotation, &junk, transform);
@@ -458,9 +464,12 @@ public:
 
 			//? Why not filtering?
 			//! We are tracking gestures here, keep the raw data is better!
-			frame[j].EndPostion = ep; // filter.Apply(ep);
+			frame[j].GblTranslation = ep; // filter.Apply(ep);
 			ep = DirectX::XMLoadFloat4(reinterpret_cast<DirectX::Quaternion*>(&oris[j].Orientation));
-			ep *= g_XMNegateXZ.v;
+
+			ep *= DirectX::g_XMNegateX;
+			//ep *= g_XMNegateXZ.v;
+
 			frame[j].GblRotation = DirectX::XMQuaternionMultiply(ep, rotation);
 		}
 
@@ -606,7 +615,7 @@ std::shared_ptr<KinectSensor> KinectSensor::CreateDefault()
 }
 
 KinectSensor::KinectSensor()
-	:pImpl(new Impl)
+	:pImpl(new KinectSensor::Impl)
 {
 	pImpl->pWrapper = this;
 }
@@ -628,12 +637,27 @@ Causality::TrackedBody::TrackedBody(size_t bufferSize)
 void Causality::TrackedBody::PushFrame(FrameType && frame)
 {
 	m_FrameBuffer.Push(std::move(frame));
-	OnFrameArrived(*this, *m_FrameBuffer.PeekLatest());
+	m_FrameBuffer.LockBuffer();
+	auto pFrame = m_FrameBuffer.PeekLatest();
+	if (!pFrame)
+	{
+		m_FrameBuffer.UnlockBuffer();
+		return;
+	}
+
+	assert(pFrame != nullptr); // since we just pushed one frame 
+	OnFrameArrived(*this, *pFrame);
+	m_FrameBuffer.UnlockBuffer();
 }
 
 Causality::AffineFrame & Causality::TrackedBody::PullLatestFrame() const
 {
 	return *m_FrameBuffer.MoveToLatest();
+}
+
+Causality::AffineFrame & Causality::TrackedBody::CurrentFrame() const
+{
+	return *m_FrameBuffer.GetCurrent();
 }
 
 float Causality::TrackedBody::DistanceToSensor() const
@@ -740,9 +764,12 @@ void Causality::TrackedBodySelector::ChangePlayer(TrackedBody * pNewPlayer)
 	auto pOld = pCurrent;
 	con_frame.disconnect();
 	pCurrent = pNewPlayer;
-	con_frame = pCurrent->OnFrameArrived.connect(fpFrameArrived);
 
-	if (pCurrent) pCurrent->AddRef();
+	if (pCurrent)
+	{
+		pCurrent->AddRef();
+		con_frame = pCurrent->OnFrameArrived.connect(fpFrameArrived);
+	}
 
 	fpTrackedBodyChanged(pOld, pCurrent);
 

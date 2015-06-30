@@ -143,7 +143,7 @@ namespace DirectX
 		ID2D1DeviceContext1*	GetD2DDeviceContext() const				{ return m_d2dContext.Get(); }
 		ID2D1Bitmap1*			GetD2DTargetBitmap() const				{ return m_d2dTargetBitmap.Get(); }
 		IDWriteFactory2*		GetDWriteFactory() const				{ return m_dwriteFactory.Get();	 }
-		IWICImagingFactory2*	GetWicImagingFactory() const			{ return m_wicFactory.Get(); }
+		//IWICImagingFactory2*	GetWicImagingFactory() const			{ return m_wicFactory.Get(); }
 		D2D1::Matrix3x2F		GetOrientationTransform2D() const		{ return m_orientationTransform2D; }
 
 		const std::shared_ptr<DirectX::BasicEffect>& GetBasicEffect() const	{ return m_pBasicEffect; }
@@ -180,8 +180,8 @@ namespace DirectX
 		Microsoft::WRL::ComPtr<ID2D1Bitmap1>			m_d2dTargetBitmap;
 
 		// DirectWrite drawing components.
-		Microsoft::WRL::ComPtr<IDWriteFactory2>		m_dwriteFactory;
-		Microsoft::WRL::ComPtr<IWICImagingFactory2>	m_wicFactory;
+		Microsoft::WRL::ComPtr<IDWriteFactory2>			m_dwriteFactory;
+		Microsoft::WRL::ComPtr<IWICImagingFactory2>		m_wicFactory;
 
 		//std::unique_ptr<DirectX::EffectFactory>		   m_EffectFactory;
 		std::shared_ptr<BasicEffect>				   m_pBasicEffect;

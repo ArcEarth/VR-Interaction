@@ -168,14 +168,14 @@ void DirectX::DeviceResources::CreateDeviceIndependentResources()
 		);
 
 	// Initialize the Windows Imaging Component (WIC) Factory.
-	DirectX::ThrowIfFailed(
-		CoCreateInstance(
-			CLSID_WICImagingFactory2,
-			nullptr,
-			CLSCTX_INPROC_SERVER,
-			IID_PPV_ARGS(&m_wicFactory)
-			)
-		);
+	//DirectX::ThrowIfFailed(
+	//	CoCreateInstance(
+	//		CLSID_WICImagingFactory2,
+	//		nullptr,
+	//		CLSCTX_INPROC_SERVER,
+	//		IID_PPV_ARGS(&m_wicFactory)
+	//		)
+	//	);
 }
 
 // Configures the Direct3D device, and stores handles to it and the device context.
@@ -493,11 +493,15 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 		throw std::exception("Failed to initialize");
 	}
 
-	HRESULT hr =
-		m_swapChain->SetRotation(displayRotation);
-	if (FAILED(hr) && hr != DXGI_ERROR_INVALID_CALL)
+	// Roatation is only avaiable for them
+	if (m_multiSampleLevel <= 1)
 	{
-		ThrowIfFailed(hr);
+		HRESULT hr =
+			m_swapChain->SetRotation(displayRotation);
+		if (FAILED(hr) && hr != DXGI_ERROR_INVALID_CALL)
+		{
+			ThrowIfFailed(hr);
+		}
 	}
 
 	if (m_deviceHostType == DeviceHostType::Composition)

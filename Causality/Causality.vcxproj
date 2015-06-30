@@ -109,10 +109,11 @@
       </AdditionalUsingDirectories>
       <AdditionalOptions>/D_SCL_SECURE_NO_WARNINGS /Zm200 %(AdditionalOptions)</AdditionalOptions>
       <BrowseInformation>true</BrowseInformation>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;FBXSDK_SHARED;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeaderFile>pch_bcl.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)bcl.pch</PrecompiledHeaderOutputFile>
+      <DisableSpecificWarnings>4267</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -138,10 +139,11 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
       <AdditionalOptions>/D_SCL_SECURE_NO_WARNINGS /Zm200 %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;FBXSDK_SHARED;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeaderFile>pch_bcl.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)bcl.pch</PrecompiledHeaderOutputFile>
+      <DisableSpecificWarnings>4267</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -172,6 +174,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PrecompiledHeaderFile>pch_bcl.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)bcl.pch</PrecompiledHeaderOutputFile>
+      <DisableSpecificWarnings>4267</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -204,6 +207,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PrecompiledHeaderFile>pch_bcl.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)bcl.pch</PrecompiledHeaderOutputFile>
+      <DisableSpecificWarnings>4267</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -224,6 +228,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AnimationAnalyzer.cpp" />
+    <ClCompile Include="CharacterObject.cpp" />
     <ClCompile Include="pch_bcl.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>pch_bcl.h</PrecompiledHeaderFile>
@@ -247,7 +252,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="SceneObject.cpp" />
     <ClCompile Include="SceneParser.cpp" />
     <ClCompile Include="SelectorScene.cpp" />
-    <ClCompile Include="SkinningModel.cpp" />
+    <ClCompile Include="SkinningModelFromFbx.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationAnalyzer.h" />
@@ -259,6 +264,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="CausalityApplication.h" />
     <ClInclude Include="CCA.h" />
     <ClInclude Include="CharacterBehavier.h" />
+    <ClInclude Include="CharacterObject.h" />
     <ClInclude Include="Common\BCL.h" />
     <ClInclude Include="Common\CompositeFlag.h" />
     <ClInclude Include="Common\Filter.h" />
@@ -284,7 +290,6 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="Armature.h" />
     <ClInclude Include="SceneParser.h" />
     <ClInclude Include="SelectorScene.h" />
-    <ClInclude Include="SkinningModel.h" />
     <ClInclude Include="WorldTreeBranch.h" />
   </ItemGroup>
   <ItemGroup>
@@ -307,6 +312,12 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <VariableName>%(Filename)Bytecode</VariableName>
       <HeaderFileOutput>$(ProjectDir)Shaders\%(Filename).inl</HeaderFileOutput>
       <VariableName>%(Filename)Bytecode</VariableName>
+    </FxCompile>
+    <FxCompile Include="ShadowMapGenVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

@@ -31,43 +31,6 @@ namespace DirectX{
 			virtual void UpdateAnimation(StepTimer const& timer) = 0;
 		};
 
-		// Interface for object with local coordinate
-		class ILocalMatrix abstract
-		{
-		public:
-			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) = 0;
-			virtual XMMATRIX GetModelMatrix() const = 0;
-
-			void XM_CALLCONV TransformLocal(DirectX::FXMMATRIX trans)
-			{
-				SetModelMatrix(trans * GetModelMatrix());
-			}
-
-			void XM_CALLCONV TransformGlobal(DirectX::FXMMATRIX trans)
-			{
-				SetModelMatrix(GetModelMatrix() * trans);
-			}
-		};
-
-		// The object Using rigid information to genreate ILocalMatrix interface
-		struct IRigidLocalMatrix : virtual public ILocalMatrix, virtual public IRigid
-		{
-		public:
-			virtual XMMATRIX GetModelMatrix() const override
-			{
-				return XMMatrixAffineTransformation(GetScale(), XMVectorZero(), GetOrientation(), GetPosition());
-			}
-		protected:
-			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override
-			{
-				XMVECTOR scale, rotation, translation;
-				XMMatrixDecompose(&scale, &rotation, &translation, model);
-				SetScale((Vector3)scale);
-				SetOrientation(rotation);
-				SetPosition(translation);
-			}
-		};
-
 		// helper struct that implements IViewable interface and stored matrix for future use
 		struct ViewMatrixCache : virtual public IViewable
 		{
@@ -85,34 +48,6 @@ namespace DirectX{
 			Matrix4x4	ViewMatrix;
 			Matrix4x4	ProjectionMatrix;
 		};
-		
-		// An brige class to transfer Rigid data into model matrix
-		class RigidLocalMatrix : virtual public ILocalMatrix
-		{
-		public:
-			inline RigidLocalMatrix(IRigid* pRigid)
-				: m_pRigid(pRigid)
-			{
-				assert(pRigid != nullptr);
-			}
-
-			virtual XMMATRIX GetModelMatrix() const override
-			{
-				return XMMatrixAffineTransformation(m_pRigid->GetScale(), XMVectorZero(), m_pRigid->GetOrientation(), m_pRigid->GetPosition());
-			}
-		protected:
-			virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override
-			{
-				XMVECTOR scale, rotation, translation;
-				XMMatrixDecompose(&scale, &rotation, &translation, model);
-				m_pRigid->SetScale((Vector3) scale);
-				m_pRigid->SetOrientation(rotation);
-				m_pRigid->SetPosition(translation);
-			}
-		private:
-			IRigid * m_pRigid;
-		};
-
 	}
 
 }

@@ -228,7 +228,7 @@ int main(int argc, wchar_t** argv)
 	cout << "Py = " << qrY.colsPermutation().indices().transpose() << endl;
 	cout << "Qy * Ry = \n" << qrY.matrixQ() * qrY.matrixR() << endl;
 
-	Eigen::Cca cca;
+	Eigen::Cca<float> cca;
 	cca.computeFromQr(qrX, qrY,true);
 	cout << "CCA : " << endl;
 	cout << "A = \n" << cca.matrixA() << endl;

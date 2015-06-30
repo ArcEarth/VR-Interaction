@@ -119,10 +119,11 @@ namespace Eigen {
 			compute(X);
 		}
 
-		void compute(const MatrixType& X, bool computeCoords = true)
+		template <typename Derived>
+		void compute(const DenseBase<Derived>& X, bool computeCoords = true)
 		{
 			m_Mean = X.colwise().mean();
-			auto Xz = (X.rowwise() - m_Mean).eval();
+			MatrixType Xz = (X.rowwise() - m_Mean).eval();
 
 			auto svd = Xz.jacobiSvd(ComputeThinV);
 			m_Comps = svd.matrixV();
@@ -165,7 +166,9 @@ namespace Eigen {
 		const auto& mean() const { return m_Mean; }
 
 	};
+
 	// Canonical correlation analysis
+	// template praram <_TScalar> : scalar used internal for this CCA
 	// X : n x dX input vectors
 	// Y : n x dY input vectors
 	// n : number of observations
@@ -175,30 +178,41 @@ namespace Eigen {
 	// thus argmax(A,B) corr(XA,YB)
 	// it's best to make sure X Y are full-rank in the sense of colume rank
 	// thus X' * A ~ Y' * B (X',Y' is zero meaned X,Y)
+	template<class _TScalar>
 	class Cca
 	{
+		typedef typename _TScalar Scalar;
+
+		typedef Matrix<Scalar, -1, -1> MatrixType;
+		typedef Matrix<Scalar,  1, -1> RowVectorType;
+		typedef Matrix<Scalar, -1,  1> VectorType;
+
 	private:
 		bool m_initialized;
-		MatrixXf	A, B;	 // transform matrix to latent space
-		VectorXf	R;		 // Correlations
-		RowVectorXf uX, uY;	 // mean vector of X and Y
-		DenseIndex	rankX, rankY;	// rank of input X and Y
-		DenseIndex  d, dX, dY;		// Dimension of latent space, X feature, Y feature
+		MatrixType		A, B;	 // transform matrix to latent space
+		VectorType		R;		 // Correlations
+		RowVectorType	uX, uY;	 // mean vector of X and Y
+		DenseIndex		rankX, rankY;	// rank of input X and Y
+		DenseIndex		d, dX, dY;		// Dimension of latent space, X feature, Y feature
 
-		ColPivHouseholderQR<MatrixXf> qrX, qrY;
-		JacobiSVD<MatrixXf, 2> svdCovQXY;
+		ColPivHouseholderQR<MatrixType> qrX, qrY;
+		JacobiSVD<MatrixType, 2> svdCovQXY;
 
 		// for transform
-		mutable JacobiSVD<MatrixXf,2> svdBt;	
-		mutable MatrixXf	invB;
+		mutable JacobiSVD<MatrixType,2> svdBt;
+		mutable MatrixType				invB;
 	public:
 		Cca() : m_initialized(false) {}
 
-		Cca(const MatrixXf &X, const MatrixXf &Y) {
-			compute(X, Y);
+
+		template <typename DerivedX, typename DerivedY>
+		Cca(const DenseBase<DerivedX> &X, const DenseBase<DerivedY> &Y, bool computeAB = false) 
+		{
+			compute(X, Y, computeAB);
 		}
 
-		Cca& compute(const MatrixXf &X, const MatrixXf &Y, bool computeAB = false);
+		template <typename DerivedX, typename DerivedY>
+		Cca& compute(const DenseBase<DerivedX> &X, const DenseBase<DerivedY> &Y, bool computeAB = false);
 
 		template<typename _MatrixTypeX, typename _MatrixTypeY>
 		Cca& computeFromQr(const ColPivHouseholderQR<_MatrixTypeX>& qrX, const ColPivHouseholderQR<_MatrixTypeY>& qrY, bool computeAB = false);
@@ -206,10 +220,13 @@ namespace Eigen {
 		template<typename _MatrixTypeX, typename _MatrixTypeY>
 		Cca& computeFromQr(const MeanThinQr<_MatrixTypeX>& qrX, const MeanThinQr<_MatrixTypeY>& qrY, bool computeAB = false);
 
+		template<typename _MatrixTypeX, typename _MatrixTypeY>
+		Cca& computeFromPca(const Pca<_MatrixTypeX>& pcaX, const Pca<_MatrixTypeY>& pcaY, bool computeAB = false);
+
 		DenseIndex rank() const { return d; }
-		const MatrixXf& matrixA() const { return A; }
-		const MatrixXf& matrixB() const { return B; }
-		const VectorXf& correlaltions() const { return R; }
+		const MatrixType& matrixA() const { return A; }
+		const MatrixType& matrixB() const { return B; }
+		const VectorType& correlaltions() const { return R; }
 
 		// transform X into correlated Y
 		//? this is not finished yet!!!
@@ -237,8 +254,9 @@ namespace Eigen {
 
 #define DebugLog(mat) #mat << " = " << endl << mat << endl 
 
+	template<typename _TScalar>
 	template<typename _MatrixTypeX, typename _MatrixTypeY>
-	inline Cca& Cca::computeFromQr(const ColPivHouseholderQR<_MatrixTypeX>& qrX, const ColPivHouseholderQR<_MatrixTypeY>& qrY, bool computeAB)
+	inline Cca<_TScalar>& Cca<_TScalar>::computeFromQr(const ColPivHouseholderQR<_MatrixTypeX>& qrX, const ColPivHouseholderQR<_MatrixTypeY>& qrY, bool computeAB)
 	{
 		using namespace std;
 		assert(qrX.rows() == qrX.rows());
@@ -253,7 +271,7 @@ namespace Eigen {
 		d = min(rankX, rankY);
 
 		// Get matrix Q,R and covQXY
-		MatrixXf qX, qY;
+		MatrixType qX, qY;
 		qrX.matrixQ().evalTo(qX);
 		qrY.matrixQ().evalTo(qY);
 		//? This impl is not efficient!
@@ -296,15 +314,16 @@ namespace Eigen {
 			if (d == dY)
 				invB = B.inverse();
 			else
-				svdBt = JacobiSVD<MatrixXf>(B.transpose());
+				svdBt = JacobiSVD<MatrixType>(B.transpose());
 		}
 
 		m_initialized = true;
 		return *this;
 	}
 
+	template<typename _TScalar>
 	template<typename _MatrixTypeX, typename _MatrixTypeY>
-	inline Cca& Cca::computeFromQr(const MeanThinQr<_MatrixTypeX>& qrX, const MeanThinQr<_MatrixTypeY>& qrY, bool computeAB)
+	inline Cca<_TScalar>& Cca<_TScalar>::computeFromQr(const MeanThinQr<_MatrixTypeX>& qrX, const MeanThinQr<_MatrixTypeY>& qrY, bool computeAB)
 	{
 		using namespace std;
 		assert(qrX.rows() == qrX.rows());
@@ -371,7 +390,9 @@ namespace Eigen {
 		return *this;
 	}
 
-	inline Cca& Cca::compute(const MatrixXf &X, const MatrixXf &Y, bool computeAB)
+	template<class _TScalar>
+	template <typename DerivedX, typename DerivedY>
+	inline Cca<_TScalar>& Cca<_TScalar>::compute(const DenseBase<DerivedX> &X, const DenseBase<DerivedY> &Y, bool computeAB)
 	{
 		// Algorithm is explianed here : ( Qr + SVD version)
 		// http://www.nr.com/whp/notes/CanonCorrBySVD.pdf
@@ -383,8 +404,8 @@ namespace Eigen {
 		// zero mean X and Y
 		uX = X.colwise().mean().eval();
 		uY = Y.colwise().mean().eval();
-		MatrixXf mX = X.rowwise() - uX; // dX x n
-		MatrixXf mY = Y.rowwise() - uY; // dY x n
+		MatrixType mX = X.rowwise() - uX; // dX x n
+		MatrixType mY = Y.rowwise() - uY; // dY x n
 
 		// QR-decomposition
 		auto qrX = mX.colPivHouseholderQr();

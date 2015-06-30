@@ -4,6 +4,7 @@
 #else
 #include <d3d11_1.h>
 #endif
+#include <wrl\client.h>
 #include <Effects.h>
 #include "DirectXHelper.h"
 #include <ppltasks.h>
@@ -25,6 +26,17 @@ namespace DirectX
 		virtual void SetDiffuseTexture(ID3D11ShaderResourceView* pTexture) = 0;
 		virtual void SetNormalTexture(ID3D11ShaderResourceView* pTexture) = 0;
 		virtual void SetSpecularTexture(ID3D11ShaderResourceView* pTexture) = 0;
+	};
+
+	class IEffectShadowMap abstract
+	{
+		virtual void SetShadowMap(int shadowId, ID3D11ShaderResourceView* pTexture) = 0;
+		virtual void XM_CALLCONV SetShadowColor(int shadowId, FXMVECTOR color) = 0;
+	};
+
+	class IEffectLightMap
+	{
+
 	};
 
 	//ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device* pDevice, IEffect* pEffect)

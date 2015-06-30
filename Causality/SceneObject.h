@@ -5,8 +5,6 @@
 #include "Object.h"
 #include "RenderContext.h"
 #include "Interactive.h"
-#include "Armature.h"
-#include "CharacterBehavier.h"
 
 namespace Causality
 {
@@ -14,6 +12,7 @@ namespace Causality
 	class Component;
 
 	extern bool g_DebugView;
+	extern bool g_ShowCharacterMesh;
 
 	class IRenderable abstract
 	{
@@ -121,10 +120,10 @@ namespace Causality
 	};
 
 	// Scene object acts like entities for render
-	class RenderableSceneObject : virtual public SceneObject , virtual public IRenderable
+	class VisualObject : virtual public SceneObject , virtual public IRenderable
 	{
 	public:
-		RenderableSceneObject();
+		VisualObject();
 		//int										MaxLoD() const;
 		//int										CurrentLoD() const;
 		//void										SetLoD(int LoD);
@@ -142,17 +141,17 @@ namespace Causality
 		void										SetOpticity(float value) { m_opticity = value; }
 
 		// Events
-		//TypedEvent<RenderableSceneObject, int>				LoDChanged;
-		//TypedEvent<RenderableSceneObject>						Rendering;
-		//TypedEvent<RenderableSceneObject>						Rendered;
-		//TypedEvent<RenderableSceneObject>						Focused;
-		//TypedEvent<RenderableSceneObject>						FocusLost;
-		//TypedEvent<RenderableSceneObject>						VisibilityChanged;
-		//TypedEvent<RenderableSceneObject>						PositionChanged;
+		//TypedEvent<VisualObject, int>				LoDChanged;
+		//TypedEvent<VisualObject>						Rendering;
+		//TypedEvent<VisualObject>						Rendered;
+		//TypedEvent<VisualObject>						Focused;
+		//TypedEvent<VisualObject>						FocusLost;
+		//TypedEvent<VisualObject>						VisibilityChanged;
+		//TypedEvent<VisualObject>						PositionChanged;
 
 		DirectX::Scene::IModelNode*					RenderModel(int LoD = 0);
 		const DirectX::Scene::IModelNode*			RenderModel(int LoD = 0) const;
-		void										SetRenderModel(DirectX::Scene::IModelNode* pMesh, int LoD = 0);
+		virtual void								SetRenderModel(DirectX::Scene::IModelNode* pMesh, int LoD = 0);
 
 		//Bullet::CollisionShape&						CollisionShape(int LoD = 0);
 		//const Bullet::CollisionShape&				CollisionShape(int LoD = 0) const;
@@ -167,6 +166,7 @@ namespace Causality
 		bool										m_isVisable;
 		bool										m_isFocuesd;
 		DirectX::Scene::IModelNode*					m_pRenderModel;
+		DirectX::Scene::ISkinningModel*				m_pSkinModel;
 
 		//std::shared_ptr<Bullet::CollisionShape>		m_CollisionShape;
 	};
@@ -177,56 +177,6 @@ namespace Causality
 		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
 		virtual void Render(RenderContext & context) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
-	};
-
-	class CharacterController;
-	// Represent an SceneObjecy
-	class KinematicSceneObject : public RenderableSceneObject
-	{
-	public:
-		typedef BehavierSpace::frame_type frame_type;
-
-		const frame_type&				GetCurrentFrame() const;
-		frame_type&						MapCurrentFrameForUpdate();
-		void							ReleaseCurrentFrameFrorUpdate();
-
-		IArmature&						Armature();
-		const IArmature&				Armature() const;
-		BehavierSpace&					Behavier();
-		const BehavierSpace&			Behavier() const;
-		void							SetBehavier(BehavierSpace& behaver);
-		
-		bool							StartAction(const string& key, time_seconds begin_time = time_seconds(0), bool loop = false, time_seconds transition_time = time_seconds(0));
-		bool							StopAction(time_seconds transition_time = time_seconds(0));
-
-		bool							IsFreezed() const;
-		void							SetFreeze(bool freeze);
-
-
-		virtual void Update(time_seconds const& time_delta) override;
-		// Inherited via IRenderable
-		virtual bool IsVisible(const BoundingFrustum& viewFrustum) const override;
-		virtual void Render(RenderContext & pContext) override;
-		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
-
-	private:
-		BehavierSpace*					        m_pBehavier;
-		BehavierSpace::animation_type*			m_pCurrentAction;
-		BehavierSpace::animation_type*			m_pLastAction;
-		time_seconds							m_CurrentActionTime;
-		bool									m_LoopCurrentAction;
-
-		int										m_FrameMapState;
-		frame_type						        m_CurrentFrame;
-
-		bool									m_DirtyFlag;
-		std::vector<CharacterController*>				m_Controls;
-	};
-
-	// Represent an ControlObject
-	class KinematicAIController
-	{
-
 	};
 
 	class KeyboardMouseFirstPersonControl :public SceneObject, public IAppComponent, public IKeybordInteractive, public ICursorInteractive

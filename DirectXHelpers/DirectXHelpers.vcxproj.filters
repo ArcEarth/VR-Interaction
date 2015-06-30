@@ -113,6 +113,12 @@
     <ClInclude Include="..\Causality\Common\Extern\tiny_obj_loader.h">
       <Filter>DirectX\Extern</Filter>
     </ClInclude>
+    <ClInclude Include="..\Causality\Common\MeshData.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Causality\Common\MaterialData.h">
+      <Filter>DirectX</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

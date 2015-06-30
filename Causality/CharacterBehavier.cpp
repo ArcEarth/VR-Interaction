@@ -104,7 +104,7 @@ Eigen::VectorXf BehavierSpace::FrameFeatureVectorEndPointNormalized(const frame_
 	for (int i = 0; i < N; i++)
 	{
 		const auto& bone = frame[i];
-		XMVECTOR q = bone.EndPostion;
+		XMVECTOR q = bone.GblTranslation;
 		q = XMVector3Rotate(v, q);
 		XMStoreFloat4(&reinterpret_cast<XMFLOAT4&>(sv[i]), q);
 		// HACK: equals to sv[i]=q
@@ -114,9 +114,9 @@ Eigen::VectorXf BehavierSpace::FrameFeatureVectorEndPointNormalized(const frame_
 
 	using namespace Eigen;
 	Map<const VectorXf> eep(&sv[0].x, N * 3);
-	//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(Bone) / sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+	//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(Bone) / sizeof(float)>> eep(&frame[0].GblTranslation.x, N);
 
-	//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(Bone)/sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+	//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(Bone)/sizeof(float)>> eep(&frame[0].GblTranslation.x, N);
 	fvector = eep.cwiseProduct(Wb);//.asDiagonal();
 	return fvector;
 }
@@ -148,7 +148,7 @@ void Causality::BehavierSpace::CacAnimationMatrixEndPosition(const ArmatureFrame
 		for (int i = 0; i < N; i++)
 		{
 			const auto& bone = frame[i];
-			XMVECTOR q = bone.EndPostion;
+			XMVECTOR q = bone.GblTranslation;
 			q = XMVector3Rotate(v, q);
 			XMStoreFloat4(&reinterpret_cast<XMFLOAT4&>(sv[i]), q);
 			// HACK: equals to sv[i]=q
@@ -158,9 +158,9 @@ void Causality::BehavierSpace::CacAnimationMatrixEndPosition(const ArmatureFrame
 
 		using namespace Eigen;
 		Map<const VectorXf> eep(&sv[0].x, N * 3);
-		//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(Bone) / sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+		//Map<const Matrix3Xf, Aligned, Stride<1, sizeof(Bone) / sizeof(float)>> eep(&frame[0].GblTranslation.x, N);
 
-		//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(Bone)/sizeof(float)>> eep(&frame[0].EndPostion.x, N);
+		//Map<const Matrix3Xf,Aligned, Stride<1,sizeof(Bone)/sizeof(float)>> eep(&frame[0].GblTranslation.x, N);
 		fvector = eep.cwiseProduct(Wb);//.asDiagonal();
 	}
 }
@@ -212,7 +212,7 @@ Eigen::VectorXf BehavierSpace::CaculateFrameDynamicFeatureVectorJointVelocityHis
 	VectorXf Jvh(N);
 	for (size_t i = 0; i < N; i++)
 	{
-		auto disp = frame[i].EndPostion - prev_frame[i].EndPostion;
+		auto disp = frame[i].GblTranslation - prev_frame[i].GblTranslation;
 		Jvh(i) = disp.Length();
 	}
 

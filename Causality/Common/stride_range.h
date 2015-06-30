@@ -145,6 +145,25 @@ namespace stdx {
 			:data(data), stride(stride), stop(reinterpret_cast<pointer>(reinterpret_cast<char*>(data) + stride*count))
 		{}
 
+		void reset(pointer data, size_t stride, size_t count)
+		{
+			this->data = data;
+			this->stride = stride;
+			this->stop = reinterpret_cast<pointer>(reinterpret_cast<char*>(data) + stride*count);
+		}
+
+		void reset()
+		{
+			data = nullptr;
+			stride = 0;
+			stop = nullptr;
+		}
+
+		bool empty() const
+		{
+			return stop - data == 0;
+		}
+
 		size_t size()
 		{
 			return ((char*) stop - (char*) data) / stride;;

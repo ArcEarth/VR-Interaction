@@ -3,7 +3,6 @@
 
 namespace DirectX
 {
-
 	// Interface for Object with 3D Position
 	class ILocatable abstract
 	{
@@ -41,9 +40,9 @@ namespace DirectX
 		//virtual const Vector3& GetExtent() const = 0;
 
 		virtual BoundingBox			GetBoundingBox() const = 0;
-		virtual BoundingOrientedBox GetOrientedBoundingBox() const { 
-			auto box = GetBoundingBox(); 
-			return BoundingOrientedBox(box.Center, box.Extents,Quaternion::Identity);
+		virtual BoundingOrientedBox GetOrientedBoundingBox() const {
+			auto box = GetBoundingBox();
+			return BoundingOrientedBox(box.Center, box.Extents, Quaternion::Identity);
 		};
 	};
 
@@ -51,16 +50,15 @@ namespace DirectX
 	class IRigid abstract : virtual public ILocatable, virtual public IOriented, virtual public IScalable
 	{
 	public:
-		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition(XMVectorAdd((XMVECTOR) GetPosition(), p)); }
-		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(GetOrientation(),q)); }
+		void XM_CALLCONV Move(FXMVECTOR p) { SetPosition(XMVectorAdd((XMVECTOR)GetPosition(), p)); }
+		void XM_CALLCONV Rotate(FXMVECTOR q) { SetOrientation(XMQuaternionMultiply(GetOrientation(), q)); }
 		XMMATRIX GetRigidTransformMatrix() const
 		{
 			return XMMatrixAffineTransformation(GetScale(), XMVectorZero(), GetOrientation(), GetPosition());
 		}
 	};
 
-	// Helper struct to implement IRigid Interface
-	class BasicTransform : virtual public IRigid , public AffineTransform
+	class BasicTransform : public AffineTransform, virtual public IRigid
 	{
 	public:
 		// Inherited via IRigid
@@ -93,5 +91,40 @@ namespace DirectX
 		//Vector3 GetUp() const;
 		//Vector3 GetRight() const;
 	};
+	// Interface for object with local coordinate
+	class ILocalMatrix abstract
+	{
+	public:
+		virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) = 0;
+		virtual XMMATRIX GetModelMatrix() const = 0;
 
+		void XM_CALLCONV TransformLocal(DirectX::FXMMATRIX trans)
+		{
+			SetModelMatrix(trans * GetModelMatrix());
+		}
+
+		void XM_CALLCONV TransformGlobal(DirectX::FXMMATRIX trans)
+		{
+			SetModelMatrix(GetModelMatrix() * trans);
+		}
+	};
+
+	// The object Using rigid information to genreate ILocalMatrix interface
+	struct IRigidLocalMatrix : virtual public ILocalMatrix, virtual public IRigid
+	{
+	public:
+		virtual XMMATRIX GetModelMatrix() const override
+		{
+			return XMMatrixAffineTransformation(GetScale(), XMVectorZero(), GetOrientation(), GetPosition());
+		}
+	protected:
+		virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override
+		{
+			XMVECTOR scale, rotation, translation;
+			XMMatrixDecompose(&scale, &rotation, &translation, model);
+			SetScale((Vector3)scale);
+			SetOrientation(rotation);
+			SetPosition(translation);
+		}
+	};
 }

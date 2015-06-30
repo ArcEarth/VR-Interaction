@@ -20,6 +20,11 @@ void Causality::BlockArmature::SetArmature(const IArmature & armature)
 	}
 }
 
+Causality::BlockArmature::BlockArmature(const IArmature & armature)
+{
+	SetArmature(armature);
+}
+
 KinematicBlock* Causality::ShrinkChainToBlock(const Joint* pJoint)
 {
 	if (pJoint == nullptr || pJoint->is_null()) return nullptr;

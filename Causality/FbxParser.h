@@ -3,43 +3,13 @@
 #include "Armature.h"
 #include "CharacterBehavier.h"
 #include <VertexTypes.h>
+#include "Common\MeshData.h"
 
 namespace Causality
 {
-	/// <summary>
-	///	Binary layout
-	/// </summary>
-	struct SkinMeshData
-	{
-		typedef DirectX::VertexPositionNormalTangentColorTextureSkinning VertexType;
-		typedef uint16_t IndexType;
-		static const size_t PolygonSize = 3U;
+	using DirectX::Scene::SkinMeshData;
 
-		uint32_t	VertexCount;
-		uint32_t	IndexCount;
-		uint32_t	BonesCount;
-		VertexType* Vertices;
-		IndexType*	Indices;
-		std::string Name;
-
-		SkinMeshData *ParentMesh;
-		DirectX::AffineTransform TransformToParent;
-
-		SkinMeshData();
-		// Release the internal Vertex/Index memery
-		void Release();
-
-		void Serialize(std::ostream& binary) const;
-		void Deserialize(std::istream& binary);
-	};
-
-	class BinaryFileLoader
-	{
-		ArmatureFrameAnimation LoadAnimationClipFromFile(const string& filename);
-		SkinMeshData			   LoadSkinnedMeshFromFile(const string& filename);
-	};
-
-	class FbxAnimationParser
+	class FbxParser
 	{
 	public:
 		enum class Mode : unsigned
@@ -51,21 +21,26 @@ namespace Causality
 			ImportArmature = 8U
 		};
 
-		explicit FbxAnimationParser(const string& file, unsigned mode);
+		explicit FbxParser(const string& file, unsigned mode);
 
 		void SetBehavierProfile(BehavierSpace* pBehav);
 
 		bool Load(const string& file, unsigned mode);
+		// Import Armature & Animations
 		bool ImportBehavier(const string& file);
-		bool ImportMesh(const string& file);
+		// Import Armature only
+		bool ImportArmature(const string& file);
+		// Import Meshes only
+		bool ImportMesh(const string& file, bool rewind = false);
+		// Import Animations only
 		bool ImportAnimation(const string& file,const string& name);
 
 		const std::list<SkinMeshData>&	GetMeshs();
 		StaticArmature*					GetArmature();
 		BehavierSpace*					GetBehavier();
 
-		~FbxAnimationParser();
-		FbxAnimationParser();
+		~FbxParser();
+		FbxParser();
 	private:
 		struct Impl;
 		unique_ptr<Impl> m_pImpl;

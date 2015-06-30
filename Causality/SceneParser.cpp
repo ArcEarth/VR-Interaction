@@ -6,6 +6,7 @@
 #include <tinyxml2.h>
 #include "Common\SkyDome.h"
 #include "PlayerProxy.h"
+#include "CharacterObject.h"
 
 using namespace tinyxml2;
 using namespace Causality;
@@ -13,12 +14,12 @@ using namespace DirectX::Scene;
 using namespace std;
 
 void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device);
-void ParseRenderableObjectAttributes(RenderableSceneObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
-void ParseCreatureAttributes(KinematicSceneObject *pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
+void ParseRenderableObjectAttributes(VisualObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
+void ParseCreatureAttributes(CharacterObject *pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
 void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node);
 void ParseSceneAssets(AssetDictionary& assets, XMLElement* node);
 
-AssetDictionary::mesh_type & ParseMeshAsset(AssetDictionary & assets, XMLElement * node);
+AssetDictionary::mesh_type * ParseMeshAsset(AssetDictionary & assets, XMLElement * node);
 
 AssetDictionary::texture_type & ParseTextureAsset(AssetDictionary & assets, XMLElement * node);
 
@@ -28,7 +29,7 @@ AssetDictionary::armature_type & ParseArmatureAsset(AssetDictionary & assets, XM
 
 AssetDictionary::animation_clip_type ParseAnimationClip(XMLElement * node);
 
-AssetDictionary::behavier_type & ParseBehavierAsset(AssetDictionary & assets, XMLElement * node);
+AssetDictionary::behavier_type * ParseBehavierAsset(AssetDictionary & assets, XMLElement * node);
 
 Causality::BehavierSpace & LoadBehavierFbx(const char * attr, Causality::AssetDictionary & assets, tinyxml2::XMLElement * node);
 
@@ -78,7 +79,8 @@ bool Causality::Scene::SetAsPrimaryCamera(Camera * camera)
 void Causality::Scene::UpdateRenderViewCache()
 {
 	if (!camera_dirty) return;
-	lock_guard<mutex> guard(content_mutex);
+	cameras.clear();
+	renderables.clear();
 	for (auto& obj : content->nodes())
 	{
 		auto pCamera = obj.As<Camera>();
@@ -112,7 +114,7 @@ void ParseSceneAssets(AssetDictionary& assets, XMLElement* node)
 	}
 }
 
-AssetDictionary::mesh_type& ParseMeshAsset(AssetDictionary& assets, XMLElement* node)
+AssetDictionary::mesh_type* ParseMeshAsset(AssetDictionary& assets, XMLElement* node)
 {
 	if (!strcmp(node->Name(), "box"))
 	{
@@ -134,13 +136,21 @@ AssetDictionary::mesh_type& ParseMeshAsset(AssetDictionary& assets, XMLElement* 
 				//auto task = assets.LoadMeshAsync(src);
 				//task.wait();
 				//return task.get();
-				auto& mesh = assets.LoadMesh(node->Attribute("name"), src);
+				auto mesh = assets.LoadObjMesh(node->Attribute("name"), src);
 				return mesh;
 			}
-			else (ref.extension().string() == ".fbx")
+			else if (ref.extension().string() == ".fbx")
 			{
-
-				// throw;
+				auto tex = node->Attribute("diffuse_map");
+				sptr<IMaterial> pMat;
+				if (tex)
+				{
+					PhongMaterialData data;
+					data.DiffuseMapName = tex;
+					pMat = PhongMaterial::CreateFromMaterialData(data, assets.GetTextureDirectory().wstring(), assets.GetRenderDevice());
+				}
+				auto mesh = assets.LoadFbxMesh(node->Attribute("name"), src, pMat);
+				return mesh;
 			}
 		}
 	}
@@ -184,7 +194,7 @@ AssetDictionary::animation_clip_type& ParseAnimationClip(AssetDictionary& assets
 	return assets.LoadAnimation(node->Attribute("name"), src);
 }
 
-AssetDictionary::behavier_type& ParseBehavierAsset(AssetDictionary& assets, XMLElement* node)
+AssetDictionary::behavier_type* ParseBehavierAsset(AssetDictionary& assets, XMLElement* node)
 {
 	using behavier_type = AssetDictionary::behavier_type;
 	if (!strcmp(node->Name(), "behavier"))
@@ -193,6 +203,24 @@ AssetDictionary::behavier_type& ParseBehavierAsset(AssetDictionary& assets, XMLE
 		if (attr)
 		{
 			return assets.LoadBehavierFbx(node->Attribute("name"), attr);
+		}
+
+		attr = node->Attribute("armature");
+		if (attr)
+		{
+			auto actions = node->FirstChildElement("behavier.actions");
+			if (actions)
+			{
+				list<pair<string, string>> actionlist;
+				for (auto action = actions->FirstChildElement("action"); action != nullptr; action = action->NextSiblingElement("action"))
+				{
+					auto aname = action->Attribute("name");
+					auto asrc = action->Attribute("src");
+					if (aname && asrc)
+						actionlist.emplace_back(aname, asrc);
+				}
+				return assets.LoadBehavierFbxs(node->Attribute("name"), attr, actionlist);
+			}
 		}
 		//else
 		//{
@@ -216,7 +244,7 @@ AssetDictionary::behavier_type& ParseBehavierAsset(AssetDictionary& assets, XMLE
 		//	return behavier;
 		//}
 	}
-	return assets.GetAsset<behavier_type>("default");
+	return nullptr;
 }
 
 template <typename T>
@@ -324,7 +352,7 @@ void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node)
 
 	pObj->SetPosition(pos);
 	pObj->SetScale(scale);
-	pObj->SetOrientation(Quaternion::CreateFromYawPitchRoll(eular.x, eular.y, eular.z));
+	pObj->SetOrientation(Quaternion::CreateFromYawPitchRoll(eular.y, eular.x, eular.z));
 }
 
 std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, SceneObject* parent)
@@ -341,7 +369,7 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 
 	if (!strcmp(node->Name(), "object"))
 	{
-		auto pEntity = make_unique<RenderableSceneObject>();
+		auto pEntity = make_unique<VisualObject>();
 		ParseRenderableObjectAttributes(pEntity.get(), node, assets);
 		pObj = move(pEntity);
 	}
@@ -357,7 +385,7 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	}
 	else if (!strcmp(node->Name(), "creature"))
 	{
-		auto pCreature = make_unique<KinematicSceneObject>();
+		auto pCreature = make_unique<CharacterObject>();
 		ParseCreatureAttributes(pCreature.get(), node, assets);
 
 		pObj = move(pCreature);
@@ -414,7 +442,7 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	return pObj;
 }
 
-void ParseCreatureAttributes(KinematicSceneObject* pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
+void ParseCreatureAttributes(CharacterObject* pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
 {
 	ParseRenderableObjectAttributes(pCreature, node, assets);
 
@@ -426,13 +454,6 @@ void ParseCreatureAttributes(KinematicSceneObject* pCreature, tinyxml2::XMLEleme
 			const std::string key(path + 1, path + strlen(path) - 1);
 			pCreature->SetBehavier(assets.GetBehavier(key));
 			auto& behavier = pCreature->Behavier();
-			if (pCreature->Behavier().Clips().size() > 0)
-			{
-				if (behavier.Contains("walk"))
-					pCreature->StartAction("walk");
-				else
-					pCreature->StartAction(behavier.Clips().front().Name);
-			}
 		}
 	}
 	else
@@ -441,10 +462,14 @@ void ParseCreatureAttributes(KinematicSceneObject* pCreature, tinyxml2::XMLEleme
 		if (inlineBehave)
 		{
 			inlineBehave = inlineBehave->FirstChildElement();
-			auto& behavier = ParseBehavierAsset(assets, inlineBehave);
-			pCreature->SetBehavier(behavier);
+			auto behavier = ParseBehavierAsset(assets, inlineBehave);
+			pCreature->SetBehavier(*behavier);
 		}
 	}
+
+	auto action = node->Attribute("action");
+	if (action)
+		pCreature->StartAction(action);
 }
 
 void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device)
@@ -501,7 +526,7 @@ void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causali
 	}
 }
 
-void ParseRenderableObjectAttributes(RenderableSceneObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
+void ParseRenderableObjectAttributes(VisualObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
 {
 	ParseSceneObjectAttributes(pObj, node);
 
@@ -514,7 +539,7 @@ void ParseRenderableObjectAttributes(RenderableSceneObject* pObj, tinyxml2::XMLE
 		if (path[0] == '{') // asset reference
 		{
 			const std::string key(path + 1, path + strlen(path) - 1);
-			pObj->SetRenderModel(&assets.GetMesh(key));
+			pObj->SetRenderModel(assets.GetMesh(key));
 		}
 	}
 	else
@@ -523,8 +548,8 @@ void ParseRenderableObjectAttributes(RenderableSceneObject* pObj, tinyxml2::XMLE
 		if (nMesh)
 		{
 			nMesh = nMesh->FirstChildElement();
-			auto& model = ParseMeshAsset(assets, nMesh);
-			pObj->SetRenderModel(&model);
+			auto model = ParseMeshAsset(assets, nMesh);
+			pObj->SetRenderModel(model);
 		}
 	}
 }

@@ -174,6 +174,8 @@ namespace Causality
 
 		pointer PeekLatest() const
 		{
+			if (m_StreamingBuffer.empty())
+				return nullptr;
 			return &m_StreamingBuffer.back();
 		}
 

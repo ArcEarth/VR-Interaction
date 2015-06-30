@@ -27,19 +27,19 @@ void AffineFrame::RebuildGlobal(const IArmature & armature)
 		{
 			bone.GblRotation = bone.LclRotation;
 			bone.GblScaling = bone.LclScaling;
-			bone.EndPostion = bone.LclTranslation;
+			bone.GblTranslation = bone.LclTranslation;
 			bone.LclLength = bone.GblLength = 1.0f; // Length of root doesnot have any meaning
 		}
 		else
 		{
-			//bone.OriginPosition = at(joint.ParentID()).EndPostion;
+			//bone.OriginPosition = at(joint.ParentID()).GblTranslation;
 
 			bone.UpdateGlobalData(at(joint.ParentID()));
 		}
 	}
 }
 
-void Causality::AffineFrame::RebuildLocal(const IArmature & armature)
+void AffineFrame::RebuildLocal(const IArmature & armature)
 {
 	for (auto& joint : armature.joints())
 	{
@@ -48,7 +48,7 @@ void Causality::AffineFrame::RebuildLocal(const IArmature & armature)
 		{
 			bone.LclRotation = bone.GblRotation;
 			bone.LclScaling = bone.GblScaling;
-			bone.LclTranslation = bone.EndPostion;
+			bone.LclTranslation = bone.GblTranslation;
 			bone.LclLength = bone.GblLength = 1.0f; // Length of root doesnot have any meaning
 		}
 		else
@@ -109,11 +109,13 @@ void AffineFrame::Blend(AffineFrame& out, const AffineFrame & lhs, const AffineF
 
 }
 
-void Causality::AffineFrame::TransformMatrix(DirectX::XMFLOAT3X4 * pOut, const self_type & from, const self_type & to)
+void AffineFrame::TransformMatrix(DirectX::XMFLOAT3X4 * pOut, const self_type & from, const self_type & to, size_t numOut)
 {
 	using namespace std;
 	auto n = min(from.size(), to.size());
-	for (int i = 0; i <= n; ++i)
+	if (numOut > 0)
+		n = min(n, numOut);
+	for (int i = 0; i < n; ++i)
 	{
 		XMMATRIX mat = Bone::TransformMatrix(from[i], to[i]);
 		mat = XMMatrixTranspose(mat);
@@ -121,14 +123,16 @@ void Causality::AffineFrame::TransformMatrix(DirectX::XMFLOAT3X4 * pOut, const s
 	}
 }
 
-void Causality::AffineFrame::TransformMatrix(DirectX::XMFLOAT4X4 * pOut, const self_type & from, const self_type & to)
+void AffineFrame::TransformMatrix(DirectX::XMFLOAT4X4 * pOut, const self_type & from, const self_type & to, size_t numOut)
 {
 	using namespace std;
 	auto n = min(from.size(), to.size());
-	for (int i = 0; i <= n; ++i)
+	if (numOut > 0)
+		n = min(n, numOut);
+	for (int i = 0; i < n; ++i)
 	{
 		XMMATRIX mat = Bone::TransformMatrix(from[i], to[i]);
-		mat = XMMatrixTranspose(mat);
+		//mat = XMMatrixTranspose(mat);
 		XMStoreFloat4x4(pOut + i, mat);
 	}
 }
@@ -142,15 +146,16 @@ ArmatureFrameAnimation::ArmatureFrameAnimation(std::istream & file)
 	int keyframs, joints;
 	file >> joints >> keyframs;
 	animation.KeyFrames.resize(keyframs);
+	auto itrKey = KeyFrames.begin();
 	for (int i = 0; i < keyframs; i++)
 	{
-		auto& frame = animation.KeyFrames[i];
-		frame.resize(joints);
+		auto& key = (*itrKey++);
+		key.Frame.resize(joints);
 		double seconds;
-		file >> frame.Name;
+		file >> key.Name;
 		file >> seconds;
-		frame.Time = (time_seconds)seconds;
-		for (auto& bone : frame)
+		key.Time = (time_seconds)seconds;
+		for (auto& bone : key.Frame)
 		{
 			Vector3 vec;
 			auto& scl = bone.LclScaling;
@@ -161,7 +166,7 @@ ArmatureFrameAnimation::ArmatureFrameAnimation(std::istream & file)
 	}
 }
 
-Causality::ArmatureFrameAnimation::ArmatureFrameAnimation(const std::string & name)
+ArmatureFrameAnimation::ArmatureFrameAnimation(const std::string & name)
 	: base_type(name)
 {
 }
@@ -181,21 +186,27 @@ bool ArmatureFrameAnimation::InterpolateFrames(double frameRate)
 	float delta = (float)(1.0 / frameRate);
 	auto& armature = *pArmature;
 	float t = 0;
+
+	auto itrKey = KeyFrames.begin();
+	auto itrKeyAdv = ++KeyFrames.begin();
+
 	for (size_t i = 1; i < KeyFrames.size(); i++)
 	{
-		const frame_type& lhs = KeyFrames[i - 1];
-		const frame_type& rhs = KeyFrames[i];
-		for (t = (float)lhs.Time.count(); t < (float)rhs.Time.count(); t += delta)
+		const frame_type& lhs = itrKey->Frame;
+		const frame_type& rhs = itrKeyAdv->Frame;
+		for (t = (float)itrKey->Time.count(); t < (float)itrKey->Time.count(); t += delta)
 		{
 			frames.emplace_back(armature.size());
 			frame_type::Lerp(frames.back(), lhs, rhs, (float)t, armature);
 		}
+		++itrKey;
+		++itrKeyAdv;
 	}
 	frames.shrink_to_fit();
 	return true;
 }
 
-bool Causality::ArmatureFrameAnimation::GetFrameAt(AffineFrame & outFrame, TimeScalarType time) const
+bool ArmatureFrameAnimation::GetFrameAt(AffineFrame & outFrame, TimeScalarType time) const
 {
 	double t = fmod(time.count(), Duration.count());
 	int frameIdx = round(t / FrameInterval.count());
@@ -204,7 +215,7 @@ bool Causality::ArmatureFrameAnimation::GetFrameAt(AffineFrame & outFrame, TimeS
 	return true;
 }
 
-void Causality::ArmatureFrameAnimation::Serialize(std::ostream & binary) const
+void ArmatureFrameAnimation::Serialize(std::ostream & binary) const
 {
 	binary << (uint32_t)bonesCount << (uint32_t)frames.size() << (uint32_t)sizeof(Bone);
 	binary << (double)Duration.count() << (double)FrameInterval.count();
@@ -215,7 +226,7 @@ void Causality::ArmatureFrameAnimation::Serialize(std::ostream & binary) const
 	}
 }
 
-void Causality::ArmatureFrameAnimation::Deserialize(std::istream & binary)
+void ArmatureFrameAnimation::Deserialize(std::istream & binary)
 {
 	uint32_t bC, fC, sB;
 	double dur, itv;
@@ -231,7 +242,6 @@ void Causality::ArmatureFrameAnimation::Deserialize(std::istream & binary)
 	frames.resize(fC);
 	for (auto& frame : frames)
 	{
-		frame.Time = time;
 		time += FrameInterval;
 
 		frame.resize(bC);

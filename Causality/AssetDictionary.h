@@ -82,17 +82,19 @@ namespace Causality
 		using behavier_type = BehavierSpace;
 		using armature_type = StaticArmature;
 		using effect_type = DirectX::IEffect;
+		using material_type = DirectX::Scene::IMaterial;
 
 		AssetDictionary();
 		~AssetDictionary();
 
 		//Synchronize loading methods
 		mesh_type*		     LoadObjMesh(const string & key, const string& fileName);
-		mesh_type*		     LoadFbxMesh(const string & key, const string& fileName);
+		mesh_type*		     LoadFbxMesh(const string & key, const string& fileName, const std::shared_ptr<material_type> &pMaterial = nullptr);
 		texture_type&	     LoadTexture(const string & key, const string& fileName);
 		armature_type&	     LoadArmature(const string & key, const string& fileName);
 		animation_clip_type& LoadAnimation(const string& key, const string& fileName);
-		behavier_type&		 LoadBehavierFbx(const string & key, const string & fileName);
+		behavier_type*		 LoadBehavierFbx(const string & key, const string & fileName);
+		behavier_type*		 LoadBehavierFbxs(const string & key, const string& armature, list<std::pair<string,string>>& animations);
 
 		// Async loading methods
 		task<mesh_type*>&			LoadMeshAsync(const string & key, const string& fileName);
@@ -107,12 +109,12 @@ namespace Causality
 			return *any_cast<TAsset*>(assets[key]);
 		}
 
-		mesh_type&					GetMesh(const string& key)
+		mesh_type*					GetMesh(const string& key)
 		{
 			auto itr = meshes.find(key);
 			if (itr != meshes.end())
-				return *itr->second;
-			return *itr->second;
+				return itr->second;
+			return nullptr;
 		}
 
 		texture_type&				GetTexture(const string& key)
@@ -141,10 +143,7 @@ namespace Causality
 		}
 
 		template<typename VertexType>
-		const cptr<ID3D11InputLayout>& GetInputLayout()
-		{
-			return pInputLayout;
-		}
+		const cptr<ID3D11InputLayout>& GetInputLayout(DirectX::IEffect* pEffct = nullptr);
 
 		DirectX::EffectFactory&		EffctFactory() { return *effect_factory; }
 
@@ -170,6 +169,7 @@ namespace Causality
 		void SetRenderDevice(RenderDevice& device);
 		void SetParentDictionary(AssetDictionary* dict);
 		void SetTextureDirectory(const path& dir);
+		const path& GetTextureDirectory() const { return texture_directory; }
 		void SetMeshDirectory(const path& dir);
 		void SetAssetDirectory(const path& dir);
 
@@ -194,10 +194,36 @@ namespace Causality
 		map<string, behavier_type*>			behaviers;
 
 		sptr<DirectX::BasicEffect>			default_effect;
+		sptr<DirectX::IEffect>				default_skinned_effect;
+		sptr<DirectX::Scene::PhongMaterial>	default_material;
 		uptr<DirectX::EffectFactory>		effect_factory;
-		cptr<ID3D11InputLayout>				pInputLayout;
+
+		map<std::type_index, cptr<ID3D11InputLayout>> layouts;
+
 		// other assets
 		map<string, any>					assets;
+
+	public:
+
+		auto GetEffects()
+		{
+			return adaptors::values(effects);
+		}
 	};
+
+	template <typename VertexType>
+	inline const cptr<ID3D11InputLayout>& AssetDictionary::GetInputLayout(DirectX::IEffect * pEffct)
+	{
+		std::type_index type = typeid(VertexType);
+		auto& pLayout = layouts[type];
+		if (pLayout == nullptr)
+		{
+			void const* shaderByteCode;
+			size_t byteCodeLength;
+			pEffct->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
+			pLayout = DirectX::CreateInputLayout<VertexType>(render_device.Get(), shaderByteCode, byteCodeLength);
+		}
+		return pLayout;
+	}
 
 }

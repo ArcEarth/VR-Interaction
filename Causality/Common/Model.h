@@ -15,7 +15,6 @@
 
 namespace DirectX
 {
-
 	namespace Scene
 	{
 		namespace FacetPrimitives
@@ -57,6 +56,19 @@ namespace DirectX
 			virtual void Draw(ID3D11DeviceContext* pContext) const = 0;
 		};
 
+		struct VertexDescription
+		{
+			UINT NumElements;
+			const D3D11_INPUT_ELEMENT_DESC* pInputElementDescs;
+
+			bool HasUVInfo() const;
+			bool HasNormal() const;
+			bool HasColor() const;
+			bool HasTagent() const;
+			bool HasBinormal() const;
+			bool HasSkinningWeights() const;
+		};
+
 		// A Container of Vertex and Indices holding geometry information with Identical effect to render
 		// Abstraction of mesh's vertex information on GPU
 		// Should be use with std::shared_ptr
@@ -66,35 +78,12 @@ namespace DirectX
 		struct MeshBuffer : public IMeshBuffer
 		{
 		public:
-			~MeshBuffer(){}
+			~MeshBuffer() {}
 
 			template<class _TVertex, class _TIndex>
-			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount, const _TIndex* indices, unsigned int IndicesCount, IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, size_t VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0 )
-			{
-				static_assert(std::is_integral<_TIndex>::value, "Type of Index must be integral type");
-				static_assert(_TVertex::InputElementCount, "Valiad Vertex Type should have static InputElements/InputElementCount member");
-				assert(pDevice != nullptr);
+			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount, const _TIndex* indices, unsigned int IndicesCount, IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, size_t VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
 
-				if (pEffect != nullptr)
-				{
-					void const* shaderByteCode;
-					size_t byteCodeLength;
-					pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
-					ThrowIfFailed(
-						pDevice->CreateInputLayout(_TVertex::InputElements, _TVertex::InputElementCount, shaderByteCode, byteCodeLength, &pInputLayout)
-						);
-				}
-
-				pVertexBuffer = DirectX::CreateVertexBuffer<_TVertex>(pDevice, VerticesCount, vertices);
-				pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, IndicesCount, indices);
-				IndexFormat = ExtractDXGIFormat<_TIndex>::value;
-				VertexCount = VerticesCount;
-				IndexCount = IndicesCount;
-				StartIndex = 0;
-				VertexStride = sizeof(_TVertex);
-				VertexOffset = 0;
-				PrimitiveType = primitiveTopology;
-			}
+			void CreateInputLayout(ID3D11Device* pDevice, IEffect *pEffect);
 
 			typedef std::vector<std::unique_ptr<MeshBuffer>> Collection;
 
@@ -105,7 +94,8 @@ namespace DirectX
 			uint32_t                                                VertexStride;
 			D3D_PRIMITIVE_TOPOLOGY                                  PrimitiveType;
 			DXGI_FORMAT                                             IndexFormat;
-			InputDescription										pInputDescription;
+			UINT													InputElementCount; // Vertex Description info
+			const D3D11_INPUT_ELEMENT_DESC*							pInputElements; // Vertex Description info
 
 			Microsoft::WRL::ComPtr<ID3D11InputLayout>               pInputLayout;
 			Microsoft::WRL::ComPtr<ID3D11Buffer>                    pIndexBuffer;
@@ -126,6 +116,7 @@ namespace DirectX
 		{
 		public:
 			static_assert(std::is_integral<_TIndex>::value, "IndexType is not integer");
+			static_assert(_TVertex::InputElementCount > 0, "Vertex type not fit the concept");
 
 			typedef TypedMeshBuffer	SelfType;
 			typedef _TVertex	VertexType;
@@ -140,11 +131,11 @@ namespace DirectX
 
 		// A ModelPart is a aggregate of a mesh and it's Material
 		struct ModelPart
-		{ 
+		{
 		public:
 			std::string						Name;
 			std::shared_ptr<MeshBuffer>		pMesh;		// Mesh of this model part
-			std::shared_ptr<PhongMaterial>	pMaterial;	// Material of this model part
+			std::shared_ptr<IMaterial>		pMaterial;	// Material of this model part
 			std::shared_ptr<IEffect>		pEffect;	// Default Effect of this model part
 			DirectX::BoundingBox			BoundBox;
 			DirectX::BoundingOrientedBox	BoundOrientedBox;
@@ -200,20 +191,20 @@ namespace DirectX
 			//virtual void XM_CALLCONV SetModelMatrix(DirectX::FXMMATRIX model) override;
 			//virtual XMMATRIX GetModelMatrix() const override;
 
-			#pragma region PropertyParent
-		//	IModelNode* Parent() { return pParent; }
-		//	const IModelNode* Parent() const { return pParent; }
-		//	void SetParent(IModelNode* parent) { pParent = parent; }
+#pragma region PropertyParent
+//	IModelNode* Parent() { return pParent; }
+//	const IModelNode* Parent() const { return pParent; }
+//	void SetParent(IModelNode* parent) { pParent = parent; }
 
-		//private:
-		//	IModelNode*			pParent = nullptr;
-			#pragma endregion
+//private:
+//	IModelNode*			pParent = nullptr;
+#pragma endregion
 
-			//BoundingOrientedBox BoundOrientedBox;
-			//BoundingSphere		BoundSphere;
-			//BoundingBox			BoundBox;
-			//Matrix4x4			LocalMatrix;
-			//float				Opticity;
+//BoundingOrientedBox BoundOrientedBox;
+//BoundingSphere		BoundSphere;
+//BoundingBox			BoundBox;
+//Matrix4x4			LocalMatrix;
+//float				Opticity;
 		};
 
 		// A Monolith Model is a model with single ModelPart
@@ -291,25 +282,181 @@ namespace DirectX
 
 		};
 
-		// This Model also keeps the geomreics data in CPU
-		class GeometryModel : public CompositionModel
+		class IDynamicAsset
 		{
 		public:
-			typedef VertexPositionNormalTexture VertexType;
-			typedef uint16_t					IndexType;
+			virtual ~IDynamicAsset();
+			// Check if the GPU buffer is flaged as DYNAMIC
+			virtual bool IsDeviceResourceDynamic() const;;
 
-			static bool CreateFromObjFile(GeometryModel *pResult, ID3D11Device *pDevice, const std::wstring &file, const std::wstring& textureDir);
-			void CreateDeviceResource(ID3D11Device *pDevice);
-			CompositionModel* ReleaseCpuResource();
+			// Check if the data have been loaded to CPU memery
+			virtual bool IsInMemery() const;
 
+			virtual bool IsInDevice() const;
+
+			// Create GPU objects using Vertex/Index Buffer in CPU
+			virtual bool CreateDeviceResource(ID3D11Device *pDevice) = 0;
+
+			// Update GPU buffers using Vertex/Index Buffer in CPU
+			virtual bool UpdateDeviceResource(ID3D11DeviceContext *pContext);
+
+			// Release the Vertex/Index Buffer in CPU memery
+			virtual void ReleaseDynamicResource();
+
+			// To a amx binary stream , default to false
+			virtual bool Serialize(std::ostream& binary) const;
+
+			// from a amx binary stream
+			virtual bool Deserialize(std::istream& binary);
+
+			// Reload from file to CPU
+			virtual bool Reload() = 0;
+		};
+
+		// This Model also keeps the geomreics data in CPU
+		class DefaultStaticModel : public CompositionModel, public IDynamicAsset
+		{
 		public:
-			std::vector<VertexPositionNormalTexture>			Vertices;
-			std::vector<FacetPrimitives::Triangle<uint16_t>>	Facets;
+			typedef VertexPositionNormalTexture				VertexType;
+			typedef uint16_t								IndexType;
+			typedef FacetPrimitives::Triangle<IndexType>	TriangleType;
+
+			static DefaultStaticModel * CreateFromObjFile(const std::wstring &file, ID3D11Device * pDevice = nullptr, const std::wstring& textureDir = L"");
+			static DefaultStaticModel * CreateFromSmxFile(ID3D11Device *pDevice, const std::wstring &file);
+
+			// Check if the data have been loaded to CPU memery
+			bool IsInMemery() const override;
+			// Create GPU objects using Vertex/Index Buffer in CPU
+			bool CreateDeviceResource(ID3D11Device *pDevice) override;
+			// Release the Vertex/Index Buffer in CPU memery
+			void ReleaseDynamicResource() override;
+
+			// To a obj text stream
+			bool Serialize(std::ostream& binary) const override;
+			// from a obj text stream
+			bool Deserialize(std::istream& binary) override;
+
+			// Reload from file to CPU
+			bool Reload() override;
+
+			DefaultStaticModel();
+			~DefaultStaticModel();
+		public:
+			std::vector<VertexType>								Vertices;
+			std::vector<FacetPrimitives::Triangle<IndexType>>	Facets;
 			stdx::stride_range<Vector3>							Positions;
 			stdx::stride_range<Vector3>							Normals;
 			stdx::stride_range<Vector2>							TexCoords;
+
+		private:
+			bool				m_IsLoaded;
+			const std::wstring  m_FilePath;
+			const std::wstring  m_TexDir;
 		};
 
-	}
+		struct SkinMeshData;
+
+		class ISkinningModel
+		{
+		public:
+			virtual size_t GetBonesCount() const = 0;
+			virtual DirectX::XMMATRIX* GetBoneTransforms() = 0;
+			inline const DirectX::XMMATRIX* GetBoneTransforms() const
+			{
+				return const_cast<ISkinningModel*>(this)->GetBoneTransforms();
+			}
+		};
+
+		class DefaultSkinningModel :
+			public MonolithModel, public IDynamicAsset , public ISkinningModel
+		{
+		public:
+			typedef DirectX::VertexPositionNormalTangentColorTextureSkinning VertexType;
+			typedef uint16_t IndexType;
+			typedef FacetPrimitives::Triangle<IndexType> TriangleType;
+
+			static DefaultSkinningModel* CreateFromFbxFile(const std::string& file, const std::wstring& textureDir = L"", ID3D11Device* pDevice = nullptr);
+			static DefaultSkinningModel* CreateFromAmxFile(const std::string& file, ID3D11Device* pDevice = nullptr);
+			static DefaultSkinningModel* CreateFromData(SkinMeshData* pData, const std::wstring& textureDir = L"", ID3D11Device* pDevice = nullptr);
+			static DefaultSkinningModel* CreateCube(ID3D11Device* pDevice, float size);
+			// Check if the data have been loaded to CPU memery
+			bool IsInMemery() const override;
+			// Create GPU objects using Vertex/Index Buffer in CPU
+			bool CreateDeviceResource(ID3D11Device *pDevice) override;
+			// Release the Vertex/Index Buffer in CPU memery
+			void ReleaseDynamicResource();
+
+			// To a amx binary stream
+			bool Serialize(std::ostream& binary) const override;
+			// from a amx binary stream
+			bool Deserialize(std::istream& binary) override;
+			// Reload from file to CPU
+			bool Reload() override;
+
+			// IModelNode
+			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, IEffect* pEffect = nullptr) override;
+
+			// Inherited via ISkinningModel
+			virtual size_t GetBonesCount() const override;
+			virtual DirectX::XMMATRIX* GetBoneTransforms() override;
+
+			DefaultSkinningModel();
+			~DefaultSkinningModel();
+		public:
+			std::vector<DirectX::Matrix4x4,
+				DirectX::AlignedAllocator<DirectX::Matrix4x4, 16U >>
+				BoneTransforms;
+
+		public:
+			stdx::stride_range<VertexType>							Vertices;
+			stdx::stride_range<TriangleType>						Facets;
+			stdx::stride_range<Vector3>								Positions;
+			stdx::stride_range<Vector3>								Normals;
+			stdx::stride_range<Vector2>								TexCoords;
+			stdx::stride_range<Vector4>								Tagents;
+			stdx::stride_range<uint32_t>							BlendWeights;
+			stdx::stride_range<uint32_t>							BlendIndices;
+
+		private:
+			bool				m_IsLoaded;
+			const std::string	m_FilePath;
+
+			uint32_t	m_VertexCount;
+			uint32_t	m_IndexCount;
+			uint32_t	m_BonesCount;
+			std::unique_ptr<VertexType[]>	m_Vertices;
+			std::unique_ptr<IndexType[]>	m_Indices;
+
+			void SetFromSkinMeshData(SkinMeshData* pData, const std::wstring& textureDir = L"");
+			void ResetRanges();
+
+		};
+
+		template <class _TVertex, class _TIndex>
+		inline void MeshBuffer::CreateDeviceResources(ID3D11Device * pDevice, const _TVertex * vertices, unsigned int VerticesCount, const _TIndex * indices, unsigned int IndicesCount, IEffect * pEffect, D3D_PRIMITIVE_TOPOLOGY primitiveTopology, size_t vertexStride, UINT startIndex, UINT vertexOffset)
+		{
+			static_assert(std::is_integral<_TIndex>::value, "Type of Index must be integral type");
+			static_assert(_TVertex::InputElementCount, "Valiad Vertex Type should have static InputElements/InputElementCount member");
+			assert(pDevice != nullptr);
+
+			InputElementCount = _TVertex::InputElementCount;
+			pInputElements = _TVertex::InputElements;
+
+			if (pEffect != nullptr)
+			{
+				CreateInputLayout(pDevice, pEffect);
+			}
+
+			pVertexBuffer = DirectX::CreateVertexBuffer<_TVertex>(pDevice, VerticesCount, vertices);
+			pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, IndicesCount, indices);
+			IndexFormat = ExtractDXGIFormat<_TIndex>::value;
+			VertexCount = VerticesCount;
+			IndexCount = IndicesCount;
+			StartIndex = startIndex;
+			VertexStride = vertexStride;
+			VertexOffset = vertexOffset;
+			PrimitiveType = primitiveTopology;
+		}
+}
 }
 
