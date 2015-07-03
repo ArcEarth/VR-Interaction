@@ -1,21 +1,23 @@
 #include "pch_bcl.h"
 #include "Scene.h"
 #include "SceneParser.h"
-#include "Common\Model.h"
+#include <Model.h>
 #include <boost\filesystem.hpp>
 #include <tinyxml2.h>
-#include "Common\SkyDome.h"
+#include <SkyDome.h>
 #include "PlayerProxy.h"
 #include "CharacterObject.h"
+#include "LightObject.h"
 
 using namespace tinyxml2;
 using namespace Causality;
 using namespace DirectX::Scene;
 using namespace std;
 
-void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device);
-void ParseRenderableObjectAttributes(VisualObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
-void ParseCreatureAttributes(CharacterObject *pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
+void ParseLightObjectAttributes(Light *pLight, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device);
+void ParseCameraObjectAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device);
+void ParseVisualObjectAttributes(VisualObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
+void ParseChaacterObjectAttributes(CharacterObject *pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets);
 void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node);
 void ParseSceneAssets(AssetDictionary& assets, XMLElement* node);
 
@@ -370,13 +372,13 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	if (!strcmp(node->Name(), "object"))
 	{
 		auto pEntity = make_unique<VisualObject>();
-		ParseRenderableObjectAttributes(pEntity.get(), node, assets);
+		ParseVisualObjectAttributes(pEntity.get(), node, assets);
 		pObj = move(pEntity);
 	}
 	else if (!strcmp(node->Name(), "camera"))
 	{
 		auto pCamera = make_unique<Camera>();
-		ParseCameraAttributes(pCamera.get(), node, scene, assets.GetRenderDevice());
+		ParseCameraObjectAttributes(pCamera.get(), node, scene, assets.GetRenderDevice());
 		pObj = move(pCamera);
 	}
 	else if (!strcmp(node->Name(), "skydome"))
@@ -386,7 +388,7 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	else if (!strcmp(node->Name(), "creature"))
 	{
 		auto pCreature = make_unique<CharacterObject>();
-		ParseCreatureAttributes(pCreature.get(), node, assets);
+		ParseChaacterObjectAttributes(pCreature.get(), node, assets);
 
 		pObj = move(pCreature);
 	}
@@ -442,9 +444,9 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	return pObj;
 }
 
-void ParseCreatureAttributes(CharacterObject* pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
+void ParseChaacterObjectAttributes(CharacterObject* pCreature, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
 {
-	ParseRenderableObjectAttributes(pCreature, node, assets);
+	ParseVisualObjectAttributes(pCreature, node, assets);
 
 	auto path = node->Attribute("behavier");
 	if (path != nullptr && strlen(path) != 0)
@@ -472,7 +474,7 @@ void ParseCreatureAttributes(CharacterObject* pCreature, tinyxml2::XMLElement * 
 		pCreature->StartAction(action);
 }
 
-void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device)
+void ParseCameraObjectAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device)
 {
 	using namespace DirectX;
 	ParseSceneObjectAttributes(pCamera, node);
@@ -483,14 +485,16 @@ void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causali
 	float _near = 0.01f, _far = 100.0f;
 	bool is_primary = false;
 	Vector3 focus = (XMVECTOR)pCamera->GetPosition() + XMVector3Rotate(Camera::Foward, pCamera->GetOrientation());
-
-	GetAttribute(node, "background", pCamera->Background);
+	Color color = Colors::White.v;
+	GetAttribute(node, "background", color);
 	GetAttribute(node, "fov", fov);
 	GetAttribute(node, "near", _near);
 	GetAttribute(node, "far", _far);
 	GetAttribute(node, "focus", focus);
 	GetAttribute(node, "aspect", aspect);
 	GetAttribute(node, "primary", is_primary);
+
+	pCamera->SetBackground(color);
 
 	pCamera->Scene = &scene;
 	if (is_primary || scene.PrimaryCamera() == nullptr)
@@ -503,7 +507,7 @@ void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causali
 
 	if (fov != 0)
 	{
-		pCamera->SetPerspective(XMConvertToRadians(fov), aspect);
+		pCamera->SetPerspective(XMConvertToRadians(fov), aspect,_near,_far);
 	}
 	else
 	{
@@ -526,7 +530,16 @@ void ParseCameraAttributes(Camera *pCamera, tinyxml2::XMLElement * node, Causali
 	}
 }
 
-void ParseRenderableObjectAttributes(VisualObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
+void ParseLightObjectAttributes(Light* pLight, tinyxml2::XMLElement * node, Causality::Scene & scene, Causality::RenderDevice &device)
+{
+	using namespace DirectX;
+	ParseCameraObjectAttributes(pLight, node, scene, device);
+	unsigned resolution = 1024;
+	GetAttribute(node, "resolution", resolution);
+}
+
+
+void ParseVisualObjectAttributes(VisualObject* pObj, tinyxml2::XMLElement * node, Causality::AssetDictionary & assets)
 {
 	ParseSceneObjectAttributes(pObj, node);
 

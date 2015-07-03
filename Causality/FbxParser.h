@@ -3,7 +3,7 @@
 #include "Armature.h"
 #include "CharacterBehavier.h"
 #include <VertexTypes.h>
-#include "Common\MeshData.h"
+#include <MeshData.h>
 
 namespace Causality
 {

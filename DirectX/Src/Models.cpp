@@ -1,13 +1,13 @@
 #include "pch_directX.h"
 #define NOMINMAX
-#include "Model.h"
+#include "Models.h"
 #include <string>
 #include "stride_range.h"
 #include <sstream>
 #include <WICTextureLoader.h>
 #include <DDSTextureLoader.h>
 #include <boost\filesystem.hpp>
-#include "Extern\tiny_obj_loader.h"
+#include "tiny_obj_loader.h"
 #include <boost\filesystem.hpp>
 #include <CommonStates.h>
 #include "MeshData.h"

@@ -16,7 +16,7 @@ namespace Causality
 	// Each bone is a affine transform (Scale-Rotate-Translate) 
 	// the bone will store this transform in Local frame and global frame
 	XM_ALIGNATTR
-	struct Bone : public DirectX::AlignedNew<DirectX::XM_ALIGNMENT>
+	struct Bone : public DirectX::AlignedNew<DirectX::XMVECTOR>
 	{
 	public:
 		// Local Data

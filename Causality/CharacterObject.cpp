@@ -1,6 +1,6 @@
 #include "pch_bcl.h"
 #include "CharacterObject.h"
-#include "Common\PrimitiveVisualizer.h"
+#include <PrimitiveVisualizer.h>
 
 using namespace Causality;
 using namespace DirectX;
@@ -78,7 +78,7 @@ bool CharacterObject::IsVisible(const BoundingFrustum & viewFrustum) const
 	return m_isVisable;
 }
 
-void CharacterObject::Render(RenderContext & pContext)
+void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect)
 {
 	if (g_DebugView)
 	{

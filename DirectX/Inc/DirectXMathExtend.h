@@ -111,9 +111,12 @@ namespace DirectX
 #endif
 	}
 
-	template<size_t alignment>
+#ifndef DIRECTX_ALLIGNED_NEW
+#define DIRECTX_ALLIGNED_NEW
+	template<typename T>
 	struct AlignedNew
 	{
+		static const size_t alignment = alignof(T);
 		static_assert(alignment > 8, "AlignedNew is only useful for types with > 8 byte alignment. Did you forget a _declspec(align) on TDerived?");
 		// Allocate aligned memory.
 		static void* operator new (size_t size)
@@ -210,6 +213,7 @@ namespace DirectX
 		template <typename _T2>
 		struct rebind { typedef AlignedAllocator<_T2, _Align_Boundary> other; };
 	};
+#endif //DIRECTX_ALLIGNED_NEW
 
 #ifdef _MSC_VER
 #pragma region XMFLOAT3X4
@@ -999,6 +1003,22 @@ namespace DirectX
 	using SimpleMath::operator-;
 	using SimpleMath::operator/;
 
+	namespace HLSLVectors
+	{
+		using float4 = Vector4;
+		using float3 = Vector3;
+		using float2 = Vector2;
+		using uint = uint32_t;
+		using uint4 = XMUINT4;
+		using uint3 = XMUINT3;
+		using uint2 = XMUINT2;
+		using int2 = XMINT2;
+		using int3 = XMINT3;
+		using int4 = XMINT4;
+		using float4x4 = Matrix4x4;
+		using float4x3 = XMFLOAT3X4;
+		using float3x3 = XMFLOAT3X3;
+	}
 
 #ifdef _MSC_VER
 #pragma region Quaternion Eular Angle Convertions
@@ -1280,10 +1300,69 @@ namespace DirectX
 		return M;
 	}
 
+	XM_ALIGNATTR
+	struct RotationTransform : public DirectX::AlignedNew<XMVECTOR>
+	{
+		XM_ALIGNATTR
+		Quaternion  Rotation;
+		// Extract the Matrix Representation of this rigid transform
+		inline XMMATRIX TransformMatrix() const
+		{
+			XMMATRIX M = XMMatrixRotationQuaternion(Rotation.LoadA());
+			return M;
+		}
+
+		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
+		{
+			XMVECTOR scl, rot, tra;
+			XMMatrixDecompose(&scl, &rot, &tra, transform);
+			Rotation.StoreA(rot);
+		}
+	};
+	XM_ALIGNATTR
+	struct TranslationTransform : public DirectX::AlignedNew<XMVECTOR>
+	{
+		XM_ALIGNATTR
+		Vector3  Translation;
+		float Tw;
+		// Extract the Matrix Representation of this rigid transform
+		inline XMMATRIX TransformMatrix() const
+		{
+			XMMATRIX M = XMMatrixTranslationFromVector(Translation.LoadA());
+			return M;
+		}
+
+		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
+		{
+			XMVECTOR scl, rot, tra;
+			XMMatrixDecompose(&scl, &rot, &tra, transform);
+			Translation.StoreA(tra);
+		}
+	};
+	XM_ALIGNATTR
+	struct ScaleTransform : public DirectX::AlignedNew<XMVECTOR>
+	{
+		XM_ALIGNATTR
+		Vector3 Scale;
+		float Sw; // Padding		
+		// Extract the Matrix Representation of this rigid transform
+		inline XMMATRIX TransformMatrix() const
+		{
+			XMMATRIX M = XMMatrixScalingFromVector(Scale.LoadA());
+			return M;
+		}
+
+		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
+		{
+			XMVECTOR scl, rot, tra;
+			XMMatrixDecompose(&scl, &rot, &tra, transform);
+			Scale.StoreA(scl);
+		}
+	};
 
 	// Composition of Translation and Rotation
 	XM_ALIGNATTR
-	struct RigidTransform : public DirectX::AlignedNew<XM_ALIGNMENT>
+	struct RigidTransform : public DirectX::AlignedNew<XMVECTOR>
 	{
 	public:
 		XM_ALIGNATTR
@@ -1322,6 +1401,11 @@ namespace DirectX
 			return *this;
 		}
 
+		template <>
+		RigidTransform& operator *=(const RigidTransform& rigid)
+		{
+			return *this;
+		}
 
 		// Extract the Dual-Quaternion Representation of this rigid transform
 		inline XMDUALVECTOR TransformDualQuaternion() const
@@ -1363,6 +1447,11 @@ namespace DirectX
 			SetFromTransformMatrix(transform);
 		}
 
+		inline explicit AffineTransform(const RigidTransform &rigid)
+			: RigidTransform(rigid) , Scale(1.0f)
+		{
+		}
+
 		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
 		{
 			XMVECTOR scl, rot, tra;
@@ -1372,6 +1461,10 @@ namespace DirectX
 			Translation = tra;
 		}
 
+		inline void Inverse();
+
+		inline AffineTransform Inversed() const;
+
 		template <typename _TTransform>
 		AffineTransform& operator *=(const _TTransform& transform)
 		{
@@ -1379,6 +1472,18 @@ namespace DirectX
 			XMMATRIX mat2 = transform.TransformMatrix();
 			mat *= mat2;
 			SetFromTransformMatrix(mat);
+			return *this;
+		}
+
+		template <>
+		AffineTransform& operator *=(const AffineTransform& affine)
+		{
+			return *this;
+		}
+
+		template <>
+		AffineTransform& operator *=(const RigidTransform& rigid)
+		{
 			return *this;
 		}
 

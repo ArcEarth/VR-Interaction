@@ -1,7 +1,7 @@
 #pragma once
 #include "BCL.h"
-#include "Common\Textures.h"
-#include "Common\Model.h"
+#include "Textures.h"
+#include "Models.h"
 #include <boost\filesystem.hpp>
 #include "Armature.h"
 #include "CharacterBehavier.h"

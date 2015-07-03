@@ -3,7 +3,7 @@
 #include <WICTextureLoader.h>
 #include <DDSTextureLoader.h>
 #include "Material.h"
-#include "Extern/tiny_obj_loader.h"
+#include "tiny_obj_loader.h"
 #include <boost\filesystem.hpp>
 
 using namespace DirectX::Scene;

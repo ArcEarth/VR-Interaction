@@ -1,5 +1,7 @@
-#ifndef DYNAMIC_TEXTURE_H
-#define DYNAMIC_TEXTURE_H
+#ifndef DIRECRTX_TEXTURE_H
+#define DIRECRTX_TEXTURE_H
+
+#pragma once
 
 #include <d3d11_1.h>
 #include <DirectXMath.h>
@@ -7,7 +9,7 @@
 #include <wrl\client.h>
 #include <string>
 
-namespace DirectX{
+namespace DirectX {
 
 	//class DeviceResource
 	//{
@@ -53,8 +55,8 @@ namespace DirectX{
 
 		TextureType Type() const;
 
-		static Texture CreateFromDDSFile( _In_ ID3D11Device* pDevice , _In_z_ const wchar_t* szFileName ,
-			_In_opt_ size_t maxsize = 0, 
+		static Texture CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName,
+			_In_opt_ size_t maxsize = 0,
 			_In_opt_ D3D11_USAGE usage = D3D11_USAGE_DEFAULT,
 			_In_opt_ unsigned int bindFlags = D3D11_BIND_SHADER_RESOURCE,
 			_In_opt_ unsigned int cpuAccessFlags = 0,
@@ -62,7 +64,7 @@ namespace DirectX{
 			_In_opt_ bool forceSRGB = false
 			);
 
-		void SaveAsDDSFile(_In_ ID3D11DeviceContext *pDeviceContext , _In_z_ const wchar_t* szFileName);
+		void SaveAsDDSFile(_In_ ID3D11DeviceContext *pDeviceContext, _In_z_ const wchar_t* szFileName);
 
 		//static std::unique_ptr<Texture> CreateFromDDSMemory(_In_ ID3D11Device* pDevice,
 		//	_In_reads_bytes_(ddsDataSize) const uint8_t* ddsData,
@@ -142,25 +144,60 @@ namespace DirectX{
 		//	return const_cast<Texture*>(this)->Resource();
 		//}
 
+		template <class T>
+		T& As()
+		{
+			return dynamic_cast<T&>(*this);
+		}
+
+		template <class T>
+		const T& As() const
+		{
+			return dynamic_cast<T&>(*this);
+		}
+
 		operator ID3D11ShaderResourceView* () const
 		{
 			return m_pShaderResourceView.Get();
 		}
 
 		ID3D11ShaderResourceView* ShaderResourceView() const
-		{ 
+		{
 			return m_pShaderResourceView.Get();
 		}
 
+		D3D11_TEXTURE_ADDRESS_MODE AddressMode() const { return m_AddressMode; }
+		void SetAddressMode(D3D11_TEXTURE_ADDRESS_MODE mode) { m_AddressMode = mode; }
+
+		void Reset() {
+			m_pResource.Reset();
+			m_pShaderResourceView.Reset();
+		}
+
+		Texture& operator=(nullptr_t) { Reset(); return *this; }
+
 	protected:
+		D3D11_TEXTURE_ADDRESS_MODE							m_AddressMode;
 		Microsoft::WRL::ComPtr<ID3D11Resource>				m_pResource;
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>	m_pShaderResourceView;
 	};
 
+	// Default 2D Texture, can be used as ShaderResources
 	class Texture2D
 		: public Texture
 	{
 	public:
+		enum FileFormat
+		{
+			BMP = 0,
+			PNG,
+			ICO,
+			JEPG,
+			TIFF,
+			GIF,
+			WMP,
+		};
+
 		Texture2D(Texture2D &&);
 		Texture2D(const Texture2D& rhs)
 		{
@@ -177,10 +214,10 @@ namespace DirectX{
 
 		Texture2D& operator=(Texture2D &&);
 
-		static Texture2D CreateFromWICFile( _In_ ID3D11Device* pDevice ,
-			_In_ ID3D11DeviceContext* pDeviceContext ,
-			_In_z_ const wchar_t* szFileName ,
-			_In_opt_ size_t maxsize = 0, 
+		static Texture2D CreateFromWICFile(_In_ ID3D11Device* pDevice,
+			_In_ ID3D11DeviceContext* pDeviceContext,
+			_In_z_ const wchar_t* szFileName,
+			_In_opt_ size_t maxsize = 0,
 			_In_opt_ D3D11_USAGE usage = D3D11_USAGE_DEFAULT,
 			_In_opt_ unsigned int bindFlags = D3D11_BIND_SHADER_RESOURCE,
 			_In_opt_ unsigned int cpuAccessFlags = 0,
@@ -189,10 +226,10 @@ namespace DirectX{
 			);
 
 		static Texture2D CreateFromWICMemory(_In_ ID3D11Device* pDevice,
-			_In_ ID3D11DeviceContext* pDeviceContext ,
+			_In_ ID3D11DeviceContext* pDeviceContext,
 			_In_reads_bytes_(wicDataSize) const uint8_t* wicData,
 			_In_ size_t wicDataSize,
-			_In_opt_ size_t maxsize = 0, 
+			_In_opt_ size_t maxsize = 0,
 			_In_opt_ D3D11_USAGE usage = D3D11_USAGE_DEFAULT,
 			_In_opt_ unsigned int bindFlags = D3D11_BIND_SHADER_RESOURCE,
 			_In_opt_ unsigned int cpuAccessFlags = 0,
@@ -200,7 +237,7 @@ namespace DirectX{
 			_In_opt_ bool forceSRGB = false
 			);
 
-		//operator ID3D11Texture2D* ();
+		void SaveAsWICFile(_In_ ID3D11DeviceContext *pDeviceContext, _In_ FileFormat fileFormat, _In_z_ const wchar_t* szFileName);
 
 		~Texture2D();
 
@@ -211,7 +248,7 @@ namespace DirectX{
 		}
 
 		size_t Width() const
-		{ 
+		{
 			return m_Description.Width;
 		}
 		size_t Height() const
@@ -220,7 +257,7 @@ namespace DirectX{
 		}
 		XMUINT2 Bounds() const
 		{
-			return XMUINT2(m_Description.Width,m_Description.Height);
+			return XMUINT2(m_Description.Width, m_Description.Height);
 		}
 
 		bool IsMultiSampleEnabled() const;
@@ -264,12 +301,12 @@ namespace DirectX{
 
 		size_t SizeInByte() const;
 
-		void CopyFrom(ID3D11DeviceContext *pContext,const Texture2D* pSource);
+		void CopyFrom(ID3D11DeviceContext *pContext, const Texture2D* pSource);
 
 	public:
-		Texture2D( _In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
+		Texture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
 			_In_opt_ unsigned int MipMapLevel = 1,
-			_In_opt_ DXGI_FORMAT SurfaceFormat = DXGI_FORMAT_R32G32B32A32_FLOAT ,
+			_In_opt_ DXGI_FORMAT SurfaceFormat = DXGI_FORMAT_R8G8B8A8_UNORM,
 			_In_opt_ D3D11_USAGE usage = D3D11_USAGE_DEFAULT,
 			_In_opt_ unsigned int bindFlags = D3D11_BIND_SHADER_RESOURCE,
 			_In_opt_ unsigned int cpuAccessFlags = 0,
@@ -277,11 +314,14 @@ namespace DirectX{
 			_In_opt_ unsigned int multisamplesCount = 1,
 			_In_opt_ unsigned int multisamplesQuality = 0
 			);
-		Texture2D(ID3D11Device* pDevice, const D3D11_TEXTURE2D_DESC *pDesc , const D3D11_SUBRESOURCE_DATA *pInitialData = nullptr);
-		Texture2D(ID3D11Texture2D* pTexture , ID3D11ShaderResourceView* pResourceView = nullptr);
+		Texture2D(ID3D11Device* pDevice, const D3D11_TEXTURE2D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData = nullptr);
+		Texture2D(ID3D11Texture2D* pTexture, ID3D11ShaderResourceView* pResourceView = nullptr);
 		Texture2D(ID3D11ShaderResourceView* pResourceView);
 		Texture2D();
 
+		void Reset() { m_pTexture.Reset(); Texture::Reset(); }
+
+		Texture2D& operator=(nullptr_t) { Reset(); return *this; }
 	protected:
 		Microsoft::WRL::ComPtr<ID3D11Texture2D>	m_pTexture;
 		D3D11_TEXTURE2D_DESC					m_Description;
@@ -294,27 +334,27 @@ namespace DirectX{
 		: public Texture2D
 	{
 	public:
-		DynamicTexture2D( _In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
+		DynamicTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
 			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM);
 		~DynamicTexture2D();
 
 
 		template<typename _T>
-		void SetData(ID3D11DeviceContext* pContext , const _T* Raw_Data)
+		void SetData(ID3D11DeviceContext* pContext, const _T* Raw_Data)
 		{
-			SetData(pContext,Raw_Data,sizeof(_T));
+			SetData(pContext, Raw_Data, sizeof(_T));
 		}
 
 		template<>
-		void SetData<void>(ID3D11DeviceContext* pContext , const void* Raw_Data)
+		void SetData<void>(ID3D11DeviceContext* pContext, const void* Raw_Data)
 		{
-			SetData(pContext,Raw_Data,0);
+			SetData(pContext, Raw_Data, 0);
 		}
 
-
+		DynamicTexture2D& operator=(nullptr_t) { Reset(); return *this; }
 
 	protected:
-		void SetData(ID3D11DeviceContext* pContext , const void* Raw_Data , size_t element_size);
+		void SetData(ID3D11DeviceContext* pContext, const void* Raw_Data, size_t element_size);
 	};
 
 	class RenderTargetTexture2D
@@ -336,9 +376,10 @@ namespace DirectX{
 		}
 
 		RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
-			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM , _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0, _In_opt_ bool Shared = false);
-		RenderTargetTexture2D( ID3D11Texture2D* pTexture , ID3D11RenderTargetView* pRenderTargetView , ID3D11ShaderResourceView* pShaderResouceView);
+			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM, _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0, _In_opt_ bool Shared = false);
+		RenderTargetTexture2D(ID3D11Texture2D* pTexture, ID3D11RenderTargetView* pRenderTargetView, ID3D11ShaderResourceView* pShaderResouceView);
 		explicit RenderTargetTexture2D(ID3D11RenderTargetView* pRenderTargetView);
+		explicit RenderTargetTexture2D(IDXGISwapChain* pSwapChain);
 
 		~RenderTargetTexture2D();
 
@@ -355,12 +396,19 @@ namespace DirectX{
 			return m_pRenderTargetView.Get();
 		}
 
-		void Clear(ID3D11DeviceContext *pDeviceContext , FXMVECTOR Color = g_XMIdentityR3)
+		void Clear(ID3D11DeviceContext *pDeviceContext, FXMVECTOR Color = g_XMIdentityR3)
 		{
 			DirectX::Color col = Color;
 			if (m_pRenderTargetView)
-				pDeviceContext->ClearRenderTargetView(m_pRenderTargetView.Get(),&col.x);
+				pDeviceContext->ClearRenderTargetView(m_pRenderTargetView.Get(), &col.x);
 		}
+
+		void Reset() {
+			m_pRenderTargetView.Reset();
+			Texture2D::Reset();
+		}
+
+		RenderTargetTexture2D& operator=(nullptr_t) { Reset(); return *this; }
 
 	protected:
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView>			m_pRenderTargetView;
@@ -374,13 +422,15 @@ namespace DirectX{
 		: public Texture2D
 	{
 	public:
-		StagingTexture2D(ID3D11Device* pDevice, unsigned int Width, unsigned int Height , _In_ DXGI_FORMAT Format ,  _In_opt_ unsigned int cpuAccessFlags = D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ);
-		StagingTexture2D(ID3D11DeviceContext* pContext, const Texture2D* pSource ,  _In_opt_ unsigned int cpuAccessFlags = D3D11_CPU_ACCESS_READ);
+		StagingTexture2D(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_ DXGI_FORMAT Format, _In_opt_ unsigned int cpuAccessFlags = D3D11_CPU_ACCESS_WRITE | D3D11_CPU_ACCESS_READ);
+		StagingTexture2D(ID3D11DeviceContext* pContext, const Texture2D* pSource, _In_opt_ unsigned int cpuAccessFlags = D3D11_CPU_ACCESS_READ);
 
 		//static std::unique_ptr<StagingTexture2D> CreateFromTexture2D(ID3D11DeviceContext* pContext, const Texture2D* pSource ,  _In_opt_ unsigned int cpuAccessFlags = D3D11_CPU_ACCESS_READ);
 
 		std::unique_ptr<uint8_t> GetData(ID3D11DeviceContext *pContext);
 		//void GetData(ID3D11DeviceContext *pContext , void *pTarget);
+
+		StagingTexture2D& operator=(nullptr_t) { Reset(); return *this; }
 
 	protected:
 		operator ID3D11ShaderResourceView* () = delete;
@@ -423,13 +473,17 @@ namespace DirectX{
 			return m_pDepthStencilView.Get();
 		}
 
-		void Clear(ID3D11DeviceContext *pDeviceContext , uint32_t ClearFlag = D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,float Depth = 1.0f , uint8_t Stencil = 0U)
+		void Clear(ID3D11DeviceContext *pDeviceContext, uint32_t ClearFlag = D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, float Depth = 1.0f, uint8_t Stencil = 0U)
 		{
-			pDeviceContext->ClearDepthStencilView(m_pDepthStencilView.Get(),ClearFlag,Depth,Stencil);
+			pDeviceContext->ClearDepthStencilView(m_pDepthStencilView.Get(), ClearFlag, Depth, Stencil);
 		}
 
-		operator ID3D11ShaderResourceView* () = delete;
-		ID3D11ShaderResourceView* ShaderResourceView() = delete;
+		void Reset() {
+			m_pDepthStencilView.Reset();
+			Texture2D::Reset();
+		}
+
+		DepthStencilBuffer& operator=(nullptr_t) { Reset(); return *this; }
 
 	protected:
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView>			m_pDepthStencilView;
@@ -480,6 +534,11 @@ namespace DirectX{
 		/// <param name="pDeviceContext">The pointer to device context.</param>
 		/// <param name="pDepthStencil">The pointer to depth stencil view.</param>
 		void SetAsRenderTarget(ID3D11DeviceContext* pDeviceContext) override;
+
+		void Reset() {
+			m_ColorBuffer.Reset();
+			m_DepthStencilBuffer.Reset();
+		}
 
 	private:
 		RenderTargetTexture2D									m_ColorBuffer;
@@ -543,4 +602,4 @@ namespace DirectX{
 
 }
 
-#endif
+#endif // DIRECRTX_TEXTURE_H

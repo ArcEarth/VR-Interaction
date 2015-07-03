@@ -8,7 +8,7 @@
 #include <wrl\client.h>
 #include <memory>
 #include <mutex>
-#include "Common\DirectXMathExtend.h"
+#include "DirectXMathExtend.h"
 #include "Armature.h"
 #include "Animations.h"
 #include "Common\Filter.h"

@@ -1,6 +1,6 @@
 #include "pch_bcl.h"
 #include "AssetDictionary.h"
-#include "Common\DirectXHelper.h"
+#include <DirectXHelper.h>
 #include "FbxParser.h"
 
 using namespace Causality;

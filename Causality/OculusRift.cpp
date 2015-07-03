@@ -6,7 +6,6 @@
 #include <SpriteBatch.h>
 using namespace Causality;
 using namespace Causality::Devices;
-using namespace DirectX::Scene;
 using namespace std;
 
 class OculusRift::Impl

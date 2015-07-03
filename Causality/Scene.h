@@ -1,13 +1,11 @@
 #pragma once
-#include "Common\Renderable.h"
+#include "Renderable.h"
 #include "Interactive.h"
 #include "SceneObject.h"
-#include "Common\Carmera.h"
-#include "Common\StepTimer.h"
+#include "CameraObject.h"
+#include "StepTimer.h"
 #include "RenderContext.h"
-#include "Common\Carmera.h"
 #include "AssetDictionary.h"
-#include "PrimaryCamera.h"
 #include <mutex>
 
 namespace Causality
@@ -50,12 +48,11 @@ namespace Causality
 
 		void LoadFromXML(const string& xml_file);
 
-		static Scene& GetSceneFroCurrentView();
+		static Scene& GetSceneForCurrentView();
 
 		// Inherit from IScene
 		virtual void Update() override;
 		virtual void Render(RenderContext& context) override;
-		void SetupEffectsViewProject(const DirectX::XMMATRIX &v, const DirectX::XMMATRIX &p);
 		virtual void Load() override;
 		virtual void Release() override;
 
@@ -90,8 +87,8 @@ namespace Causality
 
 		bool SetAsPrimaryCamera(Camera* camera);
 
-		RenderContext& GetRenderContext() { return render_context; }
-		const RenderContext& GetRenderContext() const { return render_context; }
+		RenderContext&			GetRenderContext() { return render_context; }
+		const RenderContext&	GetRenderContext() const { return render_context; }
 
 		void SetRenderDeviceAndContext(RenderDevice& device, RenderContext& context)
 		{
@@ -104,6 +101,8 @@ namespace Causality
 		void							SetCanvas(DirectX::RenderTarget& canvas) {
 			scene_canvas = canvas;
 		}
+
+		void SetupEffectsViewProject(const DirectX::XMMATRIX &v, const DirectX::XMMATRIX &p);
 
 		void UpdateRenderViewCache();
 
@@ -121,7 +120,7 @@ namespace Causality
 		DirectX::RenderTarget		scene_canvas;
 		Camera						*primary_cameral;
 
-		std::vector<Camera*>		cameras;
+		std::vector<ICamera*>		cameras;
 		std::vector<IRenderable*>	renderables;
 
 		std::mutex					content_mutex;

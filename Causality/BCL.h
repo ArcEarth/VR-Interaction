@@ -30,7 +30,7 @@
 
 #include <SimpleMath.h>
 
-#include "Common\DirectXMathExtend.h"
+#include "DirectXMathExtend.h"
 
 #include <Eigen\Dense>
 #include <Eigen\Sparse>
@@ -81,6 +81,7 @@ namespace Causality
 	using DirectX::BoundingOrientedBox;
 	using DirectX::BoundingFrustum;
 	using DirectX::BoundingSphere;
+	using Microsoft::WRL::ComPtr;
 
 	using VectorX = Eigen::VectorXf;
 	using RowVectorX = Eigen::RowVectorXf;

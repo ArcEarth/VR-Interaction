@@ -27,7 +27,8 @@
   <PropertyGroup Label="UserMacros">
     <TinyXml2Dir>..\..\tinyxml2</TinyXml2Dir>
     <DirectXTKDir>D:\SDKs\DirectXTK</DirectXTKDir>
-    <Bullet3Dir>..\..\bullet3\src</Bullet3Dir>
+    <Bullet3Dir>..\..\bullet3</Bullet3Dir>
+    <DirectXHelperDir>..\DirectX</DirectXHelperDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -80,23 +81,23 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;..\..\bullet3\src;D:\SDKs\DirectXTK\Inc;..\..\tinyxml2;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;..\..\bullet3\src;D:\SDKs\DirectXTK\Inc;..\..\tinyxml2;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;..\..\bullet3\src;D:\SDKs\DirectXTK\Inc;..\..\tinyxml2;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;..\..\bullet3\src;D:\SDKs\DirectXTK\Inc;..\..\tinyxml2;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
   </PropertyGroup>
@@ -228,7 +229,9 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AnimationAnalyzer.cpp" />
+    <ClCompile Include="CameraObject.cpp" />
     <ClCompile Include="CharacterObject.cpp" />
+    <ClCompile Include="LightObject.cpp" />
     <ClCompile Include="pch_bcl.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>pch_bcl.h</PrecompiledHeaderFile>
@@ -246,7 +249,6 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="OculusRift.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PlayerProxy.cpp" />
-    <ClCompile Include="PrimaryCamera.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Armature.cpp" />
     <ClCompile Include="SceneObject.cpp" />
@@ -275,12 +277,13 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="Interactive.h" />
     <ClInclude Include="Kinect.h" />
     <ClInclude Include="LeapMotion.h" />
+    <ClInclude Include="LightObject.h" />
     <ClInclude Include="NativeWindow.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="OculusRift.h" />
     <ClInclude Include="pch_bcl.h" />
     <ClInclude Include="PlayerProxy.h" />
-    <ClInclude Include="PrimaryCamera.h" />
+    <ClInclude Include="CameraObject.h" />
     <ClInclude Include="ProbalisticModel.h" />
     <ClInclude Include="RenderContext.h" />
     <ClInclude Include="EigenExtension.h" />
@@ -313,14 +316,9 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <HeaderFileOutput>$(ProjectDir)Shaders\%(Filename).inl</HeaderFileOutput>
       <VariableName>%(Filename)Bytecode</VariableName>
     </FxCompile>
-    <FxCompile Include="ShadowMapGenVS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-    </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Common.hlsli" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -361,19 +359,19 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ProjectReference Include="..\..\..\..\..\..\SDKs\DirectXTK\DirectXTK_Desktop_2015.vcxproj">
       <Project>{e0b52ae7-e160-4d32-bf3f-910b785e5a8e}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\bullet3\build3\vs2013\BulletCollision.vcxproj">
+    <ProjectReference Include="$(Bullet3Dir)\build3\vs2013\BulletCollision.vcxproj">
       <Project>{8937c279-5097-eb49-b459-ce535897a306}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\bullet3\build3\vs2013\BulletDynamics.vcxproj">
+    <ProjectReference Include="$(Bullet3Dir)\build3\vs2013\BulletDynamics.vcxproj">
       <Project>{f3e7f78e-18aa-cb43-84bc-0b1c979f0993}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\bullet3\build3\vs2013\LinearMath.vcxproj">
+    <ProjectReference Include="$(Bullet3Dir)\build3\vs2013\LinearMath.vcxproj">
       <Project>{94240b48-9226-514f-b232-8d06ae1cd252}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\tinyxml2\tinyxml2\tinyxml2.vcxproj">
+    <ProjectReference Include="$(TinyXml2Dir)\tinyxml2\tinyxml2.vcxproj">
       <Project>{d1c528b6-aa02-4d29-9d61-dc08e317a70d}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\DirectXHelpers\DirectXHelpers.vcxproj">
+    <ProjectReference Include="$(DirectXHelperDir)\DirectXHelpers.vcxproj">
       <Project>{c6d38a30-8097-4ca4-a1cb-1273ce21eaaf}</Project>
     </ProjectReference>
     <ProjectReference Include="Geometrics\Geometrics.vcxproj">

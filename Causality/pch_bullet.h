@@ -39,7 +39,7 @@
 #include <DirectXColors.h>
 #include <DirectXCollision.h>
 #include <SimpleMath.h>
-#include "Common\DirectXMathExtend.h"
+#include "..\DirectX\Inc\DirectXMathExtend.h"
 
 // Bullet physics
 #ifndef BT_NO_SIMD_OPERATOR_OVERLOADS

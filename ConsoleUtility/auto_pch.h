@@ -6,7 +6,7 @@
 #include <fstream>
 #include <iomanip>
 #include <directxmath.h>
-#include "..\causality\common\directxmathextend.h"
+#include "..\DirectX\Inc\DirectXMathExtend.h"
 #include <fbxsdk.h>
 #include <boost\filesystem.hpp>
 #include <Eigen\Dense>

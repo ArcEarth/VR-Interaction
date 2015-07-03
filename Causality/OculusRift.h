@@ -1,9 +1,8 @@
 #pragma once
 #include "BCL.h"
 #include <memory>
-#include "Common\Textures.h"
-#include "Common\DeviceResources.h"
-#include "Common\Carmera.h"
+#include "Textures.h"
+#include "DeviceResources.h"
 #include <exception>
 
 namespace Causality

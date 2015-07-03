@@ -32,12 +32,11 @@ namespace Causality
 
 		virtual void					SetRenderModel(DirectX::Scene::IModelNode* pMesh, int LoD = 0) override;
 
-
 		virtual void Update(time_seconds const& time_delta) override;
 
 		// Inherited via IRenderable
 		virtual bool IsVisible(const BoundingFrustum& viewFrustum) const override;
-		virtual void Render(RenderContext & pContext) override;
+		virtual void Render(RenderContext & pContext, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 	private:

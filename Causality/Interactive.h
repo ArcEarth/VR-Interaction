@@ -1,5 +1,5 @@
 #pragma once
-#include "Common\DirectXMathExtend.h"
+#include <DirectXMathExtend.h>
 #include <Leap.h>
 #include "Kinect.h"
 

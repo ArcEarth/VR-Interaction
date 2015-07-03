@@ -66,9 +66,6 @@
     <ClCompile Include="PlayerProxy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PrimaryCamera.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -102,6 +99,12 @@
     <ClCompile Include="CharacterObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="LightObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CameraObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NativeWindow.h">
@@ -127,9 +130,6 @@
     </ClInclude>
     <ClInclude Include="LeapMotion.h">
       <Filter>Platform\Platform.Devices</Filter>
-    </ClInclude>
-    <ClInclude Include="PrimaryCamera.h">
-      <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="WorldTreeBranch.h">
       <Filter>Header Files</Filter>
@@ -212,6 +212,12 @@
     <ClInclude Include="CharacterObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CameraObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="LightObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\OculusDisortionPixelShader.hlsl">
@@ -226,12 +232,12 @@
     <FxCompile Include="Content\SampleVertexShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="ShadowMapGenVS.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="Common.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\Textures\SkyBox\GrimmNight\Back.dds">

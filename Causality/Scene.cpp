@@ -45,8 +45,10 @@ void Causality::Scene::Render(RenderContext & context)
 
 	for (auto pCamera : cameras)
 	{
-		pCamera->BeginFrame();
-		for (size_t view = 0; view < pCamera->ViewCount(); view++)
+		pCamera->BeginFrame(context);
+		auto viewCount = pCamera->ViewCount();
+
+		for (size_t view = 0; view < viewCount; view++)
 		{
 			pCamera->SetView(view);
 			auto v = pCamera->GetViewMatrix(view);
@@ -57,7 +59,8 @@ void Causality::Scene::Render(RenderContext & context)
 
 			for (auto& pRenderable : renderables)
 			{
-				if (pRenderable->IsVisible(viewFrustum))
+				if (pCamera->AcceptRenderFlags(pRenderable->GetRenderFlags())
+					&& pRenderable->IsVisible(viewFrustum))
 				{
 					pRenderable->UpdateViewMatrix(v, p);
 					pRenderable->Render(context);

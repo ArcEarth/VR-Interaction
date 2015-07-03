@@ -66,7 +66,7 @@ DirectX::DeviceResources::DeviceResources() :
 	m_dpiScaleY(1.0f),
 	m_deviceNotify(nullptr)
 {
-	m_multiSampleLevel = 4;
+	m_multiSampleLevel = 8;
 	m_multiSampleQuality = 16;
 	CreateDeviceIndependentResources();
 	CreateDeviceResources();
@@ -309,6 +309,7 @@ void DirectX::DeviceResources::CreateSwapChainForComposition(IDXGIFactory2* dxgi
 // These resources need to be recreated every time the window size is changed.
 void DirectX::DeviceResources::CreateWindowSizeDependentResources() 
 {
+	auto SwapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 	// Clear the previous window size specific context.
 	ID3D11RenderTargetView* nullViews[] = {nullptr};
 	m_d3dContext->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
@@ -342,7 +343,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 			2, // Double-buffered swap chain.
 			lround(m_d3dRenderTargetSize.Width),
 			lround(m_d3dRenderTargetSize.Height),
-			DXGI_FORMAT_B8G8R8A8_UNORM,
+			SwapChainFormat,
 			0
 			);
 
@@ -389,7 +390,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 
 		if (m_multiSampleLevel > 1)
 		{
-			HRESULT hr = m_d3dDevice->CheckMultisampleQualityLevels(DXGI_FORMAT_B8G8R8A8_UNORM, m_multiSampleLevel, &m_multiSampleQuality);
+			HRESULT hr = m_d3dDevice->CheckMultisampleQualityLevels(SwapChainFormat, m_multiSampleLevel, &m_multiSampleQuality);
 			m_multiSampleQuality = std::min(std::max(m_multiSampleQuality - 1U, 0U),4U);
 			swapChainDesc.SampleDesc.Count = m_multiSampleLevel;
 			swapChainDesc.SampleDesc.Quality = m_multiSampleQuality;
@@ -404,7 +405,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 
 		swapChainDesc.Width = lround(m_d3dRenderTargetSize.Width); // Match the size of the window.
 		swapChainDesc.Height = lround(m_d3dRenderTargetSize.Height);
-		swapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // This is the most common swap chain format.
+		swapChainDesc.Format = SwapChainFormat; // This is the most common swap chain format.
 		swapChainDesc.Stereo = false;
 		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		swapChainDesc.BufferCount = 2; // Use double-buffering to minimize latency.
@@ -588,7 +589,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 	D2D1_BITMAP_PROPERTIES1 bitmapProperties = 
 		D2D1::BitmapProperties1(
 			D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-			D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED),
+			D2D1::PixelFormat(SwapChainFormat, D2D1_ALPHA_MODE_PREMULTIPLIED),
 			m_dpi,
 			m_dpi
 			);

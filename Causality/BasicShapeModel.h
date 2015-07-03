@@ -1,5 +1,5 @@
 #pragma once
-#include "Common\Model.h"
+#include "Models.h"
 #include <DirectXColors.h>
 #include <btBulletDynamicsCommon.h>
 

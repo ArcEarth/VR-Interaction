@@ -11,12 +11,13 @@ public:
 		return CompositeFlag(none);
 	}
 
-	CompositeFlag(){}
+	CompositeFlag() = default;
 
 	CompositeFlag(unsigned int flag)
 	{
 		Flag = flag;
 	}
+
 	CompositeFlag(int flag)
 	{
 		Flag = (unsigned)flag;
@@ -26,9 +27,6 @@ public:
 	{
 		Flag = flag;
 	}
-
-
-	~CompositeFlag(void){}
 
 	unsigned int& RawData() { return Flag; }
 

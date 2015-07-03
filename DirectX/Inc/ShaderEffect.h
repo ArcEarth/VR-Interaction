@@ -6,46 +6,36 @@
 #endif
 #include <wrl\client.h>
 #include <Effects.h>
-#include "DirectXHelper.h"
 #include <ppltasks.h>
 #include <memory>
 
 namespace DirectX
 {
-	class EffectBank
+	class IEffectPhongMaterial
 	{
-		template <typename _TVertex>
-		std::shared_ptr<IEffect> CreateEffect()
-		{
-			return nullptr;
-		}
+		// Material settings.
+		virtual void XM_CALLCONV SetDiffuseColor(FXMVECTOR value) = 0;
+		virtual void XM_CALLCONV SetEmissiveColor(FXMVECTOR value) = 0;
+		virtual void XM_CALLCONV SetSpecularColor(FXMVECTOR value) = 0;
+		virtual void __cdecl SetSpecularPower(float value) = 0;
+		virtual void __cdecl DisableSpecular() = 0;
+		virtual void __cdecl SetAlpha(float value) = 0;
+
+		virtual void SetDiffuseMap(ID3D11ShaderResourceView* pTexture) = 0;
+		virtual void SetNormalMap(ID3D11ShaderResourceView* pTexture) = 0;
+		virtual void SetSpecularMap(ID3D11ShaderResourceView* pTexture) = 0;
 	};
 
-	class IEffectMaterial
+	class IEffectLightsShadow abstract : public IEffectLights
 	{
-		virtual void SetDiffuseTexture(ID3D11ShaderResourceView* pTexture) = 0;
-		virtual void SetNormalTexture(ID3D11ShaderResourceView* pTexture) = 0;
-		virtual void SetSpecularTexture(ID3D11ShaderResourceView* pTexture) = 0;
+		// Lighting and per pixel lighting is always enabled for Shadowed Light Effects
+		virtual void __cdecl SetLightingEnabled(bool value) {};
+		virtual void __cdecl SetPerPixelLighting(bool value) {};
+
+		virtual void SetLightShadowMap(int whichLight, ID3D11ShaderResourceView* pTexture) = 0;
+		virtual void XM_CALLCONV SetLightView(int whichLight, FXMMATRIX value) = 0;
+		virtual void XM_CALLCONV SetLightProjection(int whichLight, FXMMATRIX value) = 0;
 	};
-
-	class IEffectShadowMap abstract
-	{
-		virtual void SetShadowMap(int shadowId, ID3D11ShaderResourceView* pTexture) = 0;
-		virtual void XM_CALLCONV SetShadowColor(int shadowId, FXMVECTOR color) = 0;
-	};
-
-	class IEffectLightMap
-	{
-
-	};
-
-	//ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device* pDevice, IEffect* pEffect)
-	//{
-	//	void const* shaderByteCode;
-	//	size_t byteCodeLength;
-	//	pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
-	//	return DirectX::CreateInputLayout(pDevice, shaderByteCode, byteCodeLength);
-	//}
 
 	// An base class for customized shader effect, will handel the loading of shaders
 	class IShaderEffect
@@ -106,7 +96,7 @@ namespace DirectX
 		}
 
 		template <size_t VertexShaderBytecodeLength, size_t PixelShaderBytecodeLength>
-		ShaderEffect(_In_ ID3D11Device *pDevice, _In_ const BYTE (&VertexShaderBytecode const)[VertexShaderBytecodeLength], _In_ const BYTE(&PixelShaderBytecode const)[PixelShaderBytecodeLength])
+		ShaderEffect(_In_ ID3D11Device *pDevice, _In_ const BYTE (&VertexShaderBytecode)[VertexShaderBytecodeLength], _In_ const BYTE(&PixelShaderBytecode)[PixelShaderBytecodeLength])
 		{
 		}
 
@@ -147,10 +137,11 @@ namespace DirectX
 
 	protected:
 		std::string						m_VertexShaderByteCode;
-		ComPtr<ID3D11VertexShader>		m_pVertexShader;
-		ComPtr<ID3D11GeometryShader>	m_pGeometryShader;
-		ComPtr<ID3D11PixelShader>		m_pPixelShader;
-		ComPtr<ID3D11InputLayout>		m_pInputLayout;
+
+		Microsoft::WRL::ComPtr<ID3D11VertexShader>		m_pVertexShader;
+		Microsoft::WRL::ComPtr<ID3D11GeometryShader>	m_pGeometryShader;
+		Microsoft::WRL::ComPtr<ID3D11PixelShader>		m_pPixelShader;
+		Microsoft::WRL::ComPtr<ID3D11InputLayout>		m_pInputLayout;
 	};
 
 	template <typename _TVSConstant, typename _TPSConstant, typename _TGSConstant>

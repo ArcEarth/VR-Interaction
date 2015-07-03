@@ -28,7 +28,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectXTK_Desktop_2015", ".
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tinyxml2", "..\..\tinyxml2\tinyxml2\tinyxml2.vcxproj", "{D1C528B6-AA02-4D29-9D61-DC08E317A70D}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectXHelpers", "..\DirectXHelpers\DirectXHelpers.vcxproj", "{C6D38A30-8097-4CA4-A1CB-1273CE21EAAF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectXHelpers", "..\DirectX\DirectXHelpers.vcxproj", "{C6D38A30-8097-4CA4-A1CB-1273CE21EAAF}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Geometrics", "Geometrics\Geometrics.vcxproj", "{CDF563C5-5714-413C-B987-CF0CDCEF24B2}"
 	ProjectSection(ProjectDependencies) = postProject

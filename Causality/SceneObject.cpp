@@ -1,7 +1,7 @@
 #include "pch_bcl.h"
 #include "SceneObject.h"
 #include "CausalityApplication.h"
-#include "Common\PrimitiveVisualizer.h"
+#include <PrimitiveVisualizer.h>
 
 using namespace Causality;
 using namespace DirectX;
@@ -69,10 +69,15 @@ void VisualObject::SetRenderModel(DirectX::Scene::IModelNode * pMesh, int LoD)
 	m_pRenderModel = pMesh;
 }
 
-void VisualObject::Render(RenderContext & pContext)
+RenderFlags Causality::VisualObject::GetRenderFlags() const
+{
+	return RenderFlags::OpaqueObjects;
+}
+
+void VisualObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect)
 {
 	if (m_pRenderModel)
-		m_pRenderModel->Render(pContext, GlobalTransformMatrix());
+		m_pRenderModel->Render(pContext, GlobalTransformMatrix(), pEffect);
 }
 
 void XM_CALLCONV VisualObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
@@ -215,7 +220,7 @@ bool Causality::CoordinateAxis::IsVisible(const BoundingFrustum & viewFrustum) c
 	return true;
 }
 
-void Causality::CoordinateAxis::Render(RenderContext & context)
+void Causality::CoordinateAxis::Render(RenderContext & context, DirectX::IEffect* pEffect)
 {
 	float ub = 5, lb = -5, majorIdent = 1, minorIdent = 0.25f;
 	using DirectX::Visualizers::g_PrimitiveDrawer;
@@ -265,4 +270,9 @@ void XM_CALLCONV Causality::CoordinateAxis::UpdateViewMatrix(DirectX::FXMMATRIX 
 	g_PrimitiveDrawer.SetView(view);
 	g_PrimitiveDrawer.SetProjection(projection);
 	g_PrimitiveDrawer.SetWorld(GlobalTransformMatrix());
+}
+
+RenderFlags Causality::CoordinateAxis::GetRenderFlags() const
+{
+	return RenderFlags::SpecialEffects;
 }

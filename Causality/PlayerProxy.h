@@ -103,7 +103,7 @@ namespace Causality
 
 		// Inherited via IRenderable
 		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
-		virtual void Render(RenderContext & context) override;
+		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 		// PlayerSelector Interface
@@ -170,6 +170,9 @@ namespace Causality
 		void BeginManipulatingPhase();
 
 		std::pair<float, float> ExtractUserMotionPeriod();
+
+		// Inherited via IRenderable
+		virtual RenderFlags GetRenderFlags() const override;
 		//void PrintFrameBuffer(int No);
 	};
 
@@ -178,11 +181,13 @@ namespace Causality
 	public:
 		KinectVisualizer();
 		// Inherited via IRenderable
+		virtual RenderFlags GetRenderFlags() const override;
 		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
-		virtual void Render(RenderContext & context) override;
+		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 	protected:
 		std::shared_ptr<Devices::KinectSensor>	pKinect;
+
 	};
 }

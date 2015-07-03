@@ -1,5 +1,5 @@
 #pragma once
-#include "Common\Model.h"
+#include "Models.h"
 //#include "BulletPhysics.h"
 #include <memory>
 #include "Object.h"
@@ -14,12 +14,48 @@ namespace Causality
 	extern bool g_DebugView;
 	extern bool g_ShowCharacterMesh;
 
+	enum RenderFlagPrimtive : unsigned int
+	{
+		Visible = 0,
+		RecivesLight = 1,
+		DropsShadow = 2,
+		RecivesShadow = 3,
+		Reflective = 4,
+		Refrective = 5,
+		LightSource = 6,
+		AcceptCustomizeEffects = 7,
+	};
+
+	class RenderFlags : public CompositeFlag<RenderFlagPrimtive>
+	{
+	public:
+		typedef CompositeFlag<RenderFlagPrimtive> Base;
+		using Base::CompositeFlag;
+
+		static const unsigned
+			OpaqueObjects = 1 << Visible | 1 << RecivesLight | 1 << DropsShadow | 1 << RecivesShadow | 1 << AcceptCustomizeEffects,
+			SemiTransparentObjects = 1 << Visible | 1 << RecivesLight | 1 << DropsShadow | 1 << AcceptCustomizeEffects,
+			GhostObjects = 1 << Visible | 1 << RecivesLight | 1 << AcceptCustomizeEffects,
+			SpecialEffects = 1 << Visible,
+			Lights = 1 << Visible | 1 << LightSource,
+			Visible = 1 << Visible,
+			RecivesLight = 1 << RecivesLight,
+			DropsShadow = 1 << DropsShadow,
+			RecivesShadow = 1 << RecivesShadow,
+			Reflective = 1 << Reflective,
+			Refrective = 1 << Refrective,
+			LightSource = 1 << LightSource,
+			AcceptCustomizeEffects = 1 << AcceptCustomizeEffects;
+	};
+
+
 	class IRenderable abstract
 	{
 	public:
 		// Camera culling
+		virtual RenderFlags GetRenderFlags() const = 0;
 		virtual bool IsVisible(const BoundingFrustum& viewFrustum) const = 0;
-		virtual void Render(RenderContext &context) = 0;
+		virtual void Render(RenderContext &context, DirectX::IEffect* pEffect = nullptr) = 0;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) = 0;
 	};
 
@@ -114,13 +150,8 @@ namespace Causality
 		bool								m_IsEnabled;
 	};
 
-	class LightingObject : public SceneObject
-	{
-
-	};
-
 	// Scene object acts like entities for render
-	class VisualObject : virtual public SceneObject , virtual public IRenderable
+	class VisualObject : virtual public SceneObject, virtual public IRenderable
 	{
 	public:
 		VisualObject();
@@ -157,7 +188,8 @@ namespace Causality
 		//const Bullet::CollisionShape&				CollisionShape(int LoD = 0) const;
 
 		// Inherited via IRenderable
-		virtual void Render(RenderContext & pContext) override;
+		virtual RenderFlags GetRenderFlags() const override;
+		virtual void Render(RenderContext & pContext, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 	protected:
@@ -175,8 +207,11 @@ namespace Causality
 	{
 		// Inherited via IRenderable
 		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
-		virtual void Render(RenderContext & context) override;
+		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
+
+		// Inherited via IRenderable
+		virtual RenderFlags GetRenderFlags() const override;
 	};
 
 	class KeyboardMouseFirstPersonControl :public SceneObject, public IAppComponent, public IKeybordInteractive, public ICursorInteractive
@@ -214,11 +249,5 @@ namespace Causality
 		DirectX::Vector3								CameraVeclocity;
 		DirectX::Vector3								CameraAngularVeclocity;
 		DirectX::Vector3								AngularDisplacement; // Eular Angle
-	};
-
-
-	class KinematicSceneObjectController
-	{
-
 	};
 }

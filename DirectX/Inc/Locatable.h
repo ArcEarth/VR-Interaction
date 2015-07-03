@@ -3,6 +3,14 @@
 
 namespace DirectX
 {
+	struct CoordinateSystem
+	{
+		DirectX::XMVECTORF32 Right;
+		DirectX::XMVECTORF32 Up;
+		DirectX::XMVECTORF32 Front;
+		bool RightHand;
+	};
+
 	// Interface for Object with 3D Position
 	class ILocatable abstract
 	{
@@ -87,10 +95,20 @@ namespace DirectX
 			AffineTransform::Scale = s;
 		}
 
-		//Vector3 GetForward() const;
-		//Vector3 GetUp() const;
-		//Vector3 GetRight() const;
+		XMVECTOR GetFoward() const
+		{
+			return XMVector3Rotate(g_XMNegIdentityR2.v, Rotation.LoadA());
+		}
+		XMVECTOR GetUpward() const
+		{
+			return XMVector3Rotate(g_XMIdentityR1.v, Rotation.LoadA());
+		}
+		XMVECTOR GetRightward() const
+		{
+			return XMVector3Rotate(g_XMIdentityR0.v, Rotation.LoadA());
+		}
 	};
+
 	// Interface for object with local coordinate
 	class ILocalMatrix abstract
 	{

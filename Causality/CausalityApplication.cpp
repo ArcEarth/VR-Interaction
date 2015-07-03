@@ -3,7 +3,7 @@
 //#include "Content\CubeScene.h"
 //#include "Content\SampleFpsTextRenderer.h"
 #include <CommonStates.h>
-#include "Common\PrimitiveVisualizer.h"
+#include <PrimitiveVisualizer.h>
 
 using namespace Causality;
 using namespace std;

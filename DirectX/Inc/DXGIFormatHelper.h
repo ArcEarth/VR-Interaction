@@ -42,6 +42,9 @@ namespace DirectX
 	XMVECTOR XMLoadDXGIFormat (const void *pSource , DXGI_FORMAT format );
 	void	 XMStoreDXGIFormat(void *pDestination , DXGI_FORMAT format , FXMVECTOR V);
 
+	DXGI_FORMAT DXGIConvertFormatDSVToResource(DXGI_FORMAT format);
+	DXGI_FORMAT DXGIConvertFormatDSVToSRV(DXGI_FORMAT format);
+
 	/// <summary>
 	/// Deduce the proper DXGI_FORMAT for give type.
 	/// </summary>

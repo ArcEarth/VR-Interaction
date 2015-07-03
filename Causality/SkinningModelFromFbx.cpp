@@ -1,6 +1,6 @@
-#include "Common\Model.h"
+#include <Model.h>
 #include "pch_bcl.h"
-#include "Common\Model.h"
+#include "Models.h"
 #include "FbxParser.h"
 #include <Effects.h>
 using namespace DirectX;

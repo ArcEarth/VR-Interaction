@@ -1,6 +1,6 @@
 #include "pch_bcl.h"
 #include "PlayerProxy.h"
-#include "Common\PrimitiveVisualizer.h"
+#include <PrimitiveVisualizer.h>
 #include <fstream>
 #include <Eigen\fft>
 #include "CCA.h"
@@ -616,7 +616,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 					A.col(k).maxCoeff(&matching[k]);
 				}
 
-				auto score = matching_cost(A.transpose(), matching);
+				auto score = matching_cost(A.transpose(), matching);// / A.cols();
 				//auto score = matching_cost(A, matching);
 				mScores[phidx] = score;
 				mMatchings[phidx] = matching;
@@ -884,6 +884,11 @@ pair<float, float> PlayerProxy::ExtractUserMotionPeriod()
 	return make_pair(.0f, idx);
 }
 
+RenderFlags Causality::PlayerProxy::GetRenderFlags() const
+{
+	return RenderFlags::SpecialEffects;
+}
+
 //void PlayerProxy::PrintFrameBuffer(int No)
 //{
 //	int flag = ofstream::out | (No == 1 ? 0 : ofstream::app);
@@ -1005,7 +1010,7 @@ bool PlayerProxy::IsVisible(const BoundingFrustum & viewFrustum) const
 	return true;
 }
 
-void PlayerProxy::Render(RenderContext & context)
+void PlayerProxy::Render(RenderContext & context, DirectX::IEffect* pEffect)
 {
 	if (!playerSelector) return;
 	auto& player = *playerSelector;
@@ -1040,7 +1045,7 @@ bool KinectVisualizer::IsVisible(const BoundingFrustum & viewFrustum) const
 	return true;
 }
 
-void KinectVisualizer::Render(RenderContext & context)
+void KinectVisualizer::Render(RenderContext & context, DirectX::IEffect* pEffect)
 {
 	auto &players = pKinect->GetTrackedBodies();
 	using DirectX::Visualizers::g_PrimitiveDrawer;
@@ -1061,6 +1066,11 @@ void XM_CALLCONV KinectVisualizer::UpdateViewMatrix(DirectX::FXMMATRIX view, Dir
 {
 	DirectX::Visualizers::g_PrimitiveDrawer.SetView(view);
 	DirectX::Visualizers::g_PrimitiveDrawer.SetProjection(projection);
+}
+
+RenderFlags Causality::KinectVisualizer::GetRenderFlags() const
+{
+	return RenderFlags::SpecialEffects;
 }
 
 CharacterController::~CharacterController()

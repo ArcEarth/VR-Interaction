@@ -6,7 +6,7 @@
 #include <Effects.h>
 #include "DirectXHelper.h"
 #include "Textures.h"
-#include "Model.h"
+#include "Models.h"
 
 
 namespace DirectX

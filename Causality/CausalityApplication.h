@@ -11,11 +11,11 @@
 
 #include "NativeWindow.h"
 #include <iostream>
-#include "Common\DeviceResources.h"
-#include "Common\Renderable.h"
+#include "DeviceResources.h"
+#include "Renderable.h"
 #include "NativeWindow.h"
 #include "OculusRift.h"
-#include "PrimaryCamera.h"
+#include "CameraObject.h"
 #include "LeapMotion.h"
 #include "Kinect.h"
 #include <boost\filesystem.hpp>
