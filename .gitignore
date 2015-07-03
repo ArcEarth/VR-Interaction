@@ -224,3 +224,9 @@ pip-log.txt
 ## Matlab
 #############
 *.asv
+
+#############
+## Generated Shader headers
+#############
+/DirectX/Src/Shaders/windows/
+/DirectX/Src/Shaders/xbox/
