@@ -81,6 +81,7 @@ namespace Causality
 	using DirectX::BoundingOrientedBox;
 	using DirectX::BoundingFrustum;
 	using DirectX::BoundingSphere;
+	using DirectX::BoundingGeometry;
 	using Microsoft::WRL::ComPtr;
 
 	using VectorX = Eigen::VectorXf;

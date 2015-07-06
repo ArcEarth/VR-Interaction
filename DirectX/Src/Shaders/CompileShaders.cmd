@@ -38,8 +38,15 @@ call :CompileShaderHLSL%platform% ShadowMapGen vs VS_NoBone
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_OneBone
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_TwoBone
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_FourBone
+call :CompileShaderHLSL%platform% ShadowMapGen vs VS_NoBoneTex
+call :CompileShaderHLSL%platform% ShadowMapGen vs VS_OneBoneTex
+call :CompileShaderHLSL%platform% ShadowMapGen vs VS_TwoBoneTex
+call :CompileShaderHLSL%platform% ShadowMapGen vs VS_FourBoneTex
 
-call :CompileShaderHLSL%platform% ShadowMapGen ps PS
+call :CompileShaderHLSL%platform% ShadowMapGen ps PS_DepthNoTex
+call :CompileShaderHLSL%platform% ShadowMapGen ps PS_DepthTex
+call :CompileShaderHLSL%platform% ShadowMapGen ps PS_ColorNoTex
+call :CompileShaderHLSL%platform% ShadowMapGen ps PS_ColorTex
 goto finish
 
 :ShadowMapEffectVS
@@ -47,11 +54,23 @@ call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_OneLightNoBoneNoTex
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_OneLightNoBoneTex
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_OneLightFourBoneNoTex
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_OneLightFourBoneTex
+
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceNoBoneNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceNoBoneTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceOneBoneNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceOneBoneTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceTwoBoneNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceTwoBoneTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceFourBoneNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceFourBoneTex
 goto finish
 
 :ShadowMapEffectPS
 call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_OneLightNoTex
 call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_OneLightTex
+
+call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_ScreenSpaceNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_ScreenSpaceTex
 goto finish
 
 :finish

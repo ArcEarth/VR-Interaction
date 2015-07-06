@@ -13,7 +13,7 @@
 
 #pragma once
 
-#include "PlatformHelpers.h"
+#include "DirectXHelper.h"
 
 
 namespace DirectX

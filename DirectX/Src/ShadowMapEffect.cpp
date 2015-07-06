@@ -1,6 +1,7 @@
 #include "pch_directX.h"
 #include "ShadowMapEffect.h"
-#include <..\Src\EffectCommon.h>
+#include "EffectCommon.h"
+#include <CommonStates.h>
 
 using namespace DirectX;
 
@@ -134,6 +135,7 @@ public:
 	typedef EffectTraitsType	Traits;
 	typedef EffectBaseType		Base;
 
+	CommonStates					commonStates;
 	BonesCBuffer					boneConstant;
 	ConstantBuffer<BonesCBuffer>	BoneTransforms;
 	int								weightsPerVertex;
@@ -148,7 +150,9 @@ public:
 
 	Impl(ID3D11Device* device)
 		: EffectBase(device),
-		weightsPerVertex(0)
+		BoneTransforms(device),
+		commonStates(device),
+		weightsPerVertex(0), lightsEnabled(1)
 	{
 		static_assert(_countof(Base::VertexShaderIndices) == Traits::ShaderPermutationCount, "array/max mismatch");
 		static_assert(_countof(Base::VertexShaderBytecode) == Traits::VertexShaderCount, "array/max mismatch");
@@ -161,6 +165,10 @@ public:
 		{
 			XMStoreFloat3x4(&boneConstant.Bones[i], id);
 		}
+
+		CD3D11_DEFAULT def;
+		CD3D11_SAMPLER_DESC samplerDesc(def);
+		device->CreateSamplerState(&samplerDesc, &pShadowMapSampler);
 	}
 
 	int GetCurrentShaderPermutation() const
@@ -197,7 +205,7 @@ public:
 	{
 		if (dirtyFlags & EffectDirtyFlags::LightsViewProjection)
 		{
-			for (size_t i = 0; i < 1; i++) //? Use MAX_LIGHT instead of 1
+			for (size_t i = 0; i < lightsEnabled; i++) //? Use MAX_LIGHT instead of 1
 			{
 				XMMATRIX lvp = lights[i].View.LoadA();
 				constants.LightPosition[i] = lights[i].SourcePosition;
@@ -216,6 +224,8 @@ public:
 		//matrices.SetConstants(dirtyFlags, constants.worldViewProj);
 		//fog.SetConstants(dirtyFlags, matrices.worldView, constants.fogVector);
 		UpdateEffectMatrices();
+
+		UpdateEffectLights();
 
 		int permutation = GetCurrentShaderPermutation();
 
@@ -239,6 +249,8 @@ public:
 		{
 			pContext->PSSetShaderResources(0, 1, texture.GetAddressOf());
 		}
+
+		pContext->OMSetBlendState(commonStates.AlphaBlend(), Colors::Black.f, -1);
 	}
 };
 
@@ -326,6 +338,7 @@ void XM_CALLCONV ShadowMapEffect::SetFogColor(FXMVECTOR value)
 void XM_CALLCONV ShadowMapEffect::SetDiffuseColor(FXMVECTOR value)
 {
 	pImpl->constants.MaterialDiffuse = value;
+	pImpl->constants.MaterialAmbient = value;
 	pImpl->dirtyFlags |= EffectDirtyFlags::MaterialColor | EffectDirtyFlags::ConstantBuffer;
 }
 
@@ -448,6 +461,10 @@ void XM_CALLCONV ShadowMapEffect::SetLightSpecularColor(int whichLight, FXMVECTO
 	//! Not support
 }
 
+void DirectX::ShadowMapEffect::SetLightShadowMapBias(int whichLight, float bias)
+{
+}
+
 void ShadowMapEffect::SetLightShadowMap(int whichLight, ID3D11ShaderResourceView * pTexture)
 {
 	pImpl->pShadowMaps[whichLight] = pTexture;
@@ -462,8 +479,7 @@ void XM_CALLCONV ShadowMapEffect::SetLightView(int whichLight, FXMMATRIX value)
 	pImpl->lights[whichLight].SourcePosition.w = 1.0f;
 
 	XMMATRIX viewTrans = XMMatrixTranspose(value);
-	pImpl->lights[whichLight].FocusDirection = -viewTrans.r[2];
-	pImpl->lights[whichLight].FocusDirection.w = 0.0f;
+	pImpl->lights[whichLight].FocusDirection = XMVectorSelect(g_XMSelect1110.v, viewTrans.r[2], g_XMSelect1110.v);
 
 	pImpl->dirtyFlags |= EffectDirtyFlags::LightsViewProjection;
 }

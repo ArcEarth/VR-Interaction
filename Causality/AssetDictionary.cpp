@@ -2,6 +2,7 @@
 #include "AssetDictionary.h"
 #include <DirectXHelper.h>
 #include "FbxParser.h"
+#include <ShadowMapEffect.h>
 
 using namespace Causality;
 using namespace boost::filesystem;
@@ -166,21 +167,29 @@ void AssetDictionary::SetRenderDevice(RenderDevice & device)
 		effect_factory = std::make_unique<DirectX::EffectFactory>(device.Get());
 		effect_factory->SetDirectory(texture_directory.c_str());
 
-		default_effect = std::make_shared<DirectX::BasicEffect>(device.Get());
-		default_effect->SetVertexColorEnabled(false);
-		default_effect->SetTextureEnabled(true);
-		default_effect->EnableDefaultLighting();
+		//auto pBEffect = std::make_shared<DirectX::BasicEffect>(device.Get());
+		//pBEffect->SetVertexColorEnabled(false);
+		//pBEffect->SetTextureEnabled(true);
+		//pBEffect->EnableDefaultLighting();
+		//default_effect = pBEffect;
 
-		//default_skinned_effect = default_effect;
+		auto pMainEffect = std::make_shared<DirectX::ShadowMapEffect>(device.Get());
+		pMainEffect->SetWeightsPerVertex(0); // Disable Skinning
+		pMainEffect->SetLightEnabled(0, true);
+		pMainEffect->SetLightView(0,XMMatrixLookToRH(XMVectorSet(0, 5, 0, 1), XMVectorSet(0, -1, 0, 0), XMVectorSet(0, 0, -1,0)));
+		pMainEffect->SetLightProjection(0, XMMatrixOrthographicRH(5,5,0.01f,10.0f));
+		default_effect = pMainEffect;
+
+		default_skinned_effect = default_effect;
 		
-		auto pSEffect = std::make_shared<DirectX::DGSLEffect>(device.Get(),nullptr,true);
-		//auto pSEffect = std::make_shared<DirectX::SkinnedEffect>(device.Get());
-		pSEffect->SetWeightsPerVertex(4U);
-		pSEffect->SetVertexColorEnabled(true);
-		pSEffect->SetTextureEnabled(false);
-		pSEffect->EnableDefaultLighting();
-		pSEffect->SetAlphaDiscardEnable(true);
-		default_skinned_effect = pSEffect;
+		//auto pSEffect = std::make_shared<DirectX::DGSLEffect>(device.Get(),nullptr,true);
+		////auto pSEffect = std::make_shared<DirectX::SkinnedEffect>(device.Get());
+		//pSEffect->SetWeightsPerVertex(4U);
+		//pSEffect->SetVertexColorEnabled(true);
+		//pSEffect->SetTextureEnabled(false);
+		//pSEffect->EnableDefaultLighting();
+		//pSEffect->SetAlphaDiscardEnable(true);
+		//default_skinned_effect = pSEffect;
 
 		default_material = std::make_unique<PhongMaterial>();
 		default_material->pDefaultRequestEffect = default_effect.get();

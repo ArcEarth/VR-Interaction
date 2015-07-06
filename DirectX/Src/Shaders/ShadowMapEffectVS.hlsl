@@ -39,56 +39,16 @@ struct VSInputTexWeights
 	float4 Weights  : BLENDWEIGHT0;
 };
 
-#define SkinVertex \
-	float4x3 skinning = 0; \
-	[unroll] \
-	for (int i = 0; i < boneCount; i++) \
-		skinning += Bones[vin.Indices[i]] * vin.Weights[i]; \
-	vin.Position.xyz = mul(vin.Position, skinning); \
-	vin.Normal = mul(vin.Normal, (float3x3)skinning);
-
-
-#define SetPositionNormalToEye \
-	float4 posWorld = mul(vin.Position, World); \
-	vout.pos = mul(posWorld, ViewProjection); \
-	vout.normal = mul(vin.Normal, (float3x3)World); \
-	vout.toEye = posWorld.xyz - EyePosition;
-
-
-#define SetTextureCoord \
-	vout.uv = vin.TexCoord;
-
-
-#define SetLightUVOne \
-	vout.lightUv0 = mul(posWorld, LightViewProjection[0]);
-
-
-//#define SetLightUVTwo \ 
-//	vout.lightUv0 = mul(posWorld, LightViewProjection[0]); \
-//	vout.lightUv1 = mul(posWorld, LightViewProjection[1]);
-//
-//
-//#define SetLightUVThree \ 
-//	vout.lightUv0 = mul(posWorld, LightViewProjection[0]); \
-//	vout.lightUv1 = mul(posWorld, LightViewProjection[1]); \
-//	vout.lightUv2 = mul(posWorld, LightViewProjection[2]);
-//
-//
-//#define SetLightUVTwo \ 
-//	vout.lightUv0 = mul(posWorld, LightViewProjection[0]); \
-//	vout.lightUv1 = mul(posWorld, LightViewProjection[1]); \
-//	vout.lightUv2 = mul(posWorld, LightViewProjection[2]); \
-//	vout.lightUv3 = mul(posWorld, LightViewProjection[3]);
-
+#include "Common.hlsli"
 
 void SkinVertexNoTex(inout VSInputNoTexWeights vin, uniform int boneCount)
 {
-	SkinVertex;
+	SkinVertexWithNormal;
 }
 
 void SkinVertexTex(inout VSInputTexWeights vin, uniform int boneCount)
 {
-	SkinVertex;
+	SkinVertexWithNormal;
 }
 
 
@@ -196,6 +156,114 @@ PSInputOneLightTex VS_OneLightFourBoneTex(VSInputTexWeights vin)
 	SetTextureCoord;
 
 	SetLightUVOne;
+
+	return vout;
+}
+
+PSInputScreenSpaceTex VS_ScreenSpaceNoBoneTex(VSInputTexWeights vin)
+{
+	PSInputScreenSpaceTex vout;
+
+	SetPositionNormalToEye;
+
+	SetPositionUV;
+
+	SetTextureCoord;
+
+	return vout;
+}
+
+PSInputScreenSpaceTex VS_ScreenSpaceOneBoneTex(VSInputTexWeights vin)
+{
+	PSInputScreenSpaceTex vout;
+
+	SkinVertexTex(vin, 1);
+
+	SetPositionNormalToEye;
+
+	SetPositionUV;
+
+	SetTextureCoord;
+
+	return vout;
+}
+
+PSInputScreenSpaceTex VS_ScreenSpaceTwoBoneTex(VSInputTexWeights vin)
+{
+	PSInputScreenSpaceTex vout;
+
+	SkinVertexTex(vin, 2);
+
+	SetPositionNormalToEye;
+
+	SetPositionUV;
+
+	SetTextureCoord;
+
+	return vout;
+}
+
+PSInputScreenSpaceTex VS_ScreenSpaceFourBoneTex(VSInputTexWeights vin)
+{
+	PSInputScreenSpaceTex vout;
+
+	SkinVertexTex(vin, 4);
+
+	SetPositionNormalToEye;
+
+	SetPositionUV;
+
+	SetTextureCoord;
+
+	return vout;
+}
+
+PSInputScreenSpaceNoTex VS_ScreenSpaceNoBoneNoTex(VSInputNoTexWeights vin)
+{
+	PSInputScreenSpaceNoTex vout;
+
+	SetPositionNormalToEye;
+
+	SetPositionUV;
+
+	return vout;
+}
+
+PSInputScreenSpaceNoTex VS_ScreenSpaceOneBoneNoTex(VSInputNoTexWeights vin)
+{
+	PSInputScreenSpaceNoTex vout;
+
+	SkinVertexNoTex(vin, 1);
+
+	SetPositionNormalToEye;
+
+	SetPositionUV;
+
+	return vout;
+}
+
+PSInputScreenSpaceNoTex VS_ScreenSpaceTwoBoneNoTex(VSInputNoTexWeights vin)
+{
+	PSInputScreenSpaceNoTex vout;
+
+	SkinVertexNoTex(vin, 2);
+
+	SetPositionNormalToEye;
+
+	SetPositionUV;
+
+	return vout;
+}
+
+PSInputScreenSpaceNoTex VS_ScreenSpaceFourBoneNoTex(VSInputNoTexWeights vin)
+{
+	PSInputScreenSpaceNoTex vout;
+
+	SkinVertexNoTex(vin, 4);
+
+	SetPositionNormalToEye;
+
+	SetPositionUV;
 
 	return vout;
 }

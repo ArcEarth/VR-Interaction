@@ -6,7 +6,7 @@ using namespace Causality;
 
 const XMVECTORF32 Camera::Foward = g_XMNegIdentityR2, Camera::Up = g_XMIdentityR1;
 
-IEffect * ICameraRenderControl::GetRenderEffect() { return nullptr; }
+IEffect * IRenderControl::GetRenderEffect() { return nullptr; }
 
 size_t Camera::ViewCount() const
 {
@@ -60,14 +60,19 @@ XMMATRIX Camera::UpdateProjectionCache() const
 		if (m_IsPerspective)
 		{
 			proj = XMMatrixPerspectiveFovRH(m_Fov, m_AspectRatio, m_Near, m_Far);
+			m_ViewFrutum.Type = BoundingGeometryType::Geometry_Frustum;
+			BoundingFrustumExtension::CreateFromMatrixRH(m_ViewFrutum.Frustum, proj);
 		}
 		else
 		{
 			proj = XMMatrixOrthographicRH(m_Fov * m_AspectRatio, m_Fov, m_Near, m_Far);
+			m_ViewFrutum.Type = BoundingGeometryType::Geometry_OrientedBox;
+			m_ViewFrutum.OrientedBox.Center = { 0, 0, 0.5f * (m_Near + m_Far) };
+			m_ViewFrutum.OrientedBox.Extents = { 0.5f * m_Fov * m_AspectRatio, 0.5f* m_Fov, 0.5f * abs(m_Near - m_Far) };
+			m_ViewFrutum.OrientedBox.Orientation = Quaternion::Identity;
 		}
 
 		XMStoreFloat4x4(&m_ProjectionCache, proj);
-		BoundingFrustumExtension::CreateFromMatrixRH(m_ViewFrutum, proj);
 		return proj;
 	}
 	else
@@ -79,13 +84,24 @@ bool Camera::AcceptRenderFlags(RenderFlags flags)
 	return flags.Contains(Visible);
 }
 
-const BoundingFrustum & Camera::GetViewFrustum(size_t view) const {
+const BoundingGeometry & Camera::GetViewFrustum(size_t view) const {
 	if (m_ProjectDirty)
 	{
 		UpdateProjectionCache();
 	}
+	XMMATRIX transform ;
 
-	m_ViewFrutum.Transform(m_ExtrinsicViewFrutum, TransformMatrix());
+	if (m_ViewFrutum.Type == Geometry_OrientedBox || m_ViewFrutum.Type == Geometry_AxisAlignedBox)
+	{
+		// make sure the transform rotation origin is 0,0,0 instead of bounding geometry's center
+		transform = XMMatrixTranslation(0, 0, -0.5f * (m_Near + m_Far)) * GlobalTransformMatrix();
+	}
+	else
+	{
+		transform = GlobalTransformMatrix();
+	}
+
+	m_ViewFrutum.Transform(m_ExtrinsicViewFrutum, transform);
 	return m_ExtrinsicViewFrutum;
 }
 
@@ -238,14 +254,17 @@ void Camera::SetView(size_t view)
 
 void Camera::SetPerspective(float fovRadius, float aspectRatioHbyW, float _near, float _far)
 {
-	m_Fov = fovRadius; m_AspectRatio = aspectRatioHbyW; m_Near = _near; m_Far = _far;
+	m_IsPerspective = true;
 	m_ProjectDirty = true;
+	m_Fov = fovRadius; m_AspectRatio = aspectRatioHbyW; m_Near = _near; m_Far = _far;
 }
 
-void Camera::SetOrthographic(float viewWidth, float viewHeight)
+void Camera::SetOrthographic(float viewWidth, float viewHeight, float _near, float _far)
 {
-	m_Fov = viewHeight; m_AspectRatio = viewWidth / viewHeight;
+	m_IsPerspective = false;
 	m_ProjectDirty = true;
+	m_Fov = viewHeight; m_AspectRatio = viewWidth / viewHeight;
+	m_Near = _near; m_Far = _far;
 }
 
 bool Camera::IsPerspective() const { return m_IsPerspective; }

@@ -16,10 +16,10 @@
 #include <memory>
 
 #include "Effects.h"
-#include "PlatformHelpers.h"
+#include "DirectXHelper.h"
 #include "ConstantBuffer.h"
 #include "SharedResourcePool.h"
-#include "AlignedNew.h"
+#include "DirectXMathExtend.h"
 
 
 // BasicEffect, SkinnedEffect, et al, have many things in common, but also significant

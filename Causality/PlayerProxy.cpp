@@ -1005,7 +1005,7 @@ bool PlayerProxy::UpdateByFrame(const AffineFrame & frame)
 	return true;
 }
 
-bool PlayerProxy::IsVisible(const BoundingFrustum & viewFrustum) const
+bool PlayerProxy::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
 {
 	return true;
 }
@@ -1040,7 +1040,7 @@ KinectVisualizer::KinectVisualizer()
 	pKinect = Devices::KinectSensor::GetForCurrentView();
 }
 
-bool KinectVisualizer::IsVisible(const BoundingFrustum & viewFrustum) const
+bool KinectVisualizer::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
 {
 	return true;
 }

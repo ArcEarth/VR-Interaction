@@ -658,34 +658,6 @@ namespace DirectX
 		dqRes.r[1] = Qe;
 
 		return dqRes;
-		//static const XMVECTORF32 ControlX = {0.5f,0.5f,-0.5f,.0f};
-		//static const XMVECTORF32 ControlY = {-0.5f,0.5f,0.5f,.0f};
-		//static const XMVECTORF32 ControlZ = {0.5f,-0.5f,0.5f,.0f};
-		//static const XMVECTORF32 ControlW = {-0.5f,-0.5f,-0.5f,.0f};
-		//XMVECTOR vDualPart;
-		//XMVECTOR Qe = XMVectorMultiply(Q,ControlW);
-		//Qe = XMVector3Dot(T,Qe); // real part
-		//vDualPart = XMVectorAndInt(Qe,g_XMMaskX);
-
-		//Qe = XMVectorSwizzle<3,2,1,0>(Q);
-		//Qe = XMVectorMultiply(Qe,ControlX);
-		//Qe = XMVector3Dot(T,Qe);
-		//Qe = XMVectorAndInt(Qe,g_XMMaskY);
-		//vDualPart = XMVectorOrInt(vDualPart,Qe);
-
-		//Qe = XMVectorSwizzle<2,3,0,1>(Q);
-		//Qe = XMVectorMultiply(Qe,ControlY);
-		//Qe = XMVector3Dot(T,Qe);
-		//Qe = XMVectorAndInt(Qe,g_XMMaskZ);
-		//vDualPart = XMVectorOrInt(vDualPart,Qe);
-
-		//Qe = XMVectorSwizzle<1,0,3,2>(Q);
-		//Qe = XMVectorMultiply(Qe,ControlZ);
-		//Qe = XMVector3Dot(T,Qe);
-		//Qe = XMVectorAndInt(Qe,g_XMMaskW);
-		//vDualPart = XMVectorOrInt(vDualPart,Qe);
-		//XMDUALVECTOR dResult(Q,vDualPart);
-		//return dResult;
 	};
 
 	inline XMDUALVECTOR XM_CALLCONV XMDualQuaternionNormalize(FXMDUALVECTOR Dq)
@@ -791,6 +763,154 @@ namespace DirectX
 
 		vRes += vTrans;
 		return vRes;
+	}
+
+
+	inline XMVECTOR CaculatePrincipleAxisFromPoints(size_t Count, const XMFLOAT3 * pPoints, size_t Stride, float pointsUpperBound)
+	{
+		XMVECTOR InvScale = XMVectorReplicate(1.0f / pointsUpperBound);
+		XMVECTOR CenterOfMass = XMVectorZero();
+
+		// Compute the center of mass and inertia tensor of the points.
+		for (size_t i = 0; i < Count; ++i)
+		{
+			XMVECTOR Point = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(reinterpret_cast<const uint8_t*>(pPoints) + i * Stride));
+
+			CenterOfMass += Point * InvScale; // Only Modify is here, normalize scales to 1 to prevent float overflow
+		}
+
+		CenterOfMass *= XMVectorReciprocal(XMVectorReplicate(float(Count)));
+		XMVECTOR NegCenterOfMass = -CenterOfMass;
+
+		// Compute the inertia tensor of the points around the center of mass.
+		// Using the center of mass is not strictly necessary, but will hopefully
+		// improve the stability of finding the eigenvectors.
+		XMVECTOR XX_YY_ZZ = XMVectorZero();
+		XMVECTOR XY_XZ_YZ = XMVectorZero();
+
+		for (size_t i = 0; i < Count; ++i)
+		{
+			XMVECTOR Point = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(reinterpret_cast<const uint8_t*>(pPoints) + i * Stride));
+			Point = XMVectorMultiplyAdd(Point, InvScale, NegCenterOfMass); // normalize scales to 1 to prevent float overflow
+
+			XX_YY_ZZ += Point * Point;
+
+			XMVECTOR XXY = XMVectorSwizzle<XM_SWIZZLE_X, XM_SWIZZLE_X, XM_SWIZZLE_Y, XM_SWIZZLE_W>(Point);
+			XMVECTOR YZZ = XMVectorSwizzle<XM_SWIZZLE_Y, XM_SWIZZLE_Z, XM_SWIZZLE_Z, XM_SWIZZLE_W>(Point);
+
+			XY_XZ_YZ += XXY * YZZ;
+		}
+
+		XMVECTOR v1, v2, v3;
+
+		// Compute the eigenvectors of the inertia tensor.
+		DirectX::Internal::CalculateEigenVectorsFromCovarianceMatrix(XMVectorGetX(XX_YY_ZZ), XMVectorGetY(XX_YY_ZZ),
+			XMVectorGetZ(XX_YY_ZZ),
+			XMVectorGetX(XY_XZ_YZ), XMVectorGetY(XY_XZ_YZ),
+			XMVectorGetZ(XY_XZ_YZ),
+			&v1, &v2, &v3);
+
+		// Put them in a matrix.
+		XMMATRIX R;
+
+		R.r[0] = XMVectorSetW(v1, 0.f);
+		R.r[1] = XMVectorSetW(v2, 0.f);
+		R.r[2] = XMVectorSetW(v3, 0.f);
+		R.r[3] = g_XMIdentityR3.v;
+
+		// Multiply by -1 to convert the matrix into a right handed coordinate 
+		// system (Det ~= 1) in case the eigenvectors form a left handed 
+		// coordinate system (Det ~= -1) because XMQuaternionRotationMatrix only 
+		// works on right handed matrices.
+		XMVECTOR Det = XMMatrixDeterminant(R);
+
+		if (XMVector4Less(Det, XMVectorZero()))
+		{
+			R.r[0] *= g_XMNegativeOne.v;
+			R.r[1] *= g_XMNegativeOne.v;
+			R.r[2] *= g_XMNegativeOne.v;
+		}
+
+		// Get the rotation quaternion from the matrix.
+		XMVECTOR vOrientation = XMQuaternionRotationMatrix(R);
+
+		// Make sure it is normal (in case the vectors are slightly non-orthogonal).
+		vOrientation = XMQuaternionNormalize(vOrientation);
+
+		return vOrientation;
+		//// Rebuild the rotation matrix from the quaternion.
+		//R = XMMatrixRotationQuaternion(vOrientation);
+
+		//// Build the rotation into the rotated space.
+		//XMMATRIX InverseR = XMMatrixTranspose(R);
+	}
+
+	// Create AABB & OBB from points, also normalize points extents to prevent float overflow during caculating principle axis
+	inline void CreateBoundingBoxesFromPoints(BoundingBox & aabb, BoundingOrientedBox & obb, size_t Count, const XMFLOAT3 * pPoints, size_t Stride) {
+		BoundingBox::CreateFromPoints(aabb, Count, pPoints, Stride);
+		float pointsUpperBound = XMMax(XMMax(aabb.Extents.x, aabb.Extents.y), aabb.Extents.z);
+
+
+		XMVECTOR vOrientation = CaculatePrincipleAxisFromPoints(Count, pPoints, Stride, pointsUpperBound);
+
+		// Rebuild the rotation matrix from the quaternion.
+		XMMATRIX R = XMMatrixRotationQuaternion(vOrientation);
+
+		// Build the rotation into the rotated space.
+		XMMATRIX InverseR = XMMatrixTranspose(R);
+
+		// Find the minimum OBB using the eigenvectors as the axes.
+		XMVECTOR vMin, vMax;
+
+		vMin = vMax = XMVector3TransformNormal(XMLoadFloat3(pPoints), InverseR);
+
+		for (size_t i = 1; i < Count; ++i)
+		{
+			XMVECTOR Point = XMVector3TransformNormal(XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(reinterpret_cast<const uint8_t*>(pPoints) + i * Stride)),
+				InverseR);
+
+			vMin = XMVectorMin(vMin, Point);
+			vMax = XMVectorMax(vMax, Point);
+		}
+
+		// Rotate the center into world space.
+		XMVECTOR vCenter = (vMin + vMax) * 0.5f;
+		vCenter = XMVector3TransformNormal(vCenter, R);
+
+		// Store center, extents, and orientation.
+		XMStoreFloat3(&obb.Center, vCenter);
+		XMStoreFloat3(&obb.Extents, (vMax - vMin) * 0.5f);
+		XMStoreFloat4(&obb.Orientation, vOrientation);
+	}
+
+	inline XMMATRIX XM_CALLCONV XMMatrixScalingFromCenter(FXMVECTOR scale, FXMVECTOR center)
+	{
+		XMMATRIX m = XMMatrixScalingFromVector(scale);
+		m.r[3] = XMVectorSubtract(g_XMOne.v, scale);
+		m.r[3] *= center;
+		m.r[3] = XMVectorSelect(g_XMOne.v, m.r[3], g_XMSelect1110.v);
+		return m;
+	}
+
+	// No Matrix Multiply inside, significant faster than affine transform
+	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationOrigin, FXMVECTOR RotationQuaterion, FXMVECTOR Translation)
+	{
+		XMVECTOR VTranslation = XMVector3Rotate(RotationOrigin, RotationQuaterion);
+		VTranslation = XMVectorAdd(VTranslation, RotationOrigin);
+		VTranslation = XMVectorAdd(VTranslation, VTranslation);
+		VTranslation = XMVectorSelect(g_XMSelect1110.v, Translation, g_XMSelect1110.v);
+		XMMATRIX M = XMMatrixRotationQuaternion(RotationQuaterion);
+		M.r[3] = XMVectorAdd(M.r[3], VTranslation);
+		return M;
+	}
+
+	// No Matrix Multiply inside, significant faster than affine transform
+	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationQuaterion, FXMVECTOR Translation)
+	{
+		XMMATRIX M = XMMatrixRotationQuaternion(RotationQuaterion);
+		XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, Translation, g_XMSelect1110.v);
+		M.r[3] = XMVectorAdd(M.r[3], VTranslation);
+		return M;
 	}
 
 	inline XMVECTOR XM_CALLCONV XMVector3Displacement(FXMVECTOR V, CXMDUALVECTOR TransformDualQuaternion)
@@ -1152,159 +1272,25 @@ namespace DirectX
 	}
 
 	inline XMVECTOR CaculatePrincipleAxisFromPoints(_In_ size_t Count,
-		_In_reads_bytes_(sizeof(XMFLOAT3) + Stride*(Count - 1)) const XMFLOAT3* pPoints, _In_ size_t Stride, float pointsUpperBound)
-	{
-		XMVECTOR InvScale = XMVectorReplicate(1.0f / pointsUpperBound);
-		XMVECTOR CenterOfMass = XMVectorZero();
-
-		// Compute the center of mass and inertia tensor of the points.
-		for (size_t i = 0; i < Count; ++i)
-		{
-			XMVECTOR Point = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(reinterpret_cast<const uint8_t*>(pPoints) + i * Stride));
-
-			CenterOfMass += Point * InvScale; // Only Modify is here, normalize scales to 1 to prevent float overflow
-		}
-
-		CenterOfMass *= XMVectorReciprocal(XMVectorReplicate(float(Count)));
-		XMVECTOR NegCenterOfMass = -CenterOfMass;
-
-		// Compute the inertia tensor of the points around the center of mass.
-		// Using the center of mass is not strictly necessary, but will hopefully
-		// improve the stability of finding the eigenvectors.
-		XMVECTOR XX_YY_ZZ = XMVectorZero();
-		XMVECTOR XY_XZ_YZ = XMVectorZero();
-
-		for (size_t i = 0; i < Count; ++i)
-		{
-			XMVECTOR Point = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(reinterpret_cast<const uint8_t*>(pPoints) + i * Stride));
-			Point = XMVectorMultiplyAdd(Point, InvScale, NegCenterOfMass); // normalize scales to 1 to prevent float overflow
-
-			XX_YY_ZZ += Point * Point;
-
-			XMVECTOR XXY = XMVectorSwizzle<XM_SWIZZLE_X, XM_SWIZZLE_X, XM_SWIZZLE_Y, XM_SWIZZLE_W>(Point);
-			XMVECTOR YZZ = XMVectorSwizzle<XM_SWIZZLE_Y, XM_SWIZZLE_Z, XM_SWIZZLE_Z, XM_SWIZZLE_W>(Point);
-
-			XY_XZ_YZ += XXY * YZZ;
-		}
-
-		XMVECTOR v1, v2, v3;
-
-		// Compute the eigenvectors of the inertia tensor.
-		DirectX::Internal::CalculateEigenVectorsFromCovarianceMatrix(XMVectorGetX(XX_YY_ZZ), XMVectorGetY(XX_YY_ZZ),
-			XMVectorGetZ(XX_YY_ZZ),
-			XMVectorGetX(XY_XZ_YZ), XMVectorGetY(XY_XZ_YZ),
-			XMVectorGetZ(XY_XZ_YZ),
-			&v1, &v2, &v3);
-
-		// Put them in a matrix.
-		XMMATRIX R;
-
-		R.r[0] = XMVectorSetW(v1, 0.f);
-		R.r[1] = XMVectorSetW(v2, 0.f);
-		R.r[2] = XMVectorSetW(v3, 0.f);
-		R.r[3] = g_XMIdentityR3.v;
-
-		// Multiply by -1 to convert the matrix into a right handed coordinate 
-		// system (Det ~= 1) in case the eigenvectors form a left handed 
-		// coordinate system (Det ~= -1) because XMQuaternionRotationMatrix only 
-		// works on right handed matrices.
-		XMVECTOR Det = XMMatrixDeterminant(R);
-
-		if (XMVector4Less(Det, XMVectorZero()))
-		{
-			R.r[0] *= g_XMNegativeOne.v;
-			R.r[1] *= g_XMNegativeOne.v;
-			R.r[2] *= g_XMNegativeOne.v;
-		}
-
-		// Get the rotation quaternion from the matrix.
-		XMVECTOR vOrientation = XMQuaternionRotationMatrix(R);
-
-		// Make sure it is normal (in case the vectors are slightly non-orthogonal).
-		vOrientation = XMQuaternionNormalize(vOrientation);
-
-		return vOrientation;
-		//// Rebuild the rotation matrix from the quaternion.
-		//R = XMMatrixRotationQuaternion(vOrientation);
-
-		//// Build the rotation into the rotated space.
-		//XMMATRIX InverseR = XMMatrixTranspose(R);
-	}
+		_In_reads_bytes_(sizeof(XMFLOAT3) + Stride*(Count - 1)) const XMFLOAT3* pPoints, _In_ size_t Stride, float pointsUpperBound);
 
 	// Create AABB & OBB from points, also normalize points extents to prevent float overflow during caculating principle axis
 	inline void CreateBoundingBoxesFromPoints(_Out_ BoundingBox& aabb, _Out_ BoundingOrientedBox& obb, _In_ size_t Count,
-		_In_reads_bytes_(sizeof(XMFLOAT3) + Stride*(Count - 1)) const XMFLOAT3* pPoints, _In_ size_t Stride) {
-		BoundingBox::CreateFromPoints(aabb, Count, pPoints, Stride);
-		float pointsUpperBound = XMMax(XMMax(aabb.Extents.x, aabb.Extents.y), aabb.Extents.z);
+		_In_reads_bytes_(sizeof(XMFLOAT3) + Stride*(Count - 1)) const XMFLOAT3* pPoints, _In_ size_t Stride);
 
-
-		XMVECTOR vOrientation = CaculatePrincipleAxisFromPoints(Count, pPoints, Stride, pointsUpperBound);
-
-		// Rebuild the rotation matrix from the quaternion.
-		XMMATRIX R = XMMatrixRotationQuaternion(vOrientation);
-
-		// Build the rotation into the rotated space.
-		XMMATRIX InverseR = XMMatrixTranspose(R);
-
-		// Find the minimum OBB using the eigenvectors as the axes.
-		XMVECTOR vMin, vMax;
-
-		vMin = vMax = XMVector3TransformNormal(XMLoadFloat3(pPoints), InverseR);
-
-		for (size_t i = 1; i < Count; ++i)
-		{
-			XMVECTOR Point = XMVector3TransformNormal(XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(reinterpret_cast<const uint8_t*>(pPoints) + i * Stride)),
-				InverseR);
-
-			vMin = XMVectorMin(vMin, Point);
-			vMax = XMVectorMax(vMax, Point);
-		}
-
-		// Rotate the center into world space.
-		XMVECTOR vCenter = (vMin + vMax) * 0.5f;
-		vCenter = XMVector3TransformNormal(vCenter, R);
-
-		// Store center, extents, and orientation.
-		XMStoreFloat3(&obb.Center, vCenter);
-		XMStoreFloat3(&obb.Extents, (vMax - vMin) * 0.5f);
-		XMStoreFloat4(&obb.Orientation, vOrientation);
-	}
-
-	inline XMMATRIX XM_CALLCONV XMMatrixScalingFromCenter(FXMVECTOR scale, FXMVECTOR center)
-	{
-		XMMATRIX m = XMMatrixScalingFromVector(scale);
-		m.r[3] = XMVectorSubtract(g_XMOne.v, scale);
-		m.r[3] *= center;
-		m.r[3] = XMVectorSelect(g_XMOne.v, m.r[3], g_XMSelect1110.v);
-		return m;
-	}
+	inline XMMATRIX XM_CALLCONV XMMatrixScalingFromCenter(FXMVECTOR scale, FXMVECTOR center);
 
 	// No Matrix Multiply inside, significant faster than affine transform
-	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationOrigin, FXMVECTOR RotationQuaterion, FXMVECTOR Translation)
-	{
-		XMVECTOR VTranslation = XMVector3Rotate(RotationOrigin, RotationQuaterion);
-		VTranslation = XMVectorAdd(VTranslation, RotationOrigin);
-		VTranslation = XMVectorAdd(VTranslation, VTranslation);
-		VTranslation = XMVectorSelect(g_XMSelect1110.v, Translation, g_XMSelect1110.v);
-		XMMATRIX M = XMMatrixRotationQuaternion(RotationQuaterion);
-		M.r[3] = XMVectorAdd(M.r[3], VTranslation);
-		return M;
-	}
+	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationOrigin, FXMVECTOR RotationQuaterion, FXMVECTOR Translation);
 
 	// No Matrix Multiply inside, significant faster than affine transform
-	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationQuaterion, FXMVECTOR Translation)
-	{
-		XMMATRIX M = XMMatrixRotationQuaternion(RotationQuaterion);
-		XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, Translation, g_XMSelect1110.v);
-		M.r[3] = XMVectorAdd(M.r[3], VTranslation);
-		return M;
-	}
+	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationQuaterion, FXMVECTOR Translation);
 
 	XM_ALIGNATTR
 	struct RotationTransform : public DirectX::AlignedNew<XMVECTOR>
 	{
 		XM_ALIGNATTR
-		Quaternion  Rotation;
+			Quaternion  Rotation;
 		// Extract the Matrix Representation of this rigid transform
 		inline XMMATRIX TransformMatrix() const
 		{
@@ -1323,7 +1309,7 @@ namespace DirectX
 	struct TranslationTransform : public DirectX::AlignedNew<XMVECTOR>
 	{
 		XM_ALIGNATTR
-		Vector3  Translation;
+			Vector3  Translation;
 		float Tw;
 		// Extract the Matrix Representation of this rigid transform
 		inline XMMATRIX TransformMatrix() const
@@ -1343,7 +1329,7 @@ namespace DirectX
 	struct ScaleTransform : public DirectX::AlignedNew<XMVECTOR>
 	{
 		XM_ALIGNATTR
-		Vector3 Scale;
+			Vector3 Scale;
 		float Sw; // Padding		
 		// Extract the Matrix Representation of this rigid transform
 		inline XMMATRIX TransformMatrix() const
@@ -1366,9 +1352,9 @@ namespace DirectX
 	{
 	public:
 		XM_ALIGNATTR
-		Quaternion  Rotation;
+			Quaternion  Rotation;
 		XM_ALIGNATTR
-		Vector3		Translation;
+			Vector3		Translation;
 		float		Tw; // padding
 
 		RigidTransform()
@@ -1429,7 +1415,7 @@ namespace DirectX
 	struct AffineTransform : public RigidTransform
 	{
 		XM_ALIGNATTR
-		Vector3 Scale;
+			Vector3 Scale;
 		float Sw; // Padding
 
 		static AffineTransform Identity()
@@ -1448,7 +1434,7 @@ namespace DirectX
 		}
 
 		inline explicit AffineTransform(const RigidTransform &rigid)
-			: RigidTransform(rigid) , Scale(1.0f)
+			: RigidTransform(rigid), Scale(1.0f)
 		{
 		}
 
@@ -1538,212 +1524,102 @@ namespace DirectX
 		}
 	};
 
+	enum BoundingGeometryType
+	{
+		Geometry_Unknown,
+		Geometry_AxisAlignedBox,
+		Geometry_OrientedBox,
+		Geometry_Frustum,
+		Geometry_Sphere,
+	};
+
+	struct BoundingGeometry
+	{
+		BoundingGeometryType Type;
+		union
+		{
+			BoundingBox				AxisAlignedBox;
+			BoundingOrientedBox		OrientedBox;
+			BoundingFrustum			Frustum;
+			BoundingSphere			Sphere;
+		};
+
+		BoundingGeometry();
+
+		explicit BoundingGeometry(const BoundingBox& aabb);
+		explicit BoundingGeometry(const BoundingOrientedBox& obox);
+		explicit BoundingGeometry(const BoundingFrustum& frustum);
+		explicit BoundingGeometry(const BoundingSphere& sphere);
+
+		BoundingGeometry& operator=(const BoundingGeometry& rhs) = default;
+		BoundingGeometry& operator=(BoundingGeometry&& rhs) = default;
+		BoundingGeometry& operator=(const BoundingBox& rhs);
+		BoundingGeometry& operator=(const BoundingOrientedBox& rhs);
+		BoundingGeometry& operator=(const BoundingFrustum& rhs);
+		BoundingGeometry& operator=(const BoundingSphere& rhs);
+
+		ContainmentType XM_CALLCONV Contains(_In_ FXMVECTOR Point) const;
+		ContainmentType XM_CALLCONV Contains(_In_ FXMVECTOR V0, _In_ FXMVECTOR V1, _In_ FXMVECTOR V2) const;
+
+		template <typename GeometryType>
+		ContainmentType ContainsGeometry(_In_ const GeometryType& geometry) const;
+
+		ContainmentType Contains(_In_ const BoundingSphere& geometry) const;
+		ContainmentType Contains(_In_ const BoundingBox& geometry) const;
+		ContainmentType Contains(_In_ const BoundingOrientedBox& geometry) const;
+		ContainmentType Contains(_In_ const BoundingFrustum& geometry) const;
+		ContainmentType Contains(_In_ const BoundingGeometry& geometry) const;
+
+		// Six-Plane containment test
+		ContainmentType XM_CALLCONV ContainedBy(_In_ FXMVECTOR Plane0, _In_ FXMVECTOR Plane1, _In_ FXMVECTOR Plane2,
+			_In_ GXMVECTOR Plane3, _In_ HXMVECTOR Plane4, _In_ HXMVECTOR Plane5) const;
+
+		template <typename GeometryType>
+		bool IntersectsGeometry(_In_ const GeometryType& geometry) const;
+
+		bool Intersects(_In_ const BoundingSphere& geometry) const;
+		bool Intersects(_In_ const BoundingBox& geometry) const;
+		bool Intersects(_In_ const BoundingOrientedBox& geometry) const;
+		bool Intersects(_In_ const BoundingFrustum& geometry) const;
+		bool Intersects(_In_ const BoundingGeometry& geometry) const;
+
+		// Triangle test
+		bool XM_CALLCONV Intersects(_In_ FXMVECTOR V0, _In_ FXMVECTOR V1, _In_ FXMVECTOR V2) const;
+		// Ray test
+		bool XM_CALLCONV Intersects(_In_ FXMVECTOR Origin, _In_ FXMVECTOR Direction, _Out_ float& Dist) const;
+		// Plane test
+		PlaneIntersectionType XM_CALLCONV	Intersects(_In_ FXMVECTOR Plane) const;
+
+		void XM_CALLCONV Transform(_Out_ BoundingGeometry& Out, _In_ FXMMATRIX M) const;
+		void XM_CALLCONV Transform(_Out_ BoundingGeometry& Out, _In_ float Scale, _In_ FXMVECTOR Rotation, _In_ FXMVECTOR Translation) const;
+	};
+
+
 	namespace BoundingFrustumExtension
 	{
-		inline void CreateFromMatrixRH(BoundingFrustum& Out, CXMMATRIX Projection)
-		{
-			// Corners of the projection frustum in homogenous space.
-			static XMVECTORF32 HomogenousPoints[6] =
-			{
-				{ 1.0f,  0.0f, -1.0f, 1.0f },   // right (at far plane)
-				{ -1.0f,  0.0f, -1.0f, 1.0f },   // left
-				{ 0.0f,  1.0f, -1.0f, 1.0f },   // top
-				{ 0.0f, -1.0f, -1.0f, 1.0f },   // bottom
-
-				{ 0.0f, 0.0f, 1.0f, 1.0f },    // far
-				{ 0.0f, 0.0f, 0.0f, 1.0f }     // near
-			};
-
-			XMVECTOR Determinant;
-			XMMATRIX matInverse = XMMatrixInverse(&Determinant, Projection);
-
-			// Compute the frustum corners in world space.
-			XMVECTOR Points[6];
-
-			for (size_t i = 0; i < 6; ++i)
-			{
-				// Transform point.
-				Points[i] = XMVector4Transform(HomogenousPoints[i], matInverse);
-			}
-
-			Out.Origin = XMFLOAT3(0.0f, 0.0f, 0.0f);
-			Out.Orientation = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-
-			// Compute the slopes.
-			Points[0] = Points[0] * XMVectorReciprocal(XMVectorSplatZ(Points[0]));
-			Points[1] = Points[1] * XMVectorReciprocal(XMVectorSplatZ(Points[1]));
-			Points[2] = Points[2] * XMVectorReciprocal(XMVectorSplatZ(Points[2]));
-			Points[3] = Points[3] * XMVectorReciprocal(XMVectorSplatZ(Points[3]));
-
-			Out.RightSlope = XMVectorGetX(Points[0]);
-			Out.LeftSlope = XMVectorGetX(Points[1]);
-			Out.TopSlope = XMVectorGetY(Points[2]);
-			Out.BottomSlope = XMVectorGetY(Points[3]);
-
-			// Compute near and far.
-			Points[4] = Points[4] * XMVectorReciprocal(XMVectorSplatW(Points[4]));
-			Points[5] = Points[5] * XMVectorReciprocal(XMVectorSplatW(Points[5]));
-
-			Out.Near = XMVectorGetZ(Points[4]);
-			Out.Far = XMVectorGetZ(Points[5]);
-		}
+		inline void CreateFromMatrixRH(BoundingFrustum& Out, CXMMATRIX Projection);
 	}
 
 	//Some supporting method
 
 	namespace LineSegmentTest
 	{
-		inline float XM_CALLCONV Distance(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
-		{
-			XMVECTOR s = s1 - s0;
-			XMVECTOR v = p - s0;
-			auto Ps = XMVector3Dot(v, s);
-			//p-s0 is the shortest distance
-			if (XMVector4LessOrEqual(Ps, XMVectorZero()))
-				return XMVectorGetX(XMVector3Length(v));
-
-			auto Ds = XMVector3LengthSq(s);
-			//p-s1 is the shortest distance
-			if (XMVector4Greater(Ps, Ds))
-				return XMVectorGetX(XMVector3Length(p - s1));
-			//find the projection point on line segment U
-			return XMVectorGetX(XMVector3Length(v - s * (Ps / Ds)));
-		}
+		inline float XM_CALLCONV Distance(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1);
 
 		// Takes a space point and space line segment , return the projection point on the line segment
 		//  A0  |		A1		  |
 		//      |s0-------------s1|
 		//      |				  |		A2
 		// where p in area of A0 returns s0 , area A2 returns s1 , point in A1 returns the really projection point 
-		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
-		{
-			XMVECTOR s = s1 - s0;
-			XMVECTOR v = p - s0;
-			XMVECTOR Ps = XMVector3Dot(v, s);
-
-			//p-s0 is the shortest distance
-			//if (Ps<=0.0f) 
-			//	return s0;
-			if (XMVector4LessOrEqual(Ps, g_XMZero.v))
-				return s0;
-			XMVECTOR Ds = XMVector3LengthSq(s);
-			//p-s1 is the shortest distance
-			//if (Ps>Ds) 	
-			//	return s1;
-			if (XMVector4Less(Ds, Ps))
-				return s1;
-			//find the projection point on line segment U
-			return (s * (Ps / Ds)) + s0;
-		}
-
-		//inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, XMFLOAT3A *path, size_t nPoint)
-		//{
-		//	const auto N = nPoint;
-		//	XMVECTOR vBegin = XMLoadFloat3A(path);
-		//	XMVECTOR vEnd = XMLoadFloat3A(path + 1);
-		//	XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
-		//	XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
-		//	vBegin = vEnd;
-
-		//	for (size_t i = 2; i < N - 1; i++)
-		//	{
-		//		vEnd = XMLoadFloat3A(path + i);
-		//		XMVECTOR vProj = Projection(p, vBegin, vEnd);
-		//		XMVECTOR vDis = XMVector3LengthSq(p - vProj);
-		//		if (XMVector4LessOrEqual(vDis, vMinDis))
-		//		{
-		//			vMinDis = vDis;
-		//			vMinProj = vProj;
-		//		}
-		//		vBegin = vEnd;
-		//	}
-
-		//	return vMinProj;
-		//}
-
-		//inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, XMFLOAT3 *path, size_t nPoint)
-		//{
-		//	const auto N = nPoint;
-		//	XMVECTOR vBegin = XMLoadFloat3(path);
-		//	XMVECTOR vEnd = XMLoadFloat3(path + 1);
-		//	XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
-		//	XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
-		//	vBegin = vEnd;
-
-		//	for (size_t i = 2; i < N - 1; i++)
-		//	{
-		//		vEnd = XMLoadFloat3(path + i);
-		//		XMVECTOR vProj = Projection(p, vBegin, vEnd);
-		//		XMVECTOR vDis = XMVector3LengthSq(p - vProj);
-		//		if (XMVector4LessOrEqual(vDis, vMinDis))
-		//		{
-		//			vMinDis = vDis;
-		//			vMinProj = vProj;
-		//		}
-		//		vBegin = vEnd;
-		//	}
-
-		//	return vMinProj;
-		//}
+		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1);
 
 		template <typename T>
-		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, const T *path, size_t nPoint, size_t strideInByte = sizeof(T))
-		{
-			if (!(strideInByte % 16) && !(reinterpret_cast<intptr_t>(path) & 0x16))
-			{
-				const auto N = nPoint;
-				auto p = reinterpret_cast<const char*>(path) + strideInByte;
-				XMVECTOR vBegin = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(path));
-				XMVECTOR vEnd = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(p));
-				XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
-				XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
-				vBegin = vEnd;
-
-				for (size_t i = 2; i < N - 1; i++)
-				{
-					p += strideInByte;
-					vEnd = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(path));
-					XMVECTOR vProj = Projection(p, vBegin, vEnd);
-					XMVECTOR vDis = XMVector3LengthSq(p - vProj);
-					if (XMVector4LessOrEqual(vDis, vMinDis))
-					{
-						vMinDis = vDis;
-						vMinProj = vProj;
-					}
-					vBegin = vEnd;
-				}
-
-				return vMinProj;
-			}
-			else
-			{
-				const auto N = nPoint;
-				XMVECTOR vBegin = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(path));
-				XMVECTOR vEnd = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(p));
-				XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
-				XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
-				vBegin = vEnd;
-
-				auto p = reinterpret_cast<const char*>(path) + strideInByte;
-				for (size_t i = 2; i < N - 1; i++)
-				{
-					p += strideInByte;
-					vEnd = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(path));
-					XMVECTOR vProj = Projection(p, vBegin, vEnd);
-					XMVECTOR vDis = XMVector3LengthSq(p - vProj);
-					if (XMVector4LessOrEqual(vDis, vMinDis))
-					{
-						vMinDis = vDis;
-						vMinProj = vProj;
-					}
-					vBegin = vEnd;
-				}
-
-				return vMinProj;
-			}
-		}
+		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, const T *path, size_t nPoint, size_t strideInByte = sizeof(T));
 	}
+
 }
+
+#include "DirectXMathExtend.inl"
 
 // Extending std lib for output
 #ifdef _OSTREAM_

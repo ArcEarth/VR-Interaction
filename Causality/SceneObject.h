@@ -54,7 +54,7 @@ namespace Causality
 	public:
 		// Camera culling
 		virtual RenderFlags GetRenderFlags() const = 0;
-		virtual bool IsVisible(const BoundingFrustum& viewFrustum) const = 0;
+		virtual bool IsVisible(const DirectX::BoundingGeometry& viewFrustum) const = 0;
 		virtual void Render(RenderContext &context, DirectX::IEffect* pEffect = nullptr) = 0;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) = 0;
 	};
@@ -162,7 +162,7 @@ namespace Causality
 		void										Hide() { m_isVisable = false; }
 		void										Show() { m_isVisable = true; }
 
-		virtual bool								IsVisible(const BoundingFrustum& viewFrustum) const override;
+		virtual bool								IsVisible(const DirectX::BoundingGeometry& viewFrustum) const override;
 		bool										IsVisible() const { return m_isVisable; }
 		bool										IsFocused() const {
 			return m_isFocuesd;
@@ -206,7 +206,7 @@ namespace Causality
 	class CoordinateAxis : virtual public SceneObject, virtual public IRenderable
 	{
 		// Inherited via IRenderable
-		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
+		virtual bool IsVisible(const DirectX::BoundingGeometry & viewFrustum) const override;
 		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 

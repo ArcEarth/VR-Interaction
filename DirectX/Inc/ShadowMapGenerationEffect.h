@@ -11,7 +11,19 @@ namespace DirectX
 		~ShadowMapGenerationEffect();
 
 		// Shadow Map setting
-		void SetShadowMap(ID3D11DepthStencilView* pShaodwMap);
+		enum ShadowFillMode
+		{
+			DepthFill = 0,
+			SolidColorFill = 1,
+		};
+
+		void SetShadowMap(ID3D11DepthStencilView* pShaodwMap, ID3D11RenderTargetView* pRTV = NULL);
+		void XM_CALLCONV SetShadowFillMode(_In_ ShadowFillMode mode, _In_opt_ FXMVECTOR color = Colors::Black);
+
+		// Use texture for alpha clipping
+		void SetAlphaDiscardThreshold(float clipThreshold);
+		void SetAlphaDiscardTexture(ID3D11ShaderResourceView* pTexture);
+		void DisableAlphaDiscard();
 
 		// IEffectMatrices
 		virtual void XM_CALLCONV SetWorld(FXMMATRIX value) override;

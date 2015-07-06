@@ -15,7 +15,7 @@ namespace Causality
 	};
 
 	// The basic functions for camera, to provide View/Projection Matrix, Setup Position and focus
-	class ICameraViewControl abstract
+	class IViewControl abstract
 	{
 	public:
 		virtual size_t							ViewCount() const = 0;
@@ -23,7 +23,7 @@ namespace Causality
 		virtual DirectX::XMMATRIX				GetProjectionMatrix(size_t view = 0) const = 0;
 		virtual void							FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir) = 0;
 		virtual bool XM_CALLCONV				IsInView(DirectX::FXMVECTOR pos, size_t view = 0) const = 0;
-		virtual const BoundingFrustum&			GetViewFrustum(size_t view = 0) const = 0;
+		virtual const BoundingGeometry&			GetViewFrustum(size_t view = 0) const = 0;
 
 		inline DirectX::XMMATRIX				GetViewProjectionMatrix(size_t view = 0) const
 		{
@@ -34,7 +34,7 @@ namespace Causality
 	};
 
 	// Control the logic of render target setup and post-processing needed for current camera
-	class ICameraRenderControl abstract
+	class IRenderControl abstract
 	{
 	public:
 		// Called in the beginning of per-frame
@@ -52,7 +52,7 @@ namespace Causality
 		//virtual RenderTarget& SetRenderTarget(size_t view = 0) = 0;
 	};
 
-	class ICamera : public ICameraRenderControl, public ICameraViewControl
+	class ICamera : virtual public IRenderControl, virtual public IViewControl
 	{
 	public:
 		virtual ~ICamera()
@@ -67,7 +67,7 @@ namespace Causality
 
 		virtual ~Camera() override;
 
-		// Inherited via ICameraRenderControl
+		// Inherited via IRenderControl
 		virtual void BeginFrame(RenderContext& context) override;
 		virtual void EndFrame() override;
 		virtual bool AcceptRenderFlags(RenderFlags flags) override;
@@ -81,12 +81,12 @@ namespace Causality
 		virtual DirectX::XMMATRIX		GetViewMatrix(size_t view = 0) const override;
 		virtual DirectX::XMMATRIX		GetProjectionMatrix(size_t view = 0) const override;
 		virtual void					FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir) override;
-		virtual const BoundingFrustum&	GetViewFrustum(size_t view = 0) const override;
+		virtual const BoundingGeometry&	GetViewFrustum(size_t view = 0) const override;
 		virtual bool XM_CALLCONV		IsInView(DirectX::FXMVECTOR pos, size_t view = 0) const override;
 
 		// Inherited via ICameraParameters
 		void	SetPerspective(float fovRadius, float aspectRatioHbyW, float Near = 0.01f, float Far = 100.0f);
-		void	SetOrthographic(float viewWidth, float viewHeight);
+		void	SetOrthographic(float viewWidth, float viewHeight, float Near = 0.01f, float Far = 100.0f);
 
 		bool	IsPerspective() const;
 		float	GetFov() const;
@@ -122,8 +122,8 @@ namespace Causality
 		DirectX::RenderTarget						m_RenderTarget;
 		RenderContext								m_pRenderContext;
 		std::shared_ptr<Devices::OculusRift>		m_pRift;
-		mutable BoundingFrustum						m_ExtrinsicViewFrutum; // the frutum also transformed by View Matrix
-		mutable BoundingFrustum						m_ViewFrutum; // the frutum defined by Projection Matrix
+		mutable BoundingGeometry					m_ExtrinsicViewFrutum; // the frutum also transformed by View Matrix
+		mutable BoundingGeometry					m_ViewFrutum; // the frutum defined by Projection Matrix
 		mutable DirectX::Matrix4x4					m_ViewCache; // extrinsic matrix
 		mutable DirectX::Matrix4x4					m_ProjectionCache; // instrinsic matrix
 		mutable bool								m_ViewDirty;
@@ -139,7 +139,7 @@ namespace Causality
 		void DisableStoreo();
 		bool IsStereoEnabled() const;
 
-		// Inherited via ICameraRenderControl
+		// Inherited via IRenderControl
 		virtual void BeginFrame(RenderContext& context) override;
 		virtual void EndFrame() override;
 		// Only need for Stereo or more camera
@@ -152,7 +152,7 @@ namespace Causality
 		virtual size_t ViewCount() const override;
 		virtual DirectX::XMMATRIX		GetViewMatrix(size_t view) const override;
 		virtual DirectX::XMMATRIX		GetProjectionMatrix(size_t view) const override;
-		const BoundingFrustum&			GetViewFrustum(size_t view) const;
+		const BoundingGeometry&			GetViewFrustum(size_t view) const;
 		virtual bool XM_CALLCONV		IsInView(DirectX::FXMVECTOR pos, size_t view = 0) const override;
 
 	private:

@@ -16,7 +16,7 @@
 #include <map>
 #include <memory>
 
-#include "PlatformHelpers.h"
+#include "DirectXHelper.h"
 
 
 namespace DirectX

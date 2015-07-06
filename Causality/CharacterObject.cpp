@@ -73,9 +73,9 @@ void CharacterObject::Update(time_seconds const & time_delta)
 	}
 }
 
-bool CharacterObject::IsVisible(const BoundingFrustum & viewFrustum) const
+bool CharacterObject::IsVisible(const BoundingGeometry & viewFrustum) const
 {
-	return m_isVisable;
+	return VisualObject::IsVisible(viewFrustum);
 }
 
 void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect)
@@ -95,7 +95,7 @@ void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect
 	}
 
 	if (g_ShowCharacterMesh)
-		VisualObject::Render(pContext);
+		VisualObject::Render(pContext, pEffect);
 }
 
 void XM_CALLCONV CharacterObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)

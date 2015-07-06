@@ -10,6 +10,8 @@ namespace DirectX
 		ShadowMapEffect(ID3D11Device* device);
 		~ShadowMapEffect();
 
+		void SetScreenSpaceShadowMap(ID3D11ShaderResourceView * pTexture);
+
 		// Inherited via IEffect
 		virtual void Apply(ID3D11DeviceContext * deviceContext) override;
 		virtual void GetVertexShaderBytecode(void const ** pShaderByteCode, size_t * pByteCodeLength) override;
@@ -50,6 +52,7 @@ namespace DirectX
 		virtual void XM_CALLCONV SetLightSpecularColor(int whichLight, FXMVECTOR value) override; // Specular Color of light is not supported
 		virtual void EnableDefaultLighting() override;
 
+		virtual void SetLightShadowMapBias(int whichLight, float bias) override;
 		virtual void SetLightShadowMap(int whichLight, ID3D11ShaderResourceView * pTexture) override;
 		virtual void XM_CALLCONV SetLightView(int whichLight, FXMMATRIX value) override;
 		virtual void XM_CALLCONV SetLightProjection(int whichLight, FXMMATRIX value) override;
@@ -59,4 +62,29 @@ namespace DirectX
 		std::unique_ptr<Impl> pImpl;
 	};
 
+	class BinaryShadowMapEffect
+		: public IEffect, public IEffectMatrices, public IEffectSkinning, public IEffectLightsShadow
+	{
+		// Inherited via IEffect
+		virtual void Apply(ID3D11DeviceContext * deviceContext) override;
+		virtual void GetVertexShaderBytecode(void const ** pShaderByteCode, size_t * pByteCodeLength) override;
+
+		// Inherited via IEffectMatrices
+		virtual void XM_CALLCONV SetWorld(FXMMATRIX value) override;
+		virtual void XM_CALLCONV SetView(FXMMATRIX value) override;
+		virtual void XM_CALLCONV SetProjection(FXMMATRIX value) override;
+
+		// Inherited via IEffectSkinning
+		static const size_t MaxBones = 72;
+		virtual void SetWeightsPerVertex(int value) override;
+		virtual void SetBoneTransforms(XMMATRIX const * value, size_t count) override;
+		virtual void ResetBoneTransforms() override;
+
+		// Methods need for IEffectLightsShadow
+		virtual void __cdecl SetLightEnabled(int whichLight, bool value) override = 0;
+		virtual void __cdecl SetLightShadowMapBias(int whichLight, float bias) = 0;
+		virtual void __cdecl SetLightShadowMap(int whichLight, ID3D11ShaderResourceView* pTexture) = 0;
+		virtual void XM_CALLCONV SetLightView(int whichLight, FXMMATRIX value) = 0;
+		virtual void XM_CALLCONV SetLightProjection(int whichLight, FXMMATRIX value) = 0;
+	};
 }

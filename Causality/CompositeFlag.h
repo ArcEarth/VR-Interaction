@@ -59,7 +59,7 @@ public:
 	}
 	unsigned int Contains(const CompositeFlag& rhs) 
 	{
-		return (Flag & rhs.Flag);
+		return (Flag == rhs.Flag) || (Flag & (Flag ^ rhs.Flag));
 	}
 
 	CompositeFlag& operator+= (_Tenum Key) 

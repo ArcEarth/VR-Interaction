@@ -102,7 +102,7 @@ namespace Causality
 		void	Update(time_seconds const& time_delta) override;
 
 		// Inherited via IRenderable
-		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
+		virtual bool IsVisible(const DirectX::BoundingGeometry & viewFrustum) const override;
 		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
@@ -182,7 +182,7 @@ namespace Causality
 		KinectVisualizer();
 		// Inherited via IRenderable
 		virtual RenderFlags GetRenderFlags() const override;
-		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
+		virtual bool IsVisible(const DirectX::BoundingGeometry & viewFrustum) const override;
 		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 

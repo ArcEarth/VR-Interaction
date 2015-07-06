@@ -91,7 +91,7 @@ Causality::VisualObject::VisualObject()
 	m_isFocuesd = false;
 }
 
-bool VisualObject::IsVisible(const BoundingFrustum & viewFrustum) const
+bool VisualObject::IsVisible(const BoundingGeometry & viewFrustum) const
 {
 	if (!m_isVisable) return false;
 	auto box = m_pRenderModel->GetOrientedBoundingBox();
@@ -215,7 +215,7 @@ void KeyboardMouseFirstPersonControl::OnMouseMove(const CursorMoveEventArgs & e)
 	}
 }
 
-bool Causality::CoordinateAxis::IsVisible(const BoundingFrustum & viewFrustum) const
+bool Causality::CoordinateAxis::IsVisible(const BoundingGeometry & viewFrustum) const
 {
 	return true;
 }

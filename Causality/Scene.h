@@ -3,6 +3,7 @@
 #include "Interactive.h"
 #include "SceneObject.h"
 #include "CameraObject.h"
+#include "LightObject.h"
 #include "StepTimer.h"
 #include "RenderContext.h"
 #include "AssetDictionary.h"
@@ -87,14 +88,12 @@ namespace Causality
 
 		bool SetAsPrimaryCamera(Camera* camera);
 
+		RenderDevice&			GetRenderDevice() { return render_device; }
+		const RenderDevice&		GetRenderDevice() const { return render_device; }
 		RenderContext&			GetRenderContext() { return render_context; }
 		const RenderContext&	GetRenderContext() const { return render_context; }
 
-		void SetRenderDeviceAndContext(RenderDevice& device, RenderContext& context)
-		{
-			assets.SetRenderDevice(device);
-			render_context = context;
-		}
+		void SetRenderDeviceAndContext(RenderDevice& device, RenderContext& context);
 
 		DirectX::RenderTarget&			Canvas() { return scene_canvas; }
 		const DirectX::RenderTarget&	Canvas() const { return scene_canvas; }
@@ -102,7 +101,14 @@ namespace Causality
 			scene_canvas = canvas;
 		}
 
-		void SetupEffectsViewProject(const DirectX::XMMATRIX &v, const DirectX::XMMATRIX &p);
+		vector<ICamera*>&				GetCameras() { return cameras; }
+		vector<ILight*>&				GetLights() { return lights; }
+		const vector<const ICamera*>&	GetCameras() const { return reinterpret_cast<const vector<const ICamera*>&>(cameras); }
+		const vector<const ILight*>&	GetLights() const { return reinterpret_cast<const vector<const ILight*>&>(lights); }
+		vector<DirectX::IEffect*>&		GetEffects();
+
+		void SetupEffectsViewProject(DirectX::IEffect* pEffect, const DirectX::XMMATRIX &v, const DirectX::XMMATRIX &p);
+		void SetupEffectsLights(DirectX::IEffect* pEffect);
 
 		void UpdateRenderViewCache();
 
@@ -114,14 +120,17 @@ namespace Causality
 		SceneTimeLineType			timeline_type;
 		double						time_scale;
 		DirectX::StepTimer			step_timer;
+		RenderDevice				render_device;
 		RenderContext				render_context;
 		AssetDictionary				assets;
 		uptr<SceneObject>			content;
 		DirectX::RenderTarget		scene_canvas;
 		Camera						*primary_cameral;
 
-		std::vector<ICamera*>		cameras;
-		std::vector<IRenderable*>	renderables;
+		vector<ICamera*>			cameras;
+		vector<ILight*>				lights;
+		vector<IRenderable*>		renderables;
+		vector<DirectX::IEffect*>	effects;
 
 		std::mutex					content_mutex;
 

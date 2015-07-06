@@ -51,10 +51,12 @@ namespace DirectX
 			{
 				SpecularColor = Colors::White.v;
 				RelfectionColor = Colors::Black.v;
+				UseAlphaDiscard = false;
 			}
 
 			std::string SpecularMapName;
 			std::string RelfectionMapName;
+			bool		UseAlphaDiscard;
 		};
 
 	}

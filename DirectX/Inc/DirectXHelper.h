@@ -386,6 +386,14 @@ namespace DirectX
 		return pBuffer;
 	}
 
+	template <>
+	inline ComPtr<ID3D11Buffer> CreateIndexBuffer<void>(ID3D11Device *pDevice, int Capablity, const void* pInitialData, UINT CPUAccessFlag)
+	{
+		// void index is just and placeholder to make certain compile pass
+		assert(Capablity == 0 && pInitialData == nullptr);
+	}
+
+
 	inline ID3D11SamplerState* CreateSamplerState(ID3D11Device *pDevice, D3D11_FILTER Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR, D3D11_TEXTURE_ADDRESS_MODE AddressMode = D3D11_TEXTURE_ADDRESS_WRAP, float MipLODBias = 0.0f, UINT MaxAnisotropy = 1, D3D11_COMPARISON_FUNC ComparisonFunc = D3D11_COMPARISON_ALWAYS, DirectX::CXMVECTOR BorderColor = g_XMZero, float MinLOD = 0.0f, float MaxLOD = D3D11_FLOAT32_MAX)
 	{
 		ID3D11SamplerState *pSamplerState;

@@ -12,6 +12,7 @@
 #include <CommonStates.h>
 #include "MeshData.h"
 #include <algorithm>
+#include <unordered_map>
 
 //using namespace Causality;
 using namespace DirectX;
@@ -20,7 +21,20 @@ using namespace std;
 using namespace stdx;
 using namespace boost::filesystem;
 
-void DirectX::Scene::MeshBuffer::CreateInputLayout(ID3D11Device * pDevice, IEffect * pEffect)
+using Microsoft::WRL::ComPtr;
+unordered_map<const D3D11_INPUT_ELEMENT_DESC*, unordered_map<void const*, ComPtr<ID3D11InputLayout>>>
+g_InputLayoutLookupTable;
+
+ComPtr<ID3D11InputLayout>& MeshBuffer::LookupInputLayout(const D3D11_INPUT_ELEMENT_DESC* pInputElements, IEffect * pEffect)
+{
+	void const* shaderByteCode;
+	size_t byteCodeLength;
+	pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
+	auto& pLayout = g_InputLayoutLookupTable[pInputElements][shaderByteCode];
+	return pLayout;
+}
+
+void MeshBuffer::CreateInputLayout(ID3D11Device * pDevice, IEffect * pEffect)
 {
 	assert(pDevice != nullptr);
 	assert(pEffect != nullptr);
@@ -29,15 +43,44 @@ void DirectX::Scene::MeshBuffer::CreateInputLayout(ID3D11Device * pDevice, IEffe
 	void const* shaderByteCode;
 	size_t byteCodeLength;
 	pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
-	ThrowIfFailed(
-		pDevice->CreateInputLayout(pInputElements, InputElementCount, shaderByteCode, byteCodeLength, &pInputLayout)
-		);
+	CreateInputLayout(pDevice, shaderByteCode, byteCodeLength);
 }
 
-void MeshBuffer::Draw(ID3D11DeviceContext *pContext) const
+void MeshBuffer::CreateInputLayout(ID3D11Device * pDevice, const void * shaderByteCode, size_t byteCodeLength)
 {
-	if (pInputLayout)
+	auto& pLayout = g_InputLayoutLookupTable[pInputElements][shaderByteCode];
+	if (pLayout == nullptr)
+	{
+		ThrowIfFailed(
+			pDevice->CreateInputLayout(pInputElements, InputElementCount, shaderByteCode, byteCodeLength, &pInputLayout)
+			);
+	}
+	if (pInputLayout == nullptr)
+	{
+		pInputLayout = pLayout;
+	}
+}
+
+void MeshBuffer::Draw(ID3D11DeviceContext *pContext, IEffect *pEffect) const
+{
+	if (pEffect == nullptr && pInputLayout)
 		pContext->IASetInputLayout(pInputLayout.Get());
+	else
+	{
+		void const* shaderByteCode;
+		size_t byteCodeLength;
+		pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
+		auto& pLayout = g_InputLayoutLookupTable[pInputElements][shaderByteCode];
+		if (pLayout == nullptr)
+		{
+			ComPtr<ID3D11Device> pDevice;
+			pContext->GetDevice(&pDevice);
+			ThrowIfFailed(
+				pDevice->CreateInputLayout(pInputElements, InputElementCount, shaderByteCode, byteCodeLength, &pLayout)
+				);
+		}
+		pContext->IASetInputLayout(pLayout.Get());
+	}
 
 	// Set the input assembler stage
 	auto vb = pVertexBuffer.Get();
@@ -124,7 +167,7 @@ DefaultStaticModel * DefaultStaticModel::CreateFromObjFile(const std::wstring & 
 				v2 -= v0;
 				n = XMVector3Cross(v1, v2);
 				n = XMVector3Normalize(n);
-				n = XMVectorNegate(n);
+				//n = XMVectorNegate(n);
 				//if (XMVectorGetY(n) < 0.0f)
 				//	n = XMVectorNegate(n);
 				//facetNormals.emplace_back(n);
@@ -166,6 +209,7 @@ DefaultStaticModel * DefaultStaticModel::CreateFromObjFile(const std::wstring & 
 		DirectX::CreateBoundingBoxesFromPoints(part.BoundBox, part.BoundOrientedBox,
 			N, (XMFLOAT3*)shape.mesh.positions.data(), sizeof(XMFLOAT3));
 
+		mesh->SetInputElementDescription<VertexPositionNormalTexture>();
 		mesh->VertexCount = N;
 		mesh->IndexCount = shape.mesh.indices.size();
 		mesh->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
@@ -193,9 +237,9 @@ DefaultStaticModel * DefaultStaticModel::CreateFromObjFile(const std::wstring & 
 		auto pMaterial = make_shared<PhongMaterial>();
 		pMaterial->Name = mat.name;
 		pMaterial->Alpha = mat.dissolve;
-		pMaterial->DiffuseColor = Color(mat.diffuse);
-		pMaterial->AmbientColor = Color(mat.ambient);
-		pMaterial->SpecularColor = Color(mat.specular);
+		pMaterial->DiffuseColor = Color(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2],1.0f);
+		pMaterial->AmbientColor = Color(mat.ambient[0], mat.ambient[1], mat.ambient[2], 1.0f);
+		pMaterial->SpecularColor = Color(mat.specular[0], mat.specular[1], mat.specular[2], 1.0f);
 		if (!mat.diffuse_texname.empty())
 		{
 			auto fileName = lookup / mat.diffuse_texname;
@@ -232,6 +276,29 @@ DefaultStaticModel * DefaultStaticModel::CreateFromObjFile(const std::wstring & 
 		part.pMesh->pIndexBuffer = pIndexBuffer;
 	}
 	return pResult;;
+}
+
+void DefaultStaticModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4 & transform, IEffect * pEffect)
+{
+	// Disable Skin effect as this is a static model
+	auto pSkinning = dynamic_cast<IEffectSkinning*>(pEffect);
+	if (pSkinning)
+	{
+		pSkinning->SetWeightsPerVertex(0);
+		//pSkinning->ResetBoneTransforms();
+	}
+	else if (pEffect == nullptr) // Make sure to disable the skinning effect for default pass
+	{
+		for (auto& part : Parts)
+		{
+			pSkinning = dynamic_cast<IEffectSkinning*>(part.pEffect.get());
+			if (pSkinning)
+			{
+				pSkinning->SetWeightsPerVertex(0);
+			}
+		}
+	}
+	CompositionModel::Render(pContext, transform, pEffect);
 }
 
 bool DefaultStaticModel::IsInMemery() const
@@ -330,7 +397,8 @@ void ModelPart::Render(ID3D11DeviceContext * pContext, IEffect * pEffect)
 
 	if (pEffect)
 		pEffect->Apply(pContext);
-	pMesh->Draw(pContext);
+
+	pMesh->Draw(pContext, pEffect);
 }
 
 void CompositionModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& transform, IEffect* pEffect)
@@ -503,12 +571,12 @@ void DefaultSkinningModel::ResetRanges()
 		sizeof(VertexType), m_VertexCount);
 }
 
-size_t DirectX::Scene::DefaultSkinningModel::GetBonesCount() const
+size_t DefaultSkinningModel::GetBonesCount() const
 {
 	return BoneTransforms.size();
 }
 
-DirectX::XMMATRIX * DirectX::Scene::DefaultSkinningModel::GetBoneTransforms()
+DirectX::XMMATRIX * DefaultSkinningModel::GetBoneTransforms()
 {
 	return reinterpret_cast<XMMATRIX*>(BoneTransforms.data());
 }
@@ -630,7 +698,7 @@ bool DefaultSkinningModel::Reload()
 	return false;
 }
 
-void DirectX::Scene::DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4 & transform, IEffect * pEffect)
+void DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4 & transform, IEffect * pEffect)
 {
 	if (pEffect == nullptr) pEffect = this->pEffect.get();
 	auto pSkinning = dynamic_cast<IEffectSkinning*>(pEffect);
@@ -674,7 +742,7 @@ DefaultSkinningModel* DefaultSkinningModel::CreateFromAmxFile(const std::string&
 	return pModel;
 }
 
-DefaultSkinningModel * DirectX::Scene::DefaultSkinningModel::CreateFromData(SkinMeshData * pData, const std::wstring& textureDir, ID3D11Device* pDevice)
+DefaultSkinningModel * DefaultSkinningModel::CreateFromData(SkinMeshData * pData, const std::wstring& textureDir, ID3D11Device* pDevice)
 {
 	auto pModel = new DefaultSkinningModel();
 	pModel->SetFromSkinMeshData(pData);

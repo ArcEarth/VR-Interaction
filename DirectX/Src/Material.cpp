@@ -5,6 +5,8 @@
 #include "Material.h"
 #include "tiny_obj_loader.h"
 #include <boost\filesystem.hpp>
+#include <ShaderEffect.h>
+#include <ShadowMapGenerationEffect.h>
 
 using namespace DirectX::Scene;
 using namespace DirectX;
@@ -174,6 +176,36 @@ void PhongMaterial::SetupEffect(IEffect *pEffect) const
 	if (pEffect == nullptr)
 		return;
 
+	auto pPhongEffect = dynamic_cast<IEffectPhongMaterial*>(pEffect);
+	if (pPhongEffect)
+	{
+		pPhongEffect->SetAlpha(GetAlpha());
+		pPhongEffect->SetDiffuseColor(DiffuseColor);
+		pPhongEffect->SetEmissiveColor(EmissiveColor);
+		pPhongEffect->SetSpecularColor(SpecularColor);
+		pPhongEffect->SetSpecularPower(1.0f);
+		pPhongEffect->SetDiffuseMap(GetDiffuseMap());
+		pPhongEffect->SetNormalMap(GetNormalMap());
+		pPhongEffect->SetSpecularMap(GetSpecularMap());
+		return;
+	}
+
+	auto pSGEffect = dynamic_cast<ShadowMapGenerationEffect*>(pEffect);
+	if (pSGEffect)
+	{
+		if (DiffuseMap != nullptr && UseAlphaDiscard)
+		{
+			pSGEffect->SetAlphaDiscardTexture(DiffuseMap.Get());
+			pSGEffect->SetAlphaDiscardThreshold(0.15f);
+		}
+		else
+		{
+			pSGEffect->DisableAlphaDiscard();
+		}
+		return;
+	}
+
+
 	auto pMEffect = dynamic_cast<BasicEffect*>(pEffect);
 
 	if (pMEffect)
@@ -255,6 +287,11 @@ Color PhongMaterial::GetSpecularColor() const
 float PhongMaterial::GetAlpha() const
 {
 	return Alpha;
+}
+
+bool PhongMaterial::GetUseAlphaDiscard() const
+{
+	return UseAlphaDiscard;
 }
 
 ID3D11ShaderResourceView * PhongMaterial::GetDiffuseMap() const

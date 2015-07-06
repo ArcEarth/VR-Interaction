@@ -193,7 +193,7 @@ namespace Causality
 		map<string, effect_type*>			effects;
 		map<string, behavier_type*>			behaviers;
 
-		sptr<DirectX::BasicEffect>			default_effect;
+		sptr<DirectX::IEffect>				default_effect;
 		sptr<DirectX::IEffect>				default_skinned_effect;
 		sptr<DirectX::Scene::PhongMaterial>	default_material;
 		uptr<DirectX::EffectFactory>		effect_factory;

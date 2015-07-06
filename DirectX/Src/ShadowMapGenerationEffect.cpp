@@ -1,13 +1,15 @@
 #include "pch_directX.h"
 
 #include <ShadowMapGenerationEffect.h>
-#include <..\Src\EffectCommon.h>
+#include "EffectCommon.h"
+#include <CommonStates.h>
 
 using namespace DirectX;
 
 struct ShadowMapGenerationEffectConstants
 {
 	XMMATRIX	WorldLightProj;
+	XMVECTOR	ShadowColor;
 	XMFLOAT3X4	Bones[ShadowMapGenerationEffect::MaxBones];
 };
 
@@ -15,9 +17,9 @@ struct ShadowMapGenerationEffectTraits
 {
 	typedef ShadowMapGenerationEffectConstants ConstantBufferType;
 
-	static const int VertexShaderCount = 4;
-	static const int PixelShaderCount = 1;
-	static const int ShaderPermutationCount = 4;
+	static const int VertexShaderCount = 8;
+	static const int PixelShaderCount = 4;
+	static const int ShaderPermutationCount = 16;
 };
 
 typedef ShadowMapGenerationEffectTraits			EffectTraitsType;
@@ -25,19 +27,28 @@ typedef EffectBase<EffectTraitsType>			EffectBaseType;
 
 SharedResourcePool<ID3D11Device*, EffectBaseType::DeviceResources> EffectBaseType::deviceResourcesPool;
 
+using Microsoft::WRL::ComPtr;
+
 class ShadowMapGenerationEffect::Impl : public EffectBaseType
 {
 public:
 	int weightsPerVertex;
+	ShadowFillMode fillMode;
 	Matrix4x4 World, LightView, LightProj;
 	ID3D11DepthStencilView* pDepthMap;
+	ID3D11RenderTargetView* pRenderTargetView;
+	CommonStates			commonStates;
 
 	typedef EffectTraitsType	Traits;
 	typedef EffectBaseType		Base;
 
 	Impl(ID3D11Device* device)
 			: EffectBase(device),
-			weightsPerVertex(0)
+			commonStates(device),
+			weightsPerVertex(0),
+			fillMode(DepthFill),
+			pRenderTargetView(NULL),
+			pDepthMap(NULL)
 		{
 			static_assert(_countof(Base::VertexShaderIndices) == Traits::ShaderPermutationCount, "array/max mismatch");
 			static_assert(_countof(Base::VertexShaderBytecode) == Traits::VertexShaderCount, "array/max mismatch");
@@ -54,20 +65,35 @@ public:
 
 	int GetCurrentShaderPermutation() const
 	{
+		int perm = 0;
 		// 0 1 2 4
-		if (weightsPerVertex <= 2) return weightsPerVertex;
-		if (weightsPerVertex == 4) return 3;
-		return -1;
-	}
+		if (weightsPerVertex <= 2) perm = weightsPerVertex;
+		if (weightsPerVertex == 4) perm = 3;
 
+		if (texture != nullptr)
+			perm += 4;
+
+		if (fillMode == SolidColorFill)
+			perm += 8;
+		return perm;
+	}
+	   
 	void Apply(ID3D11DeviceContext* deviceContext)
 	{
 		// Compute derived parameter values.
 		matrices.SetConstants(dirtyFlags, constants.WorldLightProj);
 
-		deviceContext->OMSetRenderTargets(1, NULL, pDepthMap);
+		// Set the render targets if applicatable
+		if (pDepthMap != nullptr || pRenderTargetView != nullptr)
+		{
+			assert(fillMode != SolidColorFill && pRenderTargetView != nullptr);
+			ID3D11RenderTargetView* rtvs[] = { pRenderTargetView };
+			deviceContext->OMSetRenderTargets(1, rtvs, pDepthMap);
+		}
 
 		ApplyShaders(deviceContext, GetCurrentShaderPermutation());
+		auto pSampler = commonStates.PointWrap();
+		deviceContext->PSSetSamplers(0, 1, &pSampler);
 	}
 };
 
@@ -86,8 +112,15 @@ namespace
 #include "Shaders/Windows/ShadowMapGen_VS_OneBone.inc"
 #include "Shaders/Windows/ShadowMapGen_VS_TwoBone.inc"
 #include "Shaders/Windows/ShadowMapGen_VS_FourBone.inc"
+#include "Shaders/Windows/ShadowMapGen_VS_NoBoneTex.inc"
+#include "Shaders/Windows/ShadowMapGen_VS_OneBoneTex.inc"
+#include "Shaders/Windows/ShadowMapGen_VS_TwoBoneTex.inc"
+#include "Shaders/Windows/ShadowMapGen_VS_FourBoneTex.inc"
 
-#include "Shaders/Windows/ShadowMapGen_PS.inc"
+#include "Shaders/Windows/ShadowMapGen_PS_DepthNoTex.inc"
+#include "Shaders/Windows/ShadowMapGen_PS_DepthTex.inc"
+#include "Shaders/Windows/ShadowMapGen_PS_ColorNoTex.inc"
+#include "Shaders/Windows/ShadowMapGen_PS_ColorTex.inc"
 #endif
 }
 
@@ -103,30 +136,61 @@ const ShaderBytecode EffectBase<ShadowMapGenerationEffectTraits>::VertexShaderBy
 	MakeShaderByteCode(ShadowMapGen_VS_OneBone),
 	MakeShaderByteCode(ShadowMapGen_VS_TwoBone),
 	MakeShaderByteCode(ShadowMapGen_VS_FourBone),
+	MakeShaderByteCode(ShadowMapGen_VS_NoBoneTex),
+	MakeShaderByteCode(ShadowMapGen_VS_OneBoneTex),
+	MakeShaderByteCode(ShadowMapGen_VS_TwoBoneTex),
+	MakeShaderByteCode(ShadowMapGen_VS_FourBoneTex),
 };
 
 
 const int EffectBase<ShadowMapGenerationEffectTraits>::VertexShaderIndices[] =
 {
-	0,      // vertex lighting, one bone
+	0, 
 	1,
 	2,
 	3,
+	4,
+	5,
+	6,
+	7,
+	0,
+	1,
+	2,
+	3,
+	4,
+	5,
+	6,
+	7, 
 };
 
 
 const ShaderBytecode EffectBase<ShadowMapGenerationEffectTraits>::PixelShaderBytecode[] =
 {
-	MakeShaderByteCode(ShadowMapGen_PS),
+	MakeShaderByteCode(ShadowMapGen_PS_DepthNoTex),
+	MakeShaderByteCode(ShadowMapGen_PS_DepthTex), 
+	MakeShaderByteCode(ShadowMapGen_PS_ColorNoTex),
+	MakeShaderByteCode(ShadowMapGen_PS_ColorTex), 
 };
 
 
 const int EffectBase<ShadowMapGenerationEffectTraits>::PixelShaderIndices[] =
 {
-	0,      // vertex lighting, one bone
-	0,      // vertex lighting, one bone
-	0,      // vertex lighting, one bone
-	0,      // vertex lighting, one bone
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	2,
+	2,
+	2,
+	2,
+	3,
+	3,
+	3,
+	3
 };
 
 ShadowMapGenerationEffect::ShadowMapGenerationEffect(ID3D11Device * device)
@@ -138,9 +202,35 @@ ShadowMapGenerationEffect::~ShadowMapGenerationEffect()
 {
 }
 
-void ShadowMapGenerationEffect::SetShadowMap(ID3D11DepthStencilView * pShaodwMap)
+
+void ShadowMapGenerationEffect::SetShadowMap(ID3D11DepthStencilView * pShaodwMap, ID3D11RenderTargetView* pRTV)
 {
+	pImpl->pRenderTargetView = pRTV;
 	pImpl->pDepthMap = pShaodwMap;
+}
+
+void XM_CALLCONV DirectX::ShadowMapGenerationEffect::SetShadowFillMode(ShadowFillMode mode, FXMVECTOR color)
+{
+	pImpl->fillMode = mode;
+	if (mode == SolidColorFill)
+	{
+		pImpl->constants.ShadowColor = color;
+		pImpl->dirtyFlags |= EffectDirtyFlags::ConstantBuffer;
+	}
+}
+
+void ShadowMapGenerationEffect::SetAlphaDiscardThreshold(float clipThreshold)
+{
+}
+
+void ShadowMapGenerationEffect::SetAlphaDiscardTexture(ID3D11ShaderResourceView * pTexture)
+{
+	pImpl->texture = pTexture;
+}
+
+void ShadowMapGenerationEffect::DisableAlphaDiscard()
+{
+	pImpl->texture = nullptr;
 }
 
 void XM_CALLCONV ShadowMapGenerationEffect::SetWorld(FXMMATRIX value)

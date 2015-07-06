@@ -13,6 +13,7 @@ namespace DirectX
 {
 	class IEffectPhongMaterial
 	{
+	public:
 		// Material settings.
 		virtual void XM_CALLCONV SetDiffuseColor(FXMVECTOR value) = 0;
 		virtual void XM_CALLCONV SetEmissiveColor(FXMVECTOR value) = 0;
@@ -28,11 +29,19 @@ namespace DirectX
 
 	class IEffectLightsShadow abstract : public IEffectLights
 	{
+	public:
 		// Lighting and per pixel lighting is always enabled for Shadowed Light Effects
 		virtual void __cdecl SetLightingEnabled(bool value) {};
 		virtual void __cdecl SetPerPixelLighting(bool value) {};
+		virtual void XM_CALLCONV SetAmbientLightColor(FXMVECTOR value) {};
+		virtual void XM_CALLCONV SetLightDirection(int whichLight, FXMVECTOR value) {};
+		virtual void XM_CALLCONV SetLightDiffuseColor(int whichLight, FXMVECTOR value) {};
+		virtual void XM_CALLCONV SetLightSpecularColor(int whichLight, FXMVECTOR value) {};
 
-		virtual void SetLightShadowMap(int whichLight, ID3D11ShaderResourceView* pTexture) = 0;
+		// Methods need for IEffectLightsShadow
+		virtual void __cdecl SetLightEnabled(int whichLight, bool value) override = 0;
+		virtual void __cdecl SetLightShadowMapBias(int whichLight, float bias) = 0;
+		virtual void __cdecl SetLightShadowMap(int whichLight, ID3D11ShaderResourceView* pTexture) = 0;
 		virtual void XM_CALLCONV SetLightView(int whichLight, FXMMATRIX value) = 0;
 		virtual void XM_CALLCONV SetLightProjection(int whichLight, FXMMATRIX value) = 0;
 	};

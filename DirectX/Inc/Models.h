@@ -48,14 +48,6 @@ namespace DirectX
 			};
 		}
 
-		class IMeshBuffer abstract
-		{
-		public:
-			virtual ~IMeshBuffer() {}
-			// Setup Vertex/Index Buffer and Call the Draw command
-			virtual void Draw(ID3D11DeviceContext* pContext) const = 0;
-		};
-
 		struct VertexDescription
 		{
 			UINT NumElements;
@@ -75,15 +67,31 @@ namespace DirectX
 		// Holding the information of 
 		// Vertex Buffer, Index Buffer, Input Layout 
 		// The abstraction for IA and Draw commands
-		struct MeshBuffer : public IMeshBuffer
+		struct MeshBuffer
 		{
 		public:
 			~MeshBuffer() {}
+
+			static ComPtr<ID3D11InputLayout>& LookupInputLayout(const D3D11_INPUT_ELEMENT_DESC* pInputElements, IEffect * pEffect);
+
+			template<class _TVertex>
+			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount,IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, size_t VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
 
 			template<class _TVertex, class _TIndex>
 			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount, const _TIndex* indices, unsigned int IndicesCount, IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, size_t VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
 
 			void CreateInputLayout(ID3D11Device* pDevice, IEffect *pEffect);
+			void CreateInputLayout(ID3D11Device* pDevice, const void * pShaderByteCode, size_t pByteCodeLength);
+
+			bool Empty() const { return VertexCount == 0; }
+			template<class TVertex>
+			void SetInputElementDescription()
+			{
+				static_assert(TVertex::InputElementCount, "Valiad Vertex Type should have static InputElements/InputElementCount member");
+				InputElementCount = TVertex::InputElementCount;
+				pInputElements = TVertex::InputElements;
+				VertexStride = sizeof(TVertex);
+			}
 
 			typedef std::vector<std::unique_ptr<MeshBuffer>> Collection;
 
@@ -102,7 +110,7 @@ namespace DirectX
 			Microsoft::WRL::ComPtr<ID3D11Buffer>                    pVertexBuffer;
 
 			// Setup the Vertex/Index Buffer and call the draw command
-			void Draw(ID3D11DeviceContext *pContext) const;
+			void Draw(ID3D11DeviceContext *pContext, IEffect *pEffect = nullptr) const;
 		};
 
 		namespace GeometricPrimtives
@@ -111,7 +119,7 @@ namespace DirectX
 		}
 
 		// Strong typed mesh buffer with static vertex typeing
-		template<class _TVertex, class _TIndex, D3D_PRIMITIVE_TOPOLOGY Primative_Topology = D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST>
+		template<class _TVertex, class _TIndex>
 		struct TypedMeshBuffer : public MeshBuffer
 		{
 		public:
@@ -121,6 +129,18 @@ namespace DirectX
 			typedef TypedMeshBuffer	SelfType;
 			typedef _TVertex	VertexType;
 			typedef _TIndex		IndexType;
+		};
+
+		template<class _TVertex, class _TIndex>
+		struct DynamicMeshBuffer : public TypedMeshBuffer<_TVertex, _TIndex>
+		{
+		public:
+			typedef std::vector<VertexType> VertexCollectionType;
+			typedef std::vector<IndexType>	IndexCollectionType;
+
+			void UpdateMeshBuffer(ID3D11Device* pDevice);
+			VertexCollectionType Vertices;
+			IndexCollectionType	 Indices;
 		};
 
 		//class IModel
@@ -324,6 +344,8 @@ namespace DirectX
 			static DefaultStaticModel * CreateFromObjFile(const std::wstring &file, ID3D11Device * pDevice = nullptr, const std::wstring& textureDir = L"");
 			static DefaultStaticModel * CreateFromSmxFile(ID3D11Device *pDevice, const std::wstring &file);
 
+			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, IEffect* pEffect = nullptr) override;
+
 			// Check if the data have been loaded to CPU memery
 			bool IsInMemery() const override;
 			// Create GPU objects using Vertex/Index Buffer in CPU
@@ -432,23 +454,28 @@ namespace DirectX
 
 		};
 
+		template <class _TVertex>
+		inline void MeshBuffer::CreateDeviceResources(ID3D11Device * pDevice, const _TVertex * vertices, unsigned int VerticesCount, IEffect * pEffect, D3D_PRIMITIVE_TOPOLOGY primitiveTopology, size_t vertexStride, UINT startIndex, UINT vertexOffset)
+		{
+			CreateDeviceResources<_TVertex, int>(pDevice, vertices, VerticesCount, nullptr, 0, pEffect, primitiveTopology, vertexStride, startIndex, vertexOffset);
+		}
+
 		template <class _TVertex, class _TIndex>
 		inline void MeshBuffer::CreateDeviceResources(ID3D11Device * pDevice, const _TVertex * vertices, unsigned int VerticesCount, const _TIndex * indices, unsigned int IndicesCount, IEffect * pEffect, D3D_PRIMITIVE_TOPOLOGY primitiveTopology, size_t vertexStride, UINT startIndex, UINT vertexOffset)
 		{
-			static_assert(std::is_integral<_TIndex>::value, "Type of Index must be integral type");
-			static_assert(_TVertex::InputElementCount, "Valiad Vertex Type should have static InputElements/InputElementCount member");
-			assert(pDevice != nullptr);
+			SetInputElementDescription<_TVertex>();
 
-			InputElementCount = _TVertex::InputElementCount;
-			pInputElements = _TVertex::InputElements;
+			assert(pDevice != nullptr);
 
 			if (pEffect != nullptr)
 			{
 				CreateInputLayout(pDevice, pEffect);
 			}
 
+
 			pVertexBuffer = DirectX::CreateVertexBuffer<_TVertex>(pDevice, VerticesCount, vertices);
-			pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, IndicesCount, indices);
+			if (indices != nullptr && IndicesCount > 0)
+				pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, IndicesCount, indices);
 			IndexFormat = ExtractDXGIFormat<_TIndex>::value;
 			VertexCount = VerticesCount;
 			IndexCount = IndicesCount;

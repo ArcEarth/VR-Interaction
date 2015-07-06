@@ -15,7 +15,7 @@
       <diffuse_map>Horse_D.dds</diffuse_map>
     </phong_material>-->
     <mesh name="spider_mesh" src="spider.fbx" diffuse_map="spider-tex.dds"></mesh>
-    <mesh name="horse_mesh" src="Horse.fbx" diffuse_map="horse_d.dds"></mesh>
+    <mesh name="horse_mesh" src="Horse.fbx" diffuse_map="horse_d.dds" alpha_discard="true"></mesh>
     <!--<mesh name="bat_mesh" src="bat.fbx" diffuse_map="bat_spc.dds"></mesh>-->
 
     <behavier name="spider_behavier" src="spider.fbx"></behavier>
@@ -35,11 +35,12 @@
   <scene.content>
     <grid name="root">
       <coordinate_axis/>
-      <camera name="primary_camera" background="#FFFFFFFF" position="0,0.5,2.5" focus="0,0,-1" up="0,1,0">
+      <light name="sun_light" primary="false" color="#FFFFFFFF" position="0,5,0" focus="0,0,0" up="0,0,-1" wfov="4" hfov="4" aspect="1" perspective="false" drops_shadow="true" resolution="2048" />
+      <camera name="primary_camera" primary="true" background="#FFFFFFFF" position="0,0.5,2.5" focus="0,0,-1" up="0,1,0">
         <first_person_keyboard_mouse_control />
       </camera>
 
-      <!--<object name="ground" position="-2.0,-0.021,-2.0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>-->
+      <object name="ground" position="-2.0,-0.021,-2.0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>
       <!--<object name="baseball_bat" position="-0,1.0,0.0" scale="0.1,0.1,0.1" mesh="{baseball_bat_mesh}"/>-->
       <!--<object name="horse_statue" position="-1,0,0" scale=".01f" mesh="{horse_mesh}"></object>-->
 

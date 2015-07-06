@@ -4,61 +4,65 @@
 
 namespace Causality
 {
+	class ILight abstract : virtual public IViewControl
+	{
+	public:
+		virtual Color GetColor() const = 0;
+		virtual ID3D11ShaderResourceView* GetColorMap() const { return nullptr; }
+		virtual ID3D11ShaderResourceView* GetShadowMap() const { return nullptr; }
+
+		// Brightness is the among of color showed when the surface is UNIT distant with the light
+		float	GetBrightness() const { return GetColor().w; }
+		bool	DropsShadow() const { return GetShadowMap() != nullptr; }
+		DirectX::XMVECTOR GetFocusDirection() const;
+	};
 	// class to introduce a parallel or point (perspective) light
-	class Light : public Camera, public IRenderable
+	class Light : public Camera, public ILight, public IRenderable
 	{
 	public:
 		Light();
 		Light(RenderDevice& deivce, const UINT& shadowResolution = 1024U);
 
-		// ICameraRenderControl
-		virtual void		BeginFrame(RenderContext& context) override;
-		DirectX::IEffect*	GetRenderEffect() override;
-		virtual bool		AcceptRenderFlags(RenderFlags flags) override;
+		// using Camera to implement IViewControl interface
+		using Camera::ViewCount;
+		using Camera::GetViewMatrix;
+		using Camera::GetProjectionMatrix;
+		using Camera::FocusAt;
+		using Camera::IsInView;
+		using Camera::GetViewFrustum;
 
-		Color	GetColor() const { return m_Color; }
+		// IRenderControl
+		virtual void				BeginFrame(RenderContext& context) override;
+		virtual void				SetView(size_t view) override;
+		virtual void				EndFrame() override;
+		virtual DirectX::IEffect*	GetRenderEffect() override;
+		virtual bool				AcceptRenderFlags(RenderFlags flags) override;
+
+		virtual Color	GetColor() const override;
 		void	SetColor(const Color& color) { m_Color = color; }
 
 		// Brightness is the among of color showed when the surface is UNIT distant with the light
-		float	GetBrightness() const { return m_Color.w; }
 		void	SetBrightness(float bright) { m_Color.w = bright; }
 
 		void	DisableDropShadow();
 		void	EnableDropShadow(RenderDevice& deivce, const UINT& shadowResolution = 1024U);
 		void	SetShadowMapBuffer(const DirectX::DepthStencilBuffer& depthBuffer);
-		ID3D11ShaderResourceView* GetShadowMap() const { return m_DepthMap.ShaderResourceView(); }
+		virtual ID3D11ShaderResourceView* GetShadowMap() const override;
 
 		void	SetColorMap(ID3D11ShaderResourceView* lightMap) { m_pColorMap = lightMap; }
-		ID3D11ShaderResourceView* GetColorMap() const {
-			return m_pColorMap.Get();
-		}
+		virtual ID3D11ShaderResourceView* GetColorMap() const override;
 
-		bool	DropShadow() const;
+		// Inherited via IRenderable, for Light source Visualization
+		virtual RenderFlags GetRenderFlags() const;
+		virtual bool IsVisible(const BoundingGeometry & viewFrustum) const override;
+		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
+		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 	private:
 		DirectX::Color						m_Color;
 		cptr<ID3D11ShaderResourceView>		m_pColorMap;
 		DirectX::DepthStencilBuffer		    m_DepthMap;
+		DirectX::RenderTargetTexture2D		m_RenderTargetTex;
 		sptr<DirectX::IEffect>				m_pShadowMapGenerator;
-
-		// Inherited via IRenderable
-		virtual RenderFlags GetRenderFlags() const;
-		virtual bool IsVisible(const BoundingFrustum & viewFrustum) const override;
-		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
-		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
-	};
-
-	class ParallelLight : public Light
-	{
-
-	};
-
-	class SpotLight : public Light
-	{
-
-	};
-
-	class SphereLight : public Light
-	{
 
 	};
 }
