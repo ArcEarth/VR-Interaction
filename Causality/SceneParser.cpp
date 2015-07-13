@@ -482,7 +482,7 @@ void ParseCameraObjectAttributes(SingleViewCamera *pCamera, tinyxml2::XMLElement
 	bool enable_stereo;
 	node->QueryBoolAttribute("enable_stereo", &enable_stereo);
 	float fov = 70, aspect = 1, hfov, wfov;
-	float _near = 0.5f, _far = 10.0f;
+	float _near = 0.5f, _far = 20.0f;
 	bool is_primary = false;
 	Vector3 focus = (XMVECTOR)pCamera->GetPosition() + XMVector3Rotate(Camera::Foward, pCamera->GetOrientation());
 	Vector3 up = g_XMIdentityR1.v;

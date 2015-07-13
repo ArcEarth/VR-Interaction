@@ -67,7 +67,7 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 
 	pWindow = make_shared<NativeWindow>();
 	if (!pRift)
-		pWindow->Initialize(std::string("Causality"), 1280, 720, false);
+		pWindow->Initialize(std::string("Causality"), 1920, 1080, false);
 	else
 	{
 		auto res = pRift->Resoulution();

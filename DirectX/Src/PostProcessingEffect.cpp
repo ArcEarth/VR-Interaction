@@ -405,12 +405,12 @@ public:
 			pContext->PSSetShaderResources(0, 2, pSRVs);
 			RenderPass(pContext, 3);
 
-			pContext->OMSetDepthStencilState(states.DepthDefault(), 0);
+			pContext->OMSetDepthStencilState(states.DepthDefault(), -1);
 		}
 		else if (m_Mode == AlphaAsDepth)
 		{
 			pContext->OMSetBlendState(states.AlphaBlend(), g_XMOne.f, -1);
-			pContext->OMSetDepthStencilState(states.DepthRead(), 0);
+			pContext->OMSetDepthStencilState(states.DepthDefault(), -1);
 			m_SwapBuffer.SwapBuffer();
 			pSRVs[0] = m_SwapBuffer.ShaderResourceView();
 			pRTVs[0] = target.RenderTargetView();
@@ -420,7 +420,6 @@ public:
 			pContext->PSSetShaderResources(0, 1, pSRVs);
 			RenderPass(pContext, 4);
 		}
-		pContext->OMSetDepthStencilState(states.DepthDefault(), 0);
 
 	}
 
