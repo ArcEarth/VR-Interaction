@@ -412,7 +412,7 @@ bool Causality::GlowingBorder::IsVisible(const DirectX::BoundingGeometry & viewF
 
 RenderFlags Causality::GlowingBorder::GetRenderFlags() const
 {
-	return RenderFlags::SpecialEffects | RenderFlags::BloomEffectSource | RenderFlags::AcceptCustomizeEffects;
+	return RenderFlags::BloomEffectSource;
 }
 
 void Causality::GlowingBorder::Render(RenderContext & pContext, DirectX::IEffect * pEffect)

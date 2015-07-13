@@ -97,15 +97,17 @@ void AnimationAnalyzer::BlocklizationAndComputeEnergy()
 	}
 
 	Eb = Eb.cwiseSqrt();
-	Eb /= Eb.maxCoeff();
 
-	for (size_t i = 0; i < Eb.size(); i++)
-	{
-		if (Eb(i) > EnergyCutoff)
-		{
-			ActiveBlocks.push_back(i);
-		}
-	}
+	//Eb /= Eb.maxCoeff();
+	//float maxCoeff = Eb.maxCoeff();
+
+	//for (size_t i = 0; i < Eb.size(); i++)
+	//{
+	//	if (Eb(i) > EnergyCutoff * maxCoeff)
+	//	{
+	//		ActiveBlocks.push_back(i);
+	//	}
+	//}
 }
 
 void AnimationAnalyzer::ComputePcaQr()

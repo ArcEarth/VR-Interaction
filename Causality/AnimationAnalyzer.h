@@ -51,9 +51,5 @@ namespace Causality
 		std::vector<Eigen::MatrixXf> Xbs;					 // Blockwise Data
 
 		DirectX::BoundingBox			BoundingBox;
-		// Extra storage
-		int								BestPhi;
-		std::vector<Eigen::DenseIndex>	BestMatching;
-		float							BestMatchingScore;
 	};
 }

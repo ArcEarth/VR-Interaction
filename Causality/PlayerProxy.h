@@ -3,12 +3,15 @@
 #include "Kinect.h"
 #include <boost\circular_buffer.hpp>
 #include "Animations.h"
+#include <atomic>
 
 namespace Causality
 {
 	using boost::circular_buffer;
 
 	class AnimationAnalyzer;
+
+	class ClipInfo;
 
 	class CharacterController
 	{
@@ -25,23 +28,23 @@ namespace Causality
 
 		void UpdateTargetCharacter(const AffineFrame& sourceFrame) const;
 
+		std::atomic<bool>		IsReady;
 		int						ID;
 		AffineFrame				PotientialFrame;
-		float					SpatialMotionScore;
+		float					CharacterScore;
 		Vector3					MapRefPos;
 		Vector3					CMapRefPos;
 
-		AnimationAnalyzer& GetAnimationInfo(const string& name);
+		ClipInfo& GetAnimationInfo(const string& name);
 
 	public:
 		CharacterObject*							m_pCharacter;
-		map<string, AnimationAnalyzer*>				m_Analyzers;
+		map<string, ClipInfo*>						m_Analyzers;
 		uptr<ArmatureTransform>						m_pBinding;
 
 		void SetSourceArmature(const IArmature& armature);
 
 		void SetTargetCharacter(CharacterObject& object);
-
 	};
 
 	class PlayerProxy : public SceneObject, public IRenderable, public IAppComponent, public IKeybordInteractive

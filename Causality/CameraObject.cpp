@@ -300,7 +300,7 @@ Causality::SoftShadowCamera::SoftShadowCamera(ID3D11Device * pDevice, DirectX::R
 	pEffectRender = std::make_shared<EffectRenderControl>();
 	pEffectRender->SetRenderTargetClearence(true);
 	pEffectRender->SetRenderTarget(canvas);
-	pEffectRender->SetBackground(Colors::White.v);
+	pEffectRender->SetBackground(Colors::Gray.v);
 	pShadowEffect = std::make_shared<ShadowMapEffect>(pDevice);
 	pShadowEffect->SetEffectMode(ShadowMapEffect::ScreenSpaceShadowRender); // Second shadow effect for render
 	pShadowEffect->SetScreenSpaceLightsShadowMap(shadowBuffer.ShaderResourceView(), bluredShadowBuffer.ShaderResourceView());
@@ -320,12 +320,12 @@ Causality::SoftShadowCamera::SoftShadowCamera(ID3D11Device * pDevice, DirectX::R
 	pEffectRender->SetBackground(Colors::Black.v);
 	pEffectRender->SetPostEffect(pBlurEffect);
 	pBlurEffect->ResizeBufferRespectTo(pDevice, canvas.ColorBuffer());
-	pBlurEffect->SetBlurRadius(1.5f);
-	pBlurEffect->SetMultiplier(1.5f);
+	pBlurEffect->SetBlurRadius(2.5f);
+	pBlurEffect->SetMultiplier(1.2f);
 	pBlurEffect->SetOutputMode(AlphaAsDepth);
 	pBlurEffect->SetOutputDepthStencil(canvas.DepthBuffer().DepthStencilView());
 	pEffectRender->SetPostEffect(pBlurEffect);
-	pEffectRender->SetRequestRenderFlags(RenderFlags::SpecialEffects | RenderFlags::BloomEffectSource); // minium requirement
+	pEffectRender->SetRequestRenderFlags(RenderFlags::BloomEffectSource); // minium requirement
 	pEffectRender->SetPostEffectOutput(canvas.ColorBuffer());
 	m_pRenderers.push_back(pEffectRender);
 

@@ -29,6 +29,9 @@ bool				g_EnableInputFeatureLocalization = true;
 bool				g_EnableDebugLogging = false;
 static const char*  DefaultAnimationSet = "walk";
 
+#define BEGIN_TO_END(range) range.begin(), range.end()
+
+
 
 void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::FrameType& frame)
 {
@@ -181,6 +184,20 @@ public:
 	}
 };
 
+class Causality::ClipInfo : public AnimationAnalyzer
+{
+public:
+	using AnimationAnalyzer::AnimationAnalyzer;
+
+	// Information for current 'map'
+	int								Phi;
+	std::vector<Eigen::DenseIndex>	Matching;
+	float							Score;
+	MatrixXf						Correlation; // Overall correlation
+
+	uptr<CcaArmatureTransform>		pLocalBinding;
+};
+
 pair<JointType, JointType> XFeaturePairs[] = {
 	{JointType_SpineBase, JointType_SpineShoulder},
 	{ JointType_SpineShoulder, JointType_Head },
@@ -298,7 +315,7 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 		if (glow == nullptr)
 		{
 			glow = new GlowingBorder(DirectX::Colors::LimeGreen.v);
-			glow->SetEnabled(false);
+			glow->SetEnabled(true);
 			pChara->AddChild(glow);
 		}
 	}
@@ -528,13 +545,14 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 	for (auto& controller : Controllers)			//? <= 5 character
 	{
-		auto& object = controller.Character();
-		auto& chraraBlocks = object.Behavier().Blocks();
+		auto& character = controller.Character();
+		auto& chraraBlocks = character.Behavier().Blocks();
 		size_t Jc = chraraBlocks.size();
+		auto& clips = character.Behavier().Clips();
 
-		controller.SpatialMotionScore = numeric_limits<float>::min();
-		//auto& anim = object.Behavier()[DefaultAnimationSet];
-		for (auto& anim : object.Behavier().Clips())	//? <= 5 animation per character
+		controller.CharacterScore = numeric_limits<float>::min();
+		//auto& anim = character.Behavier()[DefaultAnimationSet];
+		for (auto& anim : clips)	//? <= 5 animation per character
 		{
 			auto& analyzer = controller.GetAnimationInfo(anim.Name);
 
@@ -622,12 +640,13 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 				auto& A = Ra[phidx];
 				// Cutoff the none-correlated match
-				A = Mcor * alpha + Scor;
 				//A *= alpha;
 
-				A.array() *= Eub.array().replicate(1, A.cols());
-				A.array() *= Ecb.array().replicate(A.rows(), 1);
-				//A += Asp2;
+				// Here Eub and Ecb is Kinetic Energy, it should only affect the motion correlation term
+				Mcor.array() *= Eub.array().replicate(1, A.cols());
+				Mcor.array() *= Ecb.array().replicate(A.rows(), 1);
+
+				A = Mcor * alpha + Scor;
 
 				//CoR.topLeftCorner(Ju, Jc) = A;
 
@@ -678,16 +697,15 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 			//cout << "Scores over Phi : \n" << mScores << endl;
 
-			analyzer.BestMatchingScore = maxScore;
-			analyzer.BestMatching = maxMatching;
-			analyzer.BestPhi = maxPhi;
+			analyzer.Score = maxScore;
+			analyzer.Matching = maxMatching;
+			analyzer.Phi = maxPhi;
+			if (maxPhi > -1)
+				analyzer.Correlation = Ra[maxPhi];
 
 			cout << "=============================================" << endl;
 			cout << "Best assignment for " << controller.Character().Name << " : " << anim.Name << endl;
 			cout << "Scores : " << maxScore << endl;
-			//int sdxass[] = {3,14,19,24,29};
-			//for (size_t i = 0; i < size(sdxass); i++)
-			//	maxMatching[Juk[i]] = sdxass[i];
 
 			cout << "*********************************************" << endl;
 			cout << "Human Skeleton Blocks : " << endl;
@@ -718,12 +736,13 @@ int PlayerProxy::MapCharacterByLatestMotion()
 			cout << "*********************************************" << endl;
 
 			// Setup Binding from matching
-			if (controller.SpatialMotionScore < maxScore)
+			if (maxPhi > -1)//controller.CharacterScore < maxScore)
 			{
-				cout << "New best : " << anim.Name << endl;
-				controller.SpatialMotionScore = maxScore;
+				//cout << "New best : " << anim.Name << endl;
+				controller.CharacterScore = std::max(maxScore, controller.CharacterScore);
 				auto pBinding = new BlockizedCcaArmatureTransform();
-				controller.SetBinding(pBinding);
+				analyzer.pLocalBinding.reset(pBinding);
+
 				pBinding->SetSourceArmature(*pPlayerArmature);
 				pBinding->SetTargetArmature(controller.Character().Armature());
 				pBinding->pSblocks = &g_PlayeerBlocks;
@@ -790,14 +809,63 @@ int PlayerProxy::MapCharacterByLatestMotion()
 					}
 				}
 			}
+		} // Animation clip scope
+
+		auto pBinding = new BlockizedCcaArmatureTransform();
+		controller.SetBinding(pBinding);
+
+		pBinding->SetSourceArmature(*pPlayerArmature);
+		pBinding->SetTargetArmature(controller.Character().Armature());
+		pBinding->pSblocks = &g_PlayeerBlocks;
+		pBinding->pTblocks = &controller.Character().Behavier().Blocks();
+
+		VectorXf JuScore(Juk.size());
+		JuScore.setZero();
+
+		for (auto& pBlock : controller.Character().Behavier().Blocks())
+		{
+			auto bid = pBlock->Index;
+			if (pBlock->ActiveActionCount > 0)
+			{
+				auto blockScore = 0;
+				CcaArmatureTransform::PcaCcaMap* pMap = nullptr;
+				for (const auto& action : pBlock->ActiveActions)
+				{
+					auto& clipinfo = controller.GetAnimationInfo(action);
+					if (clipinfo.Phi == -1) continue;
+					auto jyid = std::find(BEGIN_TO_END(clipinfo.ActiveBlocks), bid) - clipinfo.ActiveBlocks.begin();
+					auto jxid = clipinfo.Matching[jyid];
+
+					if (jxid == -1) continue;
+					auto score = clipinfo.Correlation(jxid,jyid);
+
+					if (score > blockScore)
+					{
+						auto itr = std::find_if(BEGIN_TO_END(clipinfo.pLocalBinding->Maps), [bid](const auto& map)
+						{ return map.Jy == bid;});
+
+						// This bind is discard due to threshold cutoff
+						if (itr == clipinfo.pLocalBinding->Maps.end())
+							continue;
+
+						pMap = &(*itr);
+
+						JuScore[jxid] = std::max(JuScore[jxid], score);
+					}
+				}
+
+				if (pMap != nullptr)
+					pBinding->Maps.push_back(*pMap);
+			}
 		}
 
+		controller.CharacterScore = JuScore.sum();
 	}
 
 	CharacterController* pControl = nullptr;
 	for (auto& con : Controllers)
 	{
-		if (!pControl || con.SpatialMotionScore > pControl->SpatialMotionScore)
+		if (!pControl || con.CharacterScore > pControl->CharacterScore)
 			pControl = &con;
 	}
 	if (!pControl) return -1;
@@ -1121,6 +1189,7 @@ CharacterController::~CharacterController()
 
 void CharacterController::Initialize(const IArmature & player, CharacterObject & character)
 {
+	IsReady = false;
 	SetSourceArmature(player);
 	SetTargetCharacter(character);
 }
@@ -1156,7 +1225,7 @@ void CharacterController::UpdateTargetCharacter(const AffineFrame & frame) const
 	m_pCharacter->ReleaseCurrentFrameFrorUpdate();
 }
 
-AnimationAnalyzer & CharacterController::GetAnimationInfo(const string & name) {
+ClipInfo & CharacterController::GetAnimationInfo(const string & name) {
 	return *m_Analyzers[name];
 }
 
@@ -1176,7 +1245,7 @@ void CharacterController::SetTargetCharacter(CharacterObject & object) {
 	vector<task<void>> tasks;
 	for (auto& anim : object.Behavier().Clips())
 	{
-		m_Analyzers[anim.Name] = new AnimationAnalyzer(behavier.Blocks());
+		m_Analyzers[anim.Name] = new ClipInfo(behavier.Blocks());
 		auto& analyzer = m_Analyzers[anim.Name];
 
 		analyzer->PcaCutoff = CharacterPcaCutoff;
@@ -1186,17 +1255,31 @@ void CharacterController::SetTargetCharacter(CharacterObject & object) {
 	}
 	
 	when_all(tasks.begin(), tasks.end()).then([this]() {
+		float globalEnergyMax = 0;
+		for (auto pInfo : adaptors::values(m_Analyzers))
+		{
+			globalEnergyMax = std::max(pInfo->Eb.maxCoeff(), globalEnergyMax);
+		}
+
 		auto& blocks = m_pCharacter->Behavier().Blocks();
 		for (auto& pair : m_Analyzers)
 		{
 			auto& key = pair.first;
 			auto analyzer = pair.second;
-			for (auto& bidx : analyzer->ActiveBlocks)
+			auto& Eb = analyzer->Eb;
+			Eb /= globalEnergyMax;
+			for (int i = 0; i < Eb.size(); i++)
 			{
-				++blocks[bidx]->ActiveActionCount;
-				blocks[bidx]->ActiveActions.emplace_back(key);
+				if (Eb[i] > analyzer->EnergyCutoff)
+				{
+					analyzer->ActiveBlocks.push_back(i);
+					++blocks[i]->ActiveActionCount;
+					blocks[i]->ActiveActions.emplace_back(key);
+				}
 			}
 		}
+
+		IsReady = true;
 	});
 }
 
