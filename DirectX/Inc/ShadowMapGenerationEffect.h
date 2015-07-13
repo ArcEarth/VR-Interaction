@@ -18,7 +18,8 @@ namespace DirectX
 		};
 
 		void SetShadowMap(ID3D11DepthStencilView* pShaodwMap, ID3D11RenderTargetView* pRTV = NULL);
-		void XM_CALLCONV SetShadowFillMode(_In_ ShadowFillMode mode, _In_opt_ FXMVECTOR color = Colors::Black);
+		void XM_CALLCONV SetShadowFillMode(_In_ ShadowFillMode mode);
+		void XM_CALLCONV SetShadowColor(FXMVECTOR color = Colors::Black);
 
 		// Use texture for alpha clipping
 		void SetAlphaDiscardThreshold(float clipThreshold);

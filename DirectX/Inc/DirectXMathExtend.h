@@ -1298,6 +1298,18 @@ namespace DirectX
 			return M;
 		}
 
+		RotationTransform() = default;
+
+		RotationTransform(const Quaternion& q)
+			: Rotation(q)
+		{
+		}
+
+		operator XMVECTOR() const
+		{
+			return Rotation.LoadA();
+		}
+
 		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
 		{
 			XMVECTOR scl, rot, tra;
@@ -1316,6 +1328,11 @@ namespace DirectX
 		{
 			XMMATRIX M = XMMatrixTranslationFromVector(Translation.LoadA());
 			return M;
+		}
+
+		operator XMVECTOR() const
+		{
+			return Translation.LoadA();
 		}
 
 		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
@@ -1338,6 +1355,11 @@ namespace DirectX
 			return M;
 		}
 
+		operator XMVECTOR() const
+		{
+			return Scale.LoadA();
+		}
+
 		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX transform)
 		{
 			XMVECTOR scl, rot, tra;
@@ -1346,8 +1368,8 @@ namespace DirectX
 		}
 	};
 
-	// Composition of Translation and Rotation
 	XM_ALIGNATTR
+	// Composition of Translation and Rotation
 	struct RigidTransform : public DirectX::AlignedNew<XMVECTOR>
 	{
 	public:
@@ -1387,10 +1409,40 @@ namespace DirectX
 			return *this;
 		}
 
+		// Rigid * Rigid
 		template <>
-		RigidTransform& operator *=(const RigidTransform& rigid)
+		RigidTransform& operator *=(const RigidTransform& global)
 		{
-			return *this;
+			auto& local = *this;
+			XMVECTOR ParQ = global.Rotation.LoadA();
+			XMVECTOR Q = XMQuaternionMultiply(local.Rotation.LoadA(), ParQ);
+			this->Rotation.StoreA(Q);
+
+			XMVECTOR V = local.Translation.LoadA();
+			V = XMVector3Rotate(V, ParQ);
+			V = XMVectorAdd(V, global.Translation.LoadA());
+
+			this->Translation.StoreA(V);
+		}
+
+		template <>
+		RigidTransform& operator *=(const Quaternion& rot)
+		{
+			auto& local = *this;
+			XMVECTOR ParQ = rot.Load();
+			XMVECTOR Q = XMQuaternionMultiply(local.Rotation.LoadA(), ParQ);
+			this->Rotation.StoreA(Q);
+
+			XMVECTOR V = local.Translation.LoadA();
+			V = XMVector3Rotate(V, ParQ);
+
+			this->Translation.StoreA(V);
+		}
+
+		template <>
+		RigidTransform& operator *=(const Vector3& trans)
+		{
+			this->Translation += trans;
 		}
 
 		// Extract the Dual-Quaternion Representation of this rigid transform
@@ -1410,30 +1462,36 @@ namespace DirectX
 		}
 	};
 
-	// Composition of Translation/Rotation/Scale
 	XM_ALIGNATTR
-	struct AffineTransform : public RigidTransform
+	// (Scale*)-Rotation-Translation
+	//! SRT(RST) transform is not a 'Group' in term of MATRIX production
+	//! Thus, We define SRT * SRT -> (S0*S1)*R0*T0*R1*T1
+	//! A simple extension to rigid transform, but will apply well for uniform scaling
+	struct ScaledRigidTransform : protected RigidTransform
 	{
+		using RigidTransform::Rotation;
+		using RigidTransform::Translation;
+		using RigidTransform::Tw;
 		XM_ALIGNATTR
-			Vector3 Scale;
+		Vector3 Scale;
 		float Sw; // Padding
 
-		static AffineTransform Identity()
+		static ScaledRigidTransform Identity()
 		{
-			return AffineTransform();
+			return ScaledRigidTransform();
 		}
 
 
-		AffineTransform()
+		ScaledRigidTransform()
 			: Scale(1.0f)
 		{}
 
-		inline explicit AffineTransform(CXMMATRIX transform)
+		inline explicit ScaledRigidTransform(CXMMATRIX transform)
 		{
 			SetFromTransformMatrix(transform);
 		}
 
-		inline explicit AffineTransform(const RigidTransform &rigid)
+		inline explicit ScaledRigidTransform(const RigidTransform &rigid)
 			: RigidTransform(rigid), Scale(1.0f)
 		{
 		}
@@ -1449,10 +1507,10 @@ namespace DirectX
 
 		inline void Inverse();
 
-		inline AffineTransform Inversed() const;
+		inline ScaledRigidTransform Inversed() const;
 
 		template <typename _TTransform>
-		AffineTransform& operator *=(const _TTransform& transform)
+		ScaledRigidTransform& operator *=(const _TTransform& transform)
 		{
 			XMMATRIX mat = TransformMatrix();
 			XMMATRIX mat2 = transform.TransformMatrix();
@@ -1461,15 +1519,94 @@ namespace DirectX
 			return *this;
 		}
 
+		// SRT * SRT -> (S0*S1)*R0*T0*R1*T1
+		// caculate the transform of Local transform 'this' conacting with Global transform 'rhs'
 		template <>
-		AffineTransform& operator *=(const AffineTransform& affine)
+		ScaledRigidTransform& operator *=(const ScaledRigidTransform& global)
 		{
+			auto& local = *this;
+			XMVECTOR ParQ = global.Rotation.LoadA();
+			XMVECTOR Q = XMQuaternionMultiply(local.Rotation.LoadA(), ParQ);
+			XMVECTOR ParS = global.Scale.LoadA();
+			XMVECTOR S = ParS*local.Scale.LoadA();
+			this->Rotation.StoreA(Q);
+			this->Scale.StoreA(S);
+
+			XMVECTOR V = local.Translation.LoadA();
+			V *= ParS;
+			V = XMVector3Rotate(V, ParQ);
+			V = XMVectorAdd(V, global.Translation.LoadA());
+
+			this->Translation.StoreA(V);
 			return *this;
 		}
 
 		template <>
-		AffineTransform& operator *=(const RigidTransform& rigid)
+		ScaledRigidTransform& operator *=(const ScaleTransform& global)
 		{
+			auto& local = *this;
+			XMVECTOR ParS = global.Scale.LoadA();
+			XMVECTOR S = ParS * local.Scale.LoadA();
+			this->Scale.StoreA(S);
+
+			XMVECTOR V = local.Translation.LoadA();
+			V *= ParS;
+			this->Translation.StoreA(V);
+			return *this;
+		}
+
+
+		// ScaledRigid * Rigid
+		template <>
+		ScaledRigidTransform& operator *=(const RigidTransform& global)
+		{
+			auto& local = *this;
+			XMVECTOR ParQ = global.Rotation.LoadA();
+			XMVECTOR Q = XMQuaternionMultiply(local.Rotation.LoadA(), ParQ);
+			this->Rotation.StoreA(Q);
+
+			XMVECTOR V = local.Translation.LoadA();
+			V = XMVector3Rotate(V, ParQ);
+			V = XMVectorAdd(V, global.Translation.LoadA());
+
+			this->Translation.StoreA(V);
+			return *this;
+		}
+
+		template <>
+		ScaledRigidTransform& operator *=(const Quaternion& globalRot)
+		{
+			auto& local = *this;
+			XMVECTOR ParQ = globalRot.Load();
+			XMVECTOR Q = XMQuaternionMultiply(local.Rotation.LoadA(), ParQ);
+			this->Rotation.StoreA(Q);
+
+			XMVECTOR V = local.Translation.LoadA();
+			V = XMVector3Rotate(V, ParQ);
+
+			this->Translation.StoreA(V);
+			return *this;
+		}
+
+		template <>
+		ScaledRigidTransform& operator *=(const RotationTransform& global)
+		{
+			auto& local = *this;
+			XMVECTOR ParQ = global.Rotation.LoadA();
+			XMVECTOR Q = XMQuaternionMultiply(local.Rotation.LoadA(), ParQ);
+			this->Rotation.StoreA(Q);
+
+			XMVECTOR V = local.Translation.LoadA();
+			V = XMVector3Rotate(V, ParQ);
+
+			this->Translation.StoreA(V);
+			return *this;
+		}
+
+		template <>
+		ScaledRigidTransform& operator *=(const TranslationTransform& global)
+		{
+			this->Translation += global.Translation;
 			return *this;
 		}
 

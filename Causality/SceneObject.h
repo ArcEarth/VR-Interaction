@@ -5,6 +5,7 @@
 #include "Object.h"
 #include "RenderContext.h"
 #include "Interactive.h"
+#include <HierarchicalTransform.h>
 
 namespace Causality
 {
@@ -45,6 +46,7 @@ namespace Causality
 			Reflective = 1 << Reflective,
 			Refrective = 1 << Refrective,
 			LightSource = 1 << LightSource,
+			BloomEffectSource = 1 << 8 | 1 << AcceptCustomizeEffects,
 			AcceptCustomizeEffects = 1 << AcceptCustomizeEffects;
 	};
 
@@ -75,19 +77,20 @@ namespace Causality
 		bool IsBlooming;
 	};
 
-	struct ProblistiscAffineTransform : public DirectX::AffineTransform
+	struct ProblistiscAffineTransform : public DirectX::ScaledRigidTransform
 	{
-		using DirectX::AffineTransform::AffineTransform;
+		using DirectX::ScaledRigidTransform::ScaledRigidTransform;
 		float Probability;
 	};
 
 	typedef std::vector<ProblistiscAffineTransform> SuperPosition;
 
 	// Basic class for all object, camera, entity, or light
-	class SceneObject : public tree_node<SceneObject>, public Object, public DirectX::BasicTransform
+	class SceneObject : public Object, public tree_node<SceneObject>, virtual public DirectX::IRigid
 	{
 	public:
 		typedef tree_node<SceneObject> tree_base_type;
+		typedef DirectX::ScaledRigidTransform TransformType;
 
 		virtual ~SceneObject() override;
 
@@ -105,6 +108,18 @@ namespace Causality
 			auto node = parent();
 			while (node && !node->Is<T>())
 				node = node->parent();
+			if (node)
+				return node->As<T>();
+			else
+				return nullptr;
+		}
+
+		template <typename T>
+		T* FirstChildOfType()
+		{
+			auto node = first_child();
+			while (node && !node->Is<T>())
+				node = node->next_sibling();
 			if (node)
 				return node->As<T>();
 			else
@@ -129,14 +144,28 @@ namespace Causality
 		bool								IsStatic() const { return m_IsStatic; }
 
 		bool								IsEnabled() const { return m_IsEnabled; }
-		bool								SetEnabled(bool enabled = true) { m_IsEnabled = enabled; }
+		void								SetEnabled(bool enabled = true) { m_IsEnabled = enabled; }
 
+		// Hierachical Transform Management
 		DirectX::XMMATRIX					GlobalTransformMatrix() const;
+
+		void XM_CALLCONV					Move(DirectX::FXMVECTOR p);
+		void XM_CALLCONV					Rotate(DirectX::FXMVECTOR q);
+
+		virtual Vector3						GetPosition() const override;
+		virtual Quaternion                  GetOrientation() const override;
+		virtual Vector3                     GetScale() const override;
 
 		virtual void						SetPosition(const Vector3 &p) override;
 		virtual void                        SetOrientation(const Quaternion &q) override;
 		virtual void                        SetScale(const Vector3 & s) override;
-		void								SetMatrixDirtyFlag() { m_GlobalTransformDirty = true; }
+
+		void								SetLocalTransform(const TransformType& lcl);
+		const TransformType&				GetGlobalTransform() const;
+	protected:
+		void								SetTransformDirty();
+		void								UpdateTransformsParentWard() const;
+		void								UpdateTransformsChildWard();
 
 	public:
 		string								Name;
@@ -144,10 +173,11 @@ namespace Causality
 		Scene								*Scene;
 
 	protected:
-		Matrix4x4							m_GlobalTransform;
-		bool								m_GlobalTransformDirty;
-		bool								m_IsStatic;
-		bool								m_IsEnabled;
+		mutable DirectX::HierachicalTransform m_Transform;
+		mutable bool						  m_TransformDirty;
+		bool								  m_IsStatic;
+		bool								  m_IsEnabled;
+
 	};
 
 	// Scene object acts like entities for render
@@ -201,6 +231,29 @@ namespace Causality
 		DirectX::Scene::ISkinningModel*				m_pSkinModel;
 
 		//std::shared_ptr<Bullet::CollisionShape>		m_CollisionShape;
+	};
+
+	class GlowingBorder : virtual public SceneObject, virtual public IRenderable
+	{
+	public:
+		GlowingBorder();
+
+		GlowingBorder(const DirectX::Color & color);
+
+		// Inherited via IRenderable
+		virtual bool IsVisible(const DirectX::BoundingGeometry& viewFrustum) const override;
+		virtual RenderFlags GetRenderFlags() const override;
+		virtual void Render(RenderContext & pContext, DirectX::IEffect* pEffect = nullptr) override;
+		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
+
+		DirectX::XMVECTOR Color() const { return m_Color; }
+		void XM_CALLCONV SetColor(DirectX::FXMVECTOR color) { m_Color = color; }
+
+		float Radius() const { return m_Radius; }
+		void SetRadius(float value) { m_Radius = value; }
+	private:
+		float		   m_Radius;
+		DirectX::Color m_Color;
 	};
 
 	class CoordinateAxis : virtual public SceneObject, virtual public IRenderable

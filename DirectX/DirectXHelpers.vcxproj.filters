@@ -108,6 +108,9 @@
     <ClInclude Include="Inc\PostProcessingEffect.h">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="Inc\HierarchicalTransform.h">
+      <Filter>Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Include">
@@ -137,6 +140,15 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="Src\Shaders\ShadowMapEffectCBuffer.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Src\Shaders\BlurEffect.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Src\Shaders\QuadVertexShader.hlsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Src\Shaders\Common.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

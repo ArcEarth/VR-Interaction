@@ -39,6 +39,7 @@ namespace DirectX
 		virtual void XM_CALLCONV SetLightSpecularColor(int whichLight, FXMVECTOR value) {};
 
 		// Methods need for IEffectLightsShadow
+		virtual void __cdecl SetScreenSpaceLightsShadowMap(ID3D11ShaderResourceView* pSharpShadow, ID3D11ShaderResourceView* pSoftShadow) = 0;
 		virtual void __cdecl SetLightEnabled(int whichLight, bool value) override = 0;
 		virtual void __cdecl SetLightShadowMapBias(int whichLight, float bias) = 0;
 		virtual void __cdecl SetLightShadowMap(int whichLight, ID3D11ShaderResourceView* pTexture) = 0;

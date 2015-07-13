@@ -1,3 +1,4 @@
+#include "..\Inc\ShadowMapGenerationEffect.h"
 #include "pch_directX.h"
 
 #include <ShadowMapGenerationEffect.h>
@@ -77,7 +78,7 @@ public:
 			perm += 8;
 		return perm;
 	}
-	   
+
 	void Apply(ID3D11DeviceContext* deviceContext)
 	{
 		// Compute derived parameter values.
@@ -86,6 +87,8 @@ public:
 		// Set the render targets if applicatable
 		if (pDepthMap != nullptr || pRenderTargetView != nullptr)
 		{
+			ID3D11ShaderResourceView* pSrvs[] = {NULL, NULL, NULL, NULL, NULL, NULL};
+			deviceContext->PSSetShaderResources(0, sizeof(pSrvs), pSrvs);
 			assert(fillMode != SolidColorFill && pRenderTargetView != nullptr);
 			ID3D11RenderTargetView* rtvs[] = { pRenderTargetView };
 			deviceContext->OMSetRenderTargets(1, rtvs, pDepthMap);
@@ -93,6 +96,7 @@ public:
 
 		ApplyShaders(deviceContext, GetCurrentShaderPermutation());
 		auto pSampler = commonStates.PointWrap();
+		deviceContext->OMSetBlendState(commonStates.Opaque(), g_XMOne.f, -1);
 		deviceContext->PSSetSamplers(0, 1, &pSampler);
 	}
 };
@@ -145,7 +149,7 @@ const ShaderBytecode EffectBase<ShadowMapGenerationEffectTraits>::VertexShaderBy
 
 const int EffectBase<ShadowMapGenerationEffectTraits>::VertexShaderIndices[] =
 {
-	0, 
+	0,
 	1,
 	2,
 	3,
@@ -160,16 +164,16 @@ const int EffectBase<ShadowMapGenerationEffectTraits>::VertexShaderIndices[] =
 	4,
 	5,
 	6,
-	7, 
+	7,
 };
 
 
 const ShaderBytecode EffectBase<ShadowMapGenerationEffectTraits>::PixelShaderBytecode[] =
 {
 	MakeShaderByteCode(ShadowMapGen_PS_DepthNoTex),
-	MakeShaderByteCode(ShadowMapGen_PS_DepthTex), 
+	MakeShaderByteCode(ShadowMapGen_PS_DepthTex),
 	MakeShaderByteCode(ShadowMapGen_PS_ColorNoTex),
-	MakeShaderByteCode(ShadowMapGen_PS_ColorTex), 
+	MakeShaderByteCode(ShadowMapGen_PS_ColorTex),
 };
 
 
@@ -209,14 +213,15 @@ void ShadowMapGenerationEffect::SetShadowMap(ID3D11DepthStencilView * pShaodwMap
 	pImpl->pDepthMap = pShaodwMap;
 }
 
-void XM_CALLCONV DirectX::ShadowMapGenerationEffect::SetShadowFillMode(ShadowFillMode mode, FXMVECTOR color)
+void XM_CALLCONV DirectX::ShadowMapGenerationEffect::SetShadowFillMode(ShadowFillMode mode)
 {
 	pImpl->fillMode = mode;
-	if (mode == SolidColorFill)
-	{
-		pImpl->constants.ShadowColor = color;
-		pImpl->dirtyFlags |= EffectDirtyFlags::ConstantBuffer;
-	}
+}
+
+void XM_CALLCONV DirectX::ShadowMapGenerationEffect::SetShadowColor(FXMVECTOR color)
+{
+	pImpl->constants.ShadowColor = color;
+	pImpl->dirtyFlags |= EffectDirtyFlags::ConstantBuffer;
 }
 
 void ShadowMapGenerationEffect::SetAlphaDiscardThreshold(float clipThreshold)

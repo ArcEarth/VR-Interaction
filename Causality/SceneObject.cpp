@@ -18,40 +18,152 @@ Causality::SceneObject::~SceneObject()
 Causality::SceneObject::SceneObject() {
 	m_IsEnabled = true;
 	m_IsStatic = false;
+	m_TransformDirty = false;
 }
 
-void Causality::SceneObject::Update(time_seconds const & time_delta) {}
+void Causality::SceneObject::Update(time_seconds const & time_delta) {
+	UpdateTransformsChildWard();
+}
 
 DirectX::XMMATRIX SceneObject::GlobalTransformMatrix() const
 {
-	if (parent() != nullptr)
+	return this->m_Transform.GlobalTransform().TransformMatrix();
+	//if (parent() != nullptr)
+	//{
+	//	DirectX::XMMATRIX mat = parent()->GetPosition();
+	//	mat *= TransformMatrix();
+	//	return mat;
+	//}
+	//else
+	//{
+	//	return TransformMatrix();
+	//}
+}
+
+void XM_CALLCONV Causality::SceneObject::Move(FXMVECTOR p)
+{
+	SetPosition((XMVECTOR)GetPosition() + XMVector3Rotate(p, GetOrientation()));
+}
+
+void XM_CALLCONV Causality::SceneObject::Rotate(FXMVECTOR q)
+{
+	SetOrientation(XMQuaternionMultiply(q, GetOrientation()));
+}
+
+void Causality::SceneObject::SetTransformDirty()
+{
+	if (!m_TransformDirty)
 	{
-		DirectX::XMMATRIX mat = parent()->GlobalTransformMatrix();
-		mat *= TransformMatrix();
-		return mat;
+		m_TransformDirty = true;
+		for (auto& child : children())
+		{
+			child.SetTransformDirty();
+		}
 	}
-	else
-	{
-		return TransformMatrix();
-	}
+}
+
+Vector3 Causality::SceneObject::GetPosition() const {
+	if (m_TransformDirty)
+		UpdateTransformsParentWard();
+	return m_Transform.GblTranslation;
+}
+
+Quaternion Causality::SceneObject::GetOrientation() const {
+	return m_Transform.GblRotation;
+}
+
+Vector3 Causality::SceneObject::GetScale() const {
+	return m_Transform.GblScaling;
 }
 
 void SceneObject::SetPosition(const Vector3 & p)
 {
-	m_GlobalTransformDirty = true;
-	AffineTransform::Translation = p;
+	if (!parent())
+	{
+		m_Transform.LclTranslation = m_Transform.GblTranslation = p;
+		m_TransformDirty = false;
+	}
+	else
+	{
+		XMVECTOR refQ = parent()->GetOrientation(); // parent global orientation
+		XMVECTOR V = parent()->GetPosition();
+		V = p.Load() - V;
+		refQ = XMQuaternionConjugate(refQ);
+		V = XMVector3Rotate(V, refQ); // V *= Inverse(ref.Orientation)
+		m_Transform.LclTranslation = V;
+	}
+	SetTransformDirty();
 }
 
 void SceneObject::SetOrientation(const Quaternion & q)
 {
-	m_GlobalTransformDirty = true;
-	AffineTransform::Rotation = q;
+	if (!parent())
+	{
+		m_Transform.LclRotation = m_Transform.GblRotation = q;
+		m_TransformDirty = false;
+	}
+	else
+	{
+		XMVECTOR refQ = parent()->GetOrientation(); // parent global orientation
+		refQ = XMQuaternionConjugate(refQ);
+		m_Transform.LclRotation = XMQuaternionMultiply(q, refQ);
+	}
+	SetTransformDirty();
 }
 
 void SceneObject::SetScale(const Vector3 & s)
 {
-	m_GlobalTransformDirty = true;
-	AffineTransform::Scale = s;
+	if (!parent())
+	{
+		m_Transform.LclScaling = m_Transform.GblScaling = s;
+	}
+	else
+	{
+		XMVECTOR refS = parent()->GetScale();
+		m_Transform.LclScaling = s.Load() / refS;
+	}
+	SetTransformDirty();
+}
+
+void Causality::SceneObject::SetLocalTransform(const DirectX::ScaledRigidTransform & lcl)
+{
+	m_Transform.LocalTransform() = lcl;
+	SetTransformDirty();
+}
+
+const DirectX::ScaledRigidTransform & Causality::SceneObject::GetGlobalTransform() const
+{
+	if (m_TransformDirty)
+		UpdateTransformsParentWard();
+	return m_Transform.GlobalTransform();
+}
+
+void Causality::SceneObject::UpdateTransformsParentWard() const
+{
+	if (!m_TransformDirty) return;
+	const SceneObject *pObj = parent();
+
+	if (pObj)
+	{
+		if (pObj->m_TransformDirty)
+			pObj->UpdateTransformsParentWard();
+		m_Transform.UpdateGlobalTransform(pObj->m_Transform);
+	}
+	else
+		m_Transform.GlobalTransform() = m_Transform.LocalTransform();
+	m_TransformDirty = false;
+}
+
+void Causality::SceneObject::UpdateTransformsChildWard()
+{
+	if (m_TransformDirty)
+	{
+		UpdateTransformsParentWard();
+		for (auto& child : children())
+		{
+			child.UpdateTransformsChildWard();
+		}
+	}
 }
 
 DirectX::Scene::IModelNode * VisualObject::RenderModel(int LoD)
@@ -128,7 +240,7 @@ void KeyboardMouseFirstPersonControl::SetTarget(IRigid * pTarget)
 void KeyboardMouseFirstPersonControl::Update(time_seconds const& time_delta)
 {
 	using namespace DirectX;
-	if (m_pTarget)
+	if (m_pTarget && CameraVeclocity.LengthSquared() > 0.01f)
 	{
 		XMVECTOR disp = XMVector3Normalize(CameraVeclocity);
 		disp = XMVector3Rotate(disp, m_pTarget->GetOrientation());
@@ -275,4 +387,44 @@ void XM_CALLCONV Causality::CoordinateAxis::UpdateViewMatrix(DirectX::FXMMATRIX 
 RenderFlags Causality::CoordinateAxis::GetRenderFlags() const
 {
 	return RenderFlags::SpecialEffects;
+}
+
+Causality::GlowingBorder::GlowingBorder()
+{
+	m_Color = Colors::Red.v;
+}
+
+Causality::GlowingBorder::GlowingBorder(const DirectX::Color & color)
+	: m_Color(color)
+{
+
+}
+
+bool Causality::GlowingBorder::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
+{
+	if (!IsEnabled()) return false;
+	auto pVisual = dynamic_cast<const VisualObject*>(parent());
+	if (pVisual)
+	{
+		return pVisual->IsVisible(viewFrustum);
+	}
+}
+
+RenderFlags Causality::GlowingBorder::GetRenderFlags() const
+{
+	return RenderFlags::SpecialEffects | RenderFlags::BloomEffectSource | RenderFlags::AcceptCustomizeEffects;
+}
+
+void Causality::GlowingBorder::Render(RenderContext & pContext, DirectX::IEffect * pEffect)
+{
+	auto pVisual = dynamic_cast<VisualObject*>(parent());
+	if (pVisual)
+	{
+		auto pModel = pVisual->RenderModel();
+		pModel->Render(pContext,pVisual->GlobalTransformMatrix(), pEffect); // Render parent model with customized effect
+	}
+}
+
+void XM_CALLCONV Causality::GlowingBorder::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
+{
 }

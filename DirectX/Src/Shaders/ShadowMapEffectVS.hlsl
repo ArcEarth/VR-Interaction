@@ -160,7 +160,7 @@ PSInputOneLightTex VS_OneLightFourBoneTex(VSInputTexWeights vin)
 	return vout;
 }
 
-PSInputScreenSpaceTex VS_ScreenSpaceNoBoneTex(VSInputTexWeights vin)
+PSInputScreenSpaceTex VS_ScreenSpaceNoBoneTex(VSInputTex vin)
 {
 	PSInputScreenSpaceTex vout;
 
@@ -218,7 +218,7 @@ PSInputScreenSpaceTex VS_ScreenSpaceFourBoneTex(VSInputTexWeights vin)
 	return vout;
 }
 
-PSInputScreenSpaceNoTex VS_ScreenSpaceNoBoneNoTex(VSInputNoTexWeights vin)
+PSInputScreenSpaceNoTex VS_ScreenSpaceNoBoneNoTex(VSInputNoTex vin)
 {
 	PSInputScreenSpaceNoTex vout;
 
@@ -267,3 +267,56 @@ PSInputScreenSpaceNoTex VS_ScreenSpaceFourBoneNoTex(VSInputNoTexWeights vin)
 
 	return vout;
 }
+
+PSInputBinaryOneLightNoTex VS_BinaryOneLightNoBoneNoTex(VSInputNoTex vin)
+{
+	PSInputBinaryOneLightNoTex vout;
+
+	SetPosition;
+
+	vout.lightUv[0] = GetLightUV(posWorld, LightViewProjection[0]);
+
+	return vout;
+}
+
+PSInputBinaryOneLightTex VS_BinaryOneLightNoBoneTex(VSInputTex vin)
+{
+	PSInputBinaryOneLightTex vout;
+
+	SetPosition;
+
+	SetTextureCoord;
+
+	vout.lightUv[0] = GetLightUV(posWorld, LightViewProjection[0]);
+
+	return vout;
+}
+
+PSInputBinaryOneLightNoTex VS_BinaryOneLightFourBoneNoTex(VSInputNoTexWeights vin)
+{
+	PSInputBinaryOneLightNoTex vout;
+
+	SkinVertexNoTex(vin, 4);
+
+	SetPosition;
+
+	vout.lightUv[0] = GetLightUV(posWorld, LightViewProjection[0]);
+
+	return vout;
+}
+
+PSInputBinaryOneLightTex VS_BinaryOneLightFourBoneTex(VSInputTexWeights vin)
+{
+	PSInputBinaryOneLightTex vout;
+
+	SkinVertexTex(vin, 4);
+
+	SetPosition;
+
+	SetTextureCoord;
+
+	vout.lightUv[0] = GetLightUV(posWorld, LightViewProjection[0]);
+
+	return vout;
+}
+

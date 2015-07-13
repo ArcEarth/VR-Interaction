@@ -28,9 +28,9 @@ struct ShadowMapEffectTraits
 {
 	typedef ShadowMapEffectCBuffer ConstantBufferType;
 
-	static const int VertexShaderCount = 4;
-	static const int PixelShaderCount = 2;
-	static const int ShaderPermutationCount = 8;
+	static const int VertexShaderCount = 16;  // 4 + 4 + 8
+	static const int PixelShaderCount = 6;	// 2 + 2 + 2
+	static const int ShaderPermutationCount = 20; // 8 + 8 + 4
 
 	static const int TexturePermCount = 2;
 	static const int LightPermCount = 1;
@@ -60,6 +60,27 @@ namespace
 
 #include "Shaders/Windows/ShadowMapEffectPS_PS_OneLightNoTex.inc"
 #include "Shaders/Windows/ShadowMapEffectPS_PS_OneLightTex.inc"
+
+#include "Shaders/Windows/ShadowMapEffectVS_VS_BinaryOneLightNoBoneNoTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_BinaryOneLightNoBoneTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_BinaryOneLightFourBoneNoTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_BinaryOneLightFourBoneTex.inc"
+
+#include "Shaders/Windows/ShadowMapEffectPS_PS_BinaryOneLightNoTex.inc"
+#include "Shaders/Windows/ShadowMapEffectPS_PS_BinaryOneLightTex.inc"
+
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceNoBoneTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceOneBoneTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceTwoBoneTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceFourBoneTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceNoBoneNoTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceOneBoneNoTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceTwoBoneNoTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceFourBoneNoTex.inc"
+
+#include "Shaders/Windows/ShadowMapEffectPS_PS_ScreenSpaceNoTex.inc"
+#include "Shaders/Windows/ShadowMapEffectPS_PS_ScreenSpaceTex.inc"
+
 #endif
 }
 
@@ -76,12 +97,33 @@ inline ShaderBytecode MakeShaderByteCode(const BYTE(&bytecode)[Size])
 }
 
 
+//const ShaderBytecode EffectBaseType::VertexShaderBytecode[] =
+//{
+//	MakeShaderByteCode(ShadowMapEffectVS_VS_OneLightNoBoneNoTex),
+//	MakeShaderByteCode(ShadowMapEffectVS_VS_OneLightNoBoneTex),
+//	MakeShaderByteCode(ShadowMapEffectVS_VS_OneLightFourBoneNoTex),
+//	MakeShaderByteCode(ShadowMapEffectVS_VS_OneLightFourBoneTex),
+//};
 const ShaderBytecode EffectBaseType::VertexShaderBytecode[] =
 {
 	MakeShaderByteCode(ShadowMapEffectVS_VS_OneLightNoBoneNoTex),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_OneLightNoBoneTex),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_OneLightFourBoneNoTex),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_OneLightFourBoneTex),
+
+	MakeShaderByteCode(ShadowMapEffectVS_VS_BinaryOneLightNoBoneNoTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_BinaryOneLightNoBoneTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_BinaryOneLightFourBoneNoTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_BinaryOneLightFourBoneTex),
+
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceNoBoneNoTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceNoBoneTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceOneBoneNoTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceOneBoneTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceTwoBoneNoTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceTwoBoneTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceFourBoneNoTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceFourBoneTex),
 };
 
 
@@ -91,13 +133,38 @@ const int EffectBaseType::VertexShaderIndices[] =
 	1,  // NoBone x OneLight x Tex
 	2,	// FourBone x OneLight x NoTex
 	3,	// FourBone x OneLight x Tex
+
+	4,	// NoBone x OneLight x NoTex
+	5,  // NoBone x OneLight x Tex
+	6,	// FourBone x OneLight x NoTex
+	7,	// FourBone x OneLight x Tex
+
+	8,	// NoBone x NoTex
+	9,  // NoBone x Tex
+	10,	// OneBone x NoTex
+	11,	// OneBone x Tex
+	12,	// TwoBone x NoTex
+	13,  // TwoBone x Tex
+	14,	// FourBone x OneLight x NoTex
+	15,	// FourBone x OneLight x Tex
 };
 
 
+//const ShaderBytecode EffectBaseType::PixelShaderBytecode[] =
+//{
+//	MakeShaderByteCode(ShadowMapEffectPS_PS_OneLightNoTex),
+//	MakeShaderByteCode(ShadowMapEffectPS_PS_OneLightTex),
+//};
 const ShaderBytecode EffectBaseType::PixelShaderBytecode[] =
 {
 	MakeShaderByteCode(ShadowMapEffectPS_PS_OneLightNoTex),
 	MakeShaderByteCode(ShadowMapEffectPS_PS_OneLightTex),
+
+	MakeShaderByteCode(ShadowMapEffectPS_PS_BinaryOneLightNoTex),
+	MakeShaderByteCode(ShadowMapEffectPS_PS_BinaryOneLightTex),
+
+	MakeShaderByteCode(ShadowMapEffectPS_PS_ScreenSpaceNoTex),
+	MakeShaderByteCode(ShadowMapEffectPS_PS_ScreenSpaceTex),
 };
 
 
@@ -107,6 +174,20 @@ const int EffectBaseType::PixelShaderIndices[] =
 	1,      // OneLight x Tex
 	0,      // OneLight x NoTex
 	1,      // OneLight x Tex
+
+	2,      // OneLight x NoTex
+	3,      // OneLight x Tex
+	2,      // OneLight x NoTex
+	3,      // OneLight x Tex
+
+	4,      // OneLight x NoTex
+	5,      // OneLight x Tex
+	4,      // OneLight x NoTex
+	5,      // OneLight x Tex
+	4,      // OneLight x NoTex
+	5,      // OneLight x Tex
+	4,      // OneLight x NoTex
+	5,      // OneLight x Tex
 };
 
 namespace DirectX
@@ -135,6 +216,7 @@ public:
 	typedef EffectTraitsType	Traits;
 	typedef EffectBaseType		Base;
 
+	ShadowMapEffectMode				mode;
 	CommonStates					commonStates;
 	BonesCBuffer					boneConstant;
 	ConstantBuffer<BonesCBuffer>	BoneTransforms;
@@ -145,6 +227,8 @@ public:
 	ID3D11ShaderResourceView*		pNormalTexture;
 	ID3D11ShaderResourceView*		pSpecularTexture;
 
+	ID3D11ShaderResourceView*		pScreenSpaceShadowMap;
+	ID3D11ShaderResourceView*		pScreenSpaceShadowMapSharp;
 	ID3D11ShaderResourceView*		pShadowMaps[MAX_LIGHTS];
 	ComPtr<ID3D11SamplerState>		pShadowMapSampler;
 
@@ -152,7 +236,9 @@ public:
 		: EffectBase(device),
 		BoneTransforms(device),
 		commonStates(device),
-		weightsPerVertex(0), lightsEnabled(1)
+		weightsPerVertex(0), lightsEnabled(1),
+		mode(LightSpaceShadowRender),
+		pNormalTexture(NULL), pSpecularTexture(NULL), pScreenSpaceShadowMap(NULL), pScreenSpaceShadowMapSharp(NULL)
 	{
 		static_assert(_countof(Base::VertexShaderIndices) == Traits::ShaderPermutationCount, "array/max mismatch");
 		static_assert(_countof(Base::VertexShaderBytecode) == Traits::VertexShaderCount, "array/max mismatch");
@@ -160,6 +246,8 @@ public:
 		static_assert(_countof(Base::PixelShaderIndices) == Traits::ShaderPermutationCount, "array/max mismatch");
 
 		XMMATRIX id = XMMatrixIdentity();
+
+		ZeroMemory(pShadowMaps, sizeof(pShadowMaps));
 
 		for (size_t i = 0; i < MaxBones; ++i)
 		{
@@ -174,17 +262,31 @@ public:
 	int GetCurrentShaderPermutation() const
 	{
 		static const int bonesConv[] = { 0, -1 ,-1 ,-1, 1 };
+		static const int bonesConv2[] = { 0, 1 , 2 ,-1, 3 };
 
-		int perm = 0;
+		int perm = 4 * mode;
+		switch (mode)
+		{
+		case DirectX::ShadowMapEffect::LightSpaceShadowRender:
+		case DirectX::ShadowMapEffect::ScreenSpaceShadowGeneration:
 
-		perm += bonesConv[weightsPerVertex] * Traits::BonesPermStride;
+			perm += bonesConv[weightsPerVertex] * Traits::BonesPermStride;
 
-		perm += (lightsEnabled - 1) * Traits::LightPermStride;
+			perm += (lightsEnabled - 1) * Traits::LightPermStride;
 
-		if (texture != nullptr)
-			perm += Traits::TexturePermStride;
+			if (texture != nullptr)
+				perm += Traits::TexturePermStride;
+			return perm;
 
-		return perm;
+		case DirectX::ShadowMapEffect::ScreenSpaceShadowRender:
+
+			perm += bonesConv2[weightsPerVertex] * 2; // Tex / NoTex
+
+			if (texture != nullptr) // material texture
+				perm += Traits::TexturePermStride;
+			return perm;
+		}
+
 	}
 
 	void UpdateEffectMatrices()
@@ -239,18 +341,24 @@ public:
 			pContext->VSSetConstantBuffers(1, 1, buffers);
 		}
 
-		if (lightsEnabled > 0)
+		ID3D11ShaderResourceView* pSrvs[6] = { texture.Get(),pNormalTexture,pShadowMaps[0],pShadowMaps[1],pShadowMaps[2],pShadowMaps[3] };
+
+		if (mode == ScreenSpaceShadowRender) // Use screen space shadow map
 		{
-			pContext->PSSetShaderResources(2, lightsEnabled, pShadowMaps);
-			pContext->PSSetSamplers(2, 1, pShadowMapSampler.GetAddressOf());
+			pSrvs[2] = pScreenSpaceShadowMap;
+			pSrvs[3] = pScreenSpaceShadowMapSharp;
+			pContext->OMSetBlendState(commonStates.AlphaBlend(), Colors::Black.f, -1);
+		}
+		else
+		{
+			pContext->OMSetBlendState(commonStates.Opaque(), Colors::Black.f, -1);
 		}
 
-		if (texture != nullptr)
-		{
-			pContext->PSSetShaderResources(0, 1, texture.GetAddressOf());
-		}
+		ID3D11SamplerState* pSamplers[] = { commonStates.AnisotropicClamp(), commonStates.AnisotropicClamp(), commonStates.AnisotropicClamp()};
+		pContext->PSSetSamplers(0, std::size(pSamplers), pSamplers);
+		//pContext->PSSetSamplers(2, 1, pShadowMapSampler.GetAddressOf());
+		pContext->PSSetShaderResources(0, 2 + lightsEnabled, pSrvs);
 
-		pContext->OMSetBlendState(commonStates.AlphaBlend(), Colors::Black.f, -1);
 	}
 };
 
@@ -263,6 +371,24 @@ ShadowMapEffect::~ShadowMapEffect()
 {
 }
 
+
+ShadowMapEffect::ShadowMapEffectMode ShadowMapEffect::GetEffectMode() const
+{
+	return pImpl->mode;
+}
+
+void DirectX::ShadowMapEffect::SetEffectMode(ShadowMapEffectMode mode)
+{
+	pImpl->mode = mode;
+}
+
+void ShadowMapEffect::SetScreenSpaceLightsShadowMap(ID3D11ShaderResourceView* pSharpShadow, ID3D11ShaderResourceView* pSoftShadow)
+{
+	pImpl->pScreenSpaceShadowMap = pSoftShadow;
+	pImpl->pScreenSpaceShadowMapSharp = pSharpShadow;
+	//pImpl->pShadowMaps[0] = pSoftShadow;
+	//pImpl->pShadowMaps[1] = pSharpShadow;
+}
 
 void ShadowMapEffect::Apply(ID3D11DeviceContext * deviceContext)
 {

@@ -36,22 +36,22 @@
     <grid name="root">
       <coordinate_axis/>
       <light name="sun_light" primary="false" color="#FFFFFFFF" position="0,5,0" focus="0,0,0" up="0,0,-1" wfov="4" hfov="4" aspect="1" perspective="false" drops_shadow="true" resolution="2048" />
-      <camera name="primary_camera" primary="true" background="#FFFFFFFF" position="0,0.5,2.5" focus="0,0,-1" up="0,1,0">
+      <shadow_camera name="primary_camera" primary="true" background="#FFFFFFFF" position="0,0.5,2.5" focus="0,0,-1" up="0,1,0">
         <first_person_keyboard_mouse_control />
-      </camera>
+      </shadow_camera>
 
       <object name="ground" position="-2.0,-0.021,-2.0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>
       <!--<object name="baseball_bat" position="-0,1.0,0.0" scale="0.1,0.1,0.1" mesh="{baseball_bat_mesh}"/>-->
       <!--<object name="horse_statue" position="-1,0,0" scale=".01f" mesh="{horse_mesh}"></object>-->
 
       <skydome name="sky" background="SkyBox\GrimmNight"/>
-      <player_controller name="player" position="0,1.0,0">
+      <player_controller name="player" position="0,0.0,0">
         <!-- 				<creature name="bunny" position="-1.0,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
 				<creature name="bunny2" position="-0.5,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
  -->
         <!--<creature name="bat" position="-1,0,0" scale ="0.1" behavier="{bat_behavier}" action="walk" mesh="{bat_mesh}"></creature>-->
-        <creature name="horse" position="-1,0,0" scale ="0.01" behavier="{horse_behavier}" action="walk" mesh="{horse_mesh}"></creature>
-        <creature name="spider" position="1,0,0" scale="0.0025" behavier="{spider_behavier}" action="walk" mesh="{spider_mesh}"></creature>
+        <creature name="horse" position="-1,0,0" scale ="0.01" behavier="{horse_behavier}" action="idle" mesh="{horse_mesh}"></creature>
+        <creature name="spider" position="1,0,0" scale="0.0025" behavier="{spider_behavier}" action="idle" mesh="{spider_mesh}"></creature>
         <!--<kinect_visualizer/>-->
       </player_controller>
     </grid>

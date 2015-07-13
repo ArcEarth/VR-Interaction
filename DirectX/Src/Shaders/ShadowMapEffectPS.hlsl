@@ -1,6 +1,7 @@
 Texture2D DiffuseTex : register(t0);
 Texture2D NormalTex : register(t1);
 Texture2D ShadowTex : register(t2);
+Texture2D ShadowTex2 : register(t3); //Unblured version of screen space shadow map
 
 SamplerState DiffuseSampler : register(s0);
 SamplerState NormalSampler : register(s1);
@@ -13,6 +14,8 @@ SamplerState ShadowSampler : register(s2);
 #include "ShadowMapEffectStructures.hlsli"
 
 static const float bias = 1e-4f;
+static const float spbias = 0.003f;
+
 //
 // lambert lighting function
 //
@@ -110,7 +113,11 @@ float4 PS_ScreenSpaceNoTex(PSInputScreenSpaceNoTex pixel) : SV_TARGET
 	float3 matDiffuse = MaterialDiffuse.rgb;
 	//float3 specular = 0;
 
-	float4 shadowAmount = ShadowTex.Sample(ShadowSampler, pixel.posUV);
+	//float2 pixeluv = pixel.pos.xy * float2(0.5f, -0.5f) + 0.5f;
+	//float4 shadowAmount = ShadowTex.Sample(ShadowSampler, pixel.posUV.xy);
+	float4 shadowAmount = ShadowTex.Load(pixel.pos);
+	shadowAmount = pixel.pos.z > shadowAmount.w - spbias ? shadowAmount : 1.0f;//ShadowTex2.Load(pixel.pos);
+
 	[unroll]
 	for (int i = 0; i < 1; i++)
 	{
@@ -131,7 +138,10 @@ float4 PS_ScreenSpaceTex(PSInputScreenSpaceTex pixel) : SV_TARGET
 	float3 diffuse = MaterialAmbient.rgb * AmbientLight.rgb * texDiffuse.rgb;
 	float3 matDiffuse = MaterialDiffuse.rgb * texDiffuse.rgb;
 
-	float4 shadowAmount = ShadowTex.Sample(ShadowSampler, pixel.posUV);
+	float4 shadowAmount = ShadowTex.Load(pixel.pos);
+	shadowAmount = pixel.pos.z > shadowAmount.w - spbias ? shadowAmount : 1.0f;// ShadowTex2.Load(pixel.pos);
+	//shadowAmount = abs(pixel.pos.z - shadowAmount.w) < spbias ? shadowAmount : 1.0f;
+
 	[unroll]
 	for (int i = 0; i < 1; i++)
 	{
@@ -144,26 +154,41 @@ float4 PS_ScreenSpaceTex(PSInputScreenSpaceTex pixel) : SV_TARGET
 }
 
 
-float PS_BinaryOneLightNoTex(PSInputBinaryOneLightNoTex pixel) : SV_TARGET
+float4 PS_BinaryOneLightNoTex(PSInputBinaryOneLightNoTex pixel) : SV_TARGET
 {
-	float amount;
+	float4 amount;
+	amount.w = pixel.pos.z;
 
-	float shadowDepth = ShadowTex.Sample(ShadowSampler, pixel.lightUv0.xy).r;
-	amount = (shadowDepth + bias > pixel.lightUv0.z) ? 1.0f : 0.0f;
+	[unroll]
+	for (int i = 0; i < 1; i++)
+	{
+		float shadowDepth = ShadowTex.Sample(ShadowSampler, pixel.lightUv[i].xy).r;
+		amount[i] = (shadowDepth + bias > pixel.lightUv[i].z) ? 1.0f : 0.0f;
+	}
+
+	clip(0.85 - amount.r);
 
 	return amount;
 }
 
-float PS_BinaryOneLightTex(PSInputBinaryOneLightTex pixel) : SV_TARGET
+float4 PS_BinaryOneLightTex(PSInputBinaryOneLightTex pixel) : SV_TARGET
 {
 	float4 texDiffuse = DiffuseTex.Sample(DiffuseSampler, pixel.uv);
 
-	clip(texDiffuse.a - 0.15f);
+	clip(texDiffuse.a - 0.15f); // Sample Alpha clip texture
+	float alpha = texDiffuse.a;
 
-	float amount;
+	float4 amount;
+	amount.w = pixel.pos.z;
 
-	float shadowDepth = ShadowTex.Sample(ShadowSampler, pixel.lightUv0.xy).r;
-	amount = (shadowDepth + bias > pixel.lightUv0.z) ? 1.0f : 0.0f;
+	[unroll]
+	for (int i = 0; i < 1; i++)
+	{
+		float shadowDepth = ShadowTex.Sample(ShadowSampler, pixel.lightUv[i].xy).r;
+		amount[i] = (shadowDepth + bias > pixel.lightUv[i].z) ? alpha : 0.0f;
+	}
+
+	clip(0.85 - amount.r);
 
 	return amount;
 }

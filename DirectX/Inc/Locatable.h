@@ -66,49 +66,6 @@ namespace DirectX
 		}
 	};
 
-	class BasicTransform : public AffineTransform, virtual public IRigid
-	{
-	public:
-		// Inherited via IRigid
-		virtual Vector3 GetPosition() const
-		{
-			return AffineTransform::Translation;
-		}
-		virtual void SetPosition(const Vector3 &p) override
-		{
-			AffineTransform::Translation = p;
-		}
-		virtual Quaternion GetOrientation() const override
-		{
-			return AffineTransform::Rotation;
-		}
-		virtual void SetOrientation(const Quaternion &q) override
-		{
-			AffineTransform::Rotation = q;
-		}
-		virtual Vector3 GetScale() const override
-		{
-			return AffineTransform::Scale;
-		}
-		virtual void SetScale(const Vector3 & s) override
-		{
-			AffineTransform::Scale = s;
-		}
-
-		XMVECTOR GetFoward() const
-		{
-			return XMVector3Rotate(g_XMNegIdentityR2.v, Rotation.LoadA());
-		}
-		XMVECTOR GetUpward() const
-		{
-			return XMVector3Rotate(g_XMIdentityR1.v, Rotation.LoadA());
-		}
-		XMVECTOR GetRightward() const
-		{
-			return XMVector3Rotate(g_XMIdentityR0.v, Rotation.LoadA());
-		}
-	};
-
 	// Interface for object with local coordinate
 	class ILocalMatrix abstract
 	{

@@ -1,7 +1,7 @@
 #pragma once
 #include "BCL.h"
 #include <memory>
-#include "Textures.h"
+#include <Textures.h>
 #include "DeviceResources.h"
 #include <exception>
 
@@ -68,7 +68,7 @@ namespace Causality
 			void SetView(EyesEnum eye);
 
 			DirectX::RenderTarget& ViewTarget(EyesEnum eye);
-			DirectX::RenderTargetTexture2D& ColorBuffer();
+			DirectX::RenderableTexture2D& ColorBuffer();
 			DirectX::DepthStencilBuffer& DepthStencilBuffer();
 
 			DirectX::XMMATRIX EyeProjection(EyesEnum eye) const;

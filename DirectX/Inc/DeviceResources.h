@@ -169,7 +169,7 @@ namespace DirectX
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView>	m_d3dDepthStencilView;
 		D3D11_VIEWPORT									m_screenViewport;
 
-		RenderTargetTexture2D							m_ColorBackBuffer;
+		RenderableTexture2D							m_ColorBackBuffer;
 		DepthStencilBuffer								m_DepthBuffer;
 		RenderTarget									m_BackBuffer;
 

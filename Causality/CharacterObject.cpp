@@ -73,6 +73,11 @@ void CharacterObject::Update(time_seconds const & time_delta)
 	}
 }
 
+RenderFlags Causality::CharacterObject::GetRenderFlags() const
+{
+	return RenderFlags::OpaqueObjects;
+}
+
 bool CharacterObject::IsVisible(const BoundingGeometry & viewFrustum) const
 {
 	return VisualObject::IsVisible(viewFrustum);
@@ -90,7 +95,7 @@ void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect
 		DirectX::XMVECTOR color = DirectX::Colors::Yellow.v;
 		color = DirectX::XMVectorSetW(color, Opticity());
 
-		auto trans = this->TransformMatrix();
+		auto trans = this->GlobalTransformMatrix();
 		DrawArmature(this->Armature(), frame, color, trans);
 	}
 

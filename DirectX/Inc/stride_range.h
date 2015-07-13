@@ -122,6 +122,7 @@ namespace std {
 }
 
 namespace stdx {
+	// a stride_range is a wrapper of a contious container, which expose a random access range interface 
 	template <class _Ty>
 	class stride_range
 	{
@@ -147,6 +148,11 @@ namespace stdx {
 
 		stride_range(pointer data, size_t stride, size_t count)
 			:data(data), stride(stride), stop(reinterpret_cast<pointer>(reinterpret_cast<char*>(data) + stride*count))
+		{}
+
+		template <class TContiniousContainer>
+		explicit stride_range(const TContiniousContainer& container)
+			: stride_range(container.data(),sizeof(container[0]), container.size())
 		{}
 
 		void reset(pointer data, size_t stride, size_t count)

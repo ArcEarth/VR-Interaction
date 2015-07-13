@@ -15,7 +15,8 @@ using namespace DirectX::Scene;
 using namespace std;
 
 void ParseLightObjectAttributes(Light *pLight, tinyxml2::XMLElement * node);
-void ParseCameraObjectAttributes(Camera *pCamera, tinyxml2::XMLElement * node);
+void ParseCameraObjectAttributes(SingleViewCamera *pCamera, tinyxml2::XMLElement * node);
+//void ParseShadowCameraObjectAttributes(SoftShadowCamera *pCamera, tinyxml2::XMLElement * node);
 void ParseVisualObjectAttributes(VisualObject* pObj, tinyxml2::XMLElement * node);
 void ParseChaacterObjectAttributes(CharacterObject *pCreature, tinyxml2::XMLElement * node);
 void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node);
@@ -366,6 +367,13 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 		ParseCameraObjectAttributes(pCamera, node);
 		pObj.reset(pCamera);
 	}
+	else if (!strcmp(node->Name(), "shadow_camera"))
+	{
+		auto pCamera = new SoftShadowCamera(scene.GetRenderDevice().Get(), scene.Canvas());
+		pCamera->Scene = &scene;
+		ParseCameraObjectAttributes(pCamera, node);
+		pObj.reset(pCamera);
+	}
 	else if (!strcmp(node->Name(), "light"))
 	{
 		auto pControl = CreateSceneObject<Light>(&scene);
@@ -466,7 +474,7 @@ void ParseChaacterObjectAttributes(CharacterObject* pCreature, tinyxml2::XMLElem
 		pCreature->StartAction(action);
 }
 
-void ParseCameraObjectAttributes(Camera *pCamera, tinyxml2::XMLElement * node)
+void ParseCameraObjectAttributes(SingleViewCamera *pCamera, tinyxml2::XMLElement * node)
 {
 	using namespace DirectX;
 	ParseSceneObjectAttributes(pCamera, node);
@@ -474,9 +482,10 @@ void ParseCameraObjectAttributes(Camera *pCamera, tinyxml2::XMLElement * node)
 	bool enable_stereo;
 	node->QueryBoolAttribute("enable_stereo", &enable_stereo);
 	float fov = 70, aspect = 1, hfov, wfov;
-	float _near = 0.1f, _far = 10.0f;
+	float _near = 0.5f, _far = 10.0f;
 	bool is_primary = false;
 	Vector3 focus = (XMVECTOR)pCamera->GetPosition() + XMVector3Rotate(Camera::Foward, pCamera->GetOrientation());
+	Vector3 up = g_XMIdentityR1.v;
 	Color color = Colors::White.v;
 	bool perspective = true;
 	GetAttribute(node, "background", color);
@@ -484,13 +493,16 @@ void ParseCameraObjectAttributes(Camera *pCamera, tinyxml2::XMLElement * node)
 	GetAttribute(node, "near", _near);
 	GetAttribute(node, "far", _far);
 	GetAttribute(node, "focus", focus);
+	GetAttribute(node, "up", up);
 	GetAttribute(node, "aspect", aspect);
 	GetAttribute(node, "primary", is_primary);
 	GetAttribute(node, "perspective", perspective);
 
-	pCamera->SetBackground(color);
+	auto pRenderControl = pCamera->GetViewRenderer(0, pCamera->ViewRendererCount() - 1);
+	auto pEffectRender = dynamic_cast<EffectRenderControl*>(pRenderControl);
+	//pEffectRender->SetBackground(color);
 
-	pCamera->FocusAt(focus, g_XMIdentityR1.v);
+	pCamera->FocusAt(focus, up);
 
 	if (perspective)
 	{
@@ -507,6 +519,22 @@ void ParseCameraObjectAttributes(Camera *pCamera, tinyxml2::XMLElement * node)
 	if (is_primary)
 	{
 		pScene->SetAsPrimaryCamera(pCamera);
+		auto& canvas = pScene->Canvas();
+		pCamera->SetAspectRatio((float)canvas.ColorBuffer().Width() / (float)canvas.ColorBuffer().Height());
+		// last renderer of the view
+		for (size_t i = 0; i < pCamera->ViewRendererCount(); i++)
+		{
+			auto pRenderControl = pCamera->GetViewRenderer(0, i);
+			auto pEffectRender = dynamic_cast<EffectRenderControl*>(pRenderControl);
+			if (pEffectRender->GetRenderTarget().ColorBuffer() == nullptr)
+			{
+				pEffectRender->SetRenderTarget(canvas);
+			}
+			//if (pEffectRender->GetOutput() == nullptr && pEffectRender->GetPostEffect() != nullptr)
+			//{
+			//	pEffectRender->SetPostEffectOutput(canvas.ColorBuffer());
+			//}
+		}
 	}
 
 	if (rtnode)
@@ -516,7 +544,7 @@ void ParseCameraObjectAttributes(Camera *pCamera, tinyxml2::XMLElement * node)
 		GetAttribute(rtnode, "width", width);
 		GetAttribute(rtnode, "height", height);
 		auto& device = pScene->Assets().GetRenderDevice();
-		pCamera->SetRenderTarget(RenderTarget(device, width, height));
+		pEffectRender->SetRenderTarget(RenderTarget(device, width, height));
 	}
 }
 

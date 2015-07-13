@@ -51,8 +51,12 @@ Texture2D::Texture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ u
 	_In_opt_ unsigned int multisamplesQuality
 	)
 {
+	if (format == DXGI_FORMAT_UNKNOWN) // Invaliad arg
+		return;
+
 	if (multisamplesCount > 1)
 		bindFlags &= ~D3D11_BIND_SHADER_RESOURCE; // Shader resources is not valiad for MSAA texture
+
 	D3D11_TEXTURE2D_DESC &TextureDesc = m_Description;
 	TextureDesc.Width = Width;
 	TextureDesc.Height = Height;
@@ -65,19 +69,24 @@ Texture2D::Texture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ u
 	TextureDesc.BindFlags = bindFlags;
 	TextureDesc.CPUAccessFlags = cpuAccessFlags;
 	TextureDesc.MiscFlags = miscFlags;
+	if (miscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE)
+		TextureDesc.ArraySize = 6;
 
 	HRESULT hr = pDevice->CreateTexture2D(&TextureDesc, NULL, &m_pTexture);
 	DirectX::ThrowIfFailed(hr);
 	hr = m_pTexture.As<ID3D11Resource>(&m_pResource);
 	DirectX::ThrowIfFailed(hr);
 
-	if ((bindFlags & D3D11_BIND_DEPTH_STENCIL) || !(bindFlags & D3D11_BIND_SHADER_RESOURCE) || !(format == DXGI_FORMAT_R32_TYPELESS))
+	if ((bindFlags & D3D11_BIND_DEPTH_STENCIL) || !(bindFlags & D3D11_BIND_SHADER_RESOURCE) || DXGIFormatTraits::IsTypeless(format))
 	{
 		m_pShaderResourceView = nullptr;
 		return;
 	}
 
-	CD3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc(m_pTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D);
+	D3D11_SRV_DIMENSION srvDim = D3D11_SRV_DIMENSION_TEXTURE2D;
+	if (miscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE)
+		srvDim = D3D11_SRV_DIMENSION_TEXTURECUBE;
+	CD3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc(m_pTexture.Get(), srvDim);
 
 	hr = pDevice->CreateShaderResourceView(m_pResource.Get(), &SRVDesc, &m_pShaderResourceView);
 	DirectX::ThrowIfFailed(hr);
@@ -135,7 +144,7 @@ DynamicTexture2D::DynamicTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int
 {
 }
 
-RenderTargetTexture2D::RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
+RenderableTexture2D::RenderableTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
 	_In_opt_ DXGI_FORMAT Format, _In_opt_ UINT MultiSampleCount, _In_opt_ UINT MultiSampleQuality, _In_opt_ bool Shared)
 	: Texture2D(pDevice, Width, Height, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_RENDER_TARGET | (MultiSampleCount == 1 ? D3D11_BIND_SHADER_RESOURCE : 0), 0, Shared ? D3D11_RESOURCE_MISC_SHARED : 0, MultiSampleCount, MultiSampleQuality)
 {
@@ -150,14 +159,14 @@ RenderTargetTexture2D::RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ un
 	DirectX::ThrowIfFailed(hr);
 }
 
-RenderTargetTexture2D::RenderTargetTexture2D(ID3D11Texture2D* pTexture, ID3D11RenderTargetView* pRenderTargetView, ID3D11ShaderResourceView* pShaderResouceView)
+RenderableTexture2D::RenderableTexture2D(ID3D11Texture2D* pTexture, ID3D11RenderTargetView* pRenderTargetView, ID3D11ShaderResourceView* pShaderResouceView)
 	: Texture2D(pTexture, pShaderResouceView)
 {
 	assert(pRenderTargetView);
 	m_pRenderTargetView = pRenderTargetView;
 }
 
-inline DirectX::RenderTargetTexture2D::RenderTargetTexture2D(ID3D11RenderTargetView * pRenderTargetView)
+inline DirectX::RenderableTexture2D::RenderableTexture2D(ID3D11RenderTargetView * pRenderTargetView)
 {
 	m_pRenderTargetView = pRenderTargetView;
 	pRenderTargetView->GetResource(&m_pResource);
@@ -165,19 +174,19 @@ inline DirectX::RenderTargetTexture2D::RenderTargetTexture2D(ID3D11RenderTargetV
 	m_pTexture->GetDesc(&m_Description);
 }
 
-RenderTargetTexture2D::RenderTargetTexture2D()
+RenderableTexture2D::RenderableTexture2D()
 {
 
 }
 
-RenderTargetTexture2D::RenderTargetTexture2D(RenderTargetTexture2D &&source)
+RenderableTexture2D::RenderableTexture2D(RenderableTexture2D &&source)
 	: Texture2D(std::move(source)),
 	m_pRenderTargetView(std::move(source.m_pRenderTargetView))
 {
 
 }
 
-RenderTargetTexture2D& RenderTargetTexture2D::operator=(RenderTargetTexture2D &&source)
+RenderableTexture2D& RenderableTexture2D::operator=(RenderableTexture2D &&source)
 {
 	Texture2D::operator=(std::move(source));
 	m_pRenderTargetView = std::move(source.m_pRenderTargetView);
@@ -218,6 +227,8 @@ DepthStencilBuffer::DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width
 	: Texture2D(pDevice, Width, Height, 1, DXGIConvertFormatDSVToResource(Format), D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE, 0)
 {
 	auto pTexture = m_pResource.Get();
+	if (pTexture == nullptr)
+		return;
 	// Initialize the depth stencil view.
 
 	CD3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc(D3D11_DSV_DIMENSION_TEXTURE2D,Format);
@@ -251,7 +262,7 @@ Texture2D::~Texture2D()
 DynamicTexture2D::~DynamicTexture2D()
 {}
 
-RenderTargetTexture2D::~RenderTargetTexture2D()
+RenderableTexture2D::~RenderableTexture2D()
 {}
 
 DepthStencilBuffer::~DepthStencilBuffer()
@@ -655,12 +666,23 @@ StagingTexture2D::StagingTexture2D(ID3D11Texture2D* pTexture)
 
 DirectX::RenderTarget::RenderTarget() {}
 
-DirectX::RenderTarget::RenderTarget(RenderTargetTexture2D & colorBuffer, DepthStencilBuffer & dsBuffer, const D3D11_VIEWPORT & viewPort)
+DirectX::RenderTarget::RenderTarget(RenderableTexture2D & colorBuffer, DepthStencilBuffer & dsBuffer)
+	:m_ColorBuffer(colorBuffer), m_DepthStencilBuffer(dsBuffer)
+{
+	m_Viewport.TopLeftX = 0;
+	m_Viewport.TopLeftY = 0;
+	m_Viewport.Width = (float)m_ColorBuffer.Width();
+	m_Viewport.Height = (float)m_ColorBuffer.Height();
+	m_Viewport.MinDepth = D3D11_MIN_DEPTH;
+	m_Viewport.MaxDepth = D3D11_MAX_DEPTH;
+}
+
+DirectX::RenderTarget::RenderTarget(RenderableTexture2D & colorBuffer, DepthStencilBuffer & dsBuffer, const D3D11_VIEWPORT & viewPort)
 	: m_ColorBuffer(colorBuffer), m_DepthStencilBuffer(dsBuffer), m_Viewport(viewPort)
 {}
 
-DirectX::RenderTarget::RenderTarget(ID3D11Device * pDevice, size_t width, size_t height)
-	: m_ColorBuffer(pDevice, width, height), m_DepthStencilBuffer(pDevice, width, height)
+DirectX::RenderTarget::RenderTarget(ID3D11Device * pDevice, size_t width, size_t height ,_In_opt_ DXGI_FORMAT colorFormat , _In_opt_ DXGI_FORMAT depthFormat )
+	: m_ColorBuffer(pDevice, width, height, colorFormat), m_DepthStencilBuffer(pDevice, width, height, depthFormat)
 {
 	m_Viewport.TopLeftX = 0;
 	m_Viewport.TopLeftY = 0;
@@ -670,7 +692,7 @@ DirectX::RenderTarget::RenderTarget(ID3D11Device * pDevice, size_t width, size_t
 	m_Viewport.MaxDepth = D3D11_MAX_DEPTH;
 }
 
-DirectX::RenderTargetTexture2D::RenderTargetTexture2D(IDXGISwapChain * pSwapChain)
+DirectX::RenderableTexture2D::RenderableTexture2D(IDXGISwapChain * pSwapChain)
 {
 	ThrowIfFailed(
 		pSwapChain->GetBuffer(0, IID_PPV_ARGS(&m_pTexture))
@@ -716,12 +738,12 @@ D3D11_VIEWPORT & DirectX::RenderTarget::ViewPort()
 	return m_Viewport;
 }
 
-RenderTargetTexture2D & DirectX::RenderTarget::ColorBuffer()
+RenderableTexture2D & DirectX::RenderTarget::ColorBuffer()
 {
 	return m_ColorBuffer;
 }
 
-const RenderTargetTexture2D & DirectX::RenderTarget::ColorBuffer() const
+const RenderableTexture2D & DirectX::RenderTarget::ColorBuffer() const
 {
 	return m_ColorBuffer;
 }
@@ -781,4 +803,43 @@ ID3D11ShaderResourceView * DirectX::CubeTexture::at(unsigned int face)
 ID3D11ShaderResourceView * const * DirectX::CubeTexture::ResourcesView()
 {
 	return m_pTextureView;
+}
+
+EnvirumrntTexture::EnvirumrntTexture(ID3D11Device * pDevice, unsigned int FaceSize, bool Renderable, DXGI_FORMAT Format)
+	: Texture2D(pDevice, FaceSize, FaceSize, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | (Renderable ? D3D11_BIND_RENDER_TARGET : 0), 0, D3D11_RESOURCE_MISC_TEXTURECUBE | (Renderable ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0))
+{
+	if (Renderable)
+		CreateRenderTargetViewArray(pDevice, Format);
+}
+
+void DirectX::EnvirumrntTexture::CreateFromDDSFile(ID3D11Device * pDevice, const wchar_t * szFileName)
+{
+	Texture::CreateFromDDSFile(pDevice, szFileName,64,D3D11_USAGE_DEFAULT,D3D11_BIND_SHADER_RESOURCE,0,D3D11_RESOURCE_MISC_TEXTURECUBE);
+}
+
+void EnvirumrntTexture::GenerateMips(ID3D11DeviceContext * pContext)
+{
+	pContext->GenerateMips(m_pShaderResourceView.Get());
+}
+
+inline ID3D11RenderTargetView * DirectX::EnvirumrntTexture::RenderTargetView(int face)
+{
+	return m_pRenderTargetViews[face].Get();
+}
+
+inline ID3D11RenderTargetView * const * DirectX::EnvirumrntTexture::RenderTargetViews()
+{
+	static_assert(sizeof(ComPtr<ID3D11RenderTargetView>) == sizeof(ID3D11RenderTargetView*), "issue with compiler");
+	return m_pRenderTargetViews[0].GetAddressOf();
+}
+
+inline void DirectX::EnvirumrntTexture::CreateRenderTargetViewArray(ID3D11Device * pDevice, DXGI_FORMAT format)
+{
+	if (format == DXGI_FORMAT_UNKNOWN)
+		format = m_Description.Format;
+	CD3D11_RENDER_TARGET_VIEW_DESC rtvDesc(D3D11_RTV_DIMENSION_TEXTURE2DARRAY, format, 0, 0, 1);
+	for (int i = 0; i < 6; i++) {
+		rtvDesc.Texture2DArray.FirstArraySlice = i;
+		pDevice->CreateRenderTargetView(m_pResource.Get(), &rtvDesc, &m_pRenderTargetViews[i]);
+	}
 }

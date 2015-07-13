@@ -10,7 +10,18 @@ namespace DirectX
 		ShadowMapEffect(ID3D11Device* device);
 		~ShadowMapEffect();
 
-		void SetScreenSpaceShadowMap(ID3D11ShaderResourceView * pTexture);
+		enum ShadowMapEffectMode
+		{
+			LightSpaceShadowRender = 0,
+			ScreenSpaceShadowGeneration = 1,
+			ScreenSpaceShadowRender = 2,
+		};
+
+
+		ShadowMapEffectMode GetEffectMode() const;
+		void SetEffectMode(ShadowMapEffectMode mode);
+		// Each channel will be ues as a shadow mask for one light, to achieve best result, blured and unblured shadow map need to be submmit 
+		void SetScreenSpaceLightsShadowMap(ID3D11ShaderResourceView* pSharpShadow, ID3D11ShaderResourceView* pSoftShadow) override;
 
 		// Inherited via IEffect
 		virtual void Apply(ID3D11DeviceContext * deviceContext) override;
@@ -58,7 +69,7 @@ namespace DirectX
 		virtual void XM_CALLCONV SetLightProjection(int whichLight, FXMMATRIX value) override;
 
 	private:
-		struct Impl;
+		class Impl;
 		std::unique_ptr<Impl> pImpl;
 	};
 

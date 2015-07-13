@@ -84,9 +84,9 @@ namespace Causality
 		AssetDictionary& Assets() { return assets; }
 		const AssetDictionary& Assets() const { return assets; }
 
-		Camera *PrimaryCamera();
+		ICamera *PrimaryCamera();
 
-		bool SetAsPrimaryCamera(Camera* camera);
+		bool SetAsPrimaryCamera(ICamera* camera);
 
 		RenderDevice&			GetRenderDevice() { return render_device; }
 		const RenderDevice&		GetRenderDevice() const { return render_device; }
@@ -97,9 +97,7 @@ namespace Causality
 
 		DirectX::RenderTarget&			Canvas() { return scene_canvas; }
 		const DirectX::RenderTarget&	Canvas() const { return scene_canvas; }
-		void							SetCanvas(DirectX::RenderTarget& canvas) {
-			scene_canvas = canvas;
-		}
+		void							SetCanvas(DirectX::RenderTarget& canvas);
 
 		vector<ICamera*>&				GetCameras() { return cameras; }
 		vector<ILight*>&				GetLights() { return lights; }
@@ -125,7 +123,8 @@ namespace Causality
 		AssetDictionary				assets;
 		uptr<SceneObject>			content;
 		DirectX::RenderTarget		scene_canvas;
-		Camera						*primary_cameral;
+		DirectX::RenderableTexture2D back_buffer;
+		ICamera						*primary_cameral;
 
 		vector<ICamera*>			cameras;
 		vector<ILight*>				lights;

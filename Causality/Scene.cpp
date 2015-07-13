@@ -18,16 +18,16 @@ Scene::~Scene()
 }
 
 
-Camera * Scene::PrimaryCamera()
+ICamera * Scene::PrimaryCamera()
 {
 	return primary_cameral;
 }
 
-bool Scene::SetAsPrimaryCamera(Camera * camera)
+bool Scene::SetAsPrimaryCamera(ICamera * camera)
 {
-	if (camera->Scene != this) return false;
-	primary_cameral = camera;
-	camera->SetRenderTarget(Canvas());
+	//if (camera->Scene != this) return false;
+	//primary_cameral = camera;
+	//camera->SetRenderTarget(Canvas());
 	return true;
 }
 
@@ -36,6 +36,12 @@ void Scene::SetRenderDeviceAndContext(RenderDevice & device, RenderContext & con
 	assets.SetRenderDevice(device);
 	render_device = device;
 	render_context = context;
+}
+
+void Causality::Scene::SetCanvas(DirectX::RenderTarget & canvas) {
+	scene_canvas = canvas;
+	//back_buffer = canvas.ColorBuffer();
+	//scene_canvas = DirectX::RenderTarget(DirectX::RenderableTexture2D(render_device, back_buffer.Width(), back_buffer.Height(), back_buffer.Format()), canvas.DepthBuffer());
 }
 
 void Scene::UpdateRenderViewCache()
@@ -54,7 +60,21 @@ void Scene::UpdateRenderViewCache()
 	{
 		auto pCamera = obj.As<ICamera>();
 		if (pCamera != nullptr)
+		{
 			cameras.push_back(pCamera);
+
+			//  Register camera render effects
+			for (size_t i = 0; i < pCamera->ViewCount(); i++)
+			{
+				for (size_t j = 0; j < pCamera->ViewRendererCount(i); j++)
+				{
+					auto pRender = pCamera->GetViewRenderer(i, j);
+					auto pEffect = pRender->GetRenderEffect();
+					if (pRender != nullptr && std::find(effects.begin(), effects.end(), pEffect) == effects.end())
+						effects.push_back(pEffect);
+				}
+			}
+		}
 
 		auto pLight = obj.As<ILight>();
 		if (pLight != nullptr)
@@ -88,7 +108,6 @@ void Scene::SignalCameraCache() { camera_dirty = true; }
 
 std::mutex & Scene::ContentMutex() { return content_mutex; }
 
-
 void Scene::Render(RenderContext & context)
 {
 	// if (!is_loaded) return;
@@ -96,33 +115,45 @@ void Scene::Render(RenderContext & context)
 
 	SetupEffectsLights(nullptr);
 
-	for (auto pCamera : cameras)
+	for (auto pCamera : cameras) // cameras
 	{
-		pCamera->BeginFrame(context);
 		auto viewCount = pCamera->ViewCount();
-		auto pCameraEffect = pCamera->GetRenderEffect();
 
-		for (size_t view = 0; view < viewCount; view++)
+		for (int view = 0; view < viewCount; view++) // camera viewports
 		{
-			pCamera->SetView(view);
-			auto v = pCamera->GetViewMatrix(view);
-			auto p = pCamera->GetProjectionMatrix(view);
-			auto& viewFrustum = pCamera->GetViewFrustum(view);
+			auto pView = pCamera->GetView(view);
+			auto v = pView->GetViewMatrix();
+			auto p = pView->GetProjectionMatrix();
 
-			SetupEffectsViewProject(pCameraEffect, v, p);
+			auto& viewFrustum = pView->GetViewFrustum();
 
-			for (auto& pRenderable : renderables)
+			auto passCount = pCamera->ViewRendererCount(view);
+
+			auto visibles = adaptors::filter(renderables, [&viewFrustum](auto pRenderable)
 			{
-				if (pCamera->AcceptRenderFlags(pRenderable->GetRenderFlags())
-					&& pRenderable->IsVisible(viewFrustum))
+				return pRenderable->IsVisible(viewFrustum);
+			});
+
+			for (size_t pass = 0; pass < passCount; pass++) // render passes
+			{
+				auto pRenderer = pCamera->GetViewRenderer(view, pass);
+				auto pEffect = pRenderer->GetRenderEffect();
+				SetupEffectsViewProject(pEffect, v, p);
+				pRenderer->Begin(context);
+				for (auto& pVisible : visibles) // visible objects
 				{
-					pRenderable->UpdateViewMatrix(v, p);
-					pRenderable->Render(context, pCameraEffect);
+					if (pRenderer->AcceptRenderFlags(pVisible->GetRenderFlags()))
+					{
+						pVisible->UpdateViewMatrix(v, p);
+						pVisible->Render(context, pEffect);
+					}
 				}
+				pRenderer->End();
 			}
 		}
-		pCamera->EndFrame();
 	}
+
+	//context->CopyResource(back_buffer.Resource(), scene_canvas.ColorBuffer().Resource());
 }
 
 vector<DirectX::IEffect*>& Causality::Scene::GetEffects() {

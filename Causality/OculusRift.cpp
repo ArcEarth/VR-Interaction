@@ -258,7 +258,7 @@ DirectX::RenderTarget& OculusRift::ViewTarget(EyesEnum eye)
 	return pImpl->EyeTextures[(size_t) eye];
 }
 
-DirectX::RenderTargetTexture2D& OculusRift::ColorBuffer()
+DirectX::RenderableTexture2D& OculusRift::ColorBuffer()
 {
 	return pImpl->EyeTextures[0].ColorBuffer();
 }

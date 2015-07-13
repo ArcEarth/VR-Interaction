@@ -196,6 +196,7 @@
     <ClInclude Include="Inc\DirectXHelper.h" />
     <ClInclude Include="Inc\DirectXMathExtend.h" />
     <ClInclude Include="Inc\DXGIFormatHelper.h" />
+    <ClInclude Include="Inc\HierarchicalTransform.h" />
     <ClInclude Include="Inc\PostProcessingEffect.h" />
     <ClInclude Include="Inc\ShadowMapGenerationEffect.h" />
     <ClInclude Include="Src\tiny_obj_loader.h" />
@@ -225,6 +226,15 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Src\Shaders\BlurEffect.hlsl">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileShaders BlurEffect $(fxconfig)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileShaders BlurEffect $(fxconfig)</Command>
+    </None>
+    <None Include="Src\Shaders\Common.hlsli" />
+    <None Include="Src\Shaders\QuadVertexShader.hlsl">
+      <FileType>Document</FileType>
+    </None>
     <FxCompile Include="Src\Shaders\ShadowMapEffectPS.hlsl">
       <ShaderType>Vertex</ShaderType>
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_OneLightNoTex</EntryPointName>

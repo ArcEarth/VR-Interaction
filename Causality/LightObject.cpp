@@ -20,26 +20,22 @@ Light::Light()
 {
 }
 
-void Light::BeginFrame(RenderContext& context)
+void Light::Begin(RenderContext& context)
 {
-	m_DepthMap.Clear(context);
+	m_RenderTarget.Clear(context,m_Background);
 	auto pEffect = static_cast<ShadowMapGenerationEffect*>(m_pShadowMapGenerator.get());
-	pEffect->SetShadowMap(m_DepthMap, m_RenderTargetTex);
-	CD3D11_VIEWPORT viewport(.0f,.0f,m_DepthMap.Width(), m_DepthMap.Height());
-	context->RSSetViewports(1, &viewport);
-}
 
-void Light::SetView(size_t view)
-{
-	auto pEffect = static_cast<ShadowMapGenerationEffect*>(m_pShadowMapGenerator.get());
+	m_RenderTarget.SetAsRenderTarget(context);
+
 	if (pEffect)
 	{
+		pEffect->SetShadowMap(NULL, NULL);
 		pEffect->SetView(GetViewMatrix());
 		pEffect->SetProjection(GetProjectionMatrix());
 	}
 }
 
-void Light::EndFrame()
+void Light::End()
 {
 }
 
@@ -59,10 +55,10 @@ Color Causality::Light::GetColor() const { return m_Color; }
 void Light::DisableDropShadow()
 {
 	m_pShadowMapGenerator.reset();
-	m_DepthMap.Reset();
+	m_RenderTarget.Reset();
 }
 
-void Light::EnableDropShadow(RenderDevice & device, const UINT & shadowResolution)
+void Light::EnableDropShadow(RenderDevice & device, const UINT & resolution)
 {
 	if (!g_wpSMGEffect.expired())
 		m_pShadowMapGenerator = g_wpSMGEffect.lock();
@@ -72,17 +68,21 @@ void Light::EnableDropShadow(RenderDevice & device, const UINT & shadowResolutio
 		g_wpSMGEffect = pEffect;
 		m_pShadowMapGenerator = pEffect;
 	}
-	m_DepthMap = DepthStencilBuffer(device.Get(), shadowResolution, shadowResolution, DXGI_FORMAT_D16_UNORM);
-	m_RenderTargetTex = RenderTargetTexture2D(device.Get(), shadowResolution, shadowResolution,DXGI_FORMAT_R16_UNORM);
+
+	CD3D11_VIEWPORT viewport(.0f, .0f, resolution, resolution);
+	m_RenderTarget = RenderTarget(
+		RenderableTexture2D(device.Get(), resolution, resolution, DXGI_FORMAT_R16_UNORM),
+		DepthStencilBuffer(device.Get(), resolution, resolution, DXGI_FORMAT_D16_UNORM),
+		viewport);
 }
 
 void Light::SetShadowMapBuffer(const DepthStencilBuffer & depthBuffer)
 {
-	m_DepthMap = depthBuffer;
+	m_RenderTarget.DepthBuffer() = depthBuffer;
 }
 
 ID3D11ShaderResourceView * Causality::Light::GetShadowMap() const { 
-	return m_DepthMap.ShaderResourceView(); 
+	return m_RenderTarget.DepthBuffer().ShaderResourceView();
 	//return m_RenderTargetTex.ShaderResourceView();
 }
 
@@ -110,7 +110,7 @@ void DrawFrustum(BoundingFrustum& frustum)
 
 void XM_CALLCONV Light::UpdateViewMatrix(FXMMATRIX view, CXMMATRIX projection)
 {
-	auto &frustum = GetViewFrustum(0);
+	auto &frustum = GetViewFrustum();
 	auto& drawer = Visualizers::g_PrimitiveDrawer;
 }
 

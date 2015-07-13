@@ -535,7 +535,7 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 			)
 		);
 
-	m_ColorBackBuffer = RenderTargetTexture2D(backBuffer.Get(), m_d3dRenderTargetView.Get(), nullptr);
+	m_ColorBackBuffer = RenderableTexture2D(backBuffer.Get(), m_d3dRenderTargetView.Get(), nullptr);
 
 	// Create a depth stencil view for use with 3D rendering if needed.
 	CD3D11_TEXTURE2D_DESC depthStencilDesc(

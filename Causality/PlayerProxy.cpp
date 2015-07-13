@@ -23,6 +23,8 @@ static const float	CharacterPcaCutoff = 0.01f; // 0.2^2
 static const float	CharacterEnergyCutoff = 0.3f;
 static const float	alpha = 0.8f;
 
+static const float  MatchAccepetanceThreshold = 0.4f;
+
 bool				g_EnableInputFeatureLocalization = true;
 bool				g_EnableDebugLogging = false;
 static const char*  DefaultAnimationSet = "walk";
@@ -292,6 +294,13 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 		controller.ID = Controllers.size() - 1;
 		controller.Initialize(*pPlayerArmature, *pChara);
 		pChara->SetOpticity(1.0f);
+		auto glow = pChara->FirstChildOfType<GlowingBorder>();
+		if (glow == nullptr)
+		{
+			glow = new GlowingBorder(DirectX::Colors::LimeGreen.v);
+			glow->SetEnabled(false);
+			pChara->AddChild(glow);
+		}
 	}
 }
 
@@ -309,6 +318,9 @@ void PlayerProxy::SetActiveController(int idx)
 			auto& chara = c.Character();
 			chara.StartAction(DefaultAnimationSet);
 			chara.SetOpticity(0.5f);
+			auto glow = chara.FirstChildOfType<GlowingBorder>();
+			glow->SetEnabled(false);
+
 			if (c.ID == CurrentIdx && CurrentIdx != idx)
 				chara.SetPosition(c.CMapRefPos);
 		}
@@ -323,6 +335,9 @@ void PlayerProxy::SetActiveController(int idx)
 			auto& chara = controller.Character();
 			chara.StopAction();
 			chara.SetOpticity(1.0f);
+			auto glow = chara.FirstChildOfType<GlowingBorder>();
+			glow->SetEnabled(true);
+
 			controller.MapRefPos = playerSelector->CurrentFrame()[0].GblTranslation;
 			controller.CMapRefPos = chara.GetPosition();
 
@@ -518,8 +533,8 @@ int PlayerProxy::MapCharacterByLatestMotion()
 		size_t Jc = chraraBlocks.size();
 
 		controller.SpatialMotionScore = numeric_limits<float>::min();
-		auto& anim = object.Behavier()[DefaultAnimationSet];
-		//for (auto& anim : object.Behavier().Clips())	//? <= 5 animation per character
+		//auto& anim = object.Behavier()[DefaultAnimationSet];
+		for (auto& anim : object.Behavier().Clips())	//? <= 5 animation per character
 		{
 			auto& analyzer = controller.GetAnimationInfo(anim.Name);
 
@@ -551,10 +566,14 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 			// Memery allocation
 			auto CoRSize = Juk.size() + Jck.size();
-			std::vector<MatrixXf> Rm(Ts);
-			for (auto& m : Rm)
+
+			std::vector<MatrixXf> Ra(Ts),Rm(Ts), Rs(Ts);
+
+			for (size_t i = 0; i < Ts; i++)
 			{
-				m.setZero(CoRSize, CoRSize);
+				Ra[i].setZero(Juk.size(), Jck.size());
+				Rs[i].setZero(Juk.size(), Jck.size());
+				Rm[i].setZero(Juk.size(), Jck.size());
 			}
 
 			//MatrixXf CoR;//(Ju + Jc, Ju + Jc);
@@ -573,8 +592,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 				auto Xp = Xs.middleRows(T - phi, T);
 
 
-				auto A = Rm[phidx].topLeftCorner(Juk.size(), Jck.size());
-
+				auto& Mcor = Rm[phidx];//.topLeftCorner(Juk.size(), Jck.size());
 
 				for (int i = 0; i < Juk.size(); ++i)
 				{
@@ -592,32 +610,52 @@ int PlayerProxy::MapCharacterByLatestMotion()
 							cca.computeFromQr(qrX, qrY, true);	//? it's <= 6x6 SVD inside
 							r = cca.correlaltions().minCoeff();
 						}
-						A(i, j) = r;
+						Mcor(i, j) = r;
 					}
 				}
-
-				MatrixXf Asp2 = XDir.middleRows((T - phi)*3, T*3).transpose() * Csp2;
-				Asp2 /= (float)T;
-				// Cutoff the none-correlated match
 				// a = (a > cutoff) ? a : -1.0f
-				A = (A.array() > Cutoff_Correlation).select(A, -1.0f);
-				//A.noalias() = A * alpha + Asp;
-				A.noalias() = A * alpha + Asp2;
+				//Mcor = (Mcor.array() > Cutoff_Correlation).select(Mcor, -1.0f);
+
+				auto& Scor = Rs[phidx];
+				Scor = XDir.middleRows((T - phi)*3, T*3).transpose() * Csp2;
+				Scor /= (float)T;
+
+				auto& A = Ra[phidx];
+				// Cutoff the none-correlated match
+				A = Mcor * alpha + Scor;
+				//A *= alpha;
 
 				A.array() *= Eub.array().replicate(1, A.cols());
 				A.array() *= Ecb.array().replicate(A.rows(), 1);
+				//A += Asp2;
 
 				//CoR.topLeftCorner(Ju, Jc) = A;
 
 				//auto matching = max_weight_bipartite_matching(A.transpose());
+				//auto score = matching_cost(A, matching);
+				//auto score = matching_cost(A.transpose(), matching);// / A.cols();
+
 				vector<DenseIndex> matching(A.cols());
+				VectorXf XScore(A.rows());
+				VectorXi XCount(A.rows());
+				XCount.setZero();
+				XScore.setZero();
 				for (int k = 0; k < A.cols(); k++)
 				{
-					A.col(k).maxCoeff(&matching[k]);
+					DenseIndex jx;
+					auto score = A.col(k).maxCoeff(&jx);
+					if (score < MatchAccepetanceThreshold) // Reject the match if it's less than a threshold
+						matching[k] = -1;
+					else
+					{
+						matching[k] = jx;
+						XScore(jx) += score;
+						++XCount(jx);
+					}
 				}
+				//XScore.array() /= XCount.array().cast<float>();
+				auto score = XScore.sum();
 
-				auto score = matching_cost(A.transpose(), matching);// / A.cols();
-				//auto score = matching_cost(A, matching);
 				mScores[phidx] = score;
 				mMatchings[phidx] = matching;
 			}

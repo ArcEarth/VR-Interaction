@@ -116,12 +116,12 @@ float PS_DepthTex(VSInputTex pixel) : SV_TARGET
 
 float4 PS_ColorNoTex(float4 pos : SV_POSITION) : SV_TARGET
 {
-	return ShadowColor;
+	return float4(ShadowColor.rgb,pos.z);
 }
 
 float4 PS_ColorTex(VSInputTex pixel) : SV_TARGET
 {
 	float4 diffuse = gDiffuseMap.Sample(samLinear, pixel.TexCoord);
 	clip(diffuse.a - 0.15f);
-	return ShadowColor;
+	return float4(ShadowColor.rgb, pixel.Position.z);
 }

@@ -73,6 +73,30 @@ call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_ScreenSpaceNoTex
 call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_ScreenSpaceTex
 goto finish
 
+:BinaryShadowMapEffect
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_BinaryOneLightNoBoneNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_BinaryOneLightNoBoneTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_BinaryOneLightFourBoneNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_BinaryOneLightFourBoneTex
+
+call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_BinaryOneLightNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_BinaryOneLightTex
+goto finish
+
+
+:QuadVertexShader
+call :CompileShaderHLSL%platform% QuadVertexShader vs QuadVertexShader
+goto finish
+
+:BlurEffect
+call :CompileShaderHLSL%platform% BlurEffect ps DownScale3x3
+call :CompileShaderHLSL%platform% BlurEffect ps DownScale3x3Ex
+call :CompileShaderHLSL%platform% BlurEffect ps UpScale
+call :CompileShaderHLSL%platform% BlurEffect ps Blur
+call :CompileShaderHLSL%platform% BlurEffect ps Combination
+call :CompileShaderHLSL%platform% BlurEffect ps AlphaAsDepthPassBy
+goto finish
+
 :finish
 echo.
 

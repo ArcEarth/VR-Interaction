@@ -15,9 +15,9 @@ namespace Causality
 {
 	typedef uint64_t ObjectIDType;
 
-	struct ProblistiscAffineTransform : public DirectX::AffineTransform
+	struct ProblistiscAffineTransform : public DirectX::ScaledRigidTransform
 	{
-		using DirectX::AffineTransform::AffineTransform;
+		using DirectX::ScaledRigidTransform::ScaledRigidTransform;
 		float Probability;
 	};
 
@@ -62,7 +62,7 @@ namespace Causality
 		// Object states evolution with time and interaction subjects
 		std::map<std::string, std::shared_ptr<PhysicalRigid>>	Items;
 
-		DirectX::AffineTransform								SubjectTransform;
+		DirectX::ScaledRigidTransform								SubjectTransform;
 
 
 		bool													IsDirty;
@@ -87,7 +87,7 @@ namespace Causality
 
 		WorldBranch();
 
-		void Enable(const DirectX::AffineTransform& subjectTransform)
+		void Enable(const DirectX::ScaledRigidTransform& subjectTransform)
 		{
 			IsEnabled = true;
 			SubjectTransform = subjectTransform;
@@ -108,7 +108,7 @@ namespace Causality
 		void AddDynamicObject(const std::string &name, const std::shared_ptr<btCollisionShape> &pShape, float mass, const DirectX::Vector3 & Position, const DirectX::Quaternion & Orientation);
 		void Evolution(float timeStep, const Leap::Frame & frame, const DirectX::Matrix4x4 & leapTransform);
 		void Fork(const std::vector<PhysicalRigid*>& focusObjects);
-		void Fork(const std::vector<DirectX::AffineTransform>& subjectTransform);
+		void Fork(const std::vector<DirectX::ScaledRigidTransform>& subjectTransform);
 		void Collapse();
 		SuperpositionMap CaculateSuperposition();
 

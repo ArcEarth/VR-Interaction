@@ -247,11 +247,11 @@ namespace DirectX {
 			return m_Description;
 		}
 
-		size_t Width() const
+		uint32_t Width() const
 		{
 			return m_Description.Width;
 		}
-		size_t Height() const
+		uint32_t Height() const
 		{
 			return m_Description.Height;
 		}
@@ -357,31 +357,32 @@ namespace DirectX {
 		void SetData(ID3D11DeviceContext* pContext, const void* Raw_Data, size_t element_size);
 	};
 
-	class RenderTargetTexture2D
+	// Renderable texture has RenderTargetView, can be binded to OM stage
+	class RenderableTexture2D
 		: public Texture2D
 	{
 	public:
-		RenderTargetTexture2D();
-		RenderTargetTexture2D(RenderTargetTexture2D &&);
-		RenderTargetTexture2D& operator=(RenderTargetTexture2D &&);
-		RenderTargetTexture2D(const RenderTargetTexture2D & rhs)
+		RenderableTexture2D();
+		RenderableTexture2D(RenderableTexture2D &&);
+		RenderableTexture2D& operator=(RenderableTexture2D &&);
+		RenderableTexture2D(const RenderableTexture2D & rhs)
 		{
 			*this = rhs;
 		}
-		RenderTargetTexture2D& operator=(const RenderTargetTexture2D &rhs)
+		RenderableTexture2D& operator=(const RenderableTexture2D &rhs)
 		{
 			Texture2D::operator=(rhs);
 			m_pRenderTargetView = rhs.m_pRenderTargetView;
 			return *this;
 		}
 
-		RenderTargetTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
+		RenderableTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
 			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM, _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0, _In_opt_ bool Shared = false);
-		RenderTargetTexture2D(ID3D11Texture2D* pTexture, ID3D11RenderTargetView* pRenderTargetView, ID3D11ShaderResourceView* pShaderResouceView);
-		explicit RenderTargetTexture2D(ID3D11RenderTargetView* pRenderTargetView);
-		explicit RenderTargetTexture2D(IDXGISwapChain* pSwapChain);
+		RenderableTexture2D(ID3D11Texture2D* pTexture, ID3D11RenderTargetView* pRenderTargetView, ID3D11ShaderResourceView* pShaderResouceView);
+		explicit RenderableTexture2D(ID3D11RenderTargetView* pRenderTargetView);
+		explicit RenderableTexture2D(IDXGISwapChain* pSwapChain);
 
-		~RenderTargetTexture2D();
+		~RenderableTexture2D();
 
 		operator ID3D11RenderTargetView* ()
 		{
@@ -408,7 +409,7 @@ namespace DirectX {
 			Texture2D::Reset();
 		}
 
-		RenderTargetTexture2D& operator=(nullptr_t) { Reset(); return *this; }
+		RenderableTexture2D& operator=(nullptr_t) { Reset(); return *this; }
 
 	protected:
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView>			m_pRenderTargetView;
@@ -489,6 +490,60 @@ namespace DirectX {
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView>			m_pDepthStencilView;
 	};
 
+	class DoubleBufferTexture2D
+	{
+	private:
+		RenderableTexture2D buffer[2];
+		int					  front;
+	public:
+		DoubleBufferTexture2D() = default;
+
+		DoubleBufferTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
+			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM)
+		{
+			buffer[0] = RenderableTexture2D(pDevice, Width, Height, Format);
+			buffer[1] = RenderableTexture2D(pDevice, Width, Height, Format);
+			front = 0;
+		}
+		ID3D11ShaderResourceView* FrontBuffer() const
+		{
+			return buffer[front].ShaderResourceView();
+		}
+		ID3D11RenderTargetView* BackBuffer()
+		{
+			return buffer[1 - front].RenderTargetView();
+		}
+		ID3D11ShaderResourceView* ShaderResourceView() const
+		{
+			return FrontBuffer();
+		}
+		ID3D11RenderTargetView* RenderTargetView()
+		{
+			return BackBuffer();
+		}
+		void SwapBuffer()
+		{
+			front = 1 - front;
+		}
+
+		uint32_t Width() const
+		{
+			return buffer[0].Width();
+		}
+		uint32_t Height() const
+		{
+			return buffer[0].Height();
+		}
+		XMUINT2 Bounds() const
+		{
+			return buffer[0].Bounds();
+		}
+		DXGI_FORMAT Format() const
+		{
+			return buffer[0].Format();
+		}
+	};
+
 	class IRenderTarget
 	{
 		virtual void SetAsRenderTarget(ID3D11DeviceContext* pDeviceContext) = 0;
@@ -499,9 +554,12 @@ namespace DirectX {
 	public:
 		RenderTarget();
 
-		RenderTarget(RenderTargetTexture2D& colorBuffer, DepthStencilBuffer& dsBuffer, const D3D11_VIEWPORT& viewPort);
+		RenderTarget(RenderableTexture2D& colorBuffer, DepthStencilBuffer& dsBuffer);
 
-		RenderTarget(ID3D11Device* pDevice, size_t width, size_t height);
+		RenderTarget(RenderableTexture2D& colorBuffer, DepthStencilBuffer& dsBuffer, const D3D11_VIEWPORT& viewPort);
+
+		// use depthFormat == DXGI_FORMAT_UNKNOWN to disable depth buffer auto creation
+		RenderTarget(ID3D11Device* pDevice, size_t width, size_t height, _In_opt_ DXGI_FORMAT colorFormat = DXGI_FORMAT_R8G8B8A8_UNORM, _In_opt_ DXGI_FORMAT depthFormat = DXGI_FORMAT_D24_UNORM_S8_UINT);
 
 		RenderTarget Subview(const D3D11_VIEWPORT *pViewport);
 		/// <summary>
@@ -518,9 +576,9 @@ namespace DirectX {
 		/// <returns> the return value is default to be (0,0) at left-top corner , while min-max depth is (0,1000) </returns>
 		D3D11_VIEWPORT& ViewPort();
 
-		RenderTargetTexture2D& ColorBuffer();
+		RenderableTexture2D& ColorBuffer();
 
-		const RenderTargetTexture2D& ColorBuffer() const;
+		const RenderableTexture2D& ColorBuffer() const;
 
 		DepthStencilBuffer& DepthBuffer();
 
@@ -540,8 +598,21 @@ namespace DirectX {
 			m_DepthStencilBuffer.Reset();
 		}
 
+		uint32_t Width() const
+		{
+			return ColorBuffer().Width();
+		}
+		uint32_t Height() const
+		{
+			return ColorBuffer().Height();
+		}
+		XMUINT2 Bounds() const
+		{
+			return ColorBuffer().Bounds();
+		}
+
 	private:
-		RenderTargetTexture2D									m_ColorBuffer;
+		RenderableTexture2D										m_ColorBuffer;
 		DepthStencilBuffer										m_DepthStencilBuffer;
 		D3D11_VIEWPORT											m_Viewport;
 	};
@@ -555,6 +626,46 @@ namespace DirectX {
 	//	std::vector<D3D11_VIEWPORT>								m_Viewports;
 	//	DepthStencilBuffer										m_DepthStencilBuffer;
 	//};
+
+	// A Envirument Texture is Texture Cube, which could be lookup by 3D lookup vector :)
+	class EnvirumrntTexture : public Texture2D
+	{
+	public :
+
+		static const unsigned EnvirumrntTextureArraySize = 6;
+		enum Faces : int
+		{
+			Positive_X = 0,
+			Negitive_X = 1,
+			Positive_Y = 2,
+			Negitive_Y = 3,
+			Positive_Z = 4,
+			Negitive_Z = 5,
+			Front = 5,
+			Back = 4,
+			Left = 0,
+			Right = 1,
+			Top = 2,
+			Bottom = 3,
+		};
+
+		EnvirumrntTexture(ID3D11Device* pDevice, _In_ unsigned int FaceSize, bool Renderable = true, _In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM);
+		
+		// Create from DDS file
+		EnvirumrntTexture(ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName);
+
+		void CreateFromDDSFile(ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName);
+
+		void GenerateMips(ID3D11DeviceContext* pContext);
+
+		ID3D11RenderTargetView* ArrayRenderTargetView();
+		ID3D11RenderTargetView* RenderTargetView(int face);
+		ID3D11RenderTargetView* const* RenderTargetViews();
+	protected:
+		void CreateRenderTargetViewArray(ID3D11Device* pDevice, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN);
+	private:
+		std::array<Microsoft::WRL::ComPtr<ID3D11RenderTargetView>, 6> m_pRenderTargetViews;
+	};
 
 	class CubeTexture : public Texture
 	{

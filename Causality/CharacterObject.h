@@ -35,6 +35,7 @@ namespace Causality
 		virtual void Update(time_seconds const& time_delta) override;
 
 		// Inherited via IRenderable
+		virtual RenderFlags GetRenderFlags() const override;
 		virtual bool IsVisible(const BoundingGeometry& viewFrustum) const override;
 		virtual void Render(RenderContext & pContext, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;

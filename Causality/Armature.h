@@ -37,15 +37,15 @@ namespace Causality
 		// Global Rotation
 		XM_ALIGNATTR
 		DirectX::Quaternion GblRotation;
-		XM_ALIGNATTR
-		DirectX::Vector3	GblScaling;
-		float				GblLength;		// Length of this bone, after scaling
-
 		// Global Position for the ending joint of this bone
 		// Aka : End-Position
 		XM_ALIGNATTR
 		DirectX::Vector3	GblTranslation;
 		float				GblTw; // Padding
+		XM_ALIGNATTR
+		DirectX::Vector3	GblScaling;
+		float				GblLength;		// Length of this bone, after scaling
+
 
 		//XM_ALIGNATTR
 		//DirectX::Vector3	OriginPosition;	// Reference point of a bone
@@ -65,10 +65,10 @@ namespace Causality
 		// Assuming Global position & orientation is known
 		void UpdateLocalData(const Bone& reference);
 
-		inline const DirectX::AffineTransform& LocalTransform() const { return reinterpret_cast<const DirectX::AffineTransform&>(*this); }
-		inline DirectX::AffineTransform& LocalTransform() { return reinterpret_cast<DirectX::AffineTransform&>(*this); }
-		inline const DirectX::AffineTransform& GlobalTransform() const { return reinterpret_cast<const DirectX::AffineTransform&>(this->GblRotation); }
-		inline DirectX::AffineTransform& GlobalTransform() { return reinterpret_cast<DirectX::AffineTransform&>(this->GblRotation); }
+		inline const DirectX::ScaledRigidTransform& LocalTransform() const { return reinterpret_cast<const DirectX::ScaledRigidTransform&>(*this); }
+		inline DirectX::ScaledRigidTransform& LocalTransform() { return reinterpret_cast<DirectX::ScaledRigidTransform&>(*this); }
+		inline const DirectX::ScaledRigidTransform& GlobalTransform() const { return reinterpret_cast<const DirectX::ScaledRigidTransform&>(this->GblRotation); }
+		inline DirectX::ScaledRigidTransform& GlobalTransform() { return reinterpret_cast<DirectX::ScaledRigidTransform&>(this->GblRotation); }
 	public:
 		// Static helper methods for caculate transform matrix
 		// Caculate the Transform Matrix from "FromState" to "ToState"
@@ -89,7 +89,7 @@ namespace Causality
 		}
 	};
 
-	static_assert(offsetof(Bone, GblRotation) == sizeof(DirectX::AffineTransform),"Compilier not supported.");
+	static_assert(offsetof(Bone, GblRotation) == sizeof(DirectX::ScaledRigidTransform),"Compilier not supported.");
 
 	XM_ALIGNATTR
 	struct BoneVelocity

@@ -28,13 +28,11 @@ namespace Causality
 		using Camera::GetViewMatrix;
 		using Camera::GetProjectionMatrix;
 		using Camera::FocusAt;
-		using Camera::IsInView;
 		using Camera::GetViewFrustum;
 
 		// IRenderControl
-		virtual void				BeginFrame(RenderContext& context) override;
-		virtual void				SetView(size_t view) override;
-		virtual void				EndFrame() override;
+		virtual void				Begin(RenderContext& context) override;
+		virtual void				End() override;
 		virtual DirectX::IEffect*	GetRenderEffect() override;
 		virtual bool				AcceptRenderFlags(RenderFlags flags) override;
 
@@ -60,8 +58,6 @@ namespace Causality
 	private:
 		DirectX::Color						m_Color;
 		cptr<ID3D11ShaderResourceView>		m_pColorMap;
-		DirectX::DepthStencilBuffer		    m_DepthMap;
-		DirectX::RenderTargetTexture2D		m_RenderTargetTex;
 		sptr<DirectX::IEffect>				m_pShadowMapGenerator;
 
 	};

@@ -36,7 +36,8 @@ void Bone::UpdateGlobalData(const Bone & reference)
 {
 	XMVECTOR ParQ = reference.GblRotation.LoadA();
 	XMVECTOR Q = XMQuaternionMultiply(LclRotation.LoadA(), ParQ);
-	XMVECTOR S = reference.GblScaling.LoadA() * LclScaling.LoadA();
+	XMVECTOR ParS = reference.GblScaling.LoadA();
+	XMVECTOR S = ParS * LclScaling.LoadA();
 	GblRotation.StoreA(Q);
 	GblScaling.StoreA(S);
 
@@ -46,7 +47,7 @@ void Bone::UpdateGlobalData(const Bone & reference)
 
 	LclLength = XMVectorGetX(XMVector3Length(V));
 
-	V *= S;
+	V *= ParS;
 
 	GblLength = XMVectorGetX(XMVector3Length(V));
 
