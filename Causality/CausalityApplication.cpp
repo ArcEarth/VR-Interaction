@@ -61,17 +61,17 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 	
 	// Initialize Windows
 	pConsole = make_shared<DebugConsole>();
-	pConsole->Initialize(std::string("CausalityDebug"), 800, 600, false);
+	pConsole->Initialize(std::string("Ghost Trick Consle"), 1200, 800, false);
 
 	//pRift = Devices::OculusRift::GetForCurrentView();
 
 	pWindow = make_shared<NativeWindow>();
 	if (!pRift)
-		pWindow->Initialize(std::string("Causality"), 1920, 1080, false);
+		pWindow->Initialize(std::string("Ghost Trick"), 1920, 1080, false);
 	else
 	{
 		auto res = pRift->Resoulution();
-		pWindow->Initialize(std::string("Causality"),(unsigned) res.x, (unsigned) res.y, false);
+		pWindow->Initialize(std::string("Ghost Trick"),(unsigned) res.x, (unsigned) res.y, false);
 	}
 	//bool useOvr = Devices::OculusRift::Initialize();
 

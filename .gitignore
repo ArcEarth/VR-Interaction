@@ -230,3 +230,5 @@ pip-log.txt
 #############
 /DirectX/Src/Shaders/windows/
 /DirectX/Src/Shaders/xbox/
+
+Log/

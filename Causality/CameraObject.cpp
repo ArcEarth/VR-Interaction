@@ -293,7 +293,7 @@ Causality::SoftShadowCamera::SoftShadowCamera(ID3D11Device * pDevice, DirectX::R
 	auto pBlurEffect = std::make_shared<DirectX::GuassianBlurEffect>(pDevice);
 	pEffectRender->SetPostEffect(pBlurEffect);
 	pBlurEffect->ResizeBufferRespectTo(pDevice, canvas.ColorBuffer());
-	pBlurEffect->SetBlurRadius(1.3f);
+	pBlurEffect->SetBlurRadius(0.6f);
 	m_pRenderers.push_back(pEffectRender);
 
 	// pass 1 : render objects with screen space shadow map
@@ -321,7 +321,7 @@ Causality::SoftShadowCamera::SoftShadowCamera(ID3D11Device * pDevice, DirectX::R
 	pEffectRender->SetPostEffect(pBlurEffect);
 	pBlurEffect->ResizeBufferRespectTo(pDevice, canvas.ColorBuffer());
 	pBlurEffect->SetBlurRadius(2.5f);
-	pBlurEffect->SetMultiplier(1.2f);
+	pBlurEffect->SetMultiplier(0.5f);
 	pBlurEffect->SetOutputMode(AlphaAsDepth);
 	pBlurEffect->SetOutputDepthStencil(canvas.DepthBuffer().DepthStencilView());
 	pEffectRender->SetPostEffect(pBlurEffect);

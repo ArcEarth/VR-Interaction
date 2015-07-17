@@ -9,7 +9,7 @@ using namespace std;
 using namespace Concurrency;
 
 AnimationAnalyzer::AnimationAnalyzer(const BlockArmature & bArm)
-	:pBlockArmature(&bArm), PcaCutoff(0.01f), IsReady(false), EnergyCutoff(0.3f)
+	:pBlockArmature(&bArm), PcaCutoff(0.01f), IsReady(false), EnergyCutoff(0.35f)
 {
 }
 
@@ -96,6 +96,9 @@ void AnimationAnalyzer::BlocklizationAndComputeEnergy()
 		Xbs[i] = Yb;
 	}
 
+	Eb = Eb.cwiseSqrt();
+
+	// Why do another sqrt ? it's too aggresive
 	Eb = Eb.cwiseSqrt();
 
 	//Eb /= Eb.maxCoeff();

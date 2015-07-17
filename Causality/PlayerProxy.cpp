@@ -10,23 +10,33 @@
 #include <boost\multi_array.hpp>
 #include "AnimationAnalyzer.h"
 #include <ppl.h>
+#include <boost\filesystem.hpp>
+
+bool				g_EnableDebugLogging = false;
+bool				g_EnableRecordLogging = true;
 
 using namespace Causality;
 using namespace Eigen;
 using namespace std;
+
+using boost::filesystem::path;
+
+path g_LogRootDir = "Log";
+
+
 
 BlockArmature		g_PlayeerBlocks;
 static const float	PcaCutoff = 0.04f; // 0.2^2
 static const float	EnergyCutoff = 0.3f;
 
 static const float	CharacterPcaCutoff = 0.01f; // 0.2^2
-static const float	CharacterEnergyCutoff = 0.3f;
+static const float	CharacterEnergyCutoff = 0.35f;
 static const float	alpha = 0.8f;
 
 static const float  MatchAccepetanceThreshold = 0.4f;
 
 bool				g_EnableInputFeatureLocalization = true;
-bool				g_EnableDebugLogging = false;
+
 static const char*  DefaultAnimationSet = "walk";
 
 #define BEGIN_TO_END(range) range.begin(), range.end()
@@ -193,7 +203,9 @@ public:
 	int								Phi;
 	std::vector<Eigen::DenseIndex>	Matching;
 	float							Score;
-	MatrixXf						Correlation; // Overall correlation
+	MatrixXf						Ra; // Overall correlation
+	MatrixXf						Rk; // Kinetic correlation
+	MatrixXf						Rs; // Positional correlation
 
 	uptr<CcaArmatureTransform>		pLocalBinding;
 };
@@ -315,7 +327,7 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 		if (glow == nullptr)
 		{
 			glow = new GlowingBorder(DirectX::Colors::LimeGreen.v);
-			glow->SetEnabled(true);
+			glow->SetEnabled(false);
 			pChara->AddChild(glow);
 		}
 	}
@@ -381,6 +393,27 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	auto K = X.cols();
 
 	if (N*K == 0) return -1; // Feature Matrix is not ready yet
+
+
+
+	string timeStr;
+	path LoggingDir;
+	{
+		stringstream ss;
+		std::time_t timeStemp = std::time(nullptr);
+		ss << put_time(std::localtime(&timeStemp), "%Y_%m_%d_%H_%I_%S");
+		timeStr = ss.str();
+		LoggingDir = g_LogRootDir / timeStr;
+		if (g_EnableRecordLogging)
+		{
+			if (!boost::filesystem::exists(LoggingDir))
+			{
+				bool result = boost::filesystem::create_directory(LoggingDir);
+
+			}
+			assert(boost::filesystem::is_directory(LoggingDir));
+		}
+	}
 
 	cout << "X : min = " << X.minCoeff() << " , max = " << X.maxCoeff() << endl;
 
@@ -515,7 +548,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 			Juk.push_back(i);
 		}
 	}
-	Xsp.conservativeResize(Xsp.rows(),Juk.size());
+	Xsp.conservativeResize(Xsp.rows(), Juk.size());
 	Eub.conservativeResize(Juk.size());
 	MatrixXf XDir(2 * T * 3, Juk.size());
 	for (size_t i = 0; i < Juk.size(); i++)
@@ -541,18 +574,25 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	////? HACK Ju
 	//Ju = std::size(Juk);
 
-
+	if (g_EnableRecordLogging)
+	{
+		ofstream fout((LoggingDir / "X.csv").wstring());
+		fout << X.format(CSVFormat);
+		fout.close();
+	}
 
 	for (auto& controller : Controllers)			//? <= 5 character
 	{
+		if (!controller.IsReady)
+			continue;
 		auto& character = controller.Character();
 		auto& chraraBlocks = character.Behavier().Blocks();
 		size_t Jc = chraraBlocks.size();
 		auto& clips = character.Behavier().Clips();
 
-		controller.CharacterScore = numeric_limits<float>::min();
-		//auto& anim = character.Behavier()[DefaultAnimationSet];
-		for (auto& anim : clips)	//? <= 5 animation per character
+		//controller.CharacterScore = numeric_limits<float>::min();
+		auto& anim = character.Behavier()[DefaultAnimationSet];
+		//for (auto& anim : clips)	//? <= 5 animation per character
 		{
 			auto& analyzer = controller.GetAnimationInfo(anim.Name);
 
@@ -562,7 +602,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 			vector<int> Jck;
 			for (size_t i = 0; i < Jc; i++)
 			{
-				if (Ecb(i) > CharacterEnergyCutoff)
+				if (Ecb(i) > analyzer.EnergyCutoff)
 				{
 					Ecb(Jck.size()) = Ecb(i);
 					Jck.push_back(i);
@@ -575,7 +615,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 			MatrixXf Csp2(3 * T, Jck.size());
 			for (size_t i = 0; i < Jck.size(); i++)
 			{
-				Csp.col(i) = analyzer.Sp.block<3,1>(0,Jck[i]);
+				Csp.col(i) = analyzer.Sp.block<3, 1>(0, Jck[i]);
 				Csp2.col(i) = analyzer.Dirs.col(Jck[i]);
 			}
 
@@ -585,7 +625,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 			// Memery allocation
 			auto CoRSize = Juk.size() + Jck.size();
 
-			std::vector<MatrixXf> Ra(Ts),Rm(Ts), Rs(Ts);
+			std::vector<MatrixXf> Ra(Ts), Rm(Ts), Rs(Ts);
 
 			for (size_t i = 0; i < Ts; i++)
 			{
@@ -635,7 +675,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 				//Mcor = (Mcor.array() > Cutoff_Correlation).select(Mcor, -1.0f);
 
 				auto& Scor = Rs[phidx];
-				Scor = XDir.middleRows((T - phi)*3, T*3).transpose() * Csp2;
+				Scor = XDir.middleRows((T - phi) * 3, T * 3).transpose() * Csp2;
 				Scor /= (float)T;
 
 				auto& A = Ra[phidx];
@@ -644,7 +684,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 				// Here Eub and Ecb is Kinetic Energy, it should only affect the motion correlation term
 				Mcor.array() *= Eub.array().replicate(1, A.cols());
-				Mcor.array() *= Ecb.array().replicate(A.rows(), 1);
+				//Mcor.array() *= Ecb.array().replicate(A.rows(), 1);
 
 				A = Mcor * alpha + Scor;
 
@@ -701,7 +741,11 @@ int PlayerProxy::MapCharacterByLatestMotion()
 			analyzer.Matching = maxMatching;
 			analyzer.Phi = maxPhi;
 			if (maxPhi > -1)
-				analyzer.Correlation = Ra[maxPhi];
+			{
+				analyzer.Ra = Ra[maxPhi];
+				analyzer.Rk = Rm[maxPhi];
+				analyzer.Rs = Rs[maxPhi];
+			}
 
 			cout << "=============================================" << endl;
 			cout << "Best assignment for " << controller.Character().Name << " : " << anim.Name << endl;
@@ -822,13 +866,24 @@ int PlayerProxy::MapCharacterByLatestMotion()
 		VectorXf JuScore(Juk.size());
 		JuScore.setZero();
 
+		cout << endl;
+		cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+
 		for (auto& pBlock : controller.Character().Behavier().Blocks())
 		{
 			auto bid = pBlock->Index;
 			if (pBlock->ActiveActionCount > 0)
 			{
-				auto blockScore = 0;
+				float bestScore = MatchAccepetanceThreshold;
 				CcaArmatureTransform::PcaCcaMap* pMap = nullptr;
+				string bestAction = "<empty>";
+
+				cout << "{";
+				for (auto pJoint : pBlock->Joints)
+				{
+					cout << pJoint->Name() << ", ";
+				}
+				cout << "\b\b} <<== {";
 				for (const auto& action : pBlock->ActiveActions)
 				{
 					auto& clipinfo = controller.GetAnimationInfo(action);
@@ -837,9 +892,12 @@ int PlayerProxy::MapCharacterByLatestMotion()
 					auto jxid = clipinfo.Matching[jyid];
 
 					if (jxid == -1) continue;
-					auto score = clipinfo.Correlation(jxid,jyid);
+					auto score = clipinfo.Rs(jxid, jyid);
 
-					if (score > blockScore)
+					cout << "(" << action << " Rs=" << setprecision(3) << score<<", Rk=" << clipinfo.Rk(jxid,jyid) << "),";
+
+
+					if (score > bestScore)
 					{
 						auto itr = std::find_if(BEGIN_TO_END(clipinfo.pLocalBinding->Maps), [bid](const auto& map)
 						{ return map.Jy == bid;});
@@ -848,18 +906,30 @@ int PlayerProxy::MapCharacterByLatestMotion()
 						if (itr == clipinfo.pLocalBinding->Maps.end())
 							continue;
 
+						bestScore = score;
 						pMap = &(*itr);
+						bestAction = action;
 
 						JuScore[jxid] = std::max(JuScore[jxid], score);
 					}
 				}
 
 				if (pMap != nullptr)
+				{
 					pBinding->Maps.push_back(*pMap);
+				}
+				cout << "\b <<== [" << bestAction << "]" << endl;
 			}
 		}
 
+		cout << endl;
+
+		cout << "=========================================================" << endl;
+		JuScore.array() *= Eub.array();
 		controller.CharacterScore = JuScore.sum();
+		cout << "Total score = " << controller.CharacterScore << endl;
+		cout << "=========================================================" << endl;
+		cout << endl;
 	}
 
 	CharacterController* pControl = nullptr;
@@ -1213,7 +1283,7 @@ void CharacterController::UpdateTargetCharacter(const AffineFrame & frame) const
 	m_pBinding->Transform(cframe, frame);
 
 	float l = 100;
-	for (auto& bone :frame)
+	for (auto& bone : frame)
 	{
 		if (bone.GblTranslation.y < l)
 			l = bone.GblTranslation.y;
@@ -1246,14 +1316,17 @@ void CharacterController::SetTargetCharacter(CharacterObject & object) {
 	for (auto& anim : object.Behavier().Clips())
 	{
 		m_Analyzers[anim.Name] = new ClipInfo(behavier.Blocks());
+		
 		auto& analyzer = m_Analyzers[anim.Name];
 
+		analyzer->Phi = -1;
+		//analyzer->Score = -1;
 		analyzer->PcaCutoff = CharacterPcaCutoff;
 		analyzer->EnergyCutoff = CharacterEnergyCutoff;
 
 		tasks.emplace_back(analyzer->ComputeFromFramesAsync(anim.GetFrameBuffer()));
 	}
-	
+
 	when_all(tasks.begin(), tasks.end()).then([this]() {
 		float globalEnergyMax = 0;
 		for (auto pInfo : adaptors::values(m_Analyzers))

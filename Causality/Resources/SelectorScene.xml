@@ -2,99 +2,81 @@
 <scene gravity="0,-0.1,0">
   <scene.assets>
     <mesh name="cube_mesh" src="cube.obj"></mesh>
-    <!--<mesh name="baseball_bat_mesh" src="baseball_bat.obj"></mesh>-->
-    <!--<armature name="bunny_armature" src="bunny.skl"></armature>-->
-    <!--<behavier name="bunny_behavier" armature="{bunny_armature}" >
-		    <animation_clip name="move" src="bunny.move.kfa"></animation_clip>
-		    <animation_clip name="ear_bunce" src="bunny.ear_bunce.kfa"></animation_clip>
-	    </behavier>-->
-    <!--<phong_material name="spider_material">
-      <diffuse_map>spider-tex.png</diffuse_map>
-    </phong_material>
-    <phong_material name="horse_material">
-      <diffuse_map>Horse_D.dds</diffuse_map>
-    </phong_material>-->
-    <mesh name="spider_mesh" src="spider.fbx" diffuse_map="spider-tex.dds"></mesh>
-    <mesh name="horse_mesh" src="Horse.fbx" diffuse_map="horse_d.dds" alpha_discard="true"></mesh>
-    <!--<mesh name="bat_mesh" src="bat.fbx" diffuse_map="bat_spc.dds"></mesh>-->
 
-    <behavier name="spider_behavier" src="spider.fbx"></behavier>
-    <behavier name="horse_behavier" armature="Horse_Idle.fbx">
-      <behavier.actions>
-        <action name="run" src="Horse_Run.fbx"/>
-        <action name="walk" src="Horse_Walk.fbx"/>
-        <action name="idle" src="Horse_Idle.fbx"/>
-      </behavier.actions>
-    </behavier>
-    <!--<behavier name="bat_behavier" armature="bat.fbx">
-      <behavier.actions>
-        <action name="walk" src="bat.fbx"/>
-      </behavier.actions>
-    </behavier>-->  
+    <phong_material name="spider_material" diffuse_map="spider-tex.png"></phong_material>
+    <phong_material name="horse_material" alpha_discard="true" diffuse_map="Horse_D.dds"></phong_material>
+    <phong_material name="allosaurus_material" diffuse_map="Allosaurus_diffuse.dds" normal_map="Allosaurus_normal.dds"></phong_material>
+    <phong_material name="cat_material" diffuse_map="kitten_hAO.dds" normal_map="kitten_Normal.dds"></phong_material>
+
+    <mesh name="spider_mesh" src="spider.fbx" material="{spider_material}"></mesh>
+    <mesh name="horse_mesh" src="Horse.fbx" material="{horse_material}" ></mesh>
+    <mesh name="allosaurus_mesh" src="allosaurus.fbx" material="{allosaurus_material}"></mesh>
+    <mesh name="cat_mesh" src="kitten.fbx" material="{cat_material}"></mesh>
+
   </scene.assets>
   <scene.content>
     <grid name="root">
       <coordinate_axis/>
+
       <light name="sun_light" primary="false" color="#FFFFFFFF" position="0,5,0" focus="0,0,0" up="0,0,-1" wfov="4" hfov="4" aspect="1" perspective="false" drops_shadow="true" resolution="2048" />
-      <shadow_camera name="primary_camera" primary="true" background="#FFFFFFFF" position="0,0.5,2.5" focus="0,0,-1" up="0,1,0">
+
+      <shadow_camera name="primary_camera" primary="true" background="#FFFFFFFF" position="0,1.5,2.5" focus="0,0,1" up="0,1,0">
         <first_person_keyboard_mouse_control />
       </shadow_camera>
 
-      <object name="ground" position="-2.0,-0.021,-2.0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>
-      <!--<object name="baseball_bat" position="-0,1.0,0.0" scale="0.1,0.1,0.1" mesh="{baseball_bat_mesh}"/>-->
-      <!--<object name="horse_statue" position="-1,0,0" scale=".01f" mesh="{horse_mesh}"></object>-->
-
       <skydome name="sky" background="SkyBox\GrimmNight"/>
+      
+      <object name="ground" position="-2.0,-0.021,-2.0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>
+      
       <player_controller name="player" position="0,0.0,0">
-        <!-- 				<creature name="bunny" position="-1.0,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
-				<creature name="bunny2" position="-0.5,0.0,0.0" scale="0.1" mesh="{bunny_mesh}" behavier="{bunny_behavier}"></creature>
- -->
-        <!--<creature name="bat" position="-1,0,0" scale ="0.1" behavier="{bat_behavier}" action="walk" mesh="{bat_mesh}"></creature>-->
-        <creature name="horse" position="-1,0,0" scale ="0.01" behavier="{horse_behavier}" action="idle" mesh="{horse_mesh}"></creature>
-        <creature name="spider" position="1,0,0" scale="0.0025" behavier="{spider_behavier}" action="idle" mesh="{spider_mesh}"></creature>
-        <!--<kinect_visualizer/>-->
+        <creature name="horse" position="-1,0,0" scale ="0.01" action="idle" mesh="{horse_mesh}">
+          <creature.behavier>
+            <behavier name="horse_behavier" armature="Horse_Idle.fbx">
+              <behavier.actions>
+                <action name="run" src="Horse_Run.fbx"/>
+                <action name="walk" src="Horse_Walk.fbx"/>
+                <action name="idle" src="Horse_Idle.fbx"/>
+              </behavier.actions>
+            </behavier>
+          </creature.behavier>
+        </creature>
+
+        <creature name="spider" position="1,0,0" scale="0.0025" behavier="{spider_behavier}" action="idle" mesh="{spider_mesh}">
+          <creature.behavier>
+            <behavier name="spider_behavier" src="spider.fbx"></behavier>
+          </creature.behavier>
+        </creature>
+        
+        <creature name="allosaurus" position="0,-1,0" scale ="0.01" action="idle" mesh="{allosaurus_mesh}">
+          <creature.behavier>
+            <behavier name="horse_behavier" armature="Horse_Idle.fbx">
+              <behavier.actions>
+                <action name="idle" src="Allosaurus_Idle.FBX"/>
+                <action name="walk" src="Allosaurus_Walk.FBX"/>
+                <action name="run" src="Allosaurus_Run.FBX"/>
+                <action name="attack" src="Allosaurus_Attack01.FBX"/>
+                <action name="hit" src="Allosaurus_Hit01.FBX"/>
+                <action name="die" src="Allosaurus_Die.FBX"/>
+              </behavier.actions>
+            </behavier>
+          </creature.behavier>
+        </creature>
+
+        <creature name="cat" position="0,1,0" scale ="0.01" action="idle" mesh="{cat_mesh}">
+          <creature.behavier>
+            <behavier name="cat_beyhavier" armature="kitten_Meow.fbx">
+              <behavier.actions>
+                <action name="idle" src="kitten_Idle.fbx"/>
+                <action name="walk" src="kitten_Walk.fbx"/>
+                <action name="run" src="kitten_Run.fbx"/>
+                <action name="attack" src="kitten_Itching.fbx"/>
+                <action name="jump" src="kitten_Jump.fbx"/>
+                <action name="meow" src="kitten_Meow.fbx"/>
+              </behavier.actions>
+            </behavier>
+          </creature.behavier>
+        </creature>
       </player_controller>
     </grid>
   </scene.content>
-
-  <!--<skin_model src="Bird.obj">
-    <skin_model.armature>
-      <armature name="Bird_sk">
-        <joint id="0" name="SPIN">
-          <joint id="1" name="WING_LEFT"></joint>
-          <joint id="2" name="WING_RIGHT"></joint>
-        </joint>
-      </armature>
-    </skin_model.armature>
-    <skin_model.rest_frame>
-      <boneframe target_armature="Bird_sk" time="0">
-        <bonestate id="0" end_position="0,0,0" orientation="0,0,0,1" />
-        <bonestate id="1" end_position="0,0,0" orientation="0,0,0,1" />
-        <bonestate id="2" end_position="0,0,0" orientation="0,0,0,1" />
-      </boneframe>
-    </skin_model.rest_frame>
-  </skin_model>
-
-  <bone_animation name="bird_flapy" target_armature="Bird_sk">
-    <boneframe time="0:0:0">
-      <bonestate id="0" end_position="0,0,0" orientation="0,0,0,1" />
-      <bonestate id="1" end_position="0,0,0" orientation="0,0,0,1" />
-      <bonestate id="2" end_position="0,0,0" orientation="0,0,0,1" />
-    </boneframe>
-    <boneframe time="0:0:5" name="flapL">
-      <bonestate id="0" end_position="0,0,0" orientation="0,0,0,1" />
-      <bonestate id="1" end_position="0,-1,0" orientation="0,0,0,1" />
-      <bonestate id="2" end_position="0,1,0" orientation="0,0,0,1" />
-    </boneframe>
-    <boneframe time="0:0:15" name="flapR">
-      <bonestate id="0" end_position="0,0,0" orientation="0,0,0,1" />
-      <bonestate id="1" end_position="0,1,0" orientation="0,0,0,1" />
-      <bonestate id="2" end_position="0,-1,0" orientation="0,0,0,1" />
-    </boneframe>
-    <boneframe time="0:0:20">
-      <bonestate id="0" end_position="0,0,0" orientation="0,0,0,1" />
-      <bonestate id="1" end_position="0,0,0" orientation="0,0,0,1" />
-      <bonestate id="2" end_position="0,0,0" orientation="0,0,0,1" />
-    </boneframe>
-  </bone_animation>-->
 </scene>

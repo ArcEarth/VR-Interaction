@@ -162,7 +162,7 @@ namespace Causality
 
 		// Create the window with the screen settings and get the handle to it.
 		m_hWnd = CreateWindowEx(WS_EX_APPWINDOW, wc.lpszClassName, wc.lpszClassName,
-			WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_POPUP,
+			WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
 			posX, posY, screenWidth, screenHeight, NULL, NULL, m_hInstance, NULL);
 
 		Application::WindowsLookup[m_hWnd] = this->shared_from_this();

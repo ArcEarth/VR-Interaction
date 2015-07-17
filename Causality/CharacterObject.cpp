@@ -60,6 +60,7 @@ void CharacterObject::SetRenderModel(DirectX::Scene::IModelNode * pMesh, int LoD
 
 void CharacterObject::Update(time_seconds const & time_delta)
 {
+	SceneObject::Update(time_delta);
 	if (m_pCurrentAction != nullptr)
 	{
 		m_CurrentActionTime += time_delta;
