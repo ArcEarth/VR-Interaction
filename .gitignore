@@ -232,3 +232,5 @@ pip-log.txt
 /DirectX/Src/Shaders/xbox/
 
 Log/
+Causality/*.csv
+Causality/CharacterAnalayze/*.csv
