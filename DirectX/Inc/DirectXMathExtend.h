@@ -1742,6 +1742,7 @@ namespace DirectX
 	namespace LineSegmentTest
 	{
 		inline float XM_CALLCONV Distance(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1);
+		inline float XM_CALLCONV Distance(FXMVECTOR p, const XMFLOAT3 *path, size_t nPoint, size_t strideInByte = sizeof(XMFLOAT3));
 
 		// Takes a space point and space line segment , return the projection point on the line segment
 		//  A0  |		A1		  |

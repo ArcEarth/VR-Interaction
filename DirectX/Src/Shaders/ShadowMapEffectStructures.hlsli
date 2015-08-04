@@ -148,9 +148,11 @@ struct PSInputScreenSpaceNoTex
 
 struct PSInputScreenSpaceTex
 {
-	float4 pos : SV_POSITION;
-	float2 uv : TEXCOORD0;
-	float4 posUV : TEXCOORD1;
-	float3 normal : TEXCOORD2;
-	float3 toEye : TEXCOORD3;
+	float4 pos			: SV_POSITION;
+	float2 uv			: TEXCOORD0;
+	float4 posUV        : TEXCOORD1;
+	float3 normal       : TEXCOORD2;
+	float3 toEye        : TEXCOORD3;
+	float3 tangent      : TEXCOORD4;
+	float3 binormal     : TEXCOORD5;
 };

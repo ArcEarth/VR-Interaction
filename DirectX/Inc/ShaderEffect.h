@@ -21,6 +21,7 @@ namespace DirectX
 		virtual void __cdecl SetSpecularPower(float value) = 0;
 		virtual void __cdecl DisableSpecular() = 0;
 		virtual void __cdecl SetAlpha(float value) = 0;
+		virtual void __cdecl SetAlphaDiscard(bool enable) = 0;
 
 		virtual void SetDiffuseMap(ID3D11ShaderResourceView* pTexture) = 0;
 		virtual void SetNormalMap(ID3D11ShaderResourceView* pTexture) = 0;

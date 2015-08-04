@@ -15,12 +15,8 @@ using namespace std;
 using namespace Microsoft::WRL;
 
 PhongMaterial::PhongMaterial()
+	: pDefaultRequestEffect(nullptr)
 {
-	Alpha = 1.0f;
-	AmbientColor = Colors::White.v;
-	DiffuseColor = Colors::White.v;
-	SpecularColor = Colors::White.v;
-	EmissiveColor = Colors::Black.v;
 }
 
 PhongMaterial::PhongMaterial(const PhongMaterialData & data, const std::wstring & lookupDirectory, ID3D11Device * pDevice)
@@ -183,10 +179,11 @@ void PhongMaterial::SetupEffect(IEffect *pEffect) const
 		pPhongEffect->SetDiffuseColor(DiffuseColor);
 		pPhongEffect->SetEmissiveColor(EmissiveColor);
 		pPhongEffect->SetSpecularColor(SpecularColor);
-		pPhongEffect->SetSpecularPower(1.0f);
+		pPhongEffect->SetSpecularPower(SpecularColor.A());
 		pPhongEffect->SetDiffuseMap(GetDiffuseMap());
 		pPhongEffect->SetNormalMap(GetNormalMap());
 		pPhongEffect->SetSpecularMap(GetSpecularMap());
+		pPhongEffect->SetAlphaDiscard(UseAlphaDiscard);
 		return;
 	}
 

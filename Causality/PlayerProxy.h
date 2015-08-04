@@ -35,12 +35,18 @@ namespace Causality
 		Vector3					MapRefPos;
 		Vector3					CMapRefPos;
 
+		// Principle displacement driver
 		ClipInfo& GetAnimationInfo(const string& name);
+
+		map<string, ClipInfo*>& GetClipInfos() { return m_Analyzers; }
 
 	public:
 		CharacterObject*							m_pCharacter;
 		map<string, ClipInfo*>						m_Analyzers;
 		uptr<ArmatureTransform>						m_pBinding;
+		uptr<ArmatureTransform>						m_pSelfBinding;
+		uptr<BlockFeatureExtractor>					m_pFeatureExtrator;
+
 
 		void SetSourceArmature(const IArmature& armature);
 
@@ -139,7 +145,8 @@ namespace Causality
 
 		Devices::KinectSensor::Refptr		pKinect;
 		TrackedBodySelector					playerSelector;
-		
+
+		uptr<BlockFeatureExtractor>			pPlayerFeatureExtrator; // All joints block-Localized gbl-position 
 
 		int									CurrentIdx;
 		std::list<CharacterController>		Controllers;
@@ -165,6 +172,8 @@ namespace Causality
 		VectorX								StateProbality;
 		VectorX								Likilihood;
 		MatrixX								TransferMatrix;
+
+		time_seconds						current_time;
 
 	protected:
 		// Enter the selecting phase

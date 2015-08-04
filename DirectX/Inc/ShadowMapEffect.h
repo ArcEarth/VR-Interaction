@@ -45,6 +45,7 @@ namespace DirectX
 		virtual void SetSpecularPower(float value) override;
 		virtual void DisableSpecular() override;
 		virtual void SetAlpha(float value) override;
+		virtual void SetAlphaDiscard(bool enable) override;
 		virtual void SetDiffuseMap(ID3D11ShaderResourceView * pTexture) override;
 		virtual void SetNormalMap(ID3D11ShaderResourceView * pTexture) override;
 		virtual void SetSpecularMap(ID3D11ShaderResourceView * pTexture) override;

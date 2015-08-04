@@ -79,7 +79,8 @@ namespace Causality
 		void	SetTimeScale(double time_scale) { this->time_scale = time_scale; }
 
 		// Contens operations
-		SceneObject*	Content() { return content.get(); }
+		SceneObject*	Content();
+		SceneObject*	SetContent(SceneObject* sceneRoot);
 
 		AssetDictionary& Assets() { return assets; }
 		const AssetDictionary& Assets() const { return assets; }

@@ -8,7 +8,6 @@ namespace Causality
 		struct LclRotLnQuatFeature //: concept BoneFeature 
 		{
 			static const size_t Dimension = 3;
-			static const bool EnableBlcokwiseLocalization = false;
 
 			template <class Derived>
 			inline static void Get(_Out_ Eigen::DenseBase<Derived>& fv, _In_ const Bone& bone)
@@ -80,7 +79,6 @@ namespace Causality
 		struct GblPosLclRotFeature
 		{
 			static const size_t Dimension = 6;
-			static const bool EnableBlcokwiseLocalization = false;
 			typedef Eigen::Matrix<float, Dimension, 1> VectorType;
 
 			template <class Derived>
@@ -124,7 +122,6 @@ namespace Causality
 		struct GblPosFeature
 		{
 			static const size_t Dimension = 3;
-			static const bool EnableBlcokwiseLocalization = true;
 
 			template <class Derived>
 			inline static void Get(_Out_ Eigen::DenseBase<Derived>& fv, _In_ const Bone& bone)
@@ -137,6 +134,31 @@ namespace Causality
 			{
 				// ensure continious storage
 				Eigen::Vector3f::MapAligned(&bone.GblTranslation.x) = fv;
+			}
+		};
+
+		struct QuadraticGblPosFeature
+		{
+			static const size_t Dimension = 9;
+
+			template <class Derived>
+			inline static void Get(_Out_ Eigen::DenseBase<Derived>& fv, _In_ const Bone& bone)
+			{
+				auto& pos = bone.GblTranslation;
+				fv.segment<3>(0) = Eigen::Vector3f::MapAligned(&pos.x);
+				fv[3] = pos.x * pos.x;
+				fv[4] = pos.y * pos.y;
+				fv[5] = pos.z * pos.z;
+				fv[6] = pos.x * pos.y;
+				fv[7] = pos.y * pos.z;
+				fv[8] = pos.z * pos.x;
+			}
+
+			template <class Derived>
+			inline static void Set(_Out_ Bone& bone, _In_ const Eigen::DenseBase<Derived>& fv)
+			{
+				// ensure continious storage
+				Eigen::Vector3f::MapAligned(&bone.GblTranslation.x) = fv.segment<3>(0);
 			}
 		};
 	}

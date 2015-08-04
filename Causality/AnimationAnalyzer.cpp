@@ -9,7 +9,7 @@ using namespace std;
 using namespace Concurrency;
 
 AnimationAnalyzer::AnimationAnalyzer(const BlockArmature & bArm)
-	:pBlockArmature(&bArm), PcaCutoff(0.01f), IsReady(false), EnergyCutoff(0.35f)
+	:pBlockArmature(&bArm), PcaCutoff(0.01f), IsReady(false), EnergyCutoff(0.35f), PerceptiveVectorReconstructor(pBlockArmature->size())
 {
 }
 
@@ -27,7 +27,7 @@ task<void> AnimationAnalyzer::ComputeFromFramesAsync(const std::vector<AffineFra
 
 void AnimationAnalyzer::ComputeFromFrames(const std::vector<AffineFrame>& frames)
 {
-	std::cout << "Computation start" << endl;
+	//std::cout << "Computation start" << endl;
 	IsReady = false;
 	static const auto DimPerBone = CharacterFeature::Dimension;
 	auto numBones = pBlockArmature->Armature().size();
@@ -49,10 +49,10 @@ void AnimationAnalyzer::ComputeFromFrames(const std::vector<AffineFrame>& frames
 	}
 
 	BlocklizationAndComputeEnergy();
-	ComputePcaQr();
 	ComputeSpatialTraits(frames);
+	ComputePcaQr();
 	IsReady = true;
-	std::cout << "Computation finished" << endl;
+	//std::cout << "Computation finished" << endl;
 }
 
 void AnimationAnalyzer::ComputeFromBlocklizedMat(const Eigen::MatrixXf & mat)
@@ -86,7 +86,7 @@ void AnimationAnalyzer::BlocklizationAndComputeEnergy()
 		auto i = block->Index;
 		auto& joints = block->Joints;
 
-		Eigen::MatrixXf Yb(X.rows(), block->GetFeatureDim<CharacterFeature>());
+		Eigen::MatrixXf Yb(X.rows(), block->Joints.size() * CharacterFeature::Dimension);
 		for (size_t j = 0; j < joints.size(); j++)
 		{
 			Yb.middleCols<DimPerBone>(j * DimPerBone) = X.middleCols<DimPerBone>(joints[j]->ID() * DimPerBone);
@@ -124,11 +124,13 @@ void AnimationAnalyzer::ComputePcaQr()
 	Qrs.resize(bSize);
 	Pcas.resize(bSize);
 	Xbs.resize(bSize);
+	PvPcas.resize(bSize);
+	PvQrs.resize(bSize);
 
 	concurrency::parallel_for_each(blocks.begin(), blocks.end(), [this](auto block)
 		//for (auto& block : blocks)
 	{
-		std::cout << "Pca start" << endl;
+		//std::cout << "Pca start" << endl;
 		auto i = block->Index;
 		auto& joints = block->Joints;
 
@@ -137,7 +139,11 @@ void AnimationAnalyzer::ComputePcaQr()
 		pca.compute(Yb, true);
 		auto d = pca.reducedRank(PcaCutoff);
 		Qrs[i].compute(pca.coordinates(d), true);
-		std::cout << "Pca finish" << endl;
+
+		auto pvs = Eigen::Matrix<float, CLIP_FRAME_COUNT, 3, Eigen::RowMajor>::Map(Dirs.col(i).data());
+		PvPcas[i].compute(pvs);
+		PvQrs[i].compute(PvPcas[i].coordinates(3),true);
+		//std::cout << "Pca finish" << endl;
 	});
 }
 
@@ -185,7 +191,7 @@ void AnimationAnalyzer::ComputeSpatialTraits(const std::vector<AffineFrame> &fra
 			for (size_t fid = 0; fid < frameCount; fid++)
 			{
 				auto v = Dirs.block<3, 1>(fid * 3, i) -= Dirs.block<3, 1>(fid * 3, pi);
-				v.normalize();
+				// v.normalize();
 			}
 
 		}

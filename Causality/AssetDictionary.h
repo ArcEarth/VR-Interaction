@@ -18,19 +18,22 @@ namespace Causality
 	class AssetDictionary;
 
 	using boost::filesystem::path;
+	using concurrency::task;
 
 	class asset_dictionary;
 
-	class asset_base
+	// asset control block
+	class asset_control_base
 	{
-	friend asset_dictionary;
+		friend asset_dictionary;
 
 	protected:
 		ptrdiff_t					_ref_count;
 		asset_dictionary*			_dictionary;
 		path						_ref_path;
 		bool						_loaded;
-		virtual						~asset_base(){}
+		task<void*>					_load_task;
+		virtual						~asset_control_base() {}
 	public:
 
 		asset_dictionary*			dictionary() { return _dictionary; }
@@ -40,13 +43,18 @@ namespace Causality
 		bool						is_loaded() { return _loaded; }
 
 		ptrdiff_t					ref_count() const { return _ref_count; }
+
+		ptrdiff_t					inc_ref() { return ++_ref_count; }
+		ptrdiff_t					dec_ref() { return --_ref_count; }
+
+		virtual bool				is_unified_chunck() const { return false; }
 	};
 
 	template <class T>
 	class asset;
 
 	template <class T>
-	class asset : public asset_base
+	class asset : public asset_control_base
 	{
 	private:
 		union
@@ -58,13 +66,17 @@ namespace Causality
 		friend asset_dictionary;
 
 	public:
-		virtual ~asset()
+		virtual ~asset() override
 		{
 			_Tdata.~T();
 		}
 
+		virtual bool				is_unified_chunck() const override
+		{ return true; }
+
+
 		T&						get() { return _Tdata; }
-		asset_ptr<T>			get_ptr() { return &_Tdata; }
+		T*						get_ptr() { return &_Tdata; }
 
 		template<class... _Types> inline
 		T*						internal_construct(_Types&&... _Args)
@@ -72,33 +84,57 @@ namespace Causality
 			return new (&_Tdata) T(_STD forward<_Types>(_Args)...);
 		}
 
-		ptrdiff_t				inc_ref() { return ++_ref_count; }
-		ptrdiff_t				dec_ref() 
-		{ 
-			return --_ref_count;
-		}
 	};
 
 	template <class T>
 	class asset_ptr
 	{
 	private:
-		asset<T>* _ptr;
+		asset_control_base* _control;
+		T*					_ptr;
 	public:
-		T* get() { return  _ptr->get_ptr(); }
-		const T* get() const { return  _ptr->get_ptr(); }
-		operator T*() { return _ptr->get_ptr(); }
-		operator const T*() const { return _ptr->get_ptr(); }
+		T* get() { return  _ptr; }
+		const T* get() const { return  _ptr; }
+		operator T*() { return _ptr; }
+		operator const T*() const { return _ptr; }
 
-		asset_ptr() : _ptr(nullptr) {}
+		explicit asset_ptr(asset_dictionary* dict, const path& source, T* ptr)
+			: _ptr(ptr)
+		{
+			_control = new asset_control_base();
+			_control->_dictionary = dict;
+			_control->_ref_path = source;
+			_control->_loaded = true;
+			_control->inc_ref();
+		}
+
+		explicit asset_ptr(asset_dictionary* dict, const path& source, task<T*>&& loader)
+			: _ptr(nullptr)
+		{
+			_control = new asset_control_base();
+			_control->_dictionary = dict;
+			_control->_ref_path = source;
+			_control->_loaded = false;
+			_control->inc_ref();
+			_control->_load_task = loader.then([this](T* result) {
+				_ptr = result;
+				_control->_loaded = true;
+			});
+		}
+
+		asset_ptr() : _ptr(nullptr), _control(nullptr) {}
 		~asset_ptr()
 		{
 			reset();
 		}
 
-		asset_ptr& operator=(const asset_ptr& rhs) 
+		asset_ptr& operator=(const asset_ptr& rhs)
 		{
-			_ptr = rhs._ptr; if (_ptr) _ptr->inc_ref(); return *this;
+			_ptr = rhs._ptr;
+			_control = rhs._control;
+			if (_ptr && _control)
+				_control->inc_ref();
+			return *this;
 		}
 
 		asset_ptr& operator=(asset_ptr&& rhs)
@@ -111,14 +147,26 @@ namespace Causality
 		asset_ptr(asset_ptr&& rhs) { *this = std::move(rhs); }
 
 		void reset() {
-			if (_ptr && !_ptr->dec_ref())
-				delete _ptr;
+			if (_ptr && !_control->dec_ref())
+			{
+				bool is_same_block = _control->is_unified_chunck();
+
+				delete _control;
+				_control = nullptr;
+
+				if (!is_same_block)
+				{
+					delete _ptr;
+					_ptr = nullptr;
+				}
+			}
 		}
 
-		void attach(asset<T>* ptr)
+		void attach(asset<T>* asset)
 		{
 			reset();
-			_ptr = ptr;
+			_ptr = asset->get_ptr();
+			_control = asset;
 		}
 
 		void swap(asset_ptr& rhs)
@@ -126,15 +174,20 @@ namespace Causality
 			auto ptr = _ptr;
 			_ptr = rhs._ptr;
 			rhs._ptr = ptr;
+			auto control = _control;
+			_control = rhs._control;
+			rhs._control = controll
 		}
 	public:
-		asset_dictionary*		dictionary() { return _ptr->dictionary(); }
-		const asset_dictionary*	dictionary() const { return _ptr->dictionary(); }
+		asset_dictionary*		dictionary() { return !_control ? nullptr : _control->dictionary(); }
+		const asset_dictionary*	dictionary() const { return !_control ? nullptr : _control->dictionary(); }
 
-		const path&				source_path() const { return _ptr->source_path(); }
-		bool					is_loaded() { return _ptr->is_loaded(); }
+		bool					experied() const { return _control ? _control->ref_count() == 0 : true; }
+		ptrdiff_t				ref_count() const { return !_control ? 0 : _control->ref_count(); }
 
-		ptrdiff_t				ref_count() const { return _ptr->ref_count(); }
+		const path&				source_path() const { return _control->source_path(); }
+		bool					is_loaded() { return !_control ? false : _control->is_loaded(); }
+		task<T*>&				load_task() { return _control->_load_task; }
 	};
 
 	class asset_dictionary
@@ -186,8 +239,8 @@ namespace Causality
 
 
 		template<class _Ty, class... _Types> inline
-		asset_ptr<_Ty> make_asset(const string& key, _Types&&... _Args)
-		{	
+			asset_ptr<_Ty> make_asset(const string& key, _Types&&... _Args)
+		{
 			auto ptr = new asset<_Ty>(std::forward(_Args)...);
 		}
 
@@ -198,10 +251,8 @@ namespace Causality
 		asset_ptr<mesh_type> get_asset(const string& key);
 
 	private:
-		std::unordered_map<string, asset_base*> _resources;
+		std::unordered_map<string, asset_control_base*> _resources;
 	};
-
-	using concurrency::task;
 
 	// Controls the asset name resolve and loading
 	class AssetDictionary
@@ -223,11 +274,12 @@ namespace Causality
 		//Synchronize loading methods
 		mesh_type*		     LoadObjMesh(const string & key, const string& fileName);
 		mesh_type*		     LoadFbxMesh(const string & key, const string& fileName, const std::shared_ptr<material_type> &pMaterial = nullptr);
+		mesh_type*		     LoadFbxMesh(const string & key, const string& fileName, bool importMaterial);
 		texture_type&	     LoadTexture(const string & key, const string& fileName);
 		armature_type&	     LoadArmature(const string & key, const string& fileName);
 		animation_clip_type& LoadAnimation(const string& key, const string& fileName);
 		behavier_type*		 LoadBehavierFbx(const string & key, const string & fileName);
-		behavier_type*		 LoadBehavierFbxs(const string & key, const string& armature, list<std::pair<string,string>>& animations);
+		behavier_type*		 LoadBehavierFbxs(const string & key, const string& armature, list<std::pair<string, string>>& animations);
 
 		// Async loading methods
 		task<mesh_type*>&			LoadMeshAsync(const string & key, const string& fileName);
@@ -295,6 +347,7 @@ namespace Causality
 		material_type*				AddMaterial(const string& key, const sptr<material_type>& pMaterial)
 		{
 			materials[key] = pMaterial;
+			return pMaterial.get();
 		}
 
 		template<typename TAsset>

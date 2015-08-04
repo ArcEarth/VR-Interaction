@@ -57,12 +57,22 @@ call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_OneLightFourBoneTex
 
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceNoBoneNoTex
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceNoBoneTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceNoBoneTexBump
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceOneBoneNoTex
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceOneBoneTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceOneBoneTexBump
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceTwoBoneNoTex
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceTwoBoneTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceTwoBoneTexBump
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceFourBoneNoTex
 call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceFourBoneTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_ScreenSpaceFourBoneTexBump
+
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_BinaryOneLightNoBoneNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_BinaryOneLightNoBoneTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_BinaryOneLightFourBoneNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectVS vs VS_BinaryOneLightFourBoneTex
+
 goto finish
 
 :ShadowMapEffectPS
@@ -71,6 +81,10 @@ call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_OneLightTex
 
 call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_ScreenSpaceNoTex
 call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_ScreenSpaceTex
+call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_ScreenSpaceTexBump
+
+call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_BinaryOneLightNoTex
+call :CompileShaderHLSL%platform% ShadowMapEffectPS ps PS_BinaryOneLightTex
 goto finish
 
 :BinaryShadowMapEffect

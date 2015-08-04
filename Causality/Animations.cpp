@@ -93,15 +93,14 @@ void AffineFrame::RebuildLocal(const IArmature & armature)
 void AffineFrame::Lerp(AffineFrame& out, const AffineFrame & lhs, const AffineFrame & rhs, float t, const IArmature& armature)
 {
 	//assert((Armature == lhs.pArmature) && (lhs.pArmature == rhs.pArmature));
-	for (size_t i = 0; i < lhs.size(); i++)
+	XMVECTOR vt = XMVectorReplicate(t);
+	for (size_t i = 0; i < armature.size(); i++)
 	{
-		out[i].LclRotation = DirectX::Quaternion::Slerp(lhs[i].LclRotation, rhs[i].LclRotation, t);
-		out[i].LclScaling = DirectX::XMVectorLerp(lhs[i].LclScaling, rhs[i].LclScaling, t);
-		if (!armature[i]->is_root())
-		{
-			out[i].UpdateGlobalData(out[armature[i]->ParentID()]);
-		}
+		out[i].LclRotation.StoreA(DirectX::XMQuaternionSlerpV(lhs[i].LclRotation.LoadA(), rhs[i].LclRotation.LoadA(), vt));
+		out[i].LclScaling.StoreA(DirectX::XMVectorLerpV(lhs[i].LclScaling.LoadA(), rhs[i].LclScaling.LoadA(), vt));
+		out[i].LclTranslation.StoreA(DirectX::XMVectorLerpV(lhs[i].LclTranslation.LoadA(), rhs[i].LclTranslation.LoadA(), vt));
 	}
+	out.RebuildGlobal(armature);
 }
 
 void AffineFrame::Blend(AffineFrame& out, const AffineFrame & lhs, const AffineFrame & rhs, float * blend_weights, const IArmature& armature)
@@ -209,9 +208,16 @@ bool ArmatureFrameAnimation::InterpolateFrames(double frameRate)
 bool ArmatureFrameAnimation::GetFrameAt(AffineFrame & outFrame, TimeScalarType time) const
 {
 	double t = fmod(time.count(), Duration.count());
-	int frameIdx = round(t / FrameInterval.count());
+	int frameIdx = (int)floorf(t / FrameInterval.count());
 	frameIdx = frameIdx % frames.size(); // ensure the index is none negative
-	outFrame = frames[frameIdx];
+	auto& sframe = frames[frameIdx];
+	auto& tframe = frames[(frameIdx + 1) % frames.size()];
+	t -= frameIdx * FrameInterval.count();
+	t /= FrameInterval.count();
+
+	if (outFrame.size() < Armature().size())
+		outFrame.resize(Armature().size());
+	AffineFrame::Lerp(outFrame, sframe, tframe,t, Armature());
 	return true;
 }
 

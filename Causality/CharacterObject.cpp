@@ -65,9 +65,10 @@ void CharacterObject::Update(time_seconds const & time_delta)
 	{
 		m_CurrentActionTime += time_delta;
 		m_pCurrentAction->GetFrameAt(m_CurrentFrame, m_CurrentActionTime);
+		m_DirtyFlag = true;
 	}
 
-	if (m_pSkinModel)
+	if (m_pSkinModel && m_DirtyFlag)
 	{
 		auto pBones = reinterpret_cast<XMFLOAT4X4*>(m_pSkinModel->GetBoneTransforms());
 		AffineFrame::TransformMatrix(pBones, Armature().default_frame(), m_CurrentFrame, m_pSkinModel->GetBonesCount());
@@ -86,6 +87,9 @@ bool CharacterObject::IsVisible(const BoundingGeometry & viewFrustum) const
 
 void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect)
 {
+	if (g_ShowCharacterMesh)
+		VisualObject::Render(pContext, pEffect);
+
 	if (g_DebugView)
 	{
 		using namespace DirectX;
@@ -97,11 +101,17 @@ void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect
 		color = DirectX::XMVectorSetW(color, Opticity());
 
 		auto trans = this->GlobalTransformMatrix();
-		DrawArmature(this->Armature(), frame, color, trans);
-	}
 
-	if (g_ShowCharacterMesh)
-		VisualObject::Render(pContext, pEffect);
+		ID3D11DepthStencilState *pDSS = NULL;
+		UINT StencilRef;
+		pContext->OMGetDepthStencilState(&pDSS, &StencilRef);
+		pContext->OMSetDepthStencilState(g_PrimitiveDrawer.GetStates()->DepthNone(), StencilRef);
+		DrawArmature(this->Armature(), frame, color, trans);
+		pContext->OMSetDepthStencilState(pDSS, StencilRef);
+
+		//color = Colors::LimeGreen.v;
+		//DrawArmature(this->Armature(), this->Armature().default_frame(), color, trans);
+	}
 }
 
 void XM_CALLCONV CharacterObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
@@ -130,21 +140,26 @@ void Causality::DrawArmature(const IArmature & armature, const AffineFrame & fra
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 
-	XMMATRIX transform = world.Load();
+	// Invaliad frame
+	if (frame.size() < armature.size()) 
+		return;
+
+	g_PrimitiveDrawer.SetWorld(world);
+	g_PrimitiveDrawer.Begin();
 	for (auto& joint : armature.joints())
 	{
 		auto& bone = frame[joint.ID()];
 		XMVECTOR ep = bone.GblTranslation;
-		ep = XMVector3TransformCoord(ep, transform);
 
 		if (!joint.is_root())
 		{
 			auto& pbone = frame[joint.parent()->ID()];
 			XMVECTOR sp = pbone.GblTranslation;
-			sp = XMVector3TransformCoord(sp, transform);
 
-			g_PrimitiveDrawer.DrawCylinder(sp, ep, 0.015f, color);
+			g_PrimitiveDrawer.DrawLine(sp, ep, color);
+			//g_PrimitiveDrawer.DrawCylinder(sp, ep, 0.015f, color);
 		}
-		g_PrimitiveDrawer.DrawSphere(ep, 0.03f, color);
+		//g_PrimitiveDrawer.DrawSphere(ep, 0.03f, color);
 	}
+	g_PrimitiveDrawer.End();
 }

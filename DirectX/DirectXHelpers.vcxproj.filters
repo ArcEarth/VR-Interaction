@@ -130,22 +130,10 @@
     <None Include="Src\Shaders\CompileShaders.cmd">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="Src\Shaders\makefile">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Src\Shaders\ShadowMapGen.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Src\Shaders\ShadowMapEffectStructures.hlsli">
       <Filter>Shaders</Filter>
     </None>
     <None Include="Src\Shaders\ShadowMapEffectCBuffer.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Src\Shaders\BlurEffect.hlsl">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="Src\Shaders\QuadVertexShader.hlsl">
       <Filter>Shaders</Filter>
     </None>
     <None Include="Src\Shaders\Common.hlsli">
@@ -153,11 +141,20 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Src\Shaders\ShadowMapEffectPS.hlsl">
+    <CustomBuild Include="Src\Shaders\BlurEffect.hlsl">
       <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\ShadowMapEffectVS.hlsl">
+    </CustomBuild>
+    <CustomBuild Include="Src\Shaders\QuadVertexShader.hlsl">
       <Filter>Shaders</Filter>
-    </FxCompile>
+    </CustomBuild>
+    <CustomBuild Include="Src\Shaders\ShadowMapEffectPS.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Src\Shaders\ShadowMapEffectVS.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="Src\Shaders\ShadowMapGen.hlsl">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

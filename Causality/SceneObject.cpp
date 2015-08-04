@@ -279,6 +279,15 @@ void KeyboardMouseFirstPersonControl::OnKeyUp(const KeyboardEventArgs & e)
 	if (e.Key == 'T')
 		g_ShowCharacterMesh = !g_ShowCharacterMesh;
 
+	if (e.Key == '-' || e.Key == '_' || e.Key == VK_SUBTRACT || e.Key == VK_OEM_MINUS)
+		this->Scene->SetTimeScale(this->Scene->GetTimeScale() - 0.1);
+
+	if (e.Key == '=' || e.Key == '+' || e.Key == VK_ADD || e.Key == VK_OEM_PLUS)
+		this->Scene->SetTimeScale(this->Scene->GetTimeScale() + 0.1);
+
+	if (e.Key == '0' || e.Key == ')')
+		this->Scene->SetTimeScale(1.0);
+
 	if (e.Key == VK_SPACE)
 	{
 		if (!this->Scene->IsPaused())
@@ -322,7 +331,7 @@ void KeyboardMouseFirstPersonControl::OnMouseMove(const CursorMoveEventArgs & e)
 	{
 		XMVECTOR extrinsic = XMQuaternionRotationRollPitchYaw(AddationalPitch, AddationalYaw, 0);
 		XMVECTOR intial = InitialOrientation;
-		intial = XMQuaternionMultiply(extrinsic, intial);
+		intial = XMQuaternionMultiply(intial, extrinsic);
 		m_pTarget->SetOrientation(intial);
 	}
 }
@@ -355,7 +364,7 @@ void Causality::CoordinateAxis::Render(RenderContext & context, DirectX::IEffect
 	}
 
 	g_PrimitiveDrawer.DrawLine({ -Al,.0f,.0f }, { Al,.0f,.0f }, Colors::Red);
-	g_PrimitiveDrawer.DrawLine({ .0f,-Al,.0f }, { .0f,Al,.0f }, Colors::Green);
+	g_PrimitiveDrawer.DrawLine({ .0f,-Al,.0f }, { .0f,Al,.0f }, Colors::Lime);
 	g_PrimitiveDrawer.DrawLine({ .0f,.0f,-Al }, { .0f,.0f,Al }, Colors::Blue);
 
 
@@ -364,10 +373,10 @@ void Causality::CoordinateAxis::Render(RenderContext & context, DirectX::IEffect
 	g_PrimitiveDrawer.DrawTriangle({ Alpr,.0f,.0f }, { Almr,.0f,Ar }, { Almr,.0f,-Ar }, Colors::Red);
 	g_PrimitiveDrawer.DrawTriangle({ Alpr,.0f,.0f }, { Almr,.0f,-Ar }, { Almr,.0f,Ar }, Colors::Red);
 
-	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { -Ar,Almr,.0f }, { Ar,Almr,.0f }, Colors::Green);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { Ar,Almr,.0f }, { -Ar,Almr,.0f }, Colors::Green);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { .0f,Almr,-Ar }, { .0f,Almr,Ar }, Colors::Green);
-	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { .0f,Almr,Ar }, { .0f,Almr,-Ar }, Colors::Green);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { -Ar,Almr,.0f }, { Ar,Almr,.0f }, Colors::Lime);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { Ar,Almr,.0f }, { -Ar,Almr,.0f }, Colors::Lime);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { .0f,Almr,-Ar }, { .0f,Almr,Ar }, Colors::Lime);
+	g_PrimitiveDrawer.DrawTriangle({ .0f,Alpr,.0f }, { .0f,Almr,Ar }, { .0f,Almr,-Ar }, Colors::Lime);
 
 	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,Alpr }, { Ar,.0f,Almr }, { -Ar,.0f,Almr }, Colors::Blue);
 	g_PrimitiveDrawer.DrawTriangle({ .0f,.0f,Alpr }, { -Ar,.0f,Almr }, { Ar,.0f,Almr }, Colors::Blue);

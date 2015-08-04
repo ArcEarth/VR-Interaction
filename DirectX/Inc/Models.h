@@ -111,6 +111,11 @@ namespace DirectX
 
 			// Setup the Vertex/Index Buffer and call the draw command
 			void Draw(ID3D11DeviceContext *pContext, IEffect *pEffect = nullptr) const;
+
+			static std::shared_ptr<MeshBuffer> CreateCube(ID3D11Device * pDevice, float size, bool rhcoords = true);
+			static std::shared_ptr<MeshBuffer> CreateSphere(ID3D11Device * pDevice, float radius, float tessFactor, bool rhcoords = true);
+			static std::shared_ptr<MeshBuffer> CreateCylinder(ID3D11Device * pDevice, float radius,float height, float tessFactor, bool rhcoords = true);
+			static std::shared_ptr<MeshBuffer> CreateCone(ID3D11Device * pDevice, float radius, float tessFactor, bool rhcoords = true);
 		};
 
 		namespace GeometricPrimtives
@@ -390,7 +395,7 @@ namespace DirectX
 		};
 
 		class DefaultSkinningModel :
-			public MonolithModel, public IDynamicAsset , public ISkinningModel
+			public CompositionModel, public IDynamicAsset , public ISkinningModel
 		{
 		public:
 			typedef DirectX::VertexPositionNormalTangentColorTextureSkinning VertexType;
@@ -400,7 +405,8 @@ namespace DirectX
 			static DefaultSkinningModel* CreateFromFbxFile(const std::string& file, const std::wstring& textureDir = L"", ID3D11Device* pDevice = nullptr);
 			static DefaultSkinningModel* CreateFromAmxFile(const std::string& file, ID3D11Device* pDevice = nullptr);
 			static DefaultSkinningModel* CreateFromData(SkinMeshData* pData, const std::wstring& textureDir = L"", ID3D11Device* pDevice = nullptr);
-			static DefaultSkinningModel* CreateCube(ID3D11Device* pDevice, float size);
+			static DefaultSkinningModel* CreateFromDatas(std::list<SkinMeshData>& datas, const std::wstring& textureDir = L"", ID3D11Device* pDevice = nullptr);
+
 			// Check if the data have been loaded to CPU memery
 			bool IsInMemery() const override;
 			// Create GPU objects using Vertex/Index Buffer in CPU
@@ -449,6 +455,7 @@ namespace DirectX
 			std::unique_ptr<VertexType[]>	m_Vertices;
 			std::unique_ptr<IndexType[]>	m_Indices;
 
+			void SetFromSkinMeshData(std::list<SkinMeshData> &meshes, const std::wstring& textureDir = L"");
 			void SetFromSkinMeshData(SkinMeshData* pData, const std::wstring& textureDir = L"");
 			void ResetRanges();
 

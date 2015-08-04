@@ -5,51 +5,56 @@
 
     <phong_material name="spider_material" diffuse_map="spider-tex.png"></phong_material>
     <phong_material name="horse_material" alpha_discard="true" diffuse_map="Horse_D.dds"></phong_material>
-    <phong_material name="allosaurus_material" diffuse_map="Allosaurus_diffuse.dds" normal_map="Allosaurus_normal.dds"></phong_material>
-    <phong_material name="cat_material" diffuse_map="kitten_hAO.dds" normal_map="kitten_Normal.dds"></phong_material>
+    <!--<phong_material name="allosaurus_material" diffuse_map="Allosaurus_diffuse.dds" normal_map="Allosaurus_normal.dds"></phong_material>-->
+    <phong_material name="kitten_Body" diffuse_map="kitten_Albedo.dds" normal_map="kitten_Normal.dds"></phong_material>
+    <phong_material name="kitten_Hair" diffuse_map="kitten_Albedo.dds" alpha_discard="true"></phong_material>
+    <phong_material name="kitten_Cornea" diffuse_map="kitten_Specular.dds" diffuse_color="#20000000" specular_color="#FFFFFFFF" normal_map="kitten_Normal.dds" alpha_discard="true"></phong_material>
+    <phong_material name="kitten_EyeballB" diffuse_map="kitten_Albedo.dds"></phong_material>
+    <phong_material name="kitten_EyeballA" diffuse_map="kitten_Albedo.dds"></phong_material>
 
     <mesh name="spider_mesh" src="spider.fbx" material="{spider_material}"></mesh>
     <mesh name="horse_mesh" src="Horse.fbx" material="{horse_material}" ></mesh>
-    <mesh name="allosaurus_mesh" src="allosaurus.fbx" material="{allosaurus_material}"></mesh>
-    <mesh name="cat_mesh" src="kitten.fbx" material="{cat_material}"></mesh>
+    <!--<mesh name="allosaurus_mesh" src="allosaurus.fbx" material="{allosaurus_material}"></mesh>-->
+    <mesh name="cat_mesh" src="kitten.fbx"></mesh>
 
   </scene.assets>
   <scene.content>
     <grid name="root">
       <coordinate_axis/>
 
-      <light name="sun_light" primary="false" color="#FFFFFFFF" position="0,5,0" focus="0,0,0" up="0,0,-1" wfov="4" hfov="4" aspect="1" perspective="false" drops_shadow="true" resolution="2048" />
+      <light name="sun_light" primary="false" color="#FFAAAAAA" position="2.5,5,2.5" near="4" far="8" focus="0,0,0" up="0,0,-1" hfov="4.5" wfov="4.5" aspect="1" perspective="false" drops_shadow="true" resolution="2048" />
 
-      <shadow_camera name="primary_camera" primary="true" background="#FFFFFFFF" position="0,1.5,2.5" focus="0,0,1" up="0,1,0">
+      <shadow_camera name="primary_camera" primary="true" background="#FFFFFFFF" position="0,1,3.5" focus="0,0.5,0" up="0,1,0">
         <first_person_keyboard_mouse_control />
       </shadow_camera>
 
       <skydome name="sky" background="SkyBox\GrimmNight"/>
       
-      <object name="ground" position="-2.0,-0.021,-2.0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>
+      <object name="ground" position="0,-0.021,0" scale="2.0,0.01,2.0" mesh="{cube_mesh}"/>
       
       <player_controller name="player" position="0,0.0,0">
-        <creature name="horse" position="-1,0,0" scale ="0.01" action="idle" mesh="{horse_mesh}">
+
+        <creature name="horse" position="-1,0,0" scale ="0.01" action="walk" mesh="{horse_mesh}">
           <creature.behavier>
             <behavier name="horse_behavier" armature="Horse_Idle.fbx">
               <behavier.actions>
-                <action name="run" src="Horse_Run.fbx"/>
                 <action name="walk" src="Horse_Walk.fbx"/>
+                <action name="run" src="Horse_Run.fbx"/>
                 <action name="idle" src="Horse_Idle.fbx"/>
               </behavier.actions>
             </behavier>
           </creature.behavier>
         </creature>
 
-        <creature name="spider" position="1,0,0" scale="0.0025" behavier="{spider_behavier}" action="idle" mesh="{spider_mesh}">
+        <creature name="spider" position="1,0,0" scale="0.0025" action="idle" mesh="{spider_mesh}">
           <creature.behavier>
             <behavier name="spider_behavier" src="spider.fbx"></behavier>
           </creature.behavier>
         </creature>
         
-        <creature name="allosaurus" position="0,-1,0" scale ="0.01" action="idle" mesh="{allosaurus_mesh}">
+        <!--<creature name="allosaurus" position="0,0,-1" scale ="0.01" action="idle" mesh="{allosaurus_mesh}">
           <creature.behavier>
-            <behavier name="horse_behavier" armature="Horse_Idle.fbx">
+            <behavier name="allosaurus_behavier" armature="Allosaurus.fbx">
               <behavier.actions>
                 <action name="idle" src="Allosaurus_Idle.FBX"/>
                 <action name="walk" src="Allosaurus_Walk.FBX"/>
@@ -60,22 +65,22 @@
               </behavier.actions>
             </behavier>
           </creature.behavier>
-        </creature>
+        </creature>-->
 
-        <creature name="cat" position="0,1,0" scale ="0.01" action="idle" mesh="{cat_mesh}">
+        <!--<creature name="cat" position="0,0,1" scale ="0.02" action="walk" mesh="{cat_mesh}">
           <creature.behavier>
-            <behavier name="cat_beyhavier" armature="kitten_Meow.fbx">
+            <behavier name="cat_beyhavier" armature="kitten.fbx">
               <behavier.actions>
                 <action name="idle" src="kitten_Idle.fbx"/>
                 <action name="walk" src="kitten_Walk.fbx"/>
                 <action name="run" src="kitten_Run.fbx"/>
-                <action name="attack" src="kitten_Itching.fbx"/>
+                --><!--<action name="hit" src="kitten_Itching.fbx"/>
                 <action name="jump" src="kitten_Jump.fbx"/>
-                <action name="meow" src="kitten_Meow.fbx"/>
+                <action name="attack" src="kitten_Meow.fbx"/>--><!--
               </behavier.actions>
             </behavier>
           </creature.behavier>
-        </creature>
+        </creature>-->
       </player_controller>
     </grid>
   </scene.content>

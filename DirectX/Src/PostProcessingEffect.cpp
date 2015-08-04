@@ -355,6 +355,7 @@ public:
 
 		ID3D11RenderTargetView* pRTVs[1] = { m_SwapBuffer.RenderTargetView() };
 		ID3D11ShaderResourceView* pSRVs[2] = { source.ShaderResourceView(),NULL };
+		ID3D11ShaderResourceView* pNullSRVs[2] = {NULL,NULL};
 		SetInputViewport(inputViewport,source.Bounds());
 
 		// disable depth stencil & setup samplers
@@ -377,6 +378,8 @@ public:
 		SetInputViewport(bufferviewport,m_SwapBuffer.Bounds());
 		SetupSampleOffsetsWeights(true);
 		//pContext->ClearRenderTargetView(pRTVs[0], g_XMZero.f);
+
+		pContext->PSSetShaderResources(0, 1, pNullSRVs);
 		pContext->OMSetRenderTargets(1, pRTVs, NULL);
 		pContext->PSSetShaderResources(0, 1, pSRVs);
 		RenderPass(pContext, 1);
@@ -388,6 +391,7 @@ public:
 		SetupSampleOffsetsWeights(false);
 		SetupPixelSize(outputviewport.Width, outputviewport.Height);
 		//pContext->ClearRenderTargetView(pRTVs[0], g_XMZero.f);
+		pContext->PSSetShaderResources(0, 1, pNullSRVs);
 		pContext->OMSetRenderTargets(1, pRTVs, NULL);
 		pContext->PSSetShaderResources(0, 1, pSRVs);
 		RenderPass(pContext, 2);

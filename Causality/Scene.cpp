@@ -7,6 +7,7 @@ using namespace std;
 
 Scene::Scene()
 {
+	time_scale = 1.0f;
 	is_paused = false;
 	is_loaded = false;
 	primary_cameral = nullptr;
@@ -17,6 +18,13 @@ Scene::~Scene()
 	int* p = nullptr;
 }
 
+
+
+// Contens operations
+
+SceneObject * Causality::Scene::Content() { return content.get(); }
+
+SceneObject * Causality::Scene::SetContent(SceneObject * sceneRoot) { content.reset(sceneRoot); return sceneRoot; }
 
 ICamera * Scene::PrimaryCamera()
 {
@@ -90,10 +98,11 @@ void Scene::UpdateRenderViewCache()
 
 void Scene::Update()
 {
+
 	if (is_paused) return;
 	lock_guard<mutex> guard(content_mutex);
 	step_timer.Tick([this]() {
-		time_seconds deltaTime(step_timer.GetElapsedSeconds());
+		time_seconds deltaTime(step_timer.GetElapsedSeconds() * time_scale);
 		for (auto& pObj : content->nodes())
 		{
 			if (pObj.IsEnabled())
@@ -194,7 +203,7 @@ void Causality::Scene::SetupEffectsLights(DirectX::IEffect * pEffect)
 		ID3D11ShaderResourceView* shadow;
 	};
 
-	XMVECTOR ambient = XMVectorSet(0.2, 0.2, 0.2, 1.0f);
+	XMVECTOR ambient = XMVectorSet(0.35, 0.35, 0.35, 1.0f);
 
 	static const int MaxLights = IEffectLights::MaxDirectionalLights;
 	LightParam Lps[MaxLights];

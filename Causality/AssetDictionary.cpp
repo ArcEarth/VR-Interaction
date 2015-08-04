@@ -65,16 +65,71 @@ AssetDictionary::mesh_type * AssetDictionary::LoadFbxMesh(const string & key, co
 	//auto pModel = model_type::CreateCube(render_device,1.0f);
 
 	pModel->SetName(fileName);
-	pModel->pEffect = default_skinned_effect;
 
-	if (pMaterial)
-		pModel->pMaterial = pMaterial;
+	for (auto& part : pModel->Parts)
+	{
+		if (!part.pEffect)
+			part.pEffect = default_skinned_effect;
 
-	if (!pModel->pMaterial)
-		pModel->pMaterial = default_material;
+		if (pMaterial)
+			part.pMaterial = pMaterial;
 
-	pModel->pMaterial->SetupEffect(pModel->pEffect.get());
-	pModel->pMesh->pInputLayout = GetInputLayout<model_type::VertexType>(pModel->pEffect.get());
+		if (part.pMaterial)
+			part.pMaterial->SetupEffect(part.pEffect.get());
+
+		part.pMesh->pInputLayout = GetInputLayout<model_type::VertexType>(part.pEffect.get());
+	}
+
+	meshes[key] = pModel;
+	return meshes[key];
+}
+
+AssetDictionary::mesh_type * Causality::AssetDictionary::LoadFbxMesh(const string & key, const string & fileName, bool importMaterial)
+{
+	typedef DefaultSkinningModel model_type;
+
+	FbxParser fbx;
+	fbx.ImportMesh((mesh_directory / fileName).string(), true); // with rewind
+	auto datas = fbx.GetMeshs();
+	if (datas.size() == 0)
+		return nullptr;
+
+	auto pModel = model_type::CreateFromDatas(datas, texture_directory.wstring(), nullptr);
+
+	pModel->SetName(fileName);
+
+	if (importMaterial)
+	{
+		for (auto& part : pModel->Parts)
+		{
+			auto& pMat = part.pMaterial;
+			if (!pMat)
+				pMat = default_material;
+			else
+			{
+				auto pPhong = dynamic_cast<PhongMaterial*>(pMat.get());
+				if (materials[pPhong->Name] != nullptr)
+				{
+					pMat = materials[pPhong->Name];
+				}
+			}
+		}
+	}
+
+	pModel->CreateDeviceResource(render_device.Get());
+
+	int i = 0;
+	for (auto& part : pModel->Parts)
+	{
+		if (!part.pEffect)
+			part.pEffect = default_skinned_effect;
+
+		if (!part.pMaterial)
+			part.pMaterial->SetupEffect(part.pEffect.get());
+
+		part.pMesh->pInputLayout = GetInputLayout<model_type::VertexType>(part.pEffect.get());
+		i++;
+	}
 
 	meshes[key] = pModel;
 	return meshes[key];
@@ -122,7 +177,7 @@ BehavierSpace * AssetDictionary::LoadBehavierFbx(const string & key, const strin
 AssetDictionary::behavier_type * AssetDictionary::LoadBehavierFbxs(const string & key, const string & armature, list<std::pair<string, string>>& animations)
 {
 	FbxParser fbxparser;
-	auto result = fbxparser.ImportBehavier((mesh_directory / armature).string());
+	auto result = fbxparser.ImportArmature((mesh_directory / armature).string());
 	BehavierSpace* behavier = nullptr;
 	if (result)
 	{

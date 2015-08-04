@@ -63,7 +63,7 @@ namespace Geometrics
 			typedef BezierClipping SelfType;
 		protected:
 			//const static Internal::Combine<Order> Combination;
-			constexpr size_t Combination(size_t d)
+			static constexpr size_t Combination(size_t d)
 			{
 				return Internal::Combination(d, Order);
 			}

@@ -308,7 +308,7 @@ namespace DirectX
 
 	namespace LineSegmentTest
 	{
-		inline float XM_CALLCONV DirectX::LineSegmentTest::Distance(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
+		inline float XM_CALLCONV Distance(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
 		{
 			XMVECTOR s = s1 - s0;
 			XMVECTOR v = p - s0;
@@ -325,12 +325,51 @@ namespace DirectX
 			return XMVectorGetX(XMVector3Length(v - s * (Ps / Ds)));
 		}
 
+		inline float XM_CALLCONV Distance(FXMVECTOR p, const XMFLOAT3 *path, size_t nPoint, size_t strideInByte)
+		{
+			const auto N = nPoint;
+			auto ptr = reinterpret_cast<const char*>(path);
+			XMVECTOR vBegin = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(path));
+			XMVECTOR vEnd;
+			XMVECTOR vMinDis = g_XMInfinity;
+
+			for (size_t i = 2; i < N - 1; i++)
+			{
+				ptr += strideInByte;
+				vEnd = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(ptr));
+
+				XMVECTOR s = vEnd - vBegin;
+				XMVECTOR v = p - vBegin;
+				XMVECTOR Ps = XMVector3Dot(v, s);
+				XMVECTOR vDis;
+
+				//p-s0 is the shortest distance
+				if (XMVector4LessOrEqual(Ps, XMVectorZero()))
+					vDis = XMVector3Length(v);
+				else {
+					XMVECTOR Ds = XMVector3LengthSq(s);
+					//p-s1 is the shortest distance
+					if (XMVector4Greater(Ps, Ds))
+						vDis = XMVector3Length(p - vEnd);
+					else
+						//find the projection point on line segment U
+						vDis = XMVector3Length(v - s * (Ps / Ds));
+				}
+
+				vMinDis = XMVectorMin(vDis, vMinDis);
+
+				vBegin = vEnd;
+			}
+
+			return XMVectorGetX(vMinDis);
+		}
+
 		// Takes a space point and space line segment , return the projection point on the line segment
 		//  A0  |		A1		  |
 		//      |s0-------------s1|
 		//      |				  |		A2
 		// where p in area of A0 returns s0 , area A2 returns s1 , point in A1 returns the really projection point 
-		inline XMVECTOR XM_CALLCONV DirectX::LineSegmentTest::Projection(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
+		inline XMVECTOR XM_CALLCONV Projection(FXMVECTOR p, FXMVECTOR s0, FXMVECTOR s1)
 		{
 			XMVECTOR s = s1 - s0;
 			XMVECTOR v = p - s0;
@@ -357,17 +396,17 @@ namespace DirectX
 			if (!(strideInByte % 16) && !(reinterpret_cast<intptr_t>(path) & 0x16))
 			{
 				const auto N = nPoint;
-				auto p = reinterpret_cast<const char*>(path) + strideInByte;
+				auto ptr = reinterpret_cast<const char*>(path) + strideInByte;
 				XMVECTOR vBegin = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(path));
-				XMVECTOR vEnd = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(p));
+				XMVECTOR vEnd = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(ptr));
 				XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
 				XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
 				vBegin = vEnd;
 
 				for (size_t i = 2; i < N - 1; i++)
 				{
-					p += strideInByte;
-					vEnd = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(path));
+					ptr += strideInByte;
+					vEnd = XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(ptr));
 					XMVECTOR vProj = Projection(p, vBegin, vEnd);
 					XMVECTOR vDis = XMVector3LengthSq(p - vProj);
 					if (XMVector4LessOrEqual(vDis, vMinDis))
@@ -383,17 +422,17 @@ namespace DirectX
 			else
 			{
 				const auto N = nPoint;
+				auto ptr = reinterpret_cast<const char*>(path) + strideInByte;
 				XMVECTOR vBegin = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(path));
-				XMVECTOR vEnd = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(p));
+				XMVECTOR vEnd = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(ptr));
 				XMVECTOR vMinProj = Projection(p, vBegin, vEnd);
 				XMVECTOR vMinDis = XMVector3LengthSq(p - vMinProj);
 				vBegin = vEnd;
 
-				auto p = reinterpret_cast<const char*>(path) + strideInByte;
 				for (size_t i = 2; i < N - 1; i++)
 				{
-					p += strideInByte;
-					vEnd = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(path));
+					ptr += strideInByte;
+					vEnd = XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(ptr));
 					XMVECTOR vProj = Projection(p, vBegin, vEnd);
 					XMVECTOR vDis = XMVector3LengthSq(p - vProj);
 					if (XMVector4LessOrEqual(vDis, vMinDis))

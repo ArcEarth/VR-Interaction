@@ -47,9 +47,9 @@ namespace DirectX
 			Color		SpecularColor;
 			Color		RelfectionColor;
 
-			void SetDefault()
+			PhongMaterialData()
 			{
-				SpecularColor = Colors::White.v;
+				SpecularColor = Colors::Black.v;
 				RelfectionColor = Colors::Black.v;
 				UseAlphaDiscard = false;
 			}

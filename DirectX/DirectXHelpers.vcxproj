@@ -28,6 +28,12 @@
     <DirectXTKDir>D:\SDKs\DirectXTK</DirectXTKDir>
     <SrcDir>.\Src</SrcDir>
     <ShaderBtyeCodeDir>$(SrcDir)\Shaders\Windows</ShaderBtyeCodeDir>
+    <CdToSrcShaders>cd Src\Shaders\</CdToSrcShaders>
+    <CompileShaderCmd>CompileShaders.cmd</CompileShaderCmd>
+    <FxConfig Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">debug windows</FxConfig>
+    <FxConfig Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">debug windows</FxConfig>
+    <FxConfig Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">windows</FxConfig>
+    <FxConfig Condition="'$(Configuration)|$(Platform)'=='Release|x64'">windows</FxConfig>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -75,7 +81,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <IncludePath>$(BOOST_ROOT);$(TinyXml2Dir);$(DirectXTKDir)\Inc;$(ProjectDir)Inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(BOOST_ROOT);$(DirectXTKDir)\Inc;$(ProjectDir)Inc;$(IncludePath)</IncludePath>
     <LibraryPath>$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -102,8 +108,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>        cd $(SrcDir)\Shaders\
-        nmake fxconfig="debug windows"</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -118,8 +124,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>        cd $(SrcDir)\Shaders\
-        nmake fxconfig="debug windows"</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -140,8 +146,8 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <PreBuildEvent>
-      <Command>        cd $(SrcDir)\Shaders\
-        nmake fxconfig="windows"</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -162,8 +168,8 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <PreBuildEvent>
-      <Command>        cd $(SrcDir)\Shaders\
-        nmake fxconfig="windows"</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -218,55 +224,54 @@
     <ProjectReference Include="$(DirectXTKDir)\DirectXTK_Desktop_2015.vcxproj">
       <Project>{e0b52ae7-e160-4d32-bf3f-910b785e5a8e}</Project>
     </ProjectReference>
-    <ProjectReference Include="$(TinyXml2Dir)\tinyxml2\tinyxml2.vcxproj">
-      <Project>{d1c528b6-aa02-4d29-9d61-dc08e317a70d}</Project>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Src\Shaders\BlurEffect.hlsl">
+    <CustomBuild Include="Src\Shaders\BlurEffect.hlsl">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">CompileShaders BlurEffect $(fxconfig)</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileShaders BlurEffect $(fxconfig)</Command>
-    </None>
-    <None Include="Src\Shaders\Common.hlsli" />
-    <None Include="Src\Shaders\QuadVertexShader.hlsl">
+      <Command>$(CdToSrcShaders)
+        $(CompileShaderCmd) BlurEffect $(FxConfig)
+      </Command>
+      <Outputs>$(ShaderBtyeCodeDir)\BlurEffect_AlphaAsDepthPassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_Blur.inc;$(ShaderBtyeCodeDir)\BlurEffect_Combination.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3Ex.inc;$(ShaderBtyeCodeDir)\BlurEffect_UpScale.inc;</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="Src\Shaders\QuadVertexShader.hlsl">
       <FileType>Document</FileType>
-    </None>
-    <FxCompile Include="Src\Shaders\ShadowMapEffectPS.hlsl">
+      <Command>$(CdToSrcShaders)
+        $(CompileShaderCmd) QuadVertexShader $(FxConfig)
+      </Command>
+      <Outputs>$(ShaderBtyeCodeDir)\QuadVertexShader_QuadVertexShader.inc</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="Src\Shaders\ShadowMapEffectPS.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <FileType>Document</FileType>
+      <Command>$(CdToSrcShaders)
+        $(CompileShaderCmd) ShadowMapEffectPS $(FxConfig)</Command>
+      <Outputs>$(ShaderBtyeCodeDir)\ShadowMapEffectPS_PS_OneLightNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectPS_PS_OneLightTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectPS_PS_ScreenSpaceNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectPS_PS_ScreenSpaceTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectPS_PS_ScreenSpaceTexBump.inc</Outputs>
+      <AdditionalInputs>$(SrcDir)\Shaders\ShadowMapEffectStructures.hlsli;$(SrcDir)\Shaders\ShadowMapEffectCBuffer.hlsli</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="Src\Shaders\ShadowMapEffectVS.hlsl">
       <ShaderType>Vertex</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">PS_OneLightNoTex</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">PS_OneLightNoTex</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">PS_OneLightNoTex</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">PS_OneLightNoTex</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\ShadowMapEffectVS.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">VS_OneLightNoBoneNoTex</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">VS_OneLightNoBoneNoTex</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">VS_OneLightNoBoneNoTex</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">VS_OneLightNoBoneNoTex</EntryPointName>
-    </FxCompile>
+      <FileType>Document</FileType>
+      <Command>$(CdToSrcShaders)
+        $(CompileShaderCmd) ShadowMapEffectVS $(FxConfig)
+      </Command>
+      <Outputs>$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_BinaryOneLightFourBoneNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_BinaryOneLightFourBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_BinaryOneLightNoBoneNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_BinaryOneLightNoBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_OneLightFourBoneNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_OneLightFourBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_OneLightNoBoneNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_OneLightNoBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceFourBoneNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceFourBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceTwoBoneNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceTwoBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceOneBoneNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceOneBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceNoBoneNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceNoBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceFourBoneTexBump.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceTwoBoneTexBump.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceOneBoneTexBump.inc;$(ShaderBtyeCodeDir)\ShadowMapEffectVS_VS_ScreenSpaceNoBoneTexBump.inc</Outputs>
+      <AdditionalInputs>$(SrcDir)\Shaders\ShadowMapEffectStructures.hlsli;$(SrcDir)\Shaders\ShadowMapEffectCBuffer.hlsli;$(SrcDir)\Shaders\Common.hlsli</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="Src\Shaders\ShadowMapGen.hlsl">
+      <FileType>Document</FileType>
+      <Command>$(CdToSrcShaders)
+        $(CompileShaderCmd) ShadowMapGen $(FxConfig)
+      </Command>
+      <Outputs>$(ShaderBtyeCodeDir)\ShadowMapGen_PS_ColorNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_PS_ColorTex.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_PS_DepthNoTex.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_PS_DepthTex.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_VS_FourBone.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_VS_FourBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_VS_TwoBone.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_VS_TwoBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_VS_OneBone.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_VS_OneBoneTex.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_VS_NoBone.inc;$(ShaderBtyeCodeDir)\ShadowMapGen_VS_NoBoneTex.inc</Outputs>
+      <AdditionalInputs>$(SrcDir)\Shaders\Common.hlsli</AdditionalInputs>
+    </CustomBuild>
     <None Include="Src\Shaders\CompileShaders.cmd" />
-    <None Include="Src\Shaders\makefile" />
+    <None Include="Src\Shaders\Common.hlsli" />
     <None Include="Src\Shaders\ShadowMapEffectCBuffer.hlsli" />
     <None Include="Src\Shaders\ShadowMapEffectStructures.hlsli" />
-    <None Include="Src\Shaders\ShadowMapGen.hlsl">
-      <FileType>Document</FileType>
-    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

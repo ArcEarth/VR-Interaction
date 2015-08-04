@@ -28,6 +28,8 @@ namespace DirectX
 
 		void Release();;
 
+		CommonStates* GetStates() { return m_pStates.get(); }
+
 		void SetWorld(DirectX::CXMMATRIX World);
 
 		void SetProjection(DirectX::CXMMATRIX Projection);

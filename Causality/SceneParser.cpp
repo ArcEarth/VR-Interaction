@@ -22,6 +22,8 @@ void ParseChaacterObjectAttributes(CharacterObject *pCreature, tinyxml2::XMLElem
 void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node);
 void ParseSceneAssets(AssetDictionary& assets, XMLElement* node);
 
+sptr<AssetDictionary::material_type> ParseMaterialAsset(AssetDictionary& assets, XMLElement* node);
+
 AssetDictionary::mesh_type * ParseMeshAsset(AssetDictionary & assets, XMLElement * node);
 
 AssetDictionary::texture_type & ParseTextureAsset(AssetDictionary & assets, XMLElement * node);
@@ -152,9 +154,9 @@ void Scene::LoadFromXML(const string & xml_file)
 
 	auto nContent = nScene->FirstChildElement("scene.content");
 	nContent = nContent->FirstChildElement();
-	this->content = ParseSceneObject(*this, nContent, nullptr);
+	ParseSceneObject(*this, nContent, nullptr);
 
-	UpdateRenderViewCache();
+	//UpdateRenderViewCache();
 
 	is_loaded = true;
 }
@@ -176,8 +178,56 @@ void ParseSceneAssets(AssetDictionary& assets, XMLElement* node)
 			ParseBehavierAsset(assets, node);
 		else if (!strcmp(node->Name(), "animation_clip"))
 			ParseAudioAsset(assets, node);
+		else if (!strcmp(node->Name(), "phong_material"))
+			ParseMaterialAsset(assets, node);
+
 		node = node->NextSiblingElement();
 	}
+}
+
+sptr<AssetDictionary::material_type> ParseMaterialAsset(AssetDictionary & assets, XMLElement * node)
+{
+	assert(!strcmp(node->Name(), "phong_material"));
+
+	DirectX::Scene::PhongMaterialData data;
+	data.Name = node->Attribute("name");
+
+	auto attr = node->Attribute("diffuse_map");
+	if (attr)
+		data.DiffuseMapName = attr;
+	attr = node->Attribute("normal_map");
+	if (attr)
+		data.NormalMapName = attr;
+	attr = node->Attribute("ambient_map");
+	if (attr)
+		data.AmbientMapName = attr;
+	attr = node->Attribute("displace_map");
+	if (attr)
+		data.DisplaceMapName = attr;
+	attr = node->Attribute("specular_map");
+	if (attr)
+		data.SpecularMapName = attr;
+
+	bool alpha_discard = false;
+	GetAttribute(node, "alpha_discard", alpha_discard);
+	data.UseAlphaDiscard = alpha_discard;
+
+	Color color = DirectX::Colors::White.v;
+	GetAttribute(node, "diffuse_color", color);
+	data.DiffuseColor = color;
+	GetAttribute(node, "ambient_color", color);
+	data.AmbientColor = color;
+
+	color = DirectX::Colors::Black.v;
+	GetAttribute(node, "specular_color", color);
+	data.SpecularColor = color;
+	GetAttribute(node, "emissive_color", color);
+	data.EmissiveColor = color;
+	GetAttribute(node, "reflection_color", color);
+	data.RelfectionColor = color;
+	auto pPhong = std::make_shared<DirectX::Scene::PhongMaterial>(data, assets.GetTextureDirectory().wstring(), assets.GetRenderDevice().Get());
+	assets.AddMaterial(node->Attribute("name"), pPhong);
+	return pPhong;
 }
 
 AssetDictionary::mesh_type* ParseMeshAsset(AssetDictionary& assets, XMLElement* node)
@@ -207,20 +257,27 @@ AssetDictionary::mesh_type* ParseMeshAsset(AssetDictionary& assets, XMLElement* 
 			}
 			else if (ref.extension().string() == ".fbx")
 			{
-				auto tex = node->Attribute("diffuse_map");
 				sptr<IMaterial> pMat;
-				if (tex)
-				{
-					bool alpha_discard = false;
-					GetAttribute(node, "alpha_discard", alpha_discard);
 
-					PhongMaterialData data;
-					data.DiffuseMapName = tex;
-					data.UseAlphaDiscard = alpha_discard;
-					pMat = PhongMaterial::CreateFromMaterialData(data, assets.GetTextureDirectory().wstring(), assets.GetRenderDevice());
+				// Material overhaul
+				auto attr = node->Attribute("material");
+				if (attr != nullptr && attr[0] == '{') // asset reference
+				{
+					const std::string key(attr + 1, attr + strlen(attr) - 1);
+					pMat = assets.GetMaterial(key);
 				}
-				auto mesh = assets.LoadFbxMesh(node->Attribute("name"), src, pMat);
-				return mesh;
+
+				if (pMat != nullptr)
+				{
+					auto mesh = assets.LoadFbxMesh(node->Attribute("name"), src, pMat);
+					return mesh;
+				}
+				else
+				{
+					// import material
+					auto mesh = assets.LoadFbxMesh(node->Attribute("name"), src, true);
+					return mesh;
+				}
 			}
 		}
 	}
@@ -427,19 +484,30 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	if (pObj)
 		pObj->Scene = &scene;
 
+	if (parent == nullptr) // this is scene root
+	{
+		scene.SetContent(pObj.get());
+	}
+	else
+	{
+		std::lock_guard<mutex> guard(scene.ContentMutex());
+		parent->AddChild(pObj.get());
+		scene.SignalCameraCache();
+	}
+
 	node = node->FirstChildElement();
 	while (node)
 	{
 		auto pChild = ParseSceneObject(scene, node, pObj.get()).release();
-		{
-			std::lock_guard<mutex> guard(scene.ContentMutex());
-			pObj->AddChild(pChild);
-			//if (pChild->Is<Camera>())
-			scene.SignalCameraCache();
-		}
+		//{
+		//	std::lock_guard<mutex> guard(scene.ContentMutex());
+		//	pObj->AddChild(pChild);
+		//	//if (pChild->Is<Camera>())
+		//	scene.SignalCameraCache();
+		//}
 		node = node->NextSiblingElement();
 	}
-
+	pObj.release();
 	return pObj;
 }
 
@@ -506,7 +574,7 @@ void ParseCameraObjectAttributes(SingleViewCamera *pCamera, tinyxml2::XMLElement
 
 	if (perspective)
 	{
-		pCamera->SetPerspective(XMConvertToRadians(fov), aspect,_near,_far);
+		pCamera->SetPerspective(XMConvertToRadians(fov), aspect, _near, _far);
 	}
 	else
 	{

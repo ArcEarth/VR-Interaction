@@ -1,4 +1,3 @@
-#include "..\Inc\ShadowMapGenerationEffect.h"
 #include "pch_directX.h"
 
 #include <ShadowMapGenerationEffect.h>

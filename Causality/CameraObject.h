@@ -148,6 +148,7 @@ namespace Causality
 
 	protected:
 		bool										m_IfClearRenderTarget;
+		bool										m_HaveItemRendered;
 		RenderFlags									m_RequstFlags;
 		Color										m_Background;
 		RenderContext								m_pRenderContext;

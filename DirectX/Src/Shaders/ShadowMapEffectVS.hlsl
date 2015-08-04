@@ -39,6 +39,16 @@ struct VSInputTexWeights
 	float4 Weights  : BLENDWEIGHT0;
 };
 
+struct VSInputTexTangentWeights
+{
+	float4 Position : SV_Position;
+	float3 Normal	: NORMAL;
+	float3 Tangent	: TANGENT;
+	float2 TexCoord : TEXCOORD0;
+	uint4  Indices  : BLENDINDICES0;
+	float4 Weights  : BLENDWEIGHT0;
+};
+
 #include "Common.hlsli"
 
 void SkinVertexNoTex(inout VSInputNoTexWeights vin, uniform int boneCount)
@@ -49,6 +59,11 @@ void SkinVertexNoTex(inout VSInputNoTexWeights vin, uniform int boneCount)
 void SkinVertexTex(inout VSInputTexWeights vin, uniform int boneCount)
 {
 	SkinVertexWithNormal;
+}
+
+void SkinVertexTexBump(inout VSInputTexTangentWeights vin, uniform int boneCount)
+{
+	SkinVertexWithNormalTagent;
 }
 
 
@@ -210,6 +225,65 @@ PSInputScreenSpaceTex VS_ScreenSpaceFourBoneTex(VSInputTexWeights vin)
 	SkinVertexTex(vin, 4);
 
 	SetPositionNormalToEye;
+
+	SetPositionUV;
+
+	SetTextureCoord;
+
+	return vout;
+}
+
+
+PSInputScreenSpaceTex VS_ScreenSpaceNoBoneTexBump(VSInputTexTangentWeights vin)
+{
+	PSInputScreenSpaceTex vout;
+
+	SetPositionNormalToEyeTangentBinormal;
+
+	SetPositionUV;
+
+	SetTextureCoord;
+
+	return vout;
+}
+
+PSInputScreenSpaceTex VS_ScreenSpaceOneBoneTexBump(VSInputTexTangentWeights vin)
+{
+	PSInputScreenSpaceTex vout;
+
+	SkinVertexTexBump(vin, 1);
+
+	SetPositionNormalToEyeTangentBinormal;
+
+	SetPositionUV;
+
+	SetTextureCoord;
+
+	return vout;
+}
+
+PSInputScreenSpaceTex VS_ScreenSpaceTwoBoneTexBump(VSInputTexTangentWeights vin)
+{
+	PSInputScreenSpaceTex vout;
+
+	SkinVertexTexBump(vin, 2);
+
+	SetPositionNormalToEyeTangentBinormal;
+
+	SetPositionUV;
+
+	SetTextureCoord;
+
+	return vout;
+}
+
+PSInputScreenSpaceTex VS_ScreenSpaceFourBoneTexBump(VSInputTexTangentWeights vin)
+{
+	PSInputScreenSpaceTex vout;
+
+	SkinVertexTexBump(vin, 4);
+
+	SetPositionNormalToEyeTangentBinormal;
 
 	SetPositionUV;
 

@@ -33,7 +33,7 @@ XMMATRIX CameraViewControl::UpdateProjectionCache() const
 		{
 			proj = XMMatrixOrthographicRH(m_Fov * m_AspectRatio, m_Fov, m_Near, m_Far);
 			m_ViewFrutum.Type = BoundingGeometryType::Geometry_OrientedBox;
-			m_ViewFrutum.OrientedBox.Center = { 0, 0, 0.5f * (m_Near + m_Far) };
+			m_ViewFrutum.OrientedBox.Center = { 0, 0, -0.5f * (m_Near + m_Far) };
 			m_ViewFrutum.OrientedBox.Extents = { 0.5f * m_Fov * m_AspectRatio, 0.5f* m_Fov, 0.5f * abs(m_Near - m_Far) };
 			m_ViewFrutum.OrientedBox.Orientation = Quaternion::Identity;
 		}
@@ -52,14 +52,17 @@ const BoundingGeometry & CameraViewControl::GetViewFrustum() const {
 	}
 	XMMATRIX transform = m_Parent->GetRigidTransformMatrix();
 
-	if (m_ViewFrutum.Type == Geometry_OrientedBox || m_ViewFrutum.Type == Geometry_AxisAlignedBox)
-	{
-		// make sure the transform rotation origin is 0,0,0 instead of bounding geometry's center
-		transform = XMMatrixTranslation(0, 0, -0.5f * (m_Near + m_Far)) * transform;
-	}
-	else
-	{
-	}
+	XMVECTOR cF = XMVector3TransformCoord(Foward.v, transform);
+
+	//if (m_ViewFrutum.Type == Geometry_OrientedBox || m_ViewFrutum.Type == Geometry_AxisAlignedBox)
+	//{
+	//	// make sure the transform rotation origin is 0,0,0 instead of bounding geometry's center
+	//	XMVECTOR vT = XMLoadFloat3(&m_ViewFrutum.OrientedBox.Center);
+	//	//transform = XMMatrixTranslationFromVector(-vT) * transform;
+	//}
+	//else
+	//{
+	//}
 
 	m_ViewFrutum.Transform(m_ExtrinsicViewFrutum, transform);
 	return m_ExtrinsicViewFrutum;
@@ -166,6 +169,7 @@ EffectRenderControl::EffectRenderControl()
  void EffectRenderControl::Begin(RenderContext & context)
 {
 	m_pRenderContext = context;
+	m_HaveItemRendered = false;
 	auto pContext = m_pRenderContext.Get();
 	if (m_IfClearRenderTarget)
 		m_RenderTarget.Clear(pContext, m_Background);
@@ -174,7 +178,8 @@ EffectRenderControl::EffectRenderControl()
 
  void EffectRenderControl::End()
 {
-	if (m_pPostEffect)
+	// if no item is rendered, no need to call post processing effect
+	if (m_pPostEffect && m_HaveItemRendered)
 		if (m_PostEffectOutput == nullptr)
 			m_pPostEffect->Apply(m_pRenderContext, m_RenderTarget.ColorBuffer());
 		else
@@ -184,7 +189,9 @@ EffectRenderControl::EffectRenderControl()
 
  bool EffectRenderControl::AcceptRenderFlags(RenderFlags flags)
 {
-	return flags.Contains(m_RequstFlags);
+	bool result = flags.Contains(m_RequstFlags);
+	m_HaveItemRendered |= result;
+	return result;
 }
 
  void EffectRenderControl::SetView(IViewControl * pViewControl) {
@@ -245,11 +252,15 @@ EffectRenderControl::EffectRenderControl()
 	 XMMATRIX M;
 	 M.r[2] = -XMVector3Normalize(foward);
 	 M.r[1] = XMVector3Normalize(up);
-	 M.r[0] = XMVector3Cross(M.r[1], M.r[2]); // YxZ = X, for rh coords
+	 M.r[0] = XMVector3Cross(M.r[1], M.r[2]); // X = YxZ, for rh coords
+
+	 // for the case up is not orthogal with foward
+	 M.r[1] = XMVector3Cross(M.r[2], M.r[0]); // Y = ZxX
 	 M.r[3] = g_XMNegIdentityR3.v;
 
 	 // M' is the rotation of StandardView -> CurrentView Orientation
 	 XMVECTOR q = XMQuaternionRotationMatrix(M);
+	 XMVECTOR tF = XMVector3Transform(-g_XMIdentityR2.v, M);
 	 //q = XMQuaternionConjugate(q);
 	 return q;
  }

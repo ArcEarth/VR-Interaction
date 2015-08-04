@@ -132,6 +132,7 @@ namespace Causality
 		std::list<KeyFrame<FrameType>>		KeyFrames;
 		TimeScalarType						Duration;
 		TimeScalarType						FrameInterval;
+		bool								IsCyclic;
 		// A function map : (BeginTime,EndTime) -> (BeginTime,EndTime),  that handels the easing effect between frames
 		// Restriction : TimeWarp(KeyFrameTime(i)) must equals to it self
 		std::function<TimeScalarType(TimeScalarType)> TimeWarpFunction;
@@ -171,7 +172,7 @@ namespace Causality
 		// Duration of this clip
 		TimeScalarType	Length() const;
 		// Is this clip a loopable animation : last frame == first frame
-		bool			Loopable()  const;
+		bool			Cyclic()  const { return IsCyclic; }
 
 		// Frame operations
 	public:
@@ -276,6 +277,12 @@ namespace Causality
 		int GetInverseBindIndex(int tragetIdx) const;
 
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const = 0;
+
+		// Transform with history data
+		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const AffineFrame& last_frame, float frame_time) const
+		{
+			Transform(target_frame, source_frame);
+		}
 
 		virtual void TransformBack(_Out_ frame_type& source_frame, _In_ const frame_type& target_frame) const;
 

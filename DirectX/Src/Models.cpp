@@ -237,7 +237,7 @@ DefaultStaticModel * DefaultStaticModel::CreateFromObjFile(const std::wstring & 
 		auto pMaterial = make_shared<PhongMaterial>();
 		pMaterial->Name = mat.name;
 		pMaterial->Alpha = mat.dissolve;
-		pMaterial->DiffuseColor = Color(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2],1.0f);
+		pMaterial->DiffuseColor = Color(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], 1.0f);
 		pMaterial->AmbientColor = Color(mat.ambient[0], mat.ambient[1], mat.ambient[2], 1.0f);
 		pMaterial->SpecularColor = Color(mat.specular[0], mat.specular[1], mat.specular[2], 1.0f);
 		if (!mat.diffuse_texname.empty())
@@ -407,14 +407,12 @@ void CompositionModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& t
 	auto pEffectM = dynamic_cast<IEffectMatrices*>(pEffect);
 	for (auto& part : Parts)
 	{
-		if (pEffect && pEffectM)
+		if (pEffect && !pEffectM)
+			pEffectM = dynamic_cast<IEffectMatrices*>(part.pEffect.get());
+
+		if (pEffectM)
 			pEffectM->SetWorld(world);
-		else
-		{
-			auto pPartEffectM = dynamic_cast<IEffectMatrices*>(part.pEffect.get());
-			if (pPartEffectM)
-				pPartEffectM->SetWorld(world);
-		}
+
 		part.Render(pContext, pEffect);
 	}
 }
@@ -524,11 +522,24 @@ bool DefaultSkinningModel::IsInMemery() const
 // Create GPU objects using Vertex/Index Buffer in CPU
 bool DefaultSkinningModel::CreateDeviceResource(ID3D11Device *pDevice)
 {
-	pMesh = std::make_shared<MeshBuffer>();
+	auto pMajorBuffer = std::make_shared<MeshBuffer>();
 	try
 	{
-		pMesh->CreateDeviceResources(pDevice, m_Vertices.get(), m_VertexCount, m_Indices.get(), m_IndexCount);
-		pMaterial->CreateDeviceResources(pDevice,false);
+		pMajorBuffer->CreateDeviceResources(pDevice, m_Vertices.get(), m_VertexCount, m_Indices.get(), m_IndexCount);
+
+		for (auto& part : Parts)
+		{
+			part.pMesh->pVertexBuffer = pMajorBuffer->pVertexBuffer;
+			part.pMesh->VertexStride = pMajorBuffer->VertexStride;
+			part.pMesh->pIndexBuffer = pMajorBuffer->pIndexBuffer;
+			part.pMesh->pInputLayout = pMajorBuffer->pInputLayout;
+			part.pMesh->InputElementCount = pMajorBuffer->InputElementCount;
+			part.pMesh->pInputElements = pMajorBuffer->pInputElements;
+			part.pMesh->IndexFormat = pMajorBuffer->IndexFormat;
+			part.pMesh->PrimitiveType = pMajorBuffer->PrimitiveType;
+
+			part.pMaterial->CreateDeviceResources(pDevice, false);
+		}
 	}
 	catch (const std::exception&)
 	{
@@ -700,7 +711,7 @@ bool DefaultSkinningModel::Reload()
 
 void DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4 & transform, IEffect * pEffect)
 {
-	if (pEffect == nullptr) pEffect = this->pEffect.get();
+	if (pEffect == nullptr) pEffect = this->Parts[0].pEffect.get();
 	auto pSkinning = dynamic_cast<IEffectSkinning*>(pEffect);
 	if (pSkinning)
 	{
@@ -712,9 +723,70 @@ void DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x
 	{
 		//throw std::exception("Effect don't support skinning interface.");
 	}
-	MonolithModel::Render(pContext, transform, pEffect);
+	CompositionModel::Render(pContext, transform, pEffect);
 }
 
+
+void DirectX::Scene::DefaultSkinningModel::SetFromSkinMeshData(std::list<SkinMeshData>& meshes, const std::wstring & textureDir)
+{
+	Parts.resize(meshes.size());
+	// Merge Vertex Buffer
+	int i = 0, tvSize = 0, tiSize = 0;
+
+	for (auto& data : meshes)
+	{
+		tvSize += data.VertexCount;
+		tiSize += data.IndexCount;
+	}
+
+	auto pVertices = meshes.front().Vertices;
+	auto pIndices = meshes.front().Indices;
+
+	if (meshes.size() > 1)
+	{
+		pVertices = new VertexType[tvSize];
+		pIndices = new IndexType[tiSize];
+		tvSize = 0, tiSize = 0;
+		for (auto& data : meshes)
+		{
+			auto &part = Parts[i++];
+
+			std::copy_n(data.Vertices, data.VertexCount, pVertices + tvSize);
+			std::copy_n(data.Indices, data.IndexCount, pIndices + tiSize);
+
+			part.Name = data.Name;
+			part.pMesh = make_shared<MeshBuffer>();
+			part.pMesh->VertexOffset = tvSize;
+			part.pMesh->StartIndex = tiSize;
+			part.pMesh->VertexCount = data.VertexCount;
+			part.pMesh->IndexCount = data.IndexCount;
+
+			part.pMaterial = PhongMaterial::CreateFromMaterialData(data.Material, textureDir);
+			
+			tvSize += data.VertexCount;
+			tiSize += data.IndexCount;
+
+			DirectX::CreateBoundingBoxesFromPoints(part.BoundBox, part.BoundOrientedBox,
+				data.VertexCount, &data.Vertices[0].position, sizeof(SkinMeshData::VertexType));
+
+			delete data.Vertices;
+			data.Vertices = nullptr;
+			delete data.Indices;
+			data.Indices = nullptr;
+		}
+	}
+
+	m_VertexCount = tvSize;
+	m_IndexCount = tiSize;
+	m_BonesCount = meshes.front().BonesCount;
+	m_Vertices.reset(pVertices);
+	m_Indices.reset(pIndices);
+
+	BoneTransforms.resize(m_BonesCount);
+	DirectX::CreateBoundingBoxesFromPoints(BoundBox, BoundOrientedBox,
+		m_VertexCount, &m_Vertices[0].position, sizeof(SkinMeshData::VertexType));
+	ResetRanges();
+}
 
 void DefaultSkinningModel::SetFromSkinMeshData(SkinMeshData* pData, const std::wstring& textureDir)
 {
@@ -723,9 +795,18 @@ void DefaultSkinningModel::SetFromSkinMeshData(SkinMeshData* pData, const std::w
 	m_BonesCount = pData->BonesCount;
 	m_Vertices.reset(pData->Vertices);
 	m_Indices.reset(pData->Indices);
-	pMaterial = PhongMaterial::CreateFromMaterialData(pData->Material, textureDir);
+
+	Parts.emplace_back();
+	Parts[0].Name = pData->Name;
+	Parts[0].pMesh = std::make_shared<MeshBuffer>();
+
+	Parts[0].pMesh->VertexCount = m_VertexCount;
+	Parts[0].pMesh->IndexCount = m_IndexCount;
+
+	Parts[0].pMaterial = PhongMaterial::CreateFromMaterialData(pData->Material, textureDir);
+
 	BoneTransforms.resize(m_BonesCount);
-	DirectX::CreateBoundingBoxesFromPoints(BoundBox,BoundOrientedBox,
+	DirectX::CreateBoundingBoxesFromPoints(BoundBox, BoundOrientedBox,
 		m_VertexCount, &m_Vertices[0].position, sizeof(SkinMeshData::VertexType));
 	ResetRanges();
 }
@@ -745,7 +826,7 @@ DefaultSkinningModel* DefaultSkinningModel::CreateFromAmxFile(const std::string&
 DefaultSkinningModel * DefaultSkinningModel::CreateFromData(SkinMeshData * pData, const std::wstring& textureDir, ID3D11Device* pDevice)
 {
 	auto pModel = new DefaultSkinningModel();
-	pModel->SetFromSkinMeshData(pData);
+	pModel->SetFromSkinMeshData(pData, textureDir);
 	if (pDevice)
 	{
 		pModel->CreateDeviceResource(pDevice);
@@ -753,8 +834,22 @@ DefaultSkinningModel * DefaultSkinningModel::CreateFromData(SkinMeshData * pData
 	return pModel;
 }
 
-DefaultSkinningModel * DefaultSkinningModel::CreateCube(ID3D11Device * pDevice, float size)
+DefaultSkinningModel * DirectX::Scene::DefaultSkinningModel::CreateFromDatas(std::list<SkinMeshData>& datas, const std::wstring& textureDir, ID3D11Device * pDevice)
 {
+	auto pModel = new DefaultSkinningModel();
+	pModel->SetFromSkinMeshData(datas, textureDir);
+
+	if (pDevice)
+	{
+		pModel->CreateDeviceResource(pDevice);
+	}
+	return pModel;
+}
+
+std::shared_ptr<MeshBuffer> MeshBuffer::CreateCube(ID3D11Device * pDevice, float size, bool rhcoords)
+{
+	typedef VertexPositionNormalTangentColorTextureSkinning VertexType;
+	typedef uint16_t IndexType;
 	// A cube has six faces, each one pointing in a different direction.
 	const int FaceCount = 6;
 
@@ -814,29 +909,21 @@ DefaultSkinningModel * DefaultSkinningModel::CreateCube(ID3D11Device * pDevice, 
 	}
 
 	assert((indices.size() % 3) == 0);
-	for (auto it = indices.begin(); it != indices.end(); it += 3)
+
+	if (rhcoords)
 	{
-		std::swap(*it, *(it + 2));
+		for (auto it = indices.begin(); it != indices.end(); it += 3)
+		{
+			std::swap(*it, *(it + 2));
+		}
+		for (auto it = vertices.begin(); it != vertices.end(); ++it)
+		{
+			it->textureCoordinate.x = (1.f - it->textureCoordinate.x);
+		}
 	}
 
-	for (auto it = vertices.begin(); it != vertices.end(); ++it)
-	{
-		it->textureCoordinate.x = (1.f - it->textureCoordinate.x);
-	}
+	auto pMeshBuffer = std::make_shared<MeshBuffer>();
+	pMeshBuffer->CreateDeviceResources(pDevice, vertices.data(), vertices.size(), indices.data(), indices.size());
 
-	SkinMeshData data;
-	data.BonesCount = 1;
-	data.IndexCount = indices.size();
-	data.VertexCount = vertices.size();
-	data.Vertices = new VertexType[data.VertexCount];
-	data.Indices = new IndexType[data.IndexCount];
-	std::copy_n(vertices.data(), data.VertexCount, data.Vertices);
-	std::copy_n(indices.data(), data.IndexCount, data.Indices);
-
-	auto pModel = new DefaultSkinningModel();
-	pModel->SetFromSkinMeshData(&data);
-	if (pDevice)
-		pModel->CreateDeviceResource(pDevice);
-
-	return pModel;
+	return pMeshBuffer;
 }

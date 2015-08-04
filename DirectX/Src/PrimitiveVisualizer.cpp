@@ -190,7 +190,7 @@ namespace DirectX{
 			&m_pInputLayout);
 
 		m_pCylinder = DirectX::GeometricPrimitive::CreateCylinder(pContext,1.0f,2.0f);
-		m_pSphere = DirectX::GeometricPrimitive::CreateGeoSphere(pContext);
+		m_pSphere = DirectX::GeometricPrimitive::CreateGeoSphere(pContext,2.0f,2);
 		m_pCube = DirectX::GeometricPrimitive::CreateCube(pContext,2.0f);
 		m_pCone = DirectX::GeometricPrimitive::CreateCone(pContext);
 

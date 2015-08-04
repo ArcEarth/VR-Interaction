@@ -28,11 +28,11 @@ struct ShadowMapEffectTraits
 {
 	typedef ShadowMapEffectCBuffer ConstantBufferType;
 
-	static const int VertexShaderCount = 16;  // 4 + 4 + 8
-	static const int PixelShaderCount = 6;	// 2 + 2 + 2
-	static const int ShaderPermutationCount = 20; // 8 + 8 + 4
+	static const int VertexShaderCount = 20;  // 4 + 4 + 12
+	static const int PixelShaderCount = 7;	// 2 + 2 + 3
+	static const int ShaderPermutationCount = 24; // 6 + 6 + 12
 
-	static const int TexturePermCount = 2;
+	static const int TexturePermCount = 3;
 	static const int LightPermCount = 1;
 	static const int BonesPermCount = 2;
 
@@ -69,17 +69,26 @@ namespace
 #include "Shaders/Windows/ShadowMapEffectPS_PS_BinaryOneLightNoTex.inc"
 #include "Shaders/Windows/ShadowMapEffectPS_PS_BinaryOneLightTex.inc"
 
-#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceNoBoneTex.inc"
-#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceOneBoneTex.inc"
-#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceTwoBoneTex.inc"
-#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceFourBoneTex.inc"
+// Screen Space No Texture VS 
 #include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceNoBoneNoTex.inc"
 #include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceOneBoneNoTex.inc"
 #include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceTwoBoneNoTex.inc"
 #include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceFourBoneNoTex.inc"
+// Screen Space Texture VS 
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceNoBoneTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceOneBoneTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceTwoBoneTex.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceFourBoneTex.inc"
+// Screen Space Texture with Bump VS 
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceNoBoneTexBump.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceOneBoneTexBump.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceTwoBoneTexBump.inc"
+#include "Shaders/Windows/ShadowMapEffectVS_VS_ScreenSpaceFourBoneTexBump.inc"
 
+// Screen Space PS
 #include "Shaders/Windows/ShadowMapEffectPS_PS_ScreenSpaceNoTex.inc"
 #include "Shaders/Windows/ShadowMapEffectPS_PS_ScreenSpaceTex.inc"
+#include "Shaders/Windows/ShadowMapEffectPS_PS_ScreenSpaceTexBump.inc"
 
 #endif
 }
@@ -118,12 +127,16 @@ const ShaderBytecode EffectBaseType::VertexShaderBytecode[] =
 
 	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceNoBoneNoTex),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceNoBoneTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceNoBoneTexBump),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceOneBoneNoTex),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceOneBoneTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceOneBoneTexBump),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceTwoBoneNoTex),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceTwoBoneTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceTwoBoneTexBump),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceFourBoneNoTex),
 	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceFourBoneTex),
+	MakeShaderByteCode(ShadowMapEffectVS_VS_ScreenSpaceFourBoneTexBump),
 };
 
 
@@ -131,22 +144,30 @@ const int EffectBaseType::VertexShaderIndices[] =
 {
 	0,	// NoBone x OneLight x NoTex
 	1,  // NoBone x OneLight x Tex
+	1,  // NoBone x OneLight x Tex
 	2,	// FourBone x OneLight x NoTex
+	3,	// FourBone x OneLight x Tex
 	3,	// FourBone x OneLight x Tex
 
 	4,	// NoBone x OneLight x NoTex
 	5,  // NoBone x OneLight x Tex
+	5,  // NoBone x OneLight x Tex
 	6,	// FourBone x OneLight x NoTex
+	7,	// FourBone x OneLight x Tex
 	7,	// FourBone x OneLight x Tex
 
 	8,	// NoBone x NoTex
 	9,  // NoBone x Tex
-	10,	// OneBone x NoTex
-	11,	// OneBone x Tex
-	12,	// TwoBone x NoTex
-	13,  // TwoBone x Tex
-	14,	// FourBone x OneLight x NoTex
-	15,	// FourBone x OneLight x Tex
+	10, // NoBone x Tex Bump
+	11,	// OneBone x NoTex
+	12,	// OneBone x Tex
+	13,	// OneBone x Tex Bump
+	14,	// TwoBone x NoTex
+	15,  // TwoBone x Tex
+	16,  // TwoBone x Tex Bump
+	17,	// FourBone x NoTex
+	18,	// FourBone x Tex
+	19,	// FourBone x Tex Bump
 };
 
 
@@ -165,6 +186,7 @@ const ShaderBytecode EffectBaseType::PixelShaderBytecode[] =
 
 	MakeShaderByteCode(ShadowMapEffectPS_PS_ScreenSpaceNoTex),
 	MakeShaderByteCode(ShadowMapEffectPS_PS_ScreenSpaceTex),
+	MakeShaderByteCode(ShadowMapEffectPS_PS_ScreenSpaceTexBump),
 };
 
 
@@ -172,22 +194,30 @@ const int EffectBaseType::PixelShaderIndices[] =
 {
 	0,      // OneLight x NoTex
 	1,      // OneLight x Tex
+	1,      // OneLight x Tex
 	0,      // OneLight x NoTex
+	1,      // OneLight x Tex
 	1,      // OneLight x Tex
 
 	2,      // OneLight x NoTex
 	3,      // OneLight x Tex
+	3,      // OneLight x Tex
 	2,      // OneLight x NoTex
 	3,      // OneLight x Tex
+	3,      // OneLight x Tex
 
-	4,      // OneLight x NoTex
-	5,      // OneLight x Tex
-	4,      // OneLight x NoTex
-	5,      // OneLight x Tex
-	4,      // OneLight x NoTex
-	5,      // OneLight x Tex
-	4,      // OneLight x NoTex
-	5,      // OneLight x Tex
+	4,      // Screen x NoTex
+	5,      // Screen x Tex
+	6,		// Screen x Tex Bump
+	4,      // Screen x NoTex
+	5,      // Screen x Tex
+	6,		// Screen x Tex Bump
+	4,      // Screen x NoTex
+	5,      // Screen x Tex
+	6,		// Screen x Tex Bump
+	4,      // Screen x NoTex
+	5,      // Screen x Tex
+	6,		// Screen x Tex Bump
 };
 
 namespace DirectX
@@ -217,6 +247,7 @@ public:
 	typedef EffectBaseType		Base;
 
 	ShadowMapEffectMode				mode;
+	bool							alpha_discard;
 	CommonStates					commonStates;
 	BonesCBuffer					boneConstant;
 	ConstantBuffer<BonesCBuffer>	BoneTransforms;
@@ -236,8 +267,10 @@ public:
 		: EffectBase(device),
 		BoneTransforms(device),
 		commonStates(device),
-		weightsPerVertex(0), lightsEnabled(1),
+		weightsPerVertex(0), 
+		lightsEnabled(1),
 		mode(LightSpaceShadowRender),
+		alpha_discard(false),
 		pNormalTexture(NULL), pSpecularTexture(NULL), pScreenSpaceShadowMap(NULL), pScreenSpaceShadowMapSharp(NULL)
 	{
 		static_assert(_countof(Base::VertexShaderIndices) == Traits::ShaderPermutationCount, "array/max mismatch");
@@ -264,7 +297,7 @@ public:
 		static const int bonesConv[] = { 0, -1 ,-1 ,-1, 1 };
 		static const int bonesConv2[] = { 0, 1 , 2 ,-1, 3 };
 
-		int perm = 4 * mode;
+		int perm = 6 * mode;
 		switch (mode)
 		{
 		case DirectX::ShadowMapEffect::LightSpaceShadowRender:
@@ -280,10 +313,14 @@ public:
 
 		case DirectX::ShadowMapEffect::ScreenSpaceShadowRender:
 
-			perm += bonesConv2[weightsPerVertex] * 2; // Tex / NoTex
+			perm += bonesConv2[weightsPerVertex] * Traits::BonesPermStride; // Tex / NoTex
 
 			if (texture != nullptr) // material texture
-				perm += Traits::TexturePermStride;
+				if (pNormalTexture != nullptr)
+					perm += 2 * Traits::TexturePermStride;
+				else
+					perm += Traits::TexturePermStride;
+
 			return perm;
 		}
 
@@ -347,18 +384,23 @@ public:
 		{
 			pSrvs[2] = pScreenSpaceShadowMap;
 			pSrvs[3] = pScreenSpaceShadowMapSharp;
-			pContext->OMSetBlendState(commonStates.AlphaBlend(), Colors::Black.f, -1);
+			if (constants.MaterialDiffuse.w < 0.85 || alpha_discard)
+				pContext->OMSetBlendState(commonStates.AlphaBlend(), Colors::Black.f, -1);
 		}
 		else
 		{
 			pContext->OMSetBlendState(commonStates.Opaque(), Colors::Black.f, -1);
 		}
 
-		ID3D11SamplerState* pSamplers[] = { commonStates.AnisotropicClamp(), commonStates.AnisotropicClamp(), commonStates.AnisotropicClamp()};
+		ID3D11SamplerState* pSamplers[] = { commonStates.AnisotropicWrap(), commonStates.AnisotropicClamp(), commonStates.AnisotropicClamp()};
 		pContext->PSSetSamplers(0, std::size(pSamplers), pSamplers);
-		//pContext->PSSetSamplers(2, 1, pShadowMapSampler.GetAddressOf());
-		pContext->PSSetShaderResources(0, 2 + lightsEnabled, pSrvs);
 
+		if (constants.MaterialDiffuse.w < 0.85)
+			pContext->OMSetDepthStencilState(commonStates.DepthRead(), -1);
+		else
+			pContext->OMSetDepthStencilState(commonStates.DepthDefault(),-1);
+
+		pContext->PSSetShaderResources(0, 2 + lightsEnabled, pSrvs);
 	}
 };
 
@@ -498,6 +540,11 @@ void ShadowMapEffect::SetAlpha(float value)
 {
 	pImpl->constants.MaterialDiffuse.w = value;
 	pImpl->dirtyFlags |= EffectDirtyFlags::MaterialColor | EffectDirtyFlags::ConstantBuffer;
+}
+
+void DirectX::ShadowMapEffect::SetAlphaDiscard(bool enable)
+{
+	pImpl->alpha_discard = enable;
 }
 
 void ShadowMapEffect::SetDiffuseMap(ID3D11ShaderResourceView * pTexture)

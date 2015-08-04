@@ -109,14 +109,6 @@ DirectX::XMMATRIX Bone::TransformMatrix(const Bone & from, const Bone & to)
 	using DirectX::operator+=;
 	using namespace DirectX;
 
-	//XMMATRIX Maf = 
-	//	XMMatrixAffineTransformation(
-	//		to.GblScaling.LoadA() / from.GblScaling.LoadA(),
-	//		from.OriginPosition.LoadA(),
-	//		XMQuaternionMultiply(XMQuaternionInverse(from.GblRotation.LoadA()), to.GblRotation.LoadA()),
-	//		to.OriginPosition);
-	//return Maf;
-
 	XMMATRIX MScaling = XMMatrixScalingFromVector(to.GblScaling.LoadA() / from.GblScaling.LoadA());
 	XMVECTOR VRotationOrigin = XMVectorSelect(g_XMSelect1110.v, from.GblTranslation.LoadA(), g_XMSelect1110.v);
 	XMMATRIX MRotation = XMMatrixRotationQuaternion(XMQuaternionInverse(from.GblRotation));
@@ -129,12 +121,10 @@ DirectX::XMMATRIX Bone::TransformMatrix(const Bone & from, const Bone & to)
 	M = XMMatrixMultiply(M, MRotation);
 	M.r[3] += VTranslation;
 
-	//XMVECTOR toEnd = XMVector3Transform(from.OriginPosition.LoadA(), M);
-	//XMVECTOR toEndAf = XMVector3Transform(from.OriginPosition.LoadA(), Maf);
+	XMVECTOR toEnd = XMVector3Transform(from.GblTranslation.LoadA(), M);
 
-	//if (
-	//	XMVector4Greater(XMVector3LengthSq(toEnd - to.GblTranslation.LoadA()), XMVectorReplicate(0.001)))
-	//	std::cout << "NO!!!!" << std::endl;
+	if (XMVector4Greater(XMVector3LengthSq(toEnd - to.GblTranslation.LoadA()), XMVectorReplicate(0.001)))
+		std::cout << "NO!!!!" << std::endl;
 	return M;
 }
 

@@ -4,6 +4,128 @@
 namespace Causality
 {
 
+	template <class _TBoneFeature>
+	struct BlockEndEffectorOnly;
+	template <class _TBoneFeature>
+	struct BlockLocalized;
+
+
+	template <class _TBoneFeature>
+	struct BlockEndEffectorOnly : public _TBoneFeature
+	{
+		typedef _TBoneFeature BoneFeature;
+		static const bool EndEffectorOnly = true;
+	};
+
+	template <class _TBoneFeature>
+	struct BlockLocalized : public _TBoneFeature
+	{
+		typedef _TBoneFeature BoneFeature;
+		static const bool BlockwiseLocalize = true;
+	};
+
+	class KinematicBlock;
+
+	class BlockFeatureExtractor abstract
+	{
+	public:
+		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame) = 0;
+		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame, _In_ const AffineFrame& last_frame, float frame_time)
+		{
+			return Get(block, frame);
+		}
+
+		virtual void Set(_In_ const KinematicBlock& block, _Out_ AffineFrame& frame, _In_ const RowVectorX& feature) = 0;
+	};
+
+	template <class BoneFeatureType>
+	class BlockAllJointsFeatureExtractor : public BlockFeatureExtractor
+	{
+	public :
+		bool EnableLocalization;
+
+		BlockAllJointsFeatureExtractor(bool enableLocalzation = false)
+			: EnableLocalization(enableLocalzation)
+		{}
+
+		BlockAllJointsFeatureExtractor(const BlockAllJointsFeatureExtractor&) = default;
+
+		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame) override
+		{
+			RowVectorX Y(block.Joints.size() * BoneFeatureType::Dimension);
+			for (size_t j = 0; j < block.Joints.size(); j++)
+			{
+				auto jid = block.Joints[j]->ID();
+				auto Yj = Y.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
+				BoneFeatureType::Get(Yj, frame[jid]);
+			}
+
+			if (block.parent() != nullptr && EnableLocalization)
+			{
+				RowVectorX reference(BoneFeatureType::Dimension);
+				BoneFeatureType::Get(reference, frame[block.parent()->Joints.back()->ID()]);
+				Y -= reference.replicate(1, block.Joints.size());
+			}
+			return Y;
+		}
+
+		virtual void Set(_In_ const KinematicBlock& block, _Out_ AffineFrame& frame, _In_ const RowVectorX& feature) override
+		{
+			for (size_t j = 0; j < block.Joints.size(); j++)
+			{
+				auto jid = block.Joints[j]->ID();
+				auto Xj = feature.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
+				BoneFeatureType::Set(frame[jid], Xj);
+			}
+		}
+	};
+
+	template <class BoneFeatureType>
+	class BlockEndEffectorFeatureExtractor : public BlockFeatureExtractor
+	{
+	public:
+		bool EnableLocalization;
+		float FrameTime;
+
+		BlockEndEffectorFeatureExtractor(bool enableLocalzation = false, float frameTime = 1.0f)
+			: EnableLocalization(enableLocalzation), FrameTime(frameTime)
+		{}
+
+		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame) override
+		{
+			RowVectorX Y(BoneFeatureType::Dimension);
+
+			BoneFeatureType::Get(Y, frame[block.Joints.back()->ID()]);
+
+			if (block.parent() != nullptr && EnableLocalization)
+			{
+				RowVectorX reference(BoneFeatureType::Dimension);
+				BoneFeatureType::Get(reference, frame[block.parent()->Joints.back()->ID()]);
+				Y -= reference;
+			}
+			return Y;
+		}
+
+		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame, _In_ const AffineFrame& last_frame, float frame_time) override
+		{
+			static const auto Dim = BoneFeatureType::Dimension;
+			RowVectorX Y(Dim * 2);
+
+			Y.segment<Dim>(0) = Get(block, frame);
+			Y.segment<Dim>(Dim) = Y.segment<Dim>(0);
+			Y.segment<Dim>(Dim) -= Get(block, last_frame);
+			Y.segment<Dim>(Dim) /= frame_time;
+
+			return Y;
+		}
+
+		virtual void Set(_In_ const KinematicBlock& block, _Out_ AffineFrame& frame, _In_ const RowVectorX& feature) override
+		{
+			assert(false, "End Effector only block feature could not be use to set frame");
+		}
+	};
+
+
 	// A Kinematic Block is a one-chain in the kinmatic tree, with additional anyalaze information 
 	// usually constructed from shrinking the kinmatic tree
 	// Each Block holds the children joints and other structural information
@@ -35,7 +157,14 @@ namespace Causality
 
 		// Saliansy properties
 		int					ActiveActionCount;
-		list<string>		ActiveActions;
+		vector<string>		ActiveActions;
+
+		// Local motion and Principle displacement datas
+		Eigen::MatrixXf						X;		// (Ac*F) x d, Muilti-clip local-motion feature matrix, Ac = Active Action Count, d = block feature dimension
+		Eigen::MatrixXf						Pd;		// Muilti-clip Principle Displacement
+
+		Eigen::PcaCcaMap					PdDriver; // Muilti-clip deducted driver from Principle displacement to local motion
+		Eigen::MatrixXf						PvCorr; // ActiveActionCount x ActiveActionCount, record the pv : pv correlation 
 
 		KinematicBlock()
 		{
@@ -58,14 +187,16 @@ namespace Causality
 		//float				PotientialEnergy;	// Potenial Energy Level
 
 		BoundingOrientedBox GetBoundingBox(const AffineFrame& frame) const;
-		template <class FeatureType>
-		RowVectorX			GetFeatureVector(const AffineFrame& frame, bool blockwiseLocalize = false) const;
-		template <class FeatureType>
-		void				SetFeatureVector(_Out_ AffineFrame& frame, _In_ const RowVectorX& feature) const;
-		template <class FeatureType>
-		size_t				GetFeatureDim() const {
-			return FeatureType::Dimension * Joints.size();
-		}
+
+		//template <class FeatureType>
+		//RowVectorX			GetFeatureVector(const AffineFrame& frame, bool blockwiseLocalize = false) const;
+
+		//template <class FeatureType>
+		//void				SetFeatureVector(_Out_ AffineFrame& frame, _In_ const RowVectorX& feature) const;
+		//template <class FeatureType>
+		//size_t				GetFeatureDim() const {
+		//	return FeatureType::Dimension * Joints.size();
+		//}
 
 		bool				IsEndEffector() const;		// Is this feature a end effector?
 		bool				IsGrounded() const;			// Is this feature grounded? == foot semantic
@@ -116,35 +247,34 @@ namespace Causality
 		Eigen::PermutationMatrix<Eigen::Dynamic> GetJointPermutationMatrix(size_t feature_dim) const;
 	};
 
-	template <class FeatureType>
-	inline RowVectorX KinematicBlock::GetFeatureVector(const AffineFrame & frame, bool blockwiseLocalize) const
-	{
-		RowVectorX Y(GetFeatureDim<FeatureType>());
-		for (size_t j = 0; j < Joints.size(); j++)
-		{
-			auto jid = Joints[j]->ID();
-			auto Yj = Y.middleCols<FeatureType::Dimension>(j * FeatureType::Dimension).transpose();
-			FeatureType::Get(Yj, frame[Joints[j]->ID()]);
-		}
+	//template <class FeatureType>
+	//inline RowVectorX KinematicBlock::GetFeatureVector(const AffineFrame & frame, bool blockwiseLocalize) const
+	//{
+	//	RowVectorX Y(GetFeatureDim<FeatureType>());
+	//	for (size_t j = 0; j < Joints.size(); j++)
+	//	{
+	//		auto jid = Joints[j]->ID();
+	//		auto Yj = Y.middleCols<FeatureType::Dimension>(j * FeatureType::Dimension).transpose();
+	//		FeatureType::Get(Yj, frame[Joints[j]->ID()]);
+	//	}
 
-		if (parent() != nullptr && blockwiseLocalize && FeatureType::EnableBlcokwiseLocalization)
-		{
-			RowVectorX reference(FeatureType::Dimension);
-			FeatureType::Get(reference, frame[parent()->Joints.back()->ID()]);
-			Y -= reference.replicate(1, Joints.size());
-		}
-		return Y;
-	}
+	//	if (parent() != nullptr && blockwiseLocalize && FeatureType::BlockwiseLocalize)
+	//	{
+	//		RowVectorX reference(FeatureType::Dimension);
+	//		FeatureType::Get(reference, frame[parent()->Joints.back()->ID()]);
+	//		Y -= reference.replicate(1, Joints.size());
+	//	}
+	//	return Y;
+	//}
 
-	template <class FeatureType>
-	inline void KinematicBlock::SetFeatureVector(AffineFrame & frame, const RowVectorX & X) const
-	{
-		for (size_t j = 0; j < Joints.size(); j++)
-		{
-			auto jid = Joints[j]->ID();
-			auto Xj = X.middleCols<FeatureType::Dimension>(j * FeatureType::Dimension);
-			FeatureType::Set(frame[jid], Xj);
-		}
-	}
-
+	//template <class FeatureType>
+	//inline void KinematicBlock::SetFeatureVector(AffineFrame & frame, const RowVectorX & X) const
+	//{
+	//	for (size_t j = 0; j < Joints.size(); j++)
+	//	{
+	//		auto jid = Joints[j]->ID();
+	//		auto Xj = X.middleCols<FeatureType::Dimension>(j * FeatureType::Dimension);
+	//		FeatureType::Set(frame[jid], Xj);
+	//	}
+	//}
 }

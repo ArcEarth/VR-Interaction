@@ -24,6 +24,10 @@ float4 GetLightUV(float4 posWorld, float4x4 viewProjection)
 	SkinVertex; \
 	vin.Normal = mul(vin.Normal, (float3x3)skinning);
 
+#define SkinVertexWithNormalTagent \
+	SkinVertexWithNormal;\
+	vin.Tangent = mul(vin.Tangent, (float3x3)skinning);
+
 #define SetPosition \
 	float4 posWorld = mul(vin.Position, World); \
 	vout.pos = mul(posWorld, ViewProjection);
@@ -32,14 +36,17 @@ float4 GetLightUV(float4 posWorld, float4x4 viewProjection)
 	vout.posUV = GetLightUV(posWorld, ViewProjection);
 
 #define SetPositionNormalToEye \
-	float4 posWorld = mul(vin.Position, World); \
-	vout.pos = mul(posWorld, ViewProjection); \
+	SetPosition; \
 	vout.normal = mul(vin.Normal, (float3x3)World); \
 	vout.toEye = posWorld.xyz - EyePosition;
 
+#define SetPositionNormalToEyeTangentBinormal \
+	SetPositionNormalToEye; \
+	vout.tangent = mul(vin.Tangent, (float3x3)World); \
+	vout.binormal = cross(vout.normal,vout.tangent);
+
 #define SetTextureCoord \
 	vout.uv = vin.TexCoord;
-	//vout.tagent = mul(vin.Tanget, (float3x3)World);
 
 #define SetLightUVOne \
 	vout.lightUv0 = GetLightUV(posWorld, LightViewProjection[0]);

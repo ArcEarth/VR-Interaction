@@ -40,15 +40,18 @@ namespace Causality
 
 		float				EnergyCutoff;
 		float				PcaCutoff;
-		Eigen::MatrixXf		X;  // 20N x F data matrix
-		Eigen::RowVectorXf  Ej;	// Jointwise Energy
-		Eigen::RowVectorXf	Eb;	// Blockwise Energy
-		Eigen::Matrix<float, -1, -1> Sp;	// Spatial traits
-		Eigen::MatrixXf		Dirs;
+		Eigen::MatrixXf		X;  // Fx sum(d_Bi), data matrix, d = Block dimension, F = Frame count, J = Block count
+		Eigen::RowVectorXf  Ej;	// 1xJ, Jointwise Energy
+		Eigen::RowVectorXf	Eb;	// 1xB, Blockwise Energy
+		Eigen::MatrixXf		Sp;	// 6xB, Spatial traits, B = block count
+		Eigen::MatrixXf		Dirs; // 3FxB, block end-effector displacements, F = frame count, B = block count
 
 		std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> Qrs; // Blockwise Qr Decomposition 
-		std::vector<Eigen::Pca<Eigen::MatrixXf>> Pcas;		 // Blockwise Pca
-		std::vector<Eigen::MatrixXf> Xbs;					 // Blockwise Data
+		std::vector<Eigen::Pca<Eigen::MatrixXf>>		Pcas;		 // Blockwise Pca
+		std::vector<Eigen::MatrixXf>	Xbs;					 // Blockwise Data
+		std::vector<Eigen::PcaCcaMap>	PerceptiveVectorReconstructor;
+		std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> PvQrs; // Blockwise Qr Decomposition 
+		std::vector<Eigen::Pca<Eigen::MatrixXf>>		PvPcas;		 // Blockwise Pca
 
 		DirectX::BoundingBox			BoundingBox;
 	};
