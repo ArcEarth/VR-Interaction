@@ -306,8 +306,8 @@ namespace Causality
 		{
 			auto itr = textures.find(key);
 			if (itr != textures.end())
-				return itr->second;
-			return itr->second;
+				return *itr->second;
+			return *itr->second;
 		}
 
 		animation_clip_type&		GetAnimation(const string& key)
@@ -324,7 +324,7 @@ namespace Causality
 
 		effect_type*				GetEffect(const string& key)
 		{
-			return default_effect.get();
+			return effects[key];
 		}
 
 		const sptr<material_type>&	GetMaterial(const string& key) const
@@ -383,7 +383,7 @@ namespace Causality
 		map<string, task<texture_type*>>	loading_textures;
 
 		map<string, mesh_type*>				meshes;
-		map<string, texture_type>			textures;
+		map<string, texture_type*>			textures;
 		map<string, animation_clip_type>	animations;
 		map<string, audio_clip_type>		audios;
 		map<string, effect_type*>			effects;
@@ -392,6 +392,7 @@ namespace Causality
 
 		sptr<DirectX::IEffect>				default_effect;
 		sptr<DirectX::IEffect>				default_skinned_effect;
+		sptr<DirectX::IEffect>				default_envirument_effect;
 		sptr<DirectX::Scene::PhongMaterial>	default_material;
 		uptr<DirectX::EffectFactory>		effect_factory;
 

@@ -83,11 +83,18 @@ public:
 		// Compute derived parameter values.
 		matrices.SetConstants(dirtyFlags, constants.WorldLightProj);
 
+		if (dirtyFlags & EffectDirtyFlags::AlphaTest)
+		{
+			ID3D11ShaderResourceView* pSrvs[] = { texture.Get(), NULL, NULL, NULL, NULL, NULL };
+			deviceContext->PSSetShaderResources(0, 1, pSrvs);
+			dirtyFlags &= ~EffectDirtyFlags::AlphaTest;
+		}
+
 		// Set the render targets if applicatable
 		if (pDepthMap != nullptr || pRenderTargetView != nullptr)
 		{
-			ID3D11ShaderResourceView* pSrvs[] = {NULL, NULL, NULL, NULL, NULL, NULL};
-			deviceContext->PSSetShaderResources(0, sizeof(pSrvs), pSrvs);
+			//ID3D11ShaderResourceView* pSrvs[] = {NULL, NULL, NULL, NULL, NULL, NULL};
+			//deviceContext->PSSetShaderResources(0, sizeof(pSrvs), pSrvs);
 			assert(fillMode != SolidColorFill && pRenderTargetView != nullptr);
 			ID3D11RenderTargetView* rtvs[] = { pRenderTargetView };
 			deviceContext->OMSetRenderTargets(1, rtvs, pDepthMap);
@@ -229,12 +236,18 @@ void ShadowMapGenerationEffect::SetAlphaDiscardThreshold(float clipThreshold)
 
 void ShadowMapGenerationEffect::SetAlphaDiscardTexture(ID3D11ShaderResourceView * pTexture)
 {
+	if (pImpl->texture.Get() == pTexture)
+		return;
 	pImpl->texture = pTexture;
+	pImpl->dirtyFlags |= EffectDirtyFlags::AlphaTest;
 }
 
 void ShadowMapGenerationEffect::DisableAlphaDiscard()
 {
+	if (pImpl->texture == nullptr)
+		return;
 	pImpl->texture = nullptr;
+	pImpl->dirtyFlags |= EffectDirtyFlags::AlphaTest;
 }
 
 void XM_CALLCONV ShadowMapGenerationEffect::SetWorld(FXMMATRIX value)

@@ -385,7 +385,7 @@ public:
 			pSrvs[2] = pScreenSpaceShadowMap;
 			pSrvs[3] = pScreenSpaceShadowMapSharp;
 			if (constants.MaterialDiffuse.w < 0.85 || alpha_discard)
-				pContext->OMSetBlendState(commonStates.AlphaBlend(), Colors::Black.f, -1);
+				pContext->OMSetBlendState(commonStates.NonPremultiplied(), Colors::Black.f, -1);
 		}
 		else
 		{

@@ -48,8 +48,8 @@ void AnimationAnalyzer::ComputeFromFrames(const std::vector<AffineFrame>& frames
 		}
 	}
 
-	BlocklizationAndComputeEnergy();
 	ComputeSpatialTraits(frames);
+	BlocklizationAndComputeEnergy(frames);
 	ComputePcaQr();
 	IsReady = true;
 	//std::cout << "Computation finished" << endl;
@@ -61,24 +61,57 @@ void AnimationAnalyzer::ComputeFromBlocklizedMat(const Eigen::MatrixXf & mat)
 	ComputePcaQr();
 }
 
-void AnimationAnalyzer::BlocklizationAndComputeEnergy()
+void AnimationAnalyzer::BlocklizationAndComputeEnergy(const std::vector<AffineFrame>& frames)
 {
 	static const auto DimPerBone = CharacterFeature::Dimension;
 	auto numBones = pBlockArmature->Armature().size();
+	auto frameCount = frames.size();
 
-	Eigen::FFT<float> fft;
-	Eigen::MatrixXcf Xf(X.rows(), X.cols());
-	for (size_t i = 0; i < X.cols(); i++)
+	//Eigen::FFT<float> fft;
+	//Eigen::MatrixXcf Xf(X.rows(), X.cols());
+	//for (size_t i = 0; i < X.cols(); i++)
+	//{
+	//	fft.fwd(Xf.col(i).data(), X.col(i).data(), X.rows());
+	//}
+
+	//Eigen::VectorXf Ecd = Xf.middleRows(1, 5).cwiseAbs2().colwise().sum();
+	//auto Ecjm = Eigen::Matrix<float, DimPerBone, -1>::Map(Ecd.data(), DimPerBone, numBones);
+	//Ej = Ecjm.colwise().sum();
+
+	// Fx3J, Use to caculate Varience of Joints position
+	MatrixX Ex(frameCount, numBones * 3);
+	vector<int> bParents(numBones);
+	for (auto block : *pBlockArmature)
 	{
-		fft.fwd(Xf.col(i).data(), X.col(i).data(), X.rows());
+		int bpid = 0;
+		if (block->parent())
+			bpid = block->parent()->Joints.back()->ID();
+
+		for (auto joint : block->Joints)
+		{
+			bParents[joint->ID()] = bpid;
+		}
 	}
 
-	Eigen::VectorXf Ecd = Xf.middleRows(1, 5).cwiseAbs2().colwise().sum();
-	auto Ecjm = Eigen::Matrix<float, DimPerBone, -1>::Map(Ecd.data(), DimPerBone, numBones);
-	Ej = Ecjm.colwise().sum();
+	for (Eigen::DenseIndex i = 0; i < frameCount; i++)
+	{
+		for (Eigen::DenseIndex j = 0; j < numBones; j++)
+		{
+			Vector3 v = frames[i][j].GblTranslation - frames[i][bParents[j]].GblTranslation;
+			Ex.block<1,3>(i,j*3) = Eigen::Vector3f::Map(&v.x);
+		}
+	}
+	Ex.rowwise() -= Ex.colwise().mean();
+	RowVectorX E3j = Ex.cwiseAbs2().colwise().mean();
+	// 3xJ, Translation Energy(Variance) among 3 axis
+	Ej3 = Eigen::MatrixXf::Map(E3j.data(), 3, numBones);
+	Ej = Ej3.colwise().sum();
+	Ejrot = Ej.replicate(3, 1) - Ej3;
 
 	const auto& blocks = *pBlockArmature;
 	Eb.resize(blocks.size());
+	Eb3.resize(3, blocks.size());
+	Ebrot.resize(3,blocks.size());
 	Xbs.resize(blocks.size());
 
 	for (auto& block : blocks)
@@ -89,8 +122,14 @@ void AnimationAnalyzer::BlocklizationAndComputeEnergy()
 		Eigen::MatrixXf Yb(X.rows(), block->Joints.size() * CharacterFeature::Dimension);
 		for (size_t j = 0; j < joints.size(); j++)
 		{
-			Yb.middleCols<DimPerBone>(j * DimPerBone) = X.middleCols<DimPerBone>(joints[j]->ID() * DimPerBone);
-			Eb(i) = max(Eb(i), Ej(joints[j]->ID()));
+			auto jid = joints[j]->ID();
+			Yb.middleCols<DimPerBone>(j * DimPerBone) = X.middleCols<DimPerBone>(jid * DimPerBone);
+			if (Eb(i) < Ej(jid))
+			{
+				Eb(i) = Ej(jid);
+				Ebrot(i) =Ejrot(jid);
+				Eb3.col(i) = Ej3.col(jid);
+			}
 		}
 
 		Xbs[i] = Yb;
@@ -99,7 +138,7 @@ void AnimationAnalyzer::BlocklizationAndComputeEnergy()
 	Eb = Eb.cwiseSqrt();
 
 	// Why do another sqrt ? it's too aggresive
-	Eb = Eb.cwiseSqrt();
+	// Eb = Eb.cwiseSqrt();
 
 	//Eb /= Eb.maxCoeff();
 	//float maxCoeff = Eb.maxCoeff();
@@ -140,7 +179,7 @@ void AnimationAnalyzer::ComputePcaQr()
 		auto d = pca.reducedRank(PcaCutoff);
 		Qrs[i].compute(pca.coordinates(d), true);
 
-		auto pvs = Eigen::Matrix<float, CLIP_FRAME_COUNT, 3, Eigen::RowMajor>::Map(Dirs.col(i).data());
+		auto pvs = Eigen::Matrix<float, CLIP_FRAME_COUNT, 3, Eigen::RowMajor>::Map(Pvs.col(i).data());
 		PvPcas[i].compute(pvs);
 		PvQrs[i].compute(PvPcas[i].coordinates(3),true);
 		//std::cout << "Pca finish" << endl;
@@ -153,7 +192,7 @@ void AnimationAnalyzer::ComputeSpatialTraits(const std::vector<AffineFrame> &fra
 	auto frameCount = frames.size();
 	const auto& blocks = *pBlockArmature;
 	Sp.setZero(6, blocks.size());
-	Dirs.setZero(frameCount * 3, blocks.size());
+	Pvs.setZero(frameCount * 3, blocks.size());
 	for (auto& block : blocks)
 	{
 		auto i = block->Index;
@@ -164,7 +203,7 @@ void AnimationAnalyzer::ComputeSpatialTraits(const std::vector<AffineFrame> &fra
 		int fid = 0;
 		for (const auto& frame : frames)
 		{
-			auto v = Dirs.block<3, 1>(fid * 3, i) = Eigen::Vector3f::MapAligned(&frame[lastJid].GblTranslation.x);;
+			auto v = Pvs.block<3, 1>(fid * 3, i) = Eigen::Vector3f::MapAligned(&frame[lastJid].GblTranslation.x);;
 			vtc += v;
 			++fid;
 		}
@@ -190,7 +229,7 @@ void AnimationAnalyzer::ComputeSpatialTraits(const std::vector<AffineFrame> &fra
 			auto pi = block->parent()->Index;
 			for (size_t fid = 0; fid < frameCount; fid++)
 			{
-				auto v = Dirs.block<3, 1>(fid * 3, i) -= Dirs.block<3, 1>(fid * 3, pi);
+				auto v = Pvs.block<3, 1>(fid * 3, i) -= Pvs.block<3, 1>(fid * 3, pi);
 				// v.normalize();
 			}
 

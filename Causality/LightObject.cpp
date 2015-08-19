@@ -100,49 +100,6 @@ bool Light::IsVisible(const BoundingGeometry & viewFrustum) const
 	return viewFrustum.Contains(this->GetViewFrustum()) != ContainmentType::DISJOINT;
 }
 
-void XM_CALLCONV DrawBox(_In_reads_(8) Vector3 *conners, FXMVECTOR color)
-{
-	auto& drawer = Visualizers::g_PrimitiveDrawer;
-	drawer.DrawLine(conners[0], conners[1], color);
-	drawer.DrawLine(conners[1], conners[2], color);
-	drawer.DrawLine(conners[2], conners[3], color);
-	drawer.DrawLine(conners[3], conners[0], color);
-
-	drawer.DrawLine(conners[0], conners[4], color);
-	drawer.DrawLine(conners[1], conners[5], color);
-	drawer.DrawLine(conners[2], conners[6], color);
-	drawer.DrawLine(conners[3], conners[7], color);
-
-	drawer.DrawLine(conners[4], conners[5], color);
-	drawer.DrawLine(conners[5], conners[6], color);
-	drawer.DrawLine(conners[6], conners[7], color);
-	drawer.DrawLine(conners[7], conners[4], color);
-
-}
-
-void XM_CALLCONV DrawGeometryOutline(const BoundingGeometry& geometry, FXMVECTOR color)
-{
-	Vector3 conners[8];
-	if (geometry.Type == BoundingGeometryType::Geometry_Frustum)
-	{
-		geometry.Frustum.GetCorners(conners);
-		DrawBox(conners,color);
-	}
-	else if (geometry.Type == BoundingGeometryType::Geometry_OrientedBox)
-	{
-		geometry.OrientedBox.GetCorners(conners);
-		DrawBox(conners, color);
-	}
-	else if (geometry.Type == BoundingGeometryType::Geometry_AxisAlignedBox)
-	{
-		geometry.AxisAlignedBox.GetCorners(conners);
-		DrawBox(conners, color);
-	}
-	else if (geometry.Type == BoundingGeometryType::Geometry_Sphere)
-	{
-	}
-}
-
 void Light::Render(RenderContext & context, DirectX::IEffect* pEffect)
 {
 	if (g_DebugView)
@@ -166,7 +123,7 @@ void XM_CALLCONV Light::UpdateViewMatrix(FXMMATRIX view, CXMMATRIX projection)
 DirectX::XMVECTOR Causality::ILight::GetFocusDirection() const
 {
 	using namespace DirectX;
-	XMMATRIX view = GetViewMatrix();
+	XMMATRIX view = AsViewControl()->GetViewMatrix();
 	view = XMMatrixTranspose(view);
 	return XMVectorSelect(g_XMSelect1110.v, -view.r[2], g_XMSelect1110.v);
 }

@@ -124,6 +124,10 @@ void Scene::Render(RenderContext & context)
 
 	SetupEffectsLights(nullptr);
 
+	std::vector<IRenderable*> visibles;
+	visibles.reserve(renderables.size());
+
+
 	for (auto pCamera : cameras) // cameras
 	{
 		auto viewCount = pCamera->ViewCount();
@@ -138,10 +142,12 @@ void Scene::Render(RenderContext & context)
 
 			auto passCount = pCamera->ViewRendererCount(view);
 
-			auto visibles = adaptors::filter(renderables, [&viewFrustum](auto pRenderable)
+			visibles.clear();
+			for (auto pRenderable : renderables)
 			{
-				return pRenderable->IsVisible(viewFrustum);
-			});
+				if (pRenderable->IsVisible(viewFrustum))
+					visibles.push_back(pRenderable);
+			}
 
 			for (size_t pass = 0; pass < passCount; pass++) // render passes
 			{
@@ -214,8 +220,12 @@ void Causality::Scene::SetupEffectsLights(DirectX::IEffect * pEffect)
 		Lps[i].color = pLight->GetColor();
 		Lps[i].direction = pLight->GetFocusDirection();
 		Lps[i].shadow = pLight->GetShadowMap();
-		Lps[i].view = pLight->GetViewMatrix();
-		Lps[i].proj = pLight->GetProjectionMatrix();
+		auto pView = pLight->AsViewControl();
+		if (pView)
+		{
+			Lps[i].view = pView->GetViewMatrix();
+			Lps[i].proj = pView->GetProjectionMatrix();
+		}
 	}
 
 	for (auto pEff : effects)

@@ -14,12 +14,13 @@ namespace DirectX
 			typedef DirectX::VertexPositionNormalTangentColorTexture VertexType;
 			typedef uint16_t IndexType;
 			static const size_t PolygonSize = 3U;
+			PhongMaterialData Material;
 
+			std::string	Name;
 			uint32_t	VertexCount;
 			uint32_t	IndexCount;
 			VertexType* Vertices;
 			IndexType*	Indices;
-			std::string Name;
 		};
 
 		/// <summary>

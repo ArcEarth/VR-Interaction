@@ -24,6 +24,8 @@ namespace Causality
 		const BehavierSpace&			Behavier() const;
 		void							SetBehavier(BehavierSpace& behaver);
 
+		const ArmatureFrameAnimation*	CurrentAction() const;
+		string							CurrentActionName() const;
 		bool							StartAction(const string& key, time_seconds begin_time = time_seconds(0), bool loop = false, time_seconds transition_time = time_seconds(0));
 		bool							StopAction(time_seconds transition_time = time_seconds(0));
 
@@ -53,5 +55,5 @@ namespace Causality
 		bool									m_DirtyFlag;
 	};
 
-	void DrawArmature(const IArmature & armature, const AffineFrame & frame, const Color & color, const Matrix4x4& world = Matrix4x4::Identity);
+	void DrawArmature(const IArmature & armature, const AffineFrame & frame, const Color & color, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);
 }

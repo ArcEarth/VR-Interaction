@@ -9,6 +9,51 @@ using namespace DirectX::Scene;
 
 bool Causality::g_DebugView = false;
 bool Causality::g_ShowCharacterMesh = true;
+float Causality::g_DebugArmatureThinkness = 0.005f;
+
+
+void XM_CALLCONV DrawBox(_In_reads_(8) Vector3 *conners, FXMVECTOR color)
+{
+	auto& drawer = Visualizers::g_PrimitiveDrawer;
+	drawer.DrawLine(conners[0], conners[1], color);
+	drawer.DrawLine(conners[1], conners[2], color);
+	drawer.DrawLine(conners[2], conners[3], color);
+	drawer.DrawLine(conners[3], conners[0], color);
+
+	drawer.DrawLine(conners[0], conners[4], color);
+	drawer.DrawLine(conners[1], conners[5], color);
+	drawer.DrawLine(conners[2], conners[6], color);
+	drawer.DrawLine(conners[3], conners[7], color);
+
+	drawer.DrawLine(conners[4], conners[5], color);
+	drawer.DrawLine(conners[5], conners[6], color);
+	drawer.DrawLine(conners[6], conners[7], color);
+	drawer.DrawLine(conners[7], conners[4], color);
+
+}
+
+void XM_CALLCONV Causality::DrawGeometryOutline(const BoundingGeometry& geometry, FXMVECTOR color)
+{
+	Vector3 conners[8];
+	if (geometry.Type == BoundingGeometryType::Geometry_Frustum)
+	{
+		geometry.Frustum.GetCorners(conners);
+		DrawBox(conners, color);
+	}
+	else if (geometry.Type == BoundingGeometryType::Geometry_OrientedBox)
+	{
+		geometry.OrientedBox.GetCorners(conners);
+		DrawBox(conners, color);
+	}
+	else if (geometry.Type == BoundingGeometryType::Geometry_AxisAlignedBox)
+	{
+		geometry.AxisAlignedBox.GetCorners(conners);
+		DrawBox(conners, color);
+	}
+	else if (geometry.Type == BoundingGeometryType::Geometry_Sphere)
+	{
+	}
+}
 
 Causality::SceneObject::~SceneObject()
 {
@@ -19,6 +64,15 @@ Causality::SceneObject::SceneObject() {
 	m_IsEnabled = true;
 	m_IsStatic = false;
 	m_TransformDirty = false;
+}
+
+void Causality::SceneObject::AddChild(SceneObject * child)
+{
+	if (child != nullptr)
+	{
+		std::lock_guard<std::mutex> guard(Scene->ContentMutex());
+		append_children_back(child);
+	}
 }
 
 void Causality::SceneObject::Update(time_seconds const & time_delta) {
@@ -188,8 +242,17 @@ RenderFlags Causality::VisualObject::GetRenderFlags() const
 
 void VisualObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect)
 {
-	if (m_pRenderModel)
+	if (g_ShowCharacterMesh && m_pRenderModel)
 		m_pRenderModel->Render(pContext, GlobalTransformMatrix(), pEffect);
+	if (g_ShowCharacterMesh && g_DebugView)
+	{
+		BoundingGeometry geo(m_pRenderModel->GetBoundingBox());
+		geo.Transform(geo, GlobalTransformMatrix());
+		auto& drawer = Visualizers::g_PrimitiveDrawer;
+		drawer.Begin();
+		DrawGeometryOutline(geo, DirectX::Colors::Orange);
+		drawer.End();
+	}
 }
 
 void XM_CALLCONV VisualObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
@@ -298,6 +361,16 @@ void KeyboardMouseFirstPersonControl::OnKeyUp(const KeyboardEventArgs & e)
 
 	if (e.Key == VK_ESCAPE)
 		App::Current()->Exit();
+
+	if (e.Key == VK_OEM_4) // [{
+	{
+		g_DebugArmatureThinkness = std::max(0.001f,g_DebugArmatureThinkness - 0.002f);
+	}
+	if (e.Key == VK_OEM_6) // ]}
+	{
+		g_DebugArmatureThinkness = std::min(0.015f, g_DebugArmatureThinkness + 0.002f);
+	}
+
 }
 
 void KeyboardMouseFirstPersonControl::OnMouseButtonDown(const CursorButtonEvent & e)
@@ -338,29 +411,29 @@ void KeyboardMouseFirstPersonControl::OnMouseMove(const CursorMoveEventArgs & e)
 
 bool Causality::CoordinateAxis::IsVisible(const BoundingGeometry & viewFrustum) const
 {
-	return true;
+	return g_DebugView;
 }
 
 void Causality::CoordinateAxis::Render(RenderContext & context, DirectX::IEffect* pEffect)
 {
-	float ub = 5, lb = -5, majorIdent = 1, minorIdent = 0.25f;
+	float ub = 10, lb = -10, majorIdent = 1, minorIdent = 0.25f;
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 	using namespace DirectX;
-	g_PrimitiveDrawer.DrawSphere({ .0f,.0f,.0f,0.02f }, Colors::Cyan);
+	//g_PrimitiveDrawer.DrawSphere({ .0f,.0f,.0f,0.02f }, Colors::Cyan);
 
 	float Ar = 0.03f, Al = ub, Almr = Al - Ar, Alpr = Al + Ar;
 	g_PrimitiveDrawer.Begin();
 
 	for (float x = lb; x <= ub; x += minorIdent)
 	{
-		g_PrimitiveDrawer.DrawLine({ -Al,.0f,x }, { Al,.0f,x }, Colors::LightGray);
-		g_PrimitiveDrawer.DrawLine({ x,.0f,-Al }, { x,.0f,Al }, Colors::LightGray);
+		g_PrimitiveDrawer.DrawLine({ -Al,.0f,x }, { Al,.0f,x }, Colors::DarkGray);
+		g_PrimitiveDrawer.DrawLine({ x,.0f,-Al }, { x,.0f,Al }, Colors::DarkGray);
 	}
 
 	for (float x = lb; x <= ub; x += majorIdent)
 	{
-		g_PrimitiveDrawer.DrawLine({ -Al,.0f,x }, { Al,.0f,x }, Colors::Black);
-		g_PrimitiveDrawer.DrawLine({ x,.0f,-Al }, { x,.0f,Al }, Colors::Black);
+		g_PrimitiveDrawer.DrawLine({ -Al,.0f,x }, { Al,.0f,x }, Colors::DimGray);
+		g_PrimitiveDrawer.DrawLine({ x,.0f,-Al }, { x,.0f,Al }, Colors::DimGray);
 	}
 
 	g_PrimitiveDrawer.DrawLine({ -Al,.0f,.0f }, { Al,.0f,.0f }, Colors::Red);
@@ -436,4 +509,73 @@ void Causality::GlowingBorder::Render(RenderContext & pContext, DirectX::IEffect
 
 void XM_CALLCONV Causality::GlowingBorder::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
+}
+
+Causality::SkyDome::SkyDome()
+{
+}
+
+Causality::SkyDome::~SkyDome()
+{
+
+}
+
+void Causality::SkyDome::CreateDeviceResource(ID3D11Device * device, DirectX::EnvironmentMapEffect * pEffect)
+{
+	m_pSphere = DirectX::Scene::GeometricPrimtives::CreateSphere(device, 1.0f,16,true,true);
+	m_pSphere->CreateInputLayout(device, pEffect);
+	m_pEffect = pEffect;
+}
+
+
+void Causality::SkyDome::SetTexture(DirectX::Texture & texture)
+{
+	m_Texture = texture;
+}
+
+// Inherited via IRenderable
+
+bool Causality::SkyDome::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
+{
+	return g_ShowCharacterMesh;
+}
+
+void Causality::SkyDome::Render(RenderContext & context, DirectX::IEffect * pEffect)
+{
+	auto pStates = DirectX::Visualizers::g_PrimitiveDrawer.GetStates();
+	m_pEffect->SetTexture(NULL);
+	m_pEffect->SetWorld(XMMatrixIdentity());
+	m_pEffect->SetEnvironmentMap(m_Texture.ShaderResourceView());
+	m_pEffect->SetEnvironmentMapAmount(0.5f);
+	m_pEffect->SetDiffuseColor(DirectX::Colors::White.v);
+	m_pEffect->SetAmbientLightColor(DirectX::Colors::Azure.v);
+	m_pEffect->SetFresnelFactor(0.0f);
+	m_pEffect->Apply(context.Get());
+
+	ComPtr<ID3D11DepthStencilState> pFomerState;
+	UINT sRef;
+	context->RSSetState(pStates->CullClockwise());
+	context->OMGetDepthStencilState(&pFomerState, &sRef);
+	context->OMSetDepthStencilState(pStates->DepthNone(), sRef);
+
+	m_pSphere->Draw(context.Get(), m_pEffect);
+
+	context->OMSetDepthStencilState(pFomerState.Get(), sRef);
+	context->RSSetState(pStates->CullCounterClockwise());
+}
+
+void XM_CALLCONV Causality::SkyDome::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
+{
+	XMMATRIX View = view;
+	// Last column of View Inverse is camera's position
+	View.r[3] = g_XMIdentityR3;
+	m_pEffect->SetView(View);
+	m_pEffect->SetProjection(projection);
+}
+
+// Inherited via IRenderable
+
+RenderFlags Causality::SkyDome::GetRenderFlags() const
+{
+	return RenderFlags::SkyView;
 }

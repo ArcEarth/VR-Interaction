@@ -4,7 +4,7 @@
 #include <Model.h>
 #include <boost\filesystem.hpp>
 #include <tinyxml2.h>
-#include <SkyDome.h>
+//#include <SkyDome.h>
 #include "PlayerProxy.h"
 #include "CharacterObject.h"
 #include "LightObject.h"
@@ -24,7 +24,7 @@ void ParseSceneAssets(AssetDictionary& assets, XMLElement* node);
 
 sptr<AssetDictionary::material_type> ParseMaterialAsset(AssetDictionary& assets, XMLElement* node);
 
-AssetDictionary::mesh_type * ParseMeshAsset(AssetDictionary & assets, XMLElement * node);
+AssetDictionary::mesh_type* ParseMeshAsset(AssetDictionary & assets, XMLElement * node);
 
 AssetDictionary::texture_type & ParseTextureAsset(AssetDictionary & assets, XMLElement * node);
 
@@ -392,6 +392,27 @@ void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node)
 	pObj->SetOrientation(Quaternion::CreateFromYawPitchRoll(eular.y, eular.x, eular.z));
 }
 
+void ParseSkydomeObjectAttributes(SkyDome* pSkyDome, XMLElement* node)
+{
+	ParseSceneObjectAttributes(pSkyDome,node);
+	auto bg = node->Attribute("background");
+	auto& assets = pSkyDome->Scene->Assets();
+	auto pEffect = assets.GetEffect("default_environment");
+
+	pSkyDome->CreateDeviceResource(assets.GetRenderDevice().Get(), dynamic_cast<DirectX::EnvironmentMapEffect*>(pEffect));
+
+	
+	if (bg[0] == '{')
+	{
+		string key(bg + 1, strlen(bg) - 2);
+		pSkyDome->SetTexture(assets.GetTexture(key));
+	}
+	else
+	{
+		pSkyDome->SetTexture(assets.LoadTexture(pSkyDome->Name + "_background", bg));
+	}
+}
+
 template <typename T>
 T* CreateSceneObject(void* ptr)
 {
@@ -439,7 +460,9 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	}
 	else if (!strcmp(node->Name(), "skydome"))
 	{
-		//auto pSky = make_unique<SkyDome>();
+		auto pControl = CreateSceneObject<Causality::SkyDome>(&scene);
+		pObj.reset(pControl);
+		ParseSkydomeObjectAttributes(pControl, node);
 	}
 	else if (!strcmp(node->Name(), "creature"))
 	{
@@ -474,7 +497,7 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 		auto pControl = CreateSceneObject<KinectVisualizer>(&scene);
 		pObj.reset(pControl);
 		ParseSceneObjectAttributes(pObj.get(), node);
-	}
+	} 
 	else
 	{
 		pObj.reset(CreateSceneObject<SceneObject>(&scene));
@@ -490,8 +513,8 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	}
 	else
 	{
-		std::lock_guard<mutex> guard(scene.ContentMutex());
 		parent->AddChild(pObj.get());
+		std::lock_guard<mutex> guard(scene.ContentMutex());
 		scene.SignalCameraCache();
 	}
 
@@ -550,7 +573,7 @@ void ParseCameraObjectAttributes(SingleViewCamera *pCamera, tinyxml2::XMLElement
 	bool enable_stereo;
 	node->QueryBoolAttribute("enable_stereo", &enable_stereo);
 	float fov = 70, aspect = 1, hfov, wfov;
-	float _near = 0.5f, _far = 20.0f;
+	float _near = 0.1f, _far = 20.0f;
 	bool is_primary = false;
 	Vector3 focus = (XMVECTOR)pCamera->GetPosition() + XMVector3Rotate(Camera::Foward, pCamera->GetOrientation());
 	Vector3 up = g_XMIdentityR1.v;

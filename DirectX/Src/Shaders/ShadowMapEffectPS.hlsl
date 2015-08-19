@@ -142,10 +142,14 @@ float4 PS_ScreenSpaceNoTex(PSInputScreenSpaceNoTex pixel) : SV_TARGET
 
 float4 PS_ScreenSpaceTex(PSInputScreenSpaceTex pixel) : SV_TARGET
 {
+	float4 texDiffuse = DiffuseTex.Sample(DiffuseSampler, pixel.uv);
+
+	clip(texDiffuse.a - 0.15);
+
 	float3 worldNormal = normalize(pixel.normal);
 	float3 toEyeVector = normalize(pixel.toEye);
 
-	float4 texDiffuse = DiffuseTex.Sample(DiffuseSampler, pixel.uv);
+
 	float3 diffuse = MaterialAmbient.rgb * AmbientLight.rgb * texDiffuse.rgb;
 	float3 matDiffuse = MaterialDiffuse.rgb * texDiffuse.rgb;
 
@@ -167,6 +171,10 @@ float4 PS_ScreenSpaceTex(PSInputScreenSpaceTex pixel) : SV_TARGET
 
 float4 PS_ScreenSpaceTexBump(PSInputScreenSpaceTex pixel) : SV_TARGET
 {
+	float4 texDiffuse = DiffuseTex.Sample(DiffuseSampler, pixel.uv);
+
+	clip(texDiffuse.a - 0.15);
+
 	// Sample the pixel in the bump map.
 	float2 texBump = NormalTex.Sample(NormalSampler, pixel.uv);
 	texBump = (texBump * 2.0f) - 1.0f;
@@ -176,7 +184,7 @@ float4 PS_ScreenSpaceTexBump(PSInputScreenSpaceTex pixel) : SV_TARGET
 
 	float3 toEyeVector = normalize(pixel.toEye);
 
-	float4 texDiffuse = DiffuseTex.Sample(DiffuseSampler, pixel.uv);
+
 	float3 diffuse = MaterialAmbient.rgb * AmbientLight.rgb * texDiffuse.rgb;
 	float3 matDiffuse = MaterialDiffuse.rgb * texDiffuse.rgb;
 

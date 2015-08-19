@@ -75,10 +75,10 @@ namespace DirectX
 			static ComPtr<ID3D11InputLayout>& LookupInputLayout(const D3D11_INPUT_ELEMENT_DESC* pInputElements, IEffect * pEffect);
 
 			template<class _TVertex>
-			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount,IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, size_t VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
+			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount,IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, UINT VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
 
 			template<class _TVertex, class _TIndex>
-			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount, const _TIndex* indices, unsigned int IndicesCount, IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, size_t VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
+			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount, const _TIndex* indices, unsigned int IndicesCount, IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, UINT VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
 
 			void CreateInputLayout(ID3D11Device* pDevice, IEffect *pEffect);
 			void CreateInputLayout(ID3D11Device* pDevice, const void * pShaderByteCode, size_t pByteCodeLength);
@@ -111,17 +111,7 @@ namespace DirectX
 
 			// Setup the Vertex/Index Buffer and call the draw command
 			void Draw(ID3D11DeviceContext *pContext, IEffect *pEffect = nullptr) const;
-
-			static std::shared_ptr<MeshBuffer> CreateCube(ID3D11Device * pDevice, float size, bool rhcoords = true);
-			static std::shared_ptr<MeshBuffer> CreateSphere(ID3D11Device * pDevice, float radius, float tessFactor, bool rhcoords = true);
-			static std::shared_ptr<MeshBuffer> CreateCylinder(ID3D11Device * pDevice, float radius,float height, float tessFactor, bool rhcoords = true);
-			static std::shared_ptr<MeshBuffer> CreateCone(ID3D11Device * pDevice, float radius, float tessFactor, bool rhcoords = true);
 		};
-
-		namespace GeometricPrimtives
-		{
-			std::shared_ptr<MeshBuffer> CreateCube();
-		}
 
 		// Strong typed mesh buffer with static vertex typeing
 		template<class _TVertex, class _TIndex>
@@ -135,6 +125,16 @@ namespace DirectX
 			typedef _TVertex	VertexType;
 			typedef _TIndex		IndexType;
 		};
+
+		namespace GeometricPrimtives
+		{
+			typedef TypedMeshBuffer<VertexPositionNormalTexture, uint16_t> MeshBufferType;
+			std::shared_ptr<MeshBufferType>	CreateCube(ID3D11Device * pDevice, float size, bool rhcoords = true);
+			std::shared_ptr<MeshBufferType>	CreateSphere(ID3D11Device * pDevice, float radius, size_t tessellation = 16, bool rhcoords = true, bool inside_facing = false);
+			std::shared_ptr<MeshBufferType>	CreateCylinder(ID3D11Device * pDevice, float radius, float height, size_t tessellation = 32, bool rhcoords = true);
+			std::shared_ptr<MeshBufferType>	CreateCone(ID3D11Device * pDevice, float radius, size_t tessellation = 32, bool rhcoords = true);
+		}
+
 
 		template<class _TVertex, class _TIndex>
 		struct DynamicMeshBuffer : public TypedMeshBuffer<_TVertex, _TIndex>
@@ -347,6 +347,7 @@ namespace DirectX
 			typedef FacetPrimitives::Triangle<IndexType>	TriangleType;
 
 			static DefaultStaticModel * CreateFromObjFile(const std::wstring &file, ID3D11Device * pDevice = nullptr, const std::wstring& textureDir = L"");
+			static DefaultStaticModel * CreateFromFbxFile(const std::wstring &file, ID3D11Device * pDevice = nullptr, const std::wstring& textureDir = L"");
 			static DefaultStaticModel * CreateFromSmxFile(ID3D11Device *pDevice, const std::wstring &file);
 
 			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, IEffect* pEffect = nullptr) override;
@@ -462,13 +463,13 @@ namespace DirectX
 		};
 
 		template <class _TVertex>
-		inline void MeshBuffer::CreateDeviceResources(ID3D11Device * pDevice, const _TVertex * vertices, unsigned int VerticesCount, IEffect * pEffect, D3D_PRIMITIVE_TOPOLOGY primitiveTopology, size_t vertexStride, UINT startIndex, UINT vertexOffset)
+		inline void MeshBuffer::CreateDeviceResources(ID3D11Device * pDevice, const _TVertex * vertices, unsigned int VerticesCount, IEffect * pEffect, D3D_PRIMITIVE_TOPOLOGY primitiveTopology, UINT vertexStride, UINT startIndex, UINT vertexOffset)
 		{
 			CreateDeviceResources<_TVertex, int>(pDevice, vertices, VerticesCount, nullptr, 0, pEffect, primitiveTopology, vertexStride, startIndex, vertexOffset);
 		}
 
 		template <class _TVertex, class _TIndex>
-		inline void MeshBuffer::CreateDeviceResources(ID3D11Device * pDevice, const _TVertex * vertices, unsigned int VerticesCount, const _TIndex * indices, unsigned int IndicesCount, IEffect * pEffect, D3D_PRIMITIVE_TOPOLOGY primitiveTopology, size_t vertexStride, UINT startIndex, UINT vertexOffset)
+		inline void MeshBuffer::CreateDeviceResources(ID3D11Device * pDevice, const _TVertex * vertices, unsigned int VerticesCount, const _TIndex * indices, unsigned int IndicesCount, IEffect * pEffect, D3D_PRIMITIVE_TOPOLOGY primitiveTopology, UINT vertexStride, UINT startIndex, UINT vertexOffset)
 		{
 			SetInputElementDescription<_TVertex>();
 

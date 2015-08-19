@@ -34,6 +34,8 @@ namespace Causality
 		float					CharacterScore;
 		Vector3					MapRefPos;
 		Vector3					CMapRefPos;
+		int						CurrentActionIndex;
+
 
 		// Principle displacement driver
 		ClipInfo& GetAnimationInfo(const string& name);
@@ -129,7 +131,6 @@ namespace Causality
 
 		void	SetActiveController(int idx);
 		int		MapCharacterByLatestMotion();
-
 
 		friend TrackedBodySelector;
 		// Kinect streaming thread

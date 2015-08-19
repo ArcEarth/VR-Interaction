@@ -21,11 +21,11 @@ namespace DirectX
 		ShadowMapEffectMode GetEffectMode() const;
 		void SetEffectMode(ShadowMapEffectMode mode);
 		// Each channel will be ues as a shadow mask for one light, to achieve best result, blured and unblured shadow map need to be submmit 
-		void SetScreenSpaceLightsShadowMap(ID3D11ShaderResourceView* pSharpShadow, ID3D11ShaderResourceView* pSoftShadow) override;
+		void __cdecl SetScreenSpaceLightsShadowMap(ID3D11ShaderResourceView* pSharpShadow, ID3D11ShaderResourceView* pSoftShadow) override;
 
 		// Inherited via IEffect
-		virtual void Apply(ID3D11DeviceContext * deviceContext) override;
-		virtual void GetVertexShaderBytecode(void const ** pShaderByteCode, size_t * pByteCodeLength) override;
+		virtual void __cdecl Apply(ID3D11DeviceContext * deviceContext) override;
+		virtual void __cdecl GetVertexShaderBytecode(void const ** pShaderByteCode, size_t * pByteCodeLength) override;
 
 		// Inherited via IEffectMatrices
 		virtual void XM_CALLCONV SetWorld(FXMMATRIX value) override;
@@ -33,39 +33,39 @@ namespace DirectX
 		virtual void XM_CALLCONV SetProjection(FXMMATRIX value) override;
 
 		// Inherited via IEffectFog
-		virtual void SetFogEnabled(bool value) override;
-		virtual void SetFogStart(float value) override;
-		virtual void SetFogEnd(float value) override;
+		virtual void __cdecl SetFogEnabled(bool value) override;
+		virtual void __cdecl SetFogStart(float value) override;
+		virtual void __cdecl SetFogEnd(float value) override;
 		virtual void XM_CALLCONV SetFogColor(FXMVECTOR value) override;
 
 		// Inherited via IEffectPhongMaterial
 		virtual void XM_CALLCONV SetDiffuseColor(FXMVECTOR value) override;
 		virtual void XM_CALLCONV SetEmissiveColor(FXMVECTOR value) override;
 		virtual void XM_CALLCONV SetSpecularColor(FXMVECTOR value) override;
-		virtual void SetSpecularPower(float value) override;
-		virtual void DisableSpecular() override;
-		virtual void SetAlpha(float value) override;
-		virtual void SetAlphaDiscard(bool enable) override;
-		virtual void SetDiffuseMap(ID3D11ShaderResourceView * pTexture) override;
-		virtual void SetNormalMap(ID3D11ShaderResourceView * pTexture) override;
-		virtual void SetSpecularMap(ID3D11ShaderResourceView * pTexture) override;
+		virtual void __cdecl SetSpecularPower(float value) override;
+		virtual void __cdecl DisableSpecular() override;
+		virtual void __cdecl SetAlpha(float value) override;
+		virtual void __cdecl SetAlphaDiscard(bool enable) override;
+		virtual void __cdecl SetDiffuseMap(ID3D11ShaderResourceView * pTexture) override;
+		virtual void __cdecl SetNormalMap(ID3D11ShaderResourceView * pTexture) override;
+		virtual void __cdecl SetSpecularMap(ID3D11ShaderResourceView * pTexture) override;
 
 		// Inherited via IEffectSkinning
 		static const size_t MaxBones = 72;
-		virtual void SetWeightsPerVertex(int value) override;
-		virtual void SetBoneTransforms(XMMATRIX const * value, size_t count) override;
-		virtual void ResetBoneTransforms() override;
+		virtual void __cdecl SetWeightsPerVertex(int value) override;
+		virtual void __cdecl SetBoneTransforms(XMMATRIX const * value, size_t count) override;
+		virtual void __cdecl ResetBoneTransforms() override;
 
 		// Inherited via IEffectLightsShadow
 		virtual void XM_CALLCONV SetAmbientLightColor(FXMVECTOR value) override;
-		virtual void SetLightEnabled(int whichLight, bool value) override;
+		virtual void __cdecl SetLightEnabled(int whichLight, bool value) override;
 		virtual void XM_CALLCONV SetLightDirection(int whichLight, FXMVECTOR value) override;
 		virtual void XM_CALLCONV SetLightDiffuseColor(int whichLight, FXMVECTOR value) override;
 		virtual void XM_CALLCONV SetLightSpecularColor(int whichLight, FXMVECTOR value) override; // Specular Color of light is not supported
-		virtual void EnableDefaultLighting() override;
+		virtual void __cdecl EnableDefaultLighting() override;
 
-		virtual void SetLightShadowMapBias(int whichLight, float bias) override;
-		virtual void SetLightShadowMap(int whichLight, ID3D11ShaderResourceView * pTexture) override;
+		virtual void __cdecl SetLightShadowMapBias(int whichLight, float bias) override;
+		virtual void __cdecl SetLightShadowMap(int whichLight, ID3D11ShaderResourceView * pTexture) override;
 		virtual void XM_CALLCONV SetLightView(int whichLight, FXMMATRIX value) override;
 		virtual void XM_CALLCONV SetLightProjection(int whichLight, FXMMATRIX value) override;
 
@@ -78,8 +78,8 @@ namespace DirectX
 		: public IEffect, public IEffectMatrices, public IEffectSkinning, public IEffectLightsShadow
 	{
 		// Inherited via IEffect
-		virtual void Apply(ID3D11DeviceContext * deviceContext) override;
-		virtual void GetVertexShaderBytecode(void const ** pShaderByteCode, size_t * pByteCodeLength) override;
+		virtual void __cdecl Apply(ID3D11DeviceContext * deviceContext) override;
+		virtual void __cdecl GetVertexShaderBytecode(void const ** pShaderByteCode, size_t * pByteCodeLength) override;
 
 		// Inherited via IEffectMatrices
 		virtual void XM_CALLCONV SetWorld(FXMMATRIX value) override;
@@ -88,9 +88,9 @@ namespace DirectX
 
 		// Inherited via IEffectSkinning
 		static const size_t MaxBones = 72;
-		virtual void SetWeightsPerVertex(int value) override;
-		virtual void SetBoneTransforms(XMMATRIX const * value, size_t count) override;
-		virtual void ResetBoneTransforms() override;
+		virtual void __cdecl SetWeightsPerVertex(int value) override;
+		virtual void __cdecl SetBoneTransforms(XMMATRIX const * value, size_t count) override;
+		virtual void __cdecl ResetBoneTransforms() override;
 
 		// Methods need for IEffectLightsShadow
 		virtual void __cdecl SetLightEnabled(int whichLight, bool value) override = 0;

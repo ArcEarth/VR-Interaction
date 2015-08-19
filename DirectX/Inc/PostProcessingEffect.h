@@ -34,7 +34,7 @@ namespace DirectX
 		// Apply effect in-place with full region
 		void Apply(ID3D11DeviceContext *pContext, RenderableTexture2D& target)
 		{
-			CD3D11_VIEWPORT viewport(.0f, .0f, target.Width(), target.Height());
+			CD3D11_VIEWPORT viewport(.0f, .0f, (float)target.Width(), (float)target.Height());
 			Apply(pContext, target, viewport);
 		}
 	};

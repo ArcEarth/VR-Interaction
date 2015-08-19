@@ -137,7 +137,7 @@ namespace Causality
 		using _TScaler = float;
 		_Ty operator()(const _Ty& lhs, const _Ty&rhs, _TScaler t)
 		{
-			return QuaternionWrapper::Lerp(lhs, rhs, t);
+			return QuaternionWrapper::SLerp(lhs, rhs, t);
 		}
 	};
 

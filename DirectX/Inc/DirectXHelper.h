@@ -336,7 +336,7 @@ namespace DirectX
 
 	typedef std::shared_ptr<std::vector<D3D11_INPUT_ELEMENT_DESC>> InputDescription;
 
-	inline ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device *pDevice,const InputDescription& pInputDescription, const void* vertexShaderBytecode, size_t bytecodeLength)
+	inline ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device *pDevice,const InputDescription& pInputDescription, const void* vertexShaderBytecode, UINT bytecodeLength)
 	{
 		ComPtr<ID3D11InputLayout> pLayout;
 		DirectX::ThrowIfFailed(
@@ -350,7 +350,7 @@ namespace DirectX
 	}
 
 	template <class VertexType>
-	inline ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device *pDevice, const void* vertexShaderBytecode, size_t bytecodeLength)
+	inline ComPtr<ID3D11InputLayout> CreateInputLayout(ID3D11Device *pDevice, const void* vertexShaderBytecode, UINT bytecodeLength)
 	{
 		static_assert(VertexType::InputElementCount, "Valiad Vertex Type should have static InputElements/InputElementCount member");
 		ComPtr<ID3D11InputLayout> pLayout;

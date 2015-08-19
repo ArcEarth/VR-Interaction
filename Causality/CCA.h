@@ -426,7 +426,7 @@ namespace Eigen {
 		template <class DerivedX, class DerivedY>
 		void Apply(_In_ const DenseBase<DerivedX> &Xp, _Out_ DenseBase<DerivedY> &Yp) const;
 
-		void CreateFrom(_In_ const MatrixXf &X, const _In_ MatrixXf &Y);
+		float CreateFrom(_In_ const MatrixXf &X, const _In_ MatrixXf &Y);
 	};
 
 	struct PcaCcaMap : public CcaMap
@@ -437,7 +437,7 @@ namespace Eigen {
 		template <class DerivedX, class DerivedY>
 		void Apply(_In_ const DenseBase<DerivedX> &Xp, _Out_ MatrixBase<DerivedY> &Yp) const;
 
-		void CreateFrom(_In_ const MatrixXf &X, const _In_ MatrixXf &Y, float Xcutoff = 0.04f, float Ycutoff = 0.04f);
+		float CreateFrom(_In_ const MatrixXf &X, const _In_ MatrixXf &Y, float Xcutoff = 0.04f, float Ycutoff = 0.04f);
 	};
 
 	template <class DerivedX, class DerivedY>
@@ -488,6 +488,9 @@ namespace Eigen {
 		MeanThinQr<MatrixXf> qrX(X), qrY(Y);
 		Cca<float> cca;
 		cca.computeFromQr(qrX, qrY, true);
+
+		if (cca.rank() == 0) return .0f;
+
 		map.Jx = 0; map.Jy = 0;
 		map.A = cca.matrixA();
 		map.B = cca.matrixB();
@@ -521,14 +524,14 @@ namespace Eigen {
 		return CreateCcaMap(map, pcaX.coordinates(dX), pcaY.coordinates(dY));
 	}
 
-	inline void CcaMap::CreateFrom(_In_ const MatrixXf &X, const _In_ MatrixXf &Y)
+	inline float CcaMap::CreateFrom(_In_ const MatrixXf &X, const _In_ MatrixXf &Y)
 	{
-		CreateCcaMap(*this, X, Y);
+		return CreateCcaMap(*this, X, Y);
 	}
 
-	inline void PcaCcaMap::CreateFrom(_In_ const MatrixXf &X, const _In_ MatrixXf &Y, float Xcutoff , float Ycutoff )
+	inline float PcaCcaMap::CreateFrom(_In_ const MatrixXf &X, const _In_ MatrixXf &Y, float Xcutoff , float Ycutoff )
 	{
-		CreatePcaCcaMap(*this, X, Y, Xcutoff, Ycutoff);
+		return CreatePcaCcaMap(*this, X, Y, Xcutoff, Ycutoff);
 	}
 
 }

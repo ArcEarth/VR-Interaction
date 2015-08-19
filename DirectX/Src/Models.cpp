@@ -278,6 +278,11 @@ DefaultStaticModel * DefaultStaticModel::CreateFromObjFile(const std::wstring & 
 	return pResult;;
 }
 
+DefaultStaticModel * DirectX::Scene::DefaultStaticModel::CreateFromFbxFile(const std::wstring & file, ID3D11Device * pDevice, const std::wstring & textureDir)
+{
+	return nullptr;
+}
+
 void DefaultStaticModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4 & transform, IEffect * pEffect)
 {
 	// Disable Skin effect as this is a static model
@@ -482,11 +487,6 @@ void MonolithModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4& tran
 	ModelPart::Render(pContext, pEffect);
 }
 
-std::shared_ptr<MeshBuffer> GeometricPrimtives::CreateCube()
-{
-	return std::shared_ptr<MeshBuffer>();
-}
-
 BoundingBox MonolithModel::GetBoundingBox() const
 {
 	return ModelPart::BoundBox;
@@ -527,18 +527,26 @@ bool DefaultSkinningModel::CreateDeviceResource(ID3D11Device *pDevice)
 	{
 		pMajorBuffer->CreateDeviceResources(pDevice, m_Vertices.get(), m_VertexCount, m_Indices.get(), m_IndexCount);
 
-		for (auto& part : Parts)
+		if (Parts.size() > 1)
 		{
-			part.pMesh->pVertexBuffer = pMajorBuffer->pVertexBuffer;
-			part.pMesh->VertexStride = pMajorBuffer->VertexStride;
-			part.pMesh->pIndexBuffer = pMajorBuffer->pIndexBuffer;
-			part.pMesh->pInputLayout = pMajorBuffer->pInputLayout;
-			part.pMesh->InputElementCount = pMajorBuffer->InputElementCount;
-			part.pMesh->pInputElements = pMajorBuffer->pInputElements;
-			part.pMesh->IndexFormat = pMajorBuffer->IndexFormat;
-			part.pMesh->PrimitiveType = pMajorBuffer->PrimitiveType;
+			for (auto& part : Parts)
+			{
+				part.pMesh->pVertexBuffer = pMajorBuffer->pVertexBuffer;
+				part.pMesh->VertexStride = pMajorBuffer->VertexStride;
+				part.pMesh->pIndexBuffer = pMajorBuffer->pIndexBuffer;
+				part.pMesh->pInputLayout = pMajorBuffer->pInputLayout;
+				part.pMesh->InputElementCount = pMajorBuffer->InputElementCount;
+				part.pMesh->pInputElements = pMajorBuffer->pInputElements;
+				part.pMesh->IndexFormat = pMajorBuffer->IndexFormat;
+				part.pMesh->PrimitiveType = pMajorBuffer->PrimitiveType;
 
-			part.pMaterial->CreateDeviceResources(pDevice, false);
+				part.pMaterial->CreateDeviceResources(pDevice, false);
+			}
+		}
+		else if (Parts.size() == 1)
+		{
+			Parts[0].pMesh = pMajorBuffer;
+			Parts[0].pMaterial->CreateDeviceResources(pDevice, false);
 		}
 	}
 	catch (const std::exception&)
@@ -713,7 +721,7 @@ void DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x
 {
 	if (pEffect == nullptr) pEffect = this->Parts[0].pEffect.get();
 	auto pSkinning = dynamic_cast<IEffectSkinning*>(pEffect);
-	if (pSkinning)
+	if (pSkinning && m_BonesCount > 0)
 	{
 		pSkinning->SetWeightsPerVertex(4U);
 		//pSkinning->ResetBoneTransforms();
@@ -721,6 +729,7 @@ void DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x
 	}
 	else
 	{
+		pSkinning->SetWeightsPerVertex(0);
 		//throw std::exception("Effect don't support skinning interface.");
 	}
 	CompositionModel::Render(pContext, transform, pEffect);
@@ -762,7 +771,7 @@ void DirectX::Scene::DefaultSkinningModel::SetFromSkinMeshData(std::list<SkinMes
 			part.pMesh->IndexCount = data.IndexCount;
 
 			part.pMaterial = PhongMaterial::CreateFromMaterialData(data.Material, textureDir);
-			
+
 			tvSize += data.VertexCount;
 			tiSize += data.IndexCount;
 
@@ -846,84 +855,191 @@ DefaultSkinningModel * DirectX::Scene::DefaultSkinningModel::CreateFromDatas(std
 	return pModel;
 }
 
-std::shared_ptr<MeshBuffer> MeshBuffer::CreateCube(ID3D11Device * pDevice, float size, bool rhcoords)
-{
-	typedef VertexPositionNormalTangentColorTextureSkinning VertexType;
-	typedef uint16_t IndexType;
-	// A cube has six faces, each one pointing in a different direction.
-	const int FaceCount = 6;
-
-	static const XMVECTORF32 faceNormals[FaceCount] =
-	{
-		{ 0,  0,  1 },
-		{ 0,  0, -1 },
-		{ 1,  0,  0 },
-		{ -1,  0,  0 },
-		{ 0,  1,  0 },
-		{ 0, -1,  0 },
-	};
-
-	static const XMVECTORF32 textureCoordinates[4] =
-	{
-		{ 1, 0 },
-		{ 1, 1 },
-		{ 0, 1 },
-		{ 0, 0 },
-	};
-
-	std::vector<VertexType> vertices;
-	std::vector<IndexType> indices;
-
-	size *= 0.5f;
-
-	// Create each face in turn.
-	for (int i = 0; i < FaceCount; i++)
-	{
-		XMVECTOR normal = faceNormals[i];
-
-		// Get two vectors perpendicular both to the face normal and to each other.
-		XMVECTOR basis = (i >= 4) ? g_XMIdentityR2 : g_XMIdentityR1;
-
-		XMVECTOR side1 = XMVector3Cross(normal, basis);
-		XMVECTOR side2 = XMVector3Cross(normal, side1);
-
-		// Six indices (two triangles) per face.
-		size_t vbase = vertices.size();
-		indices.push_back(vbase + 0);
-		indices.push_back(vbase + 1);
-		indices.push_back(vbase + 2);
-
-		indices.push_back(vbase + 0);
-		indices.push_back(vbase + 2);
-		indices.push_back(vbase + 3);
-
-		XMVECTOR tagent = g_XMOne;
-		XMVECTOR color = Colors::White;
-		XMUINT4 bindices;
-		XMVECTOR bweights = g_XMIdentityR0;
-		// Four vertices per face.
-		vertices.push_back(VertexType((normal - side1 - side2) * size, normal, tagent, color, textureCoordinates[0], bindices, bweights));
-		vertices.push_back(VertexType((normal - side1 + side2) * size, normal, tagent, color, textureCoordinates[1], bindices, bweights));
-		vertices.push_back(VertexType((normal + side1 + side2) * size, normal, tagent, color, textureCoordinates[2], bindices, bweights));
-		vertices.push_back(VertexType((normal + side1 - side2) * size, normal, tagent, color, textureCoordinates[3], bindices, bweights));
-	}
-
-	assert((indices.size() % 3) == 0);
-
-	if (rhcoords)
-	{
-		for (auto it = indices.begin(); it != indices.end(); it += 3)
+namespace DirectX {
+	namespace Scene {
+		namespace GeometricPrimtives
 		{
-			std::swap(*it, *(it + 2));
-		}
-		for (auto it = vertices.begin(); it != vertices.end(); ++it)
-		{
-			it->textureCoordinate.x = (1.f - it->textureCoordinate.x);
+			//std::shared_ptr<MeshBuffer> MeshBuffer::CreateCube(ID3D11Device * pDevice, float size, bool rhcoords)
+			//{
+			//	typedef VertexPositionNormalTangentColorTextureSkinning VertexType;
+			//	typedef uint16_t IndexType;
+			//	// A cube has six faces, each one pointing in a different direction.
+			//	const int FaceCount = 6;
+
+			//	static const XMVECTORF32 faceNormals[FaceCount] =
+			//	{
+			//		{ 0,  0,  1 },
+			//		{ 0,  0, -1 },
+			//		{ 1,  0,  0 },
+			//		{ -1,  0,  0 },
+			//		{ 0,  1,  0 },
+			//		{ 0, -1,  0 },
+			//	};
+
+			//	static const XMVECTORF32 textureCoordinates[4] =
+			//	{
+			//		{ 1, 0 },
+			//		{ 1, 1 },
+			//		{ 0, 1 },
+			//		{ 0, 0 },
+			//	};
+
+			//	std::vector<VertexType> vertices;
+			//	std::vector<IndexType> indices;
+
+			//	size *= 0.5f;
+
+			//	// Create each face in turn.
+			//	for (int i = 0; i < FaceCount; i++)
+			//	{
+			//		XMVECTOR normal = faceNormals[i];
+
+			//		// Get two vectors perpendicular both to the face normal and to each other.
+			//		XMVECTOR basis = (i >= 4) ? g_XMIdentityR2 : g_XMIdentityR1;
+
+			//		XMVECTOR side1 = XMVector3Cross(normal, basis);
+			//		XMVECTOR side2 = XMVector3Cross(normal, side1);
+
+			//		// Six indices (two triangles) per face.
+			//		size_t vbase = vertices.size();
+			//		indices.push_back(vbase + 0);
+			//		indices.push_back(vbase + 1);
+			//		indices.push_back(vbase + 2);
+
+			//		indices.push_back(vbase + 0);
+			//		indices.push_back(vbase + 2);
+			//		indices.push_back(vbase + 3);
+
+			//		XMVECTOR tagent = g_XMOne;
+			//		XMVECTOR color = Colors::White;
+			//		XMUINT4 bindices;
+			//		XMVECTOR bweights = g_XMIdentityR0;
+			//		// Four vertices per face.
+			//		vertices.push_back(VertexType((normal - side1 - side2) * size, normal, tagent, color, textureCoordinates[0], bindices, bweights));
+			//		vertices.push_back(VertexType((normal - side1 + side2) * size, normal, tagent, color, textureCoordinates[1], bindices, bweights));
+			//		vertices.push_back(VertexType((normal + side1 + side2) * size, normal, tagent, color, textureCoordinates[2], bindices, bweights));
+			//		vertices.push_back(VertexType((normal + side1 - side2) * size, normal, tagent, color, textureCoordinates[3], bindices, bweights));
+			//	}
+
+			//	assert((indices.size() % 3) == 0);
+
+			//	if (rhcoords)
+			//	{
+			//		for (auto it = indices.begin(); it != indices.end(); it += 3)
+			//		{
+			//			std::swap(*it, *(it + 2));
+			//		}
+			//		for (auto it = vertices.begin(); it != vertices.end(); ++it)
+			//		{
+			//			it->textureCoordinate.x = (1.f - it->textureCoordinate.x);
+			//		}
+			//	}
+
+			//	auto pMeshBuffer = std::make_shared<MeshBuffer>();
+			//	pMeshBuffer->CreateDeviceResources(pDevice, vertices.data(), vertices.size(), indices.data(), indices.size());
+
+			//	return pMeshBuffer;
+			//}
+
+
+			std::shared_ptr<MeshBufferType> CreateSphere(ID3D11Device * pDevice, float radius, size_t tessellation , bool rhcoords, bool inside_facing)
+			{
+				typedef VertexPositionNormalTexture VertexType;
+				typedef uint16_t IndexType;
+
+				std::vector<VertexType> vertices;
+				std::vector<IndexType> indices;
+
+				if (tessellation < 3)
+					throw std::out_of_range("tesselation parameter out of range");
+
+				size_t verticalSegments = tessellation;
+				size_t horizontalSegments = tessellation * 2;
+
+				// Create rings of vertices at progressively higher latitudes.
+				for (size_t i = 0; i <= verticalSegments; i++)
+				{
+					float v = 1 - (float)i / verticalSegments;
+
+					float latitude = (i * XM_PI / verticalSegments) - XM_PIDIV2;
+					float dy, dxz;
+
+					XMScalarSinCos(&dy, &dxz, latitude);
+
+					// Create a single ring of vertices at this latitude.
+					for (size_t j = 0; j <= horizontalSegments; j++)
+					{
+						float u = (float)j / horizontalSegments;
+
+						float longitude = j * XM_2PI / horizontalSegments;
+						float dx, dz;
+
+						XMScalarSinCos(&dx, &dz, longitude);
+
+						dx *= dxz;
+						dz *= dxz;
+
+						XMVECTOR normal = XMVectorSet(dx, dy, dz, 0);
+						XMVECTOR textureCoordinate = XMVectorSet(u, v, 0, 0);
+
+						vertices.push_back(VertexPositionNormalTexture(normal * radius, normal, textureCoordinate));
+					}
+				}
+
+				// Fill the index buffer with triangles joining each pair of latitude rings.
+				size_t stride = horizontalSegments + 1;
+
+				for (size_t i = 0; i < verticalSegments; i++)
+				{
+					for (size_t j = 0; j <= horizontalSegments; j++)
+					{
+						size_t nextI = i + 1;
+						size_t nextJ = (j + 1) % stride;
+
+						indices.push_back(i * stride + j);
+						indices.push_back(nextI * stride + j);
+						indices.push_back(i * stride + nextJ);
+
+						indices.push_back(i * stride + nextJ);
+						indices.push_back(nextI * stride + j);
+						indices.push_back(nextI * stride + nextJ);
+					}
+				}
+
+				if (rhcoords ^ inside_facing)
+				{
+					// flip loop direction 
+					for (auto it = indices.begin(); it != indices.end(); it += 3)
+					{
+						std::swap(*it, *(it + 2));
+					}
+				}
+
+				if (rhcoords)
+				{
+					for (auto it = vertices.begin(); it != vertices.end(); ++it)
+					{
+						it->textureCoordinate.x = (1.f - it->textureCoordinate.x);
+					}
+				}
+
+				// flip normal
+				if (inside_facing)
+				{
+					for (auto it = vertices.begin(); it != vertices.end(); ++it)
+					{
+						XMStoreFloat3(&it->normal, -XMLoadFloat3(&it->normal));
+					}
+				}
+
+				// Create the primitive object.
+				auto pMeshBuffer = std::make_shared<MeshBufferType>();
+				pMeshBuffer->CreateDeviceResources(pDevice, vertices.data(), vertices.size(), indices.data(), indices.size());
+
+				return pMeshBuffer;
+
+			}
+
 		}
 	}
-
-	auto pMeshBuffer = std::make_shared<MeshBuffer>();
-	pMeshBuffer->CreateDeviceResources(pDevice, vertices.data(), vertices.size(), indices.data(), indices.size());
-
-	return pMeshBuffer;
 }

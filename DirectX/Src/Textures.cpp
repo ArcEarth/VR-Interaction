@@ -92,6 +92,11 @@ Texture2D::Texture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ u
 	DirectX::ThrowIfFailed(hr);
 }
 
+Texture2D::Texture2D(ID3D11Device * pDevice, const wchar_t * szFileName, ID3D11DeviceContext * pDeviceContext, size_t maxsize, D3D11_USAGE usage, unsigned int bindFlags, unsigned int cpuAccessFlags, unsigned int miscFlags, bool forceSRGB)
+{
+	this->CreateFromWICFile(pDevice, pDeviceContext, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, forceSRGB);
+}
+
 Texture2D::Texture2D(ID3D11Texture2D* pTexture, ID3D11ShaderResourceView* pResourceView)
 {
 	assert(pTexture);
@@ -223,23 +228,26 @@ DirectX::DepthStencilBuffer::DepthStencilBuffer(ID3D11DepthStencilView * pDSV)
 	m_pTexture->GetDesc(&m_Description);
 }
 
-DepthStencilBuffer::DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format)
-	: Texture2D(pDevice, Width, Height, 1, DXGIConvertFormatDSVToResource(Format), D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE, 0)
+DepthStencilBuffer::DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format, _In_opt_ UINT MultiSampleCount, _In_opt_ UINT MultiSampleQuality)
+	: Texture2D(pDevice, Width, Height, 1, MultiSampleCount > 1 ? Format : DXGIConvertFormatDSVToResource(Format), D3D11_USAGE_DEFAULT, D3D11_BIND_DEPTH_STENCIL | (MultiSampleCount > 1 ? 0 : D3D11_BIND_SHADER_RESOURCE), 0, 0, MultiSampleCount, MultiSampleQuality)
 {
 	auto pTexture = m_pResource.Get();
 	if (pTexture == nullptr)
 		return;
 	// Initialize the depth stencil view.
 
-	CD3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc(D3D11_DSV_DIMENSION_TEXTURE2D,Format);
+	CD3D11_DEPTH_STENCIL_VIEW_DESC DSVDesc(D3D11_DSV_DIMENSION_TEXTURE2D, Format);
 	// Create the depth stencil view.
-	HRESULT hr = pDevice->CreateDepthStencilView(pTexture, &DSVDesc, m_pDepthStencilView.GetAddressOf());
+	HRESULT hr = pDevice->CreateDepthStencilView(pTexture, MultiSampleCount > 1 ? NULL : &DSVDesc, m_pDepthStencilView.GetAddressOf());
 	DirectX::ThrowIfFailed(hr);
 
-	CD3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc(m_pTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGIConvertFormatDSVToSRV(Format));
-	// Create shader resources view
-	hr = pDevice->CreateShaderResourceView(m_pResource.Get(), &SRVDesc, &m_pShaderResourceView);
-	DirectX::ThrowIfFailed(hr);
+	if (MultiSampleCount <= 1)
+	{
+		CD3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc(m_pTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGIConvertFormatDSVToSRV(Format));
+		// Create shader resources view
+		hr = pDevice->CreateShaderResourceView(m_pResource.Get(), &SRVDesc, &m_pShaderResourceView);
+		DirectX::ThrowIfFailed(hr);
+	}
 }
 
 Texture::Texture()
@@ -265,10 +273,18 @@ DynamicTexture2D::~DynamicTexture2D()
 RenderableTexture2D::~RenderableTexture2D()
 {}
 
+void RenderableTexture2D::Clear(ID3D11DeviceContext * pDeviceContext, FXMVECTOR Color)
+{
+	XMFLOAT4A col;
+	DirectX::XMStoreFloat4A(&col, Color);
+	if (m_pRenderTargetView)
+		pDeviceContext->ClearRenderTargetView(m_pRenderTargetView.Get(), &col.x);
+}
+
 DepthStencilBuffer::~DepthStencilBuffer()
 {}
 
-Texture Texture::CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName,
+Texture* Texture::CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName,
 	_In_opt_ size_t maxsize,
 	_In_opt_ D3D11_USAGE usage,
 	_In_opt_ unsigned int bindFlags,
@@ -288,10 +304,12 @@ Texture Texture::CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wcha
 	{
 		hr = DirectX::CreateDDSTextureFromFileEx(pDevice, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &pResource, &pView);
 
+		if (FAILED(hr))
+			return nullptr;
 		// It's an cube texture
 		if (miscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE)
 		{
-			CubeTexture texture(pResource, pView);
+			EnvironmentTexture* texture = new EnvironmentTexture(pResource, pView);
 			return texture;
 		}
 
@@ -304,7 +322,7 @@ Texture Texture::CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wcha
 			break;
 		case D3D11_RESOURCE_DIMENSION_TEXTURE2D:
 		{
-			Texture2D texture2D(pView);
+			Texture2D *texture2D = new Texture2D(pView);
 			pResource->Release();
 			pView->Release();
 			return texture2D;
@@ -327,7 +345,7 @@ void Texture::SaveAsDDSFile(_In_ ID3D11DeviceContext *pDeviceContext, _In_z_ con
 	ThrowIfFailed(hr);
 }
 
-Texture2D Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevice,
+bool Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevice,
 	_In_ ID3D11DeviceContext* pDeviceContext,
 	_In_z_ const wchar_t* szFileName,
 	_In_opt_ size_t maxsize,
@@ -342,7 +360,7 @@ Texture2D Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevice,
 	wstring exName(szFileName);
 	exName = exName.substr(exName.find_last_of(L'.') + 1);
 	std::transform(exName.begin(), exName.end(), exName.begin(), ::towupper);
-	Texture2D texture;
+	Texture2D& texture = *this;
 	if (exName == L"DDS")
 	{
 		hr = DirectX::CreateDDSTextureFromFileEx(pDevice, szFileName, maxsize, usage, bindFlags, cpuAccessFlags, miscFlags, forceSRGB, &texture.m_pResource, &texture.m_pShaderResourceView);
@@ -359,6 +377,7 @@ Texture2D Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevice,
 		{
 			throw new exception("Unsupported Format");
 		}
+		return true;
 	}
 	else
 	{
@@ -367,13 +386,13 @@ Texture2D Texture2D::CreateFromWICFile(_In_ ID3D11Device* pDevice,
 		ID3D11Texture2D* pTexInterface;
 		texture.Resource()->QueryInterface<ID3D11Texture2D>(&pTexInterface);
 		pTexInterface->GetDesc(&texture.m_Description);
-		return texture;
+		return true;
 	}
-	return texture;
+	return false;
 }
 
 
-Texture2D Texture2D::CreateFromWICMemory(_In_ ID3D11Device* pDevice,
+bool Texture2D::CreateFromWICMemory(_In_ ID3D11Device* pDevice,
 	_In_ ID3D11DeviceContext* pDeviceContext,
 	_In_reads_bytes_(wicDataSize) const uint8_t* wicData,
 	_In_ size_t wicDataSize,
@@ -385,7 +404,7 @@ Texture2D Texture2D::CreateFromWICMemory(_In_ ID3D11Device* pDevice,
 	_In_opt_ bool forceSRGB
 	)
 {
-	return Texture2D();
+	return false;
 }
 
 void Texture2D::SaveAsWICFile(ID3D11DeviceContext * pDeviceContext, FileFormat format, const wchar_t * szFileName)
@@ -805,35 +824,46 @@ ID3D11ShaderResourceView * const * DirectX::CubeTexture::ResourcesView()
 	return m_pTextureView;
 }
 
-EnvirumrntTexture::EnvirumrntTexture(ID3D11Device * pDevice, unsigned int FaceSize, bool Renderable, DXGI_FORMAT Format)
+EnvironmentTexture::EnvironmentTexture(ID3D11Device * pDevice, unsigned int FaceSize, bool Renderable, DXGI_FORMAT Format)
 	: Texture2D(pDevice, FaceSize, FaceSize, 1, Format, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE | (Renderable ? D3D11_BIND_RENDER_TARGET : 0), 0, D3D11_RESOURCE_MISC_TEXTURECUBE | (Renderable ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0))
 {
 	if (Renderable)
 		CreateRenderTargetViewArray(pDevice, Format);
 }
 
-void DirectX::EnvirumrntTexture::CreateFromDDSFile(ID3D11Device * pDevice, const wchar_t * szFileName)
+EnvironmentTexture::EnvironmentTexture(ID3D11Device * pDevice, const wchar_t * szFileName)
 {
-	Texture::CreateFromDDSFile(pDevice, szFileName,64,D3D11_USAGE_DEFAULT,D3D11_BIND_SHADER_RESOURCE,0,D3D11_RESOURCE_MISC_TEXTURECUBE);
+	auto pTex = Texture::CreateFromDDSFile(pDevice, szFileName, 64, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, D3D11_RESOURCE_MISC_TEXTURECUBE);
+	auto pEtex = static_cast<EnvironmentTexture*>(pTex);
+	if (pEtex)
+	{
+		*this = *pEtex;
+		delete pEtex;
+	}
 }
 
-void EnvirumrntTexture::GenerateMips(ID3D11DeviceContext * pContext)
+EnvironmentTexture DirectX::EnvironmentTexture::CreateFromDDSFile(ID3D11Device * pDevice, const wchar_t * szFileName)
+{
+	return EnvironmentTexture(pDevice,szFileName);
+}
+
+void EnvironmentTexture::GenerateMips(ID3D11DeviceContext * pContext)
 {
 	pContext->GenerateMips(m_pShaderResourceView.Get());
 }
 
-inline ID3D11RenderTargetView * DirectX::EnvirumrntTexture::RenderTargetView(int face)
+ID3D11RenderTargetView * DirectX::EnvironmentTexture::RenderTargetView(int face)
 {
 	return m_pRenderTargetViews[face].Get();
 }
 
-inline ID3D11RenderTargetView * const * DirectX::EnvirumrntTexture::RenderTargetViews()
+ID3D11RenderTargetView * const * DirectX::EnvironmentTexture::RenderTargetViews()
 {
 	static_assert(sizeof(ComPtr<ID3D11RenderTargetView>) == sizeof(ID3D11RenderTargetView*), "issue with compiler");
 	return m_pRenderTargetViews[0].GetAddressOf();
 }
 
-inline void DirectX::EnvirumrntTexture::CreateRenderTargetViewArray(ID3D11Device * pDevice, DXGI_FORMAT format)
+void DirectX::EnvironmentTexture::CreateRenderTargetViewArray(ID3D11Device * pDevice, DXGI_FORMAT format)
 {
 	if (format == DXGI_FORMAT_UNKNOWN)
 		format = m_Description.Format;
@@ -842,4 +872,9 @@ inline void DirectX::EnvirumrntTexture::CreateRenderTargetViewArray(ID3D11Device
 		rtvDesc.Texture2DArray.FirstArraySlice = i;
 		pDevice->CreateRenderTargetView(m_pResource.Get(), &rtvDesc, &m_pRenderTargetViews[i]);
 	}
+}
+
+DirectX::EnvironmentTexture::EnvironmentTexture(ID3D11Resource * pTexture, ID3D11ShaderResourceView * pResourceView)
+	: Texture2D(pResourceView)
+{
 }

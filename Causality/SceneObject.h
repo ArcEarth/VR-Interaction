@@ -14,6 +14,7 @@ namespace Causality
 
 	extern bool g_DebugView;
 	extern bool g_ShowCharacterMesh;
+	extern float g_DebugArmatureThinkness;
 
 	enum RenderFlagPrimtive : unsigned int
 	{
@@ -38,6 +39,7 @@ namespace Causality
 			SemiTransparentObjects = 1 << Visible | 1 << RecivesLight | 1 << DropsShadow | 1 << AcceptCustomizeEffects,
 			GhostObjects = 1 << Visible | 1 << RecivesLight | 1 << AcceptCustomizeEffects,
 			SpecialEffects = 1 << Visible,
+			SkyView = 1 << Visible,
 			Lights = 1 << Visible | 1 << LightSource,
 			Visible = 1 << Visible,
 			RecivesLight = 1 << RecivesLight,
@@ -60,6 +62,8 @@ namespace Causality
 		virtual void Render(RenderContext &context, DirectX::IEffect* pEffect = nullptr) = 0;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) = 0;
 	};
+
+	void XM_CALLCONV DrawGeometryOutline(const BoundingGeometry& geometry, DirectX::FXMVECTOR color);
 
 	enum SceneObjectCollisionType
 	{
@@ -86,7 +90,8 @@ namespace Causality
 	typedef std::vector<ProblistiscAffineTransform> SuperPosition;
 
 	// Basic class for all object, camera, entity, or light
-	class SceneObject : public Object, public tree_node<SceneObject>, virtual public DirectX::IRigid
+	XM_ALIGNATTR
+	class SceneObject : public Object, public tree_node<SceneObject>, virtual public DirectX::IRigid , public DirectX::AlignedNew<DirectX::XMVECTOR>
 	{
 	public:
 		typedef tree_node<SceneObject> tree_base_type;
@@ -96,11 +101,7 @@ namespace Causality
 
 		SceneObject();
 
-		virtual void AddChild(SceneObject* child)
-		{
-			if (child != nullptr)
-				append_children_back(child);
-		}
+		virtual void AddChild(SceneObject* child);
 
 		template <typename T>
 		T* FirstAncesterOfType()
@@ -265,6 +266,31 @@ namespace Causality
 
 		// Inherited via IRenderable
 		virtual RenderFlags GetRenderFlags() const override;
+	};
+
+	class SkyDome : virtual public SceneObject, virtual public IRenderable
+	{
+	public:
+		SkyDome();
+		~SkyDome();
+
+		void CreateDeviceResource(ID3D11Device* device, DirectX::EnvironmentMapEffect * pEffect);
+		void SetTexture(DirectX::Texture& texture);
+
+		// Inherited via IRenderable
+		virtual bool IsVisible(const DirectX::BoundingGeometry & viewFrustum) const override;
+
+		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
+
+		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
+
+		// Inherited via IRenderable
+		virtual RenderFlags GetRenderFlags() const override;
+	private:
+		std::shared_ptr<DirectX::Scene::MeshBuffer>		m_pSphere;
+		// This texture must be a cube texture
+		DirectX::Texture								m_Texture;
+		DirectX::EnvironmentMapEffect*					m_pEffect;
 	};
 
 	class KeyboardMouseFirstPersonControl :public SceneObject, public IAppComponent, public IKeybordInteractive, public ICursorInteractive

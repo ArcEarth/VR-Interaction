@@ -121,7 +121,7 @@ namespace Causality
 
 		virtual void Set(_In_ const KinematicBlock& block, _Out_ AffineFrame& frame, _In_ const RowVectorX& feature) override
 		{
-			assert(false, "End Effector only block feature could not be use to set frame");
+			assert(!"End Effector only block feature could not be use to set frame");
 		}
 	};
 
@@ -165,6 +165,7 @@ namespace Causality
 
 		Eigen::PcaCcaMap					PdDriver; // Muilti-clip deducted driver from Principle displacement to local motion
 		Eigen::MatrixXf						PvCorr; // ActiveActionCount x ActiveActionCount, record the pv : pv correlation 
+		float								PvDriveScore;
 
 		KinematicBlock()
 		{

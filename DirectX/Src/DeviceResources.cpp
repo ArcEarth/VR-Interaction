@@ -3,7 +3,10 @@
 #include "DirectXHelper.h"
 #include <algorithm>
 #include <cmath>
+
+#if defined (__cplusplus_winrt)
 #include <windows.ui.xaml.media.dxinterop.h>
+#endif
 
 using namespace D2D1;
 using namespace DirectX;
@@ -66,8 +69,8 @@ DirectX::DeviceResources::DeviceResources() :
 	m_dpiScaleY(1.0f),
 	m_deviceNotify(nullptr)
 {
-	m_multiSampleLevel = 8;
-	m_multiSampleQuality = 16;
+	m_multiSampleLevel = 1;
+	m_multiSampleQuality = 0;
 	CreateDeviceIndependentResources();
 	CreateDeviceResources();
 }
@@ -199,7 +202,6 @@ void DirectX::DeviceResources::CreateDeviceResources()
 	// description.  All applications are assumed to support 9.1 unless otherwise stated.
 	D3D_FEATURE_LEVEL featureLevels[] = 
 	{
-		D3D_FEATURE_LEVEL_11_1,
 		D3D_FEATURE_LEVEL_11_0,
 		D3D_FEATURE_LEVEL_10_1,
 		D3D_FEATURE_LEVEL_10_0,
@@ -272,7 +274,6 @@ void DirectX::DeviceResources::CreateDeviceResources()
 			)
 		);
 
-	m_pBasicEffect = std::make_shared<DirectX::BasicEffect>(device.Get());
 }
 
 void DirectX::DeviceResources::CreateSwapChainForComposition(IDXGIFactory2* dxgiFactory, DXGI_SWAP_CHAIN_DESC1 *pSwapChainDesc)
@@ -309,7 +310,7 @@ void DirectX::DeviceResources::CreateSwapChainForComposition(IDXGIFactory2* dxgi
 // These resources need to be recreated every time the window size is changed.
 void DirectX::DeviceResources::CreateWindowSizeDependentResources() 
 {
-	auto SwapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	auto SwapChainFormat = DXGI_FORMAT_B8G8R8A8_UNORM;
 	// Clear the previous window size specific context.
 	ID3D11RenderTargetView* nullViews[] = {nullptr};
 	m_d3dContext->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
@@ -594,6 +595,9 @@ void DirectX::DeviceResources::CreateWindowSizeDependentResources()
 			m_dpi
 			);
 
+	//? Critical!!!!
+	//return;
+
 	ComPtr<IDXGISurface2> dxgiBackBuffer;
 	DirectX::ThrowIfFailed(
 		m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer))
@@ -758,6 +762,7 @@ void DirectX::DeviceResources::Present()
 	// frames that will never be displayed to the screen.
 	HRESULT hr = m_swapChain->Present(1, 0);
 
+#if !defined(_DEBUG)
 	// Discard the contents of the render target.
 	// This is a valid operation only when the existing contents will be entirely
 	// overwritten. If dirty or scroll rects are used, this call should be removed.
@@ -765,6 +770,7 @@ void DirectX::DeviceResources::Present()
 
 	// Discard the contents of the depth stencil.
 	m_d3dContext->DiscardView(m_d3dDepthStencilView.Get());
+#endif
 
 	// If the device was removed either by a disconnection or a driver upgrade, we 
 	// must recreate all device resources.
@@ -860,4 +866,19 @@ DXGI_MODE_ROTATION DirectX::DeviceResources::ComputeDisplayRotation()
 		break;
 	}
 	return rotation;
+}
+
+GraphicsResource::~GraphicsResource() {
+	//pDeviceResources->UnregisterDeviceNotify(this);
+}
+
+void GraphicsResource::SetDeviceResource(const std::shared_ptr<DeviceResources> pDeviceResources)
+{
+	if (m_pDeviceResources != pDeviceResources)
+	{
+		m_pDeviceResources = pDeviceResources;
+		//pDeviceResources->RegisterDeviceNotify(this);
+		this->CreateDeviceResources();
+		this->CreateSizeDependentResource();
+	}
 }

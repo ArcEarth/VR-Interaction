@@ -138,7 +138,7 @@ AssetDictionary::mesh_type * Causality::AssetDictionary::LoadFbxMesh(const strin
 AssetDictionary::texture_type & AssetDictionary::LoadTexture(const string & key, const string & fileName)
 {
 	textures[key] = DirectX::Texture::CreateFromDDSFile(render_device, (texture_directory / fileName).c_str());
-	return textures[key];
+	return *textures[key];
 }
 
 AssetDictionary::armature_type & AssetDictionary::LoadArmature(const string & key, const string & fileName)
@@ -236,7 +236,9 @@ void AssetDictionary::SetRenderDevice(RenderDevice & device)
 		default_effect = pMainEffect;
 
 		default_skinned_effect = default_effect;
-		
+
+		default_envirument_effect = std::make_shared<DirectX::EnvironmentMapEffect>(device.Get());
+
 		//auto pSEffect = std::make_shared<DirectX::DGSLEffect>(device.Get(),nullptr,true);
 		////auto pSEffect = std::make_shared<DirectX::SkinnedEffect>(device.Get());
 		//pSEffect->SetWeightsPerVertex(4U);
@@ -252,6 +254,7 @@ void AssetDictionary::SetRenderDevice(RenderDevice & device)
 
 		effects["default"] = default_effect.get();
 		effects["default_skinned"] = default_skinned_effect.get();
+		effects["default_environment"] = default_envirument_effect.get();
 	}
 }
 

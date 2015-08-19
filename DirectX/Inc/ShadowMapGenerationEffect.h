@@ -17,14 +17,14 @@ namespace DirectX
 			SolidColorFill = 1,
 		};
 
-		void SetShadowMap(ID3D11DepthStencilView* pShaodwMap, ID3D11RenderTargetView* pRTV = NULL);
+		void __cdecl SetShadowMap(ID3D11DepthStencilView* pShaodwMap, ID3D11RenderTargetView* pRTV = NULL);
 		void XM_CALLCONV SetShadowFillMode(_In_ ShadowFillMode mode);
 		void XM_CALLCONV SetShadowColor(FXMVECTOR color = Colors::Black);
 
 		// Use texture for alpha clipping
-		void SetAlphaDiscardThreshold(float clipThreshold);
-		void SetAlphaDiscardTexture(ID3D11ShaderResourceView* pTexture);
-		void DisableAlphaDiscard();
+		void __cdecl SetAlphaDiscardThreshold(float clipThreshold);
+		void __cdecl SetAlphaDiscardTexture(ID3D11ShaderResourceView* pTexture);
+		void __cdecl DisableAlphaDiscard();
 
 		// IEffectMatrices
 		virtual void XM_CALLCONV SetWorld(FXMMATRIX value) override;
@@ -38,8 +38,8 @@ namespace DirectX
 		virtual void __cdecl ResetBoneTransforms() override;
 
 		// Inherited via IEffect
-		virtual void Apply(ID3D11DeviceContext * deviceContext) override;
-		virtual void GetVertexShaderBytecode(void const ** pShaderByteCode, size_t * pByteCodeLength) override;
+		virtual void __cdecl Apply(ID3D11DeviceContext * deviceContext) override;
+		virtual void __cdecl GetVertexShaderBytecode(void const ** pShaderByteCode, size_t * pByteCodeLength) override;
 	private:
 		class Impl;
 		std::unique_ptr<Impl> pImpl;

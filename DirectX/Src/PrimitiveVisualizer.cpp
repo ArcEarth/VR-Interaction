@@ -127,74 +127,103 @@ namespace DirectX{
 		else
 			rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, dir);
 		XMMATRIX world = XMMatrixAffineTransformation(scale, g_XMZero, rot, center);
-		m_pCylinder->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+
+		DrawGeometry(m_pCylinder.get(), world, Color);
 	}
 
-		void XM_CALLCONV PrimitveDrawer::DrawCylinder(FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
+	void XM_CALLCONV PrimitveDrawer::DrawCylinder(FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
 	{
 		XMVECTOR rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, YDirection);
 		XMMATRIX world = XMMatrixAffineTransformation(XMVectorSet(radius,height,radius,1), g_XMZero, rot, Position);
-		m_pCylinder->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+
+		DrawGeometry(m_pCylinder.get(), world, Color);
+	}
+
+	void XM_CALLCONV PrimitveDrawer::DrawGeometry(GeometricPrimitive * geometry, FXMMATRIX World, CXMVECTOR Color)
+	{
+		float alpha = XMVectorGetW(Color);
+		m_pEffect->SetVertexColorEnabled(false);
+		m_pEffect->SetWorld(XMMatrixMultiply(World,WorldMatrix));
+		m_pEffect->SetDiffuseColor(Color);
+		m_pEffect->SetAlpha(alpha);
+		//geometry->Draw(World, ViewMatrix, ProjectionMatrix);
+		geometry->Draw(m_pEffect.get(), m_pGeometryInputLayout.Get(), alpha < 0.99f);
+		m_pEffect->SetWorld(WorldMatrix);
+		m_pEffect->SetDiffuseColor(Colors::White.v);
 	}
 
 	void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Position, float radius, FXMVECTOR Color)
 	{
 		XMMATRIX world = XMMatrixAffineTransformation(XMVectorReplicate(radius), g_XMZero, XMQuaternionIdentity(), Position);
-		m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+		DrawGeometry(m_pSphere.get(), world, Color);
 	}
 
 	void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Sphere, FXMVECTOR Color)
 	{
 		XMMATRIX world = XMMatrixAffineTransformation(XMVectorSplatW(Sphere), g_XMZero, XMQuaternionIdentity(), Sphere);
-		m_pSphere->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+		DrawGeometry(m_pSphere.get(), world, Color);
 	}
 
 	void XM_CALLCONV PrimitveDrawer::DrawCube(FXMVECTOR Position, FXMVECTOR HalfExtend, FXMVECTOR Orientation, GXMVECTOR Color)
 	{
 		XMMATRIX world = XMMatrixAffineTransformation(HalfExtend, g_XMZero, Orientation, Position);
-		m_pCube->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+		DrawGeometry(m_pCube.get(), world, Color);
 	}
 
 	void XM_CALLCONV PrimitveDrawer::DrawCube(FXMVECTOR HalfExtend, FXMMATRIX WorldTransform, GXMVECTOR Color)
 	{
 		XMMATRIX world = XMMatrixScalingFromVector(HalfExtend) * WorldTransform;
-		m_pCube->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+		DrawGeometry(m_pCube.get(), world, Color);
 	}
 
 	void XM_CALLCONV PrimitveDrawer::DrawCone(FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
 	{
 		XMVECTOR rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, YDirection);
 		XMMATRIX world = XMMatrixAffineTransformation(XMVectorSet(radius, height, radius, 1), g_XMZero, rot, Position);
-		m_pCone->Draw(world, ViewMatrix, ProjectionMatrix, Color);
+		DrawGeometry(m_pCone.get(), world, Color);
 	}
 
 	PrimitveDrawer::PrimitveDrawer()
-	{}
-
+	{
+		Initialize(nullptr);
+	}
 
 	void PrimitveDrawer::Initialize(ID3D11DeviceContext * pContext)
 	{
-		m_pContext = pContext;
-		m_pContext->GetDevice(&m_pDevice);
-		m_pStates.reset(new CommonStates(m_pDevice.Get()));
-		m_pDirectXBatch.reset(new PrimitiveBatch<VertexPositionColor>(pContext));
+		WorldMatrix = Matrix4x4::Identity;
+		ViewMatrix = Matrix4x4::Identity;
+		ProjectionMatrix = Matrix4x4::Identity;
 
-		m_pEffect.reset(new BasicEffect(m_pDevice.Get()));
-		m_pEffect->SetVertexColorEnabled(true);
-		void const* shaderByteCode;
-		size_t byteCodeLength;
-		m_pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
-		HRESULT hr = m_pDevice->CreateInputLayout(VertexPositionColor::InputElements,
-			VertexPositionColor::InputElementCount,
-			shaderByteCode, byteCodeLength,
-			&m_pInputLayout);
+		if (pContext != nullptr)
+		{
+			m_pContext = pContext;
+			m_pContext->GetDevice(&m_pDevice);
+			m_pStates.reset(new CommonStates(m_pDevice.Get()));
+			m_pDirectXBatch.reset(new PrimitiveBatch<VertexPositionColor>(pContext));
 
-		m_pCylinder = DirectX::GeometricPrimitive::CreateCylinder(pContext,1.0f,2.0f);
-		m_pSphere = DirectX::GeometricPrimitive::CreateGeoSphere(pContext,2.0f,2);
-		m_pCube = DirectX::GeometricPrimitive::CreateCube(pContext,2.0f);
-		m_pCone = DirectX::GeometricPrimitive::CreateCone(pContext);
+			m_pEffect.reset(new BasicEffect(m_pDevice.Get()));
+			m_pEffect->SetVertexColorEnabled(true);
+			m_pEffect->SetLightingEnabled(false);
+			m_pEffect->SetFogEnabled(false);
+			m_pEffect->SetTextureEnabled(false);
 
-		assert(SUCCEEDED(hr));
+			void const* shaderByteCode;
+			size_t byteCodeLength;
+			m_pEffect->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
+			HRESULT hr = m_pDevice->CreateInputLayout(VertexPositionColor::InputElements,
+				VertexPositionColor::InputElementCount,
+				shaderByteCode, byteCodeLength,
+				&m_pInputLayout);
+
+			m_pEffect->SetVertexColorEnabled(false);
+			m_pCylinder = DirectX::GeometricPrimitive::CreateCylinder(pContext, 1.0f, 2.0f,16);
+			m_pCylinder->CreateInputLayout(m_pEffect.get(), &m_pGeometryInputLayout);
+			m_pSphere = DirectX::GeometricPrimitive::CreateGeoSphere(pContext, 2.0f, 1);
+			m_pCube = DirectX::GeometricPrimitive::CreateCube(pContext, 2.0f);
+			m_pCone = DirectX::GeometricPrimitive::CreateCone(pContext,2.0f,1.0f,16);
+
+			assert(SUCCEEDED(hr));
+		}
 	}
 
 	bool PrimitveDrawer::Ready() const
@@ -229,6 +258,7 @@ namespace DirectX{
 	void PrimitveDrawer::SetWorld(DirectX::CXMMATRIX World)
 	{
 		m_pEffect->SetWorld(World);
+		WorldMatrix = World;
 	}
 
 	void PrimitveDrawer::SetProjection(DirectX::CXMMATRIX Projection)
@@ -245,13 +275,15 @@ namespace DirectX{
 
 	void PrimitveDrawer::Begin()
 	{
-		m_pEffect->Apply(m_pContext.Get());
-		m_pContext->IASetInputLayout(m_pInputLayout.Get());
 		m_pDirectXBatch->Begin();
 	}
 
 	void PrimitveDrawer::End()
 	{
+		m_pEffect->SetVertexColorEnabled(true);
+		m_pEffect->Apply(m_pContext.Get());
+		m_pEffect->SetDiffuseColor(Colors::White.v);
+		m_pContext->IASetInputLayout(m_pInputLayout.Get());
 
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState> pRSState;
 		m_pContext->RSGetState(&pRSState);

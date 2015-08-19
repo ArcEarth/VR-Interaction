@@ -8,6 +8,7 @@
 namespace Causality
 {
 	using DirectX::Scene::SkinMeshData;
+	using DirectX::Scene::StaticMeshData;
 
 	class FbxParser
 	{
@@ -34,6 +35,8 @@ namespace Causality
 		bool ImportMesh(const string& file, bool rewind = false);
 		// Import Animations only
 		bool ImportAnimation(const string& file,const string& name);
+
+		const std::list<StaticMeshData>& GetStaticMeshs();
 
 		const std::list<SkinMeshData>&	GetMeshs();
 		StaticArmature*					GetArmature();

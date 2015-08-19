@@ -10,7 +10,6 @@
 #include <dwrite_2.h>
 #include <wincodec.h>
 #include <DirectXMath.h>
-#include <Effects.h>
 #include <string>
 #include <mutex>
 #include "Textures.h"
@@ -146,8 +145,6 @@ namespace DirectX
 		//IWICImagingFactory2*	GetWicImagingFactory() const			{ return m_wicFactory.Get(); }
 		D2D1::Matrix3x2F		GetOrientationTransform2D() const		{ return m_orientationTransform2D; }
 
-		const std::shared_ptr<DirectX::BasicEffect>& GetBasicEffect() const	{ return m_pBasicEffect; }
-
 	private:
 		void CreateDeviceIndependentResources();
 		void CreateDeviceResources();
@@ -169,7 +166,7 @@ namespace DirectX
 		Microsoft::WRL::ComPtr<ID3D11DepthStencilView>	m_d3dDepthStencilView;
 		D3D11_VIEWPORT									m_screenViewport;
 
-		RenderableTexture2D							m_ColorBackBuffer;
+		RenderableTexture2D								m_ColorBackBuffer;
 		DepthStencilBuffer								m_DepthBuffer;
 		RenderTarget									m_BackBuffer;
 
@@ -184,7 +181,6 @@ namespace DirectX
 		Microsoft::WRL::ComPtr<IWICImagingFactory2>		m_wicFactory;
 
 		//std::unique_ptr<DirectX::EffectFactory>		   m_EffectFactory;
-		std::shared_ptr<BasicEffect>				   m_pBasicEffect;
 		DeviceHostType								   m_deviceHostType;
 
 #if defined (__cplusplus_winrt)
@@ -218,9 +214,13 @@ namespace DirectX
 	class GraphicsResource
 	{
 	public:
-		virtual ~GraphicsResource() {}
-		virtual void CreateGraphicsResources(const std::shared_ptr<DeviceResources>& pResources) = 0;
-		virtual void ReleaseGraphicsResources() = 0;
+		virtual ~GraphicsResource();
+
+		void SetDeviceResource(const std::shared_ptr<DeviceResources> pDeviceResources);
+
+		virtual void CreateDeviceResources() = 0;
+		virtual void CreateSizeDependentResource() = 0;
+
 	protected:
 		std::shared_ptr<DeviceResources> m_pDeviceResources;
 	};

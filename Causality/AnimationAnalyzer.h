@@ -25,7 +25,7 @@ namespace Causality
 		concurrency::task<void> ComputeFromFramesAsync(const std::vector<AffineFrame> &frames);
 		void ComputeFromFrames(const std::vector<AffineFrame> &frames);
 		void ComputeFromBlocklizedMat(const Eigen::MatrixXf& mat);
-		void BlocklizationAndComputeEnergy();
+		void BlocklizationAndComputeEnergy(const std::vector<AffineFrame>& frames);
 		void ComputePcaQr();
 		void ComputeSpatialTraits(const std::vector<AffineFrame> &frames);
 
@@ -41,10 +41,14 @@ namespace Causality
 		float				EnergyCutoff;
 		float				PcaCutoff;
 		Eigen::MatrixXf		X;  // Fx sum(d_Bi), data matrix, d = Block dimension, F = Frame count, J = Block count
-		Eigen::RowVectorXf  Ej;	// 1xJ, Jointwise Energy
-		Eigen::RowVectorXf	Eb;	// 1xB, Blockwise Energy
+		Eigen::RowVectorXf  Ej;	// 1xJ, Jointwise Translation (Varience) Energy
+		Eigen::MatrixXf		Ej3;// 3xJ, Jointwise Translation (Varience) Energy among axis
+		Eigen::RowVectorXf	Eb;	// 1xB, Blockwise Translation Energy
+		Eigen::MatrixXf		Eb3;// 3xB, Blockwise Translation Energy among axis
+		Eigen::MatrixXf		Ejrot; // 3xJ, Jointwise Rotation Energy 
+		Eigen::MatrixXf		Ebrot; // 3xB, Blockwise Rotation Energy 
 		Eigen::MatrixXf		Sp;	// 6xB, Spatial traits, B = block count
-		Eigen::MatrixXf		Dirs; // 3FxB, block end-effector displacements, F = frame count, B = block count
+		Eigen::MatrixXf		Pvs; // 3FxB, block end-effector displacements, F = frame count, B = block count
 
 		std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> Qrs; // Blockwise Qr Decomposition 
 		std::vector<Eigen::Pca<Eigen::MatrixXf>>		Pcas;		 // Blockwise Pca

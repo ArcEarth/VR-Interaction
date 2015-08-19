@@ -50,6 +50,7 @@ namespace DirectX
 
 		void XM_CALLCONV DrawQuad(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR P2, GXMVECTOR P3, CXMVECTOR Color);
 
+		void XM_CALLCONV DrawGeometry(GeometricPrimitive* geometry, FXMMATRIX World, CXMVECTOR Color);
 		void XM_CALLCONV DrawSphere(FXMVECTOR Center,float Radius,FXMVECTOR Color);
 		void XM_CALLCONV DrawSphere(FXMVECTOR Sphere,FXMVECTOR Color);
 
@@ -77,6 +78,7 @@ namespace DirectX
 			return m_pCone.get();
 		}
 	protected:
+		Matrix4x4	WorldMatrix;
 		Matrix4x4	ViewMatrix;
 		Matrix4x4	ProjectionMatrix;
 		std::unique_ptr<DirectX::GeometricPrimitive> m_pCylinder;
@@ -87,6 +89,7 @@ namespace DirectX
 		::std::unique_ptr<CommonStates>	m_pStates;
 		::std::unique_ptr<BasicEffect> m_pEffect;
 		::Microsoft::WRL::ComPtr<ID3D11InputLayout> m_pInputLayout;
+		::Microsoft::WRL::ComPtr<ID3D11InputLayout> m_pGeometryInputLayout;
 		::Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_pContext;
 		::Microsoft::WRL::ComPtr<ID3D11Device> m_pDevice;
 	};

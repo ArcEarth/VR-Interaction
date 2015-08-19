@@ -13,6 +13,8 @@ namespace Causality
 	static const float PcaCutoff = 0.01f; // 0.2^2
 	const size_t MaxBlendSize = 32U;
 	const size_t ReducedBlendSize = 4U;
+	static const float QuaternionFlipLimit = 0.2f * DirectX::XM_PI;
+	static const float QuaternionFlipLimit2 = 0.1f * DirectX::XM_PI;
 
 	inline DirectX::Vector4 ToDx(const fbx::FbxDouble4& v4)
 	{
@@ -133,6 +135,9 @@ namespace Causality
 			auto numDef = pMesh->GetDeformerCount();
 			size_t numBones;
 			assert(numDef <= 1);
+			if (numDef == 0)
+				numBones = 0;
+
 			for (int i = 0; i < numDef; i++)
 			{
 				fbx::FbxStatus states;
@@ -809,10 +814,20 @@ namespace Causality
 						float ang;
 						XMQuaternionToAxisAngle(&axis, &ang, q);
 
+						XMVECTOR dis = XMVectorZero();
+						if (i > 0)
+							dis = XMVector4Length(buffer[i - 1][nodeIdx].LclRotation.LoadA() - q);
+
 						if (i > 0
 							&& XMVector4Less(XMVector3Dot(prev_axis, axis), XMVectorZero())
 							//&& abs(ang - prev_ang) > 0.05f
-							&& abs(ang + prev_ang - XM_2PI) < 0.2f)
+
+							//&& ((abs(ang + prev_ang - XM_2PI) < QuaternionFlipLimit)
+							//	|| (abs(ang - prev_ang) > 0.05f && abs(ang + prev_ang) < QuaternionFlipLimit2))
+
+							&& XMVector4Greater(dis, XMVectorReplicate(0.05))
+
+							)
 						{
 							q = -q;
 							bone.LclRotation.StoreA(q);

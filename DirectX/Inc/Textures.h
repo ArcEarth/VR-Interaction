@@ -11,14 +11,6 @@
 
 namespace DirectX {
 
-	//class DeviceResource
-	//{
-
-	//protected:
-	//	std::string											m_Source;
-	//};
-
-
 	class Texture
 	{
 	public:
@@ -55,7 +47,7 @@ namespace DirectX {
 
 		TextureType Type() const;
 
-		static Texture CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName,
+		static Texture* CreateFromDDSFile(_In_ ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName,
 			_In_opt_ size_t maxsize = 0,
 			_In_opt_ D3D11_USAGE usage = D3D11_USAGE_DEFAULT,
 			_In_opt_ unsigned int bindFlags = D3D11_BIND_SHADER_RESOURCE,
@@ -214,7 +206,7 @@ namespace DirectX {
 
 		Texture2D& operator=(Texture2D &&);
 
-		static Texture2D CreateFromWICFile(_In_ ID3D11Device* pDevice,
+		bool CreateFromWICFile(_In_ ID3D11Device* pDevice,
 			_In_ ID3D11DeviceContext* pDeviceContext,
 			_In_z_ const wchar_t* szFileName,
 			_In_opt_ size_t maxsize = 0,
@@ -225,7 +217,7 @@ namespace DirectX {
 			_In_opt_ bool forceSRGB = false
 			);
 
-		static Texture2D CreateFromWICMemory(_In_ ID3D11Device* pDevice,
+		bool CreateFromWICMemory(_In_ ID3D11Device* pDevice,
 			_In_ ID3D11DeviceContext* pDeviceContext,
 			_In_reads_bytes_(wicDataSize) const uint8_t* wicData,
 			_In_ size_t wicDataSize,
@@ -314,9 +306,21 @@ namespace DirectX {
 			_In_opt_ unsigned int multisamplesCount = 1,
 			_In_opt_ unsigned int multisamplesQuality = 0
 			);
+
+		Texture2D(_In_ ID3D11Device* pDevice,
+			_In_z_ const wchar_t* szFileName,
+			_In_ ID3D11DeviceContext* pDeviceContext = NULL,
+			_In_opt_ size_t maxsize = 0,
+			_In_opt_ D3D11_USAGE usage = D3D11_USAGE_DEFAULT,
+			_In_opt_ unsigned int bindFlags = D3D11_BIND_SHADER_RESOURCE,
+			_In_opt_ unsigned int cpuAccessFlags = 0,
+			_In_opt_ unsigned int miscFlags = 0,
+			_In_opt_ bool forceSRGB = false
+			);
+
 		Texture2D(ID3D11Device* pDevice, const D3D11_TEXTURE2D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData = nullptr);
-		Texture2D(ID3D11Texture2D* pTexture, ID3D11ShaderResourceView* pResourceView = nullptr);
-		Texture2D(ID3D11ShaderResourceView* pResourceView);
+		explicit Texture2D(ID3D11Texture2D* pTexture, ID3D11ShaderResourceView* pResourceView = nullptr);
+		explicit Texture2D(ID3D11ShaderResourceView* pResourceView);
 		Texture2D();
 
 		void Reset() { m_pTexture.Reset(); Texture::Reset(); }
@@ -397,12 +401,7 @@ namespace DirectX {
 			return m_pRenderTargetView.Get();
 		}
 
-		void Clear(ID3D11DeviceContext *pDeviceContext, FXMVECTOR Color = g_XMIdentityR3)
-		{
-			DirectX::Color col = Color;
-			if (m_pRenderTargetView)
-				pDeviceContext->ClearRenderTargetView(m_pRenderTargetView.Get(), &col.x);
-		}
+		void Clear(ID3D11DeviceContext *pDeviceContext, FXMVECTOR Color = g_XMIdentityR3);
 
 		void Reset() {
 			m_pRenderTargetView.Reset();
@@ -461,7 +460,7 @@ namespace DirectX {
 		DepthStencilBuffer(ID3D11Texture2D* pTexture, ID3D11DepthStencilView* pDSV);
 		explicit DepthStencilBuffer(ID3D11DepthStencilView* pDSV);
 
-		DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_D24_UNORM_S8_UINT);
+		DepthStencilBuffer(ID3D11Device* pDevice, unsigned int Width, unsigned int Height, _In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_D24_UNORM_S8_UINT, _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0);
 		~DepthStencilBuffer();
 
 		operator ID3D11DepthStencilView*()
@@ -628,7 +627,7 @@ namespace DirectX {
 	//};
 
 	// A Envirument Texture is Texture Cube, which could be lookup by 3D lookup vector :)
-	class EnvirumrntTexture : public Texture2D
+	class EnvironmentTexture : public Texture2D
 	{
 	public :
 
@@ -649,20 +648,26 @@ namespace DirectX {
 			Bottom = 3,
 		};
 
-		EnvirumrntTexture(ID3D11Device* pDevice, _In_ unsigned int FaceSize, bool Renderable = true, _In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM);
+		EnvironmentTexture();
+
+		EnvironmentTexture(ID3D11Device* pDevice, _In_ unsigned int FaceSize, bool Renderable = true, _In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM);
 		
 		// Create from DDS file
-		EnvirumrntTexture(ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName);
+		EnvironmentTexture(ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName);
 
-		void CreateFromDDSFile(ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName);
+		static EnvironmentTexture CreateFromDDSFile(ID3D11Device* pDevice, _In_z_ const wchar_t* szFileName);
 
 		void GenerateMips(ID3D11DeviceContext* pContext);
 
 		ID3D11RenderTargetView* ArrayRenderTargetView();
 		ID3D11RenderTargetView* RenderTargetView(int face);
 		ID3D11RenderTargetView* const* RenderTargetViews();
+
+		friend class Texture;
 	protected:
 		void CreateRenderTargetViewArray(ID3D11Device* pDevice, DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN);
+		EnvironmentTexture(ID3D11Resource* pTexture, ID3D11ShaderResourceView* pResourceView);
+
 	private:
 		std::array<Microsoft::WRL::ComPtr<ID3D11RenderTargetView>, 6> m_pRenderTargetViews;
 	};

@@ -6,10 +6,15 @@ using namespace Causality;
 using namespace DirectX;
 using namespace DirectX::Scene;
 
-CharacterObject::frame_type & CharacterObject::MapCurrentFrameForUpdate()
+const CharacterObject::frame_type & Causality::CharacterObject::GetCurrentFrame() const
 {
 	return m_CurrentFrame;
+}
+
+CharacterObject::frame_type & CharacterObject::MapCurrentFrameForUpdate()
+{
 	m_DirtyFlag = true;
+	return m_CurrentFrame;
 }
 
 void CharacterObject::ReleaseCurrentFrameFrorUpdate()
@@ -27,9 +32,14 @@ const BehavierSpace & CharacterObject::Behavier() const { return *m_pBehavier; }
 
 void CharacterObject::SetBehavier(BehavierSpace & behaver) { m_pBehavier = &behaver; }
 
-bool CharacterObject::StartAction(const string & key, time_seconds begin_time, bool loop, time_seconds transition_time)
+const ArmatureFrameAnimation * Causality::CharacterObject::CurrentAction() const { return m_pCurrentAction; }
+
+string Causality::CharacterObject::CurrentActionName() const { return m_pCurrentAction ? m_pCurrentAction->Name : ""; }
+
+bool Causality::CharacterObject::StartAction(const string & key, time_seconds begin_time, bool loop, time_seconds transition_time)
 {
 	auto& anim = (*m_pBehavier)[key];
+	if (&anim == nullptr) return false;
 	m_pCurrentAction = &anim;
 	m_CurrentActionTime = begin_time;
 	m_LoopCurrentAction = loop;
@@ -106,7 +116,7 @@ void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect
 		UINT StencilRef;
 		pContext->OMGetDepthStencilState(&pDSS, &StencilRef);
 		pContext->OMSetDepthStencilState(g_PrimitiveDrawer.GetStates()->DepthNone(), StencilRef);
-		DrawArmature(this->Armature(), frame, color, trans);
+		DrawArmature(this->Armature(), frame, color, trans, g_DebugArmatureThinkness / this->GetGlobalTransform().Scale.x);
 		pContext->OMSetDepthStencilState(pDSS, StencilRef);
 
 		//color = Colors::LimeGreen.v;
@@ -136,7 +146,7 @@ CharacterObject::~CharacterObject()
 {
 }
 
-void Causality::DrawArmature(const IArmature & armature, const AffineFrame & frame, const Color & color, const Matrix4x4 & world)
+void Causality::DrawArmature(const IArmature & armature, const AffineFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness)
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 
@@ -145,7 +155,7 @@ void Causality::DrawArmature(const IArmature & armature, const AffineFrame & fra
 		return;
 
 	g_PrimitiveDrawer.SetWorld(world);
-	g_PrimitiveDrawer.Begin();
+	//g_PrimitiveDrawer.Begin();
 	for (auto& joint : armature.joints())
 	{
 		auto& bone = frame[joint.ID()];
@@ -156,10 +166,10 @@ void Causality::DrawArmature(const IArmature & armature, const AffineFrame & fra
 			auto& pbone = frame[joint.parent()->ID()];
 			XMVECTOR sp = pbone.GblTranslation;
 
-			g_PrimitiveDrawer.DrawLine(sp, ep, color);
-			//g_PrimitiveDrawer.DrawCylinder(sp, ep, 0.015f, color);
+			//g_PrimitiveDrawer.DrawLine(sp, ep, color);
+			g_PrimitiveDrawer.DrawCylinder(sp, ep, thinkness, color);
 		}
-		//g_PrimitiveDrawer.DrawSphere(ep, 0.03f, color);
+		g_PrimitiveDrawer.DrawSphere(ep, thinkness * 1.5f, color);
 	}
-	g_PrimitiveDrawer.End();
+	//g_PrimitiveDrawer.End();
 }

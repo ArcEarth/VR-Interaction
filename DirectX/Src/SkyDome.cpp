@@ -148,6 +148,15 @@ namespace DirectX
 		{
 		}
 
+		//bool Causality::SkyDome::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
+		//{
+		//	return false;
+		//}
+
+		//void Causality::SkyDome::Render(RenderContext & context, DirectX::IEffect * pEffect)
+		//{
+		//}
+
 		void XM_CALLCONV SkyDome::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 		{
 			XMMATRIX View = view;
@@ -156,6 +165,11 @@ namespace DirectX
 			m_pEffect->SetView(View);
 			m_pEffect->SetProjection(projection);		
 		}
+
+		//RenderFlags Causality::SkyDome::GetRenderFlags() const
+		//{
+		//	return RenderFlags();
+		//}
 
 		//void XM_CALLCONV SkyDome::UpdateProjectionMatrix(DirectX::FXMMATRIX projection)
 		//{

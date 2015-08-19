@@ -62,6 +62,7 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 	// Initialize Windows
 	pConsole = make_shared<DebugConsole>();
 	pConsole->Initialize(std::string("Ghost Trick Consle"), 1200, 800, false);
+	MoveWindow(pConsole->Handle(), 1920, 20, 1200, 800, false);
 
 	//pRift = Devices::OculusRift::GetForCurrentView();
 
@@ -80,6 +81,8 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 	pDeviceResources->SetNativeWindow(pWindow->Handle());
 	// Register to be notified if the Device is lost or recreated
 	pDeviceResources->RegisterDeviceNotify(this);
+
+	//return;
 
 	pDeviceResources->GetD3DDevice()->AddRef();
 	pDeviceResources->GetD3DDeviceContext()->AddRef();
@@ -101,6 +104,7 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 	//loadingScene->SetRenderDeviceAndContext(pDevice, pContext);
 	//loadingScene->SetCanvas(pDeviceResources->GetBackBufferRenderTarget());
 
+	
 	Scenes.emplace_back(new Scene);
 	auto& selector = Scenes.back();
 	selector->SetRenderDeviceAndContext(pDevice, pContext);
@@ -201,7 +205,7 @@ void Causality::App::OnIdle()
 		pScene->Update();
 	}
 
-	pDeviceResources->GetBackBufferRenderTarget().Clear(pContext);
+	pDeviceResources->GetBackBufferRenderTarget().Clear(pContext.Get());
 	for (auto& pScene : Scenes)
 	{
 		pScene->Render(pContext);
