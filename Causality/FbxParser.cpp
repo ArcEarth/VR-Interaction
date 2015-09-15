@@ -728,8 +728,7 @@ namespace Causality
 			auto numBones = m_Armature->size();
 			auto& buffer = anim.GetFrameBuffer();
 
-			static const size_t	StretchedSampleCount = ANIM_STANDARD::CLIP_FRAME_COUNT;
-			auto frameCount = StretchedSampleCount;
+			auto frameCount = CLIP_FRAME_COUNT;
 
 			anim.Duration = time_seconds(pAnimStack->GetLocalTimeSpan().GetDuration().GetSecondDouble());
 			auto interval = pAnimStack->GetLocalTimeSpan().GetDuration() / (double)frameCount;

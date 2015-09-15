@@ -3,57 +3,12 @@
 #include "Kinect.h"
 #include <boost\circular_buffer.hpp>
 #include "Animations.h"
+#include "CharacterController.h"
 #include <atomic>
 
 namespace Causality
 {
 	using boost::circular_buffer;
-
-	class AnimationAnalyzer;
-
-	class ClipInfo;
-
-	class CharacterController
-	{
-	public:
-		~CharacterController();
-		void Initialize(const IArmature& player, CharacterObject& character);
-
-		const ArmatureTransform& Binding() const;
-		ArmatureTransform& Binding();
-		void SetBinding(ArmatureTransform* pBinding);
-
-		const CharacterObject& Character() const;
-		CharacterObject& Character();
-
-		void UpdateTargetCharacter(const AffineFrame& sourceFrame) const;
-
-		std::atomic<bool>		IsReady;
-		int						ID;
-		AffineFrame				PotientialFrame;
-		float					CharacterScore;
-		Vector3					MapRefPos;
-		Vector3					CMapRefPos;
-		int						CurrentActionIndex;
-
-
-		// Principle displacement driver
-		ClipInfo& GetAnimationInfo(const string& name);
-
-		map<string, ClipInfo*>& GetClipInfos() { return m_Analyzers; }
-
-	public:
-		CharacterObject*							m_pCharacter;
-		map<string, ClipInfo*>						m_Analyzers;
-		uptr<ArmatureTransform>						m_pBinding;
-		uptr<ArmatureTransform>						m_pSelfBinding;
-		uptr<BlockFeatureExtractor>					m_pFeatureExtrator;
-
-
-		void SetSourceArmature(const IArmature& armature);
-
-		void SetTargetCharacter(CharacterObject& object);
-	};
 
 	class PlayerProxy : public SceneObject, public IRenderable, public IAppComponent, public IKeybordInteractive
 	{
@@ -61,7 +16,6 @@ namespace Causality
 #pragma region Constants
 		static const size_t					FrameRate = ANIM_STANDARD::SAMPLE_RATE;
 		static const size_t					ScaledMotionTime = ANIM_STANDARD::MAX_CLIP_DURATION; // second
-		static const size_t					StretchedSampleCount = ANIM_STANDARD::CLIP_FRAME_COUNT;
 
 		static const size_t					BufferTime = 5; // second
 		static const size_t					BufferFramesCount = FrameRate * BufferTime;
@@ -118,11 +72,12 @@ namespace Causality
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 		// PlayerSelector Interface
-		const TrackedBodySelector&	GetPlayer() const { return playerSelector; }
-		TrackedBodySelector&		GetPlayer() { return playerSelector; }
-		const IArmature&			PlayerArmature() const { return *pPlayerArmature; };
+		const TrackedBodySelector&	GetPlayer() const { return m_playerSelector; }
+		TrackedBodySelector&		GetPlayer() { return m_playerSelector; }
+		const IArmature&			PlayerArmature() const { return *m_pPlayerArmature; };
 
 	protected:
+		void	UpdatePrimaryCameraForTrack();
 		// Helper methods
 		bool	UpdateByFrame(const AffineFrame& frame);
 
@@ -139,20 +94,27 @@ namespace Causality
 		void ClearPlayerFeatureBuffer();
 
 	protected:
-		bool								IsInitialized;
+		bool								m_EnableOverShoulderCam;
+		bool								m_IsInitialized;
 
-		const IArmature*					pPlayerArmature;
-		int									Id;
+		std::mutex							m_controlMutex;
+		std::atomic_bool					m_mapTaskOnGoing;
+		concurrency::task<void>				m_mapTask;
 
-		Devices::KinectSensor::Refptr		pKinect;
-		TrackedBodySelector					playerSelector;
+		const IArmature*					m_pPlayerArmature;
+		int									m_Id;
 
-		uptr<BlockFeatureExtractor>			pPlayerFeatureExtrator; // All joints block-Localized gbl-position 
+		Devices::KinectSensor::Refptr		m_pKinect;
+		TrackedBodySelector					m_playerSelector;
+		AffineFrame							m_CurrentPlayerFrame;
+		AffineFrame							m_LastPlayerFrame;
 
-		int									CurrentIdx;
-		std::list<CharacterController>		Controllers;
+		uptr<BlockFeatureExtractor>			m_pPlayerFeatureExtrator; // All joints block-Localized gbl-position 
 
-		std::mutex							BufferMutex;
+		int									m_CurrentIdx;
+		std::list<CharacterController>		m_Controllers;
+
+		std::mutex							m_BufferMutex;
 
 		// This buffer stores the time-re-sampled frame data as feature matrix
 		// This buffer is allocated as 30x30 frames size

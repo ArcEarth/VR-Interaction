@@ -8,9 +8,10 @@ namespace Causality
 	enum ANIM_STANDARD
 	{
 		SAMPLE_RATE = 30, // 30 Hz 
-		CLIP_FRAME_COUNT = 90, // 90 Frames for one clip
 		MAX_CLIP_DURATION = 3, // 3 second for one cyclic clip
 	};
+
+	extern size_t CLIP_FRAME_COUNT; // default to 90 Frames for one clip
 
 	template <typename Ty>
 	struct KeyFrame // Meta data for an animation frame
@@ -24,12 +25,12 @@ namespace Causality
 		//concept frame_type& operator[]
 	};
 
-	class AffineFrame : public std::vector<Bone, DirectX::AlignedAllocator<Bone>>
+	class AffineFrame : public std::vector<Bone, DirectX::XMAllocator>
 	{
 	public:
 		typedef AffineFrame self_type;
 
-		typedef public std::vector<Bone, DirectX::AlignedAllocator<Bone>> BaseType;
+		typedef public std::vector<Bone, DirectX::XMAllocator> BaseType;
 		using BaseType::operator[];
 		//using BaseType::operator=;
 
@@ -69,25 +70,29 @@ namespace Causality
 		// number of float elements per bone
 		static const auto BoneWidth = sizeof(Bone) / sizeof(float);
 		//! not the eigen vector in math !!!
-		typedef Eigen::Map<VectorX, Eigen::Aligned> EigenVectorType;
+		//typedef Eigen::Map<VectorX, Eigen::Aligned> EigenVectorType;
 
-		// return a 20N x 1 column vector of this frame, where 20 = BoneWidth
-		EigenVectorType AsEigenVector()
-		{
-			return EigenVectorType(&(*this)[0].LclRotation.x, size() * BoneWidth);
-		}
+		//// return a 20N x 1 column vector of this frame, where 20 = BoneWidth
+		//EigenVectorType AsEigenVector()
+		//{
+		//	return EigenVectorType(&(*this)[0].LclRotation.x, size() * BoneWidth);
+		//}
 
-		typedef Eigen::Map<Eigen::Matrix<float, BoneWidth, Eigen::Dynamic>, Eigen::Aligned> EigenMatrixType;
-		// return a 20 x N matrix of this frame
-		EigenMatrixType AsEigenMatrix()
-		{
-			return EigenMatrixType(&(*this)[0].LclRotation.x, BoneWidth, size());
-		}
+		//typedef Eigen::Map<Eigen::Matrix<float, BoneWidth, Eigen::Dynamic>, Eigen::Aligned> EigenMatrixType;
+		//// return a 20 x N matrix of this frame
+		//EigenMatrixType AsEigenMatrix()
+		//{
+		//	return EigenMatrixType(&(*this)[0].LclRotation.x, BoneWidth, size());
+		//}
 	};
 
-	class BoneVelocityFrame : public std::vector<BoneVelocity>
+	class BoneVelocityFrame : public std::vector<BoneVelocity, DirectX::XMAllocator>
 	{
-
+	public:
+		typedef std::vector<BoneVelocity, DirectX::XMAllocator> base_type;
+		using base_type::base_type;
+		using base_type::operator[];
+		using base_type::operator=;
 	};
 
 	class LinearFrame

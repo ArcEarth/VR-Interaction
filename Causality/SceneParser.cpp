@@ -8,12 +8,14 @@
 #include "PlayerProxy.h"
 #include "CharacterObject.h"
 #include "LightObject.h"
+#include "Settings.h"
 
 using namespace tinyxml2;
 using namespace Causality;
 using namespace DirectX::Scene;
 using namespace std;
 
+void ParseSceneSettings(tinyxml2::XMLElement * nScene);
 void ParseLightObjectAttributes(Light *pLight, tinyxml2::XMLElement * node);
 void ParseCameraObjectAttributes(SingleViewCamera *pCamera, tinyxml2::XMLElement * node);
 //void ParseShadowCameraObjectAttributes(SoftShadowCamera *pCamera, tinyxml2::XMLElement * node);
@@ -44,7 +46,7 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 template <typename T>
 void GetAttribute(_In_ XMLElement* node, _In_ const char* attr, _Inout_ T& value)
 {
-	static_assert(false, "unsupported type T")
+	static_assert(false, "unsupported type T");
 }
 
 template <>
@@ -121,6 +123,14 @@ void GetAttribute<unsigned>(_In_ XMLElement* node, _In_  const char* attr, _Inou
 }
 
 template <>
+void GetAttribute<size_t>(_In_ XMLElement* node, _In_  const char* attr, _Inout_ size_t& value)
+{
+	unsigned ui;
+	node->QueryUnsignedAttribute(attr, &ui);
+	value = ui;
+}
+
+template <>
 void GetAttribute<string>(_In_ XMLElement* node, _In_  const char* attr, _Inout_ string& value)
 {
 	auto attrval = node->Attribute(attr);
@@ -150,6 +160,7 @@ void Scene::LoadFromXML(const string & xml_file)
 	auto nScene = sceneDoc.FirstChildElement("scene");
 	auto nAssets = nScene->FirstChildElement("scene.assets");
 
+	ParseSceneSettings(nScene);
 	ParseSceneAssets(this->Assets(), nAssets);
 
 	auto nContent = nScene->FirstChildElement("scene.content");
@@ -159,6 +170,49 @@ void Scene::LoadFromXML(const string & xml_file)
 	//UpdateRenderViewCache();
 
 	is_loaded = true;
+}
+
+void ParseSceneSettings(tinyxml2::XMLElement * nScene)
+{
+	auto nSettings = nScene->FirstChildElement("scene.settings");
+
+	unsigned clipframe = 90;
+	nSettings->FirstChildElement("ClipRasterizeFrame")->QueryUnsignedText(&clipframe);
+	CLIP_FRAME_COUNT = clipframe;
+
+#define PARSE_BOOL_SETTING(node,name,def) \
+{ \
+	int val = def;\
+	node->FirstChildElement(#name)->QueryIntText(&val); \
+	g_##name = (bool)val; \
+}
+
+#define PARSE_FLOAT_SETTING(node,name,def) \
+{ \
+	float val = def;\
+	node->FirstChildElement(#name)->QueryFloatText(&val); \
+	g_##name = val; \
+}
+
+
+	PARSE_BOOL_SETTING(nSettings, EnableDebugLogging, 0);
+	PARSE_BOOL_SETTING(nSettings, EnableRecordLogging, 0);
+
+	PARSE_BOOL_SETTING(nSettings, EnableDependentControl, 0);
+	PARSE_BOOL_SETTING(nSettings, IngnoreInputRootRotation, 1);
+	PARSE_BOOL_SETTING(nSettings, UseGeneralTransform, 0);
+	PARSE_BOOL_SETTING(nSettings, UsePersudoPhysicsWalk, 1);
+
+	PARSE_BOOL_SETTING(nSettings, UseStylizedIK, 1);
+	PARSE_BOOL_SETTING(nSettings, UseVelocity, 1);
+	PARSE_BOOL_SETTING(nSettings, LoadCharacterModelParameter, 1);
+
+	PARSE_FLOAT_SETTING(nSettings, MatchAccepetanceThreshold, 0.2f);
+	PARSE_FLOAT_SETTING(nSettings, PlayerPcaCutoff, .004f);
+	PARSE_FLOAT_SETTING(nSettings, PlayerEnergyCutoff, 0.3f);
+	PARSE_FLOAT_SETTING(nSettings, CharacterPcaCutoff, .004f);
+	PARSE_FLOAT_SETTING(nSettings, CharacterActiveEnergy, 0.40f);
+	PARSE_FLOAT_SETTING(nSettings, CharacterSubactiveEnergy, 0.02f);
 }
 
 void ParseSceneAssets(AssetDictionary& assets, XMLElement* node)

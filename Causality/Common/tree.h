@@ -20,6 +20,9 @@ namespace stdx
 	class foward_tree_node
 	{
 	public:
+		//typedef foward_tree_node<_Ty, _DescendabtsOwnership> self_type;
+		//static_assert(std::is_base_of<self_type, _Ty>::value, "_Ty should be a derived type of tree_node");
+
 		typedef _Ty value_type;
 		typedef value_type& reference;
 		typedef value_type* pointer;
@@ -809,6 +812,9 @@ namespace stdx
 	class tree_node
 	{
 	public:
+		//typedef tree_node<_Ty, _DescendabtsOwnership> self_type;
+		//static_assert(std::is_base_of<self_type, _Ty>::value, "_Ty should be a derived type of tree_node");
+
 		typedef _Ty value_type;
 		typedef value_type& reference;
 		typedef value_type* pointer;

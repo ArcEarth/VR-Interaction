@@ -15,6 +15,7 @@ namespace Causality
 	extern bool g_DebugView;
 	extern bool g_ShowCharacterMesh;
 	extern float g_DebugArmatureThinkness;
+	extern bool g_MirrowInputX;
 
 	enum RenderFlagPrimtive : unsigned int
 	{
@@ -81,9 +82,9 @@ namespace Causality
 		bool IsBlooming;
 	};
 
-	struct ProblistiscAffineTransform : public DirectX::ScaledRigidTransform
+	struct ProblistiscAffineTransform : public DirectX::IsometricTransform
 	{
-		using DirectX::ScaledRigidTransform::ScaledRigidTransform;
+		using DirectX::IsometricTransform::IsometricTransform;
 		float Probability;
 	};
 
@@ -95,7 +96,7 @@ namespace Causality
 	{
 	public:
 		typedef tree_node<SceneObject> tree_base_type;
-		typedef DirectX::ScaledRigidTransform TransformType;
+		typedef DirectX::IsometricTransform TransformType;
 
 		virtual ~SceneObject() override;
 

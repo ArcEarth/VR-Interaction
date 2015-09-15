@@ -10,5 +10,9 @@
 #include <fbxsdk.h>
 #include <boost\filesystem.hpp>
 #include <Eigen\Dense>
+#include <iomanip>
+#include <dlib\optimization\optimization.h>
+#include <functional>
+#include <ppl.h>
 
 #define _AUTO_PCH

@@ -6,6 +6,60 @@ using namespace Causality;
 using namespace DirectX;
 using namespace DirectX::Scene;
 
+void CharacterObject::DisplaceByVelocityFrame()
+{
+	static const float threshold = 0.05f;
+	auto &frame = m_CurrentFrame;
+	auto &vframe = m_VelocityFrame;
+	auto &armature = *m_pArmature;
+
+	if (vframe.size() == 0)
+		return;
+
+	auto world = this->GlobalTransformMatrix();
+
+	XMVECTOR vsum = XMVectorZero();
+	int count = 0;
+
+	for (int jid = 0; jid < armature.size(); jid++)
+	{
+		XMVECTOR pos = XMVector3Transform(frame[jid].GblTranslation.LoadA(), world);
+		if (XMVectorGetY(pos) < threshold)
+		{
+			XMVECTOR vec = vframe[jid].LinearVelocity.LoadA();
+			vec = XMVectorSetW(vec, 0.f);
+			vec = XMVector4Transform(vec, world);
+
+			vsum += vec;
+			count++;
+		}
+	}
+	vsum /= count;
+	vsum *= -0.1f;
+	vsum = XMVectorAndInt(vsum, g_XMSelect1010);
+	this->SetPosition((XMVECTOR)GetPosition() + vsum);
+}
+
+void CharacterObject::ComputeVelocityFrame(time_seconds time_delta)
+{
+	auto &cframe = m_CurrentFrame;
+	auto &lframe = m_LastFrame;
+	auto &vframe = m_VelocityFrame;
+	auto &armature = *m_pArmature;
+	
+	if (lframe.size() == 0)
+		return;
+
+	if (vframe.size() == 0)
+		vframe.resize(armature.size());
+
+	for (size_t i = 0; i < armature.size(); i++)
+	{
+		XMVECTOR disp = cframe[i].GblTranslation.LoadA() - lframe[i].GblTranslation.LoadA();
+		vframe[i].LinearVelocity.StoreA(disp / time_delta.count());
+	}
+}
+
 const CharacterObject::frame_type & Causality::CharacterObject::GetCurrentFrame() const
 {
 	return m_CurrentFrame;
@@ -13,24 +67,28 @@ const CharacterObject::frame_type & Causality::CharacterObject::GetCurrentFrame(
 
 CharacterObject::frame_type & CharacterObject::MapCurrentFrameForUpdate()
 {
-	m_DirtyFlag = true;
+	m_UpdateLock = true;
+	m_LastFrame = m_CurrentFrame;
 	return m_CurrentFrame;
 }
 
 void CharacterObject::ReleaseCurrentFrameFrorUpdate()
 {
-	m_DirtyFlag = true;
+	m_UpdateLock = false;
 }
 
-IArmature & CharacterObject::Armature() { return m_pBehavier->Armature(); }
+IArmature & CharacterObject::Armature() { return *m_pArmature; }
 
-const IArmature & CharacterObject::Armature() const { return m_pBehavier->Armature(); }
+const IArmature & CharacterObject::Armature() const { return *m_pArmature; }
 
 BehavierSpace & CharacterObject::Behavier() { return *m_pBehavier; }
 
 const BehavierSpace & CharacterObject::Behavier() const { return *m_pBehavier; }
 
-void CharacterObject::SetBehavier(BehavierSpace & behaver) { m_pBehavier = &behaver; }
+void CharacterObject::SetBehavier(BehavierSpace & behaver) {
+	m_pBehavier = &behaver;
+	m_pArmature = &m_pBehavier->Armature();
+}
 
 const ArmatureFrameAnimation * Causality::CharacterObject::CurrentAction() const { return m_pCurrentAction; }
 
@@ -74,11 +132,18 @@ void CharacterObject::Update(time_seconds const & time_delta)
 	if (m_pCurrentAction != nullptr)
 	{
 		m_CurrentActionTime += time_delta;
+		this->MapCurrentFrameForUpdate();
 		m_pCurrentAction->GetFrameAt(m_CurrentFrame, m_CurrentActionTime);
-		m_DirtyFlag = true;
+		this->ReleaseCurrentFrameFrorUpdate();
 	}
 
-	if (m_pSkinModel && m_DirtyFlag)
+	if (m_IsAutoDisplacement)
+	{
+		ComputeVelocityFrame(time_delta);
+		DisplaceByVelocityFrame();
+	}
+
+	if (m_pSkinModel)
 	{
 		auto pBones = reinterpret_cast<XMFLOAT4X4*>(m_pSkinModel->GetBoneTransforms());
 		AffineFrame::TransformMatrix(pBones, Armature().default_frame(), m_CurrentFrame, m_pSkinModel->GetBonesCount());
@@ -139,11 +204,17 @@ void XM_CALLCONV CharacterObject::UpdateViewMatrix(DirectX::FXMMATRIX view, Dire
 
 CharacterObject::CharacterObject()
 {
+	m_IsAutoDisplacement = false;
 }
 
 
 CharacterObject::~CharacterObject()
 {
+}
+
+void Causality::CharacterObject::EnabeAutoDisplacement(bool is_enable)
+{
+	m_IsAutoDisplacement = is_enable;
 }
 
 void Causality::DrawArmature(const IArmature & armature, const AffineFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness)

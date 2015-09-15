@@ -105,6 +105,7 @@ public:
 	size_t											LostThreshold = 60U;
 	time_t											LastFrameTime = 0;
 	float											FrameRate = 30;
+	bool											m_EnableMirrow = false;
 
 	KinectSensor*									pWrapper;
 	DirectX::Plane									FloorPlane;
@@ -447,7 +448,8 @@ public:
 		DirectX::XMMATRIX transform = LocalMatrix;
 
 		// Flip X and Z, X is due to mirrow effect, Z is due to Kinect uses LH coordinates
-		transform.r[0] = DirectX::XMVectorNegate(transform.r[0]);
+		if (m_EnableMirrow)
+			transform.r[0] = DirectX::XMVectorNegate(transform.r[0]);
 		//transform.r[2] = DirectX::XMVectorNegate(transform.r[2]);
 
 		// Extract the rotation to apply
@@ -569,6 +571,16 @@ bool KinectSensor::IsConnected() const
 void KinectSensor::SetDeviceCoordinate(const DirectX::Matrix4x4 & mat)
 {
 	pImpl->LocalMatrix = mat;
+}
+
+void KinectSensor::EnableMirrowing(bool enable_mirrow)
+{
+	pImpl->m_EnableMirrow = enable_mirrow;
+}
+
+bool Causality::Devices::KinectSensor::IsMirrowingEnable() const
+{
+	return pImpl->m_EnableMirrow;
 }
 
 const DirectX::Matrix4x4 & KinectSensor::GetDeviceCoordinate()

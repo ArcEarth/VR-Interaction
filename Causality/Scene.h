@@ -30,6 +30,8 @@ namespace Causality
 
 		virtual void OnNavigatedTo() = 0;
 		virtual void OnNavigatedFrom() = 0;
+
+		virtual SceneObject* Content() = 0;
 	};
 
 	enum SceneTimeLineType
@@ -79,7 +81,7 @@ namespace Causality
 		void	SetTimeScale(double time_scale) { this->time_scale = time_scale; }
 
 		// Contens operations
-		SceneObject*	Content();
+		SceneObject*	Content() override;
 		SceneObject*	SetContent(SceneObject* sceneRoot);
 
 		AssetDictionary& Assets() { return assets; }

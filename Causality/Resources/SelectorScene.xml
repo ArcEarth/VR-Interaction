@@ -1,5 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<scene gravity="0,-0.1,0">
+<scene>
+  <scene.settings>
+    <ClipRasterizeFrame>75</ClipRasterizeFrame>
+    
+    <EnableDebugLogging>1</EnableDebugLogging>
+    <EnableRecordLogging>0</EnableRecordLogging>
+    <RecordLogRootDir>Log</RecordLogRootDir>
+
+    <EnableDependentControl>0</EnableDependentControl>
+    <IngnoreInputRootRotation>1</IngnoreInputRootRotation>
+    <UseGeneralTransform>0</UseGeneralTransform>
+    <UsePersudoPhysicsWalk>0</UsePersudoPhysicsWalk>
+
+    <EnableInputFeatureLocalization>1</EnableInputFeatureLocalization>
+    <MatchAccepetanceThreshold>0.2</MatchAccepetanceThreshold>
+    <PlayerPcaCutoff>0.04</PlayerPcaCutoff>
+    <PlayerEnergyCutoff>0.3</PlayerEnergyCutoff>
+    <DefaultAnimationSet>walk</DefaultAnimationSet>
+    
+    <UseStylizedIK>1</UseStylizedIK>
+    <UseVelocity>1</UseVelocity>
+    <FrameTimeScaleFactor>20</FrameTimeScaleFactor>
+
+    <LoadCharacterModelParameter>1</LoadCharacterModelParameter>
+    <CharacterModelParameterFile>CharacterAnalayze\{0}.param.xml</CharacterModelParameterFile>
+    <CharacterPcaCutoff>0.004</CharacterPcaCutoff>
+    <CharacterActiveEnergy>0.40</CharacterActiveEnergy>
+    <CharacterSubactiveEnergy>0.02</CharacterSubactiveEnergy>
+
+    <enviroment>
+      <gravity>0,-0.1,0</gravity>
+    </enviroment>
+  </scene.settings>
   <scene.assets>
     <phong_material name="environment_cutoff_mat" diffuse_map="Environment.dds" alpha_discard="true"></phong_material>
     <phong_material name="environment_solid_mat" diffuse_map="Environment.dds" alpha_discard="false"></phong_material>
@@ -16,9 +48,8 @@
     <phong_material name="kitten_EyeballA" diffuse_map="kitten_Albedo.dds"></phong_material>
 
 
-    <mesh name="floor_mesh" src="floor.obj"></mesh>
     <mesh name="cube_mesh" src="cube.obj"></mesh>
-    <mesh name="pinetree_mesh" src="Pine_tree.fbx" material="{pinetree_mat}"></mesh>
+    <!--<mesh name="pinetree_mesh" src="Pine_tree.fbx" material="{pinetree_mat}"></mesh>
     <mesh name="Rock_01_a" src="Rock_01_a.fbx" material="{environment_solid_mat}"></mesh>
     <mesh name="Rock_01_b" src="Rock_01_b.fbx" material="{environment_solid_mat}"></mesh>
     <mesh name="Bush_01_a" src="Bush_01_a.fbx" material="{environment_cutoff_mat}"></mesh>
@@ -40,7 +71,7 @@
     <mesh name="watchtower_main" src="Watchtower_Main.fbx" material="{watchtower_mat}"></mesh>
     <mesh name="watchtower_entrance" src="Watchtower_Entrance.fbx" material="{watchtower_mat}"></mesh>
     <mesh name="watchtower_flag" src="Watchtower_Flag_Pole.fbx" material="{watchtower_mat}"></mesh>
-    <mesh name="watchtower_window" src="Watchtower_Window.fbx" material="{watchtower_mat}"></mesh>
+    <mesh name="watchtower_window" src="Watchtower_Window.fbx" material="{watchtower_mat}"></mesh>-->
 
     <mesh name="spider_mesh" src="spider.fbx" material="{spider_material}"></mesh>
     <mesh name="horse_mesh" src="Horse.fbx" material="{horse_material}" ></mesh>
@@ -77,31 +108,32 @@
       <object name="tree_006" position="0.2,0,-2.0" scale="0.35" mesh="{pinetree_mesh}" />
       <object name="tree_007" position="1.4,0,-2.8" scale="0.6" mesh="{pinetree_mesh}" />
       <object name="watchtower_001" position="-3.5,0,-4.5" scale="0.001" mesh="{watchtower_main}">
+
         <!--<object name="watchtower_window_001" position="0,-30,30" scale="0.6" mesh="{watchtower_window}"/>-->
         <!--<object name="watchtower_entrance_001" mesh="{watchtower_entrance}"/>
         <object name="watchtower_flag_001" mesh="{watchtower_flag}"/>-->
       </object>
-      
-      
+
+
       <player_controller name="player" position="0,0.0,0">
 
-        <creature name="horse" position="-1,0,0" scale ="0.01" action="run" mesh="{horse_mesh}">
+        <creature name="hrse" position="-1,0,0" scale ="0.01" action="walk" mesh="{horse_mesh}">
           <creature.behavier>
             <behavier name="horse_behavier" armature="Horse_Idle.fbx">
               <behavier.actions>
                 <action name="walk" src="Horse_Walk.fbx"/>
                 <action name="run" src="Horse_Run.fbx"/>
-                <action name="idle" src="Horse_Idle.fbx"/>
+                <!--<action name="idle" src="Horse_Idle.fbx"/>-->
               </behavier.actions>
             </behavier>
           </creature.behavier>
         </creature>
 
-        <creature name="spider" position="1,0,0" scale="0.00125" action="attack" mesh="{spider_mesh}">
+        <!--<creature name="spider" position="1,0,0" scale="0.00125" action="walk" mesh="{spider_mesh}">
           <creature.behavier>
             <behavier name="spider_behavier" src="spider.fbx"></behavier>
           </creature.behavier>
-        </creature>
+        </creature>-->
 
         <!--<creature name="allosaurus" position="0,0,-1" scale ="0.01" action="idle" mesh="{allosaurus_mesh}">
           <creature.behavier>
@@ -122,12 +154,16 @@
           <creature.behavier>
             <behavier name="cat_beyhavier" armature="kitten.fbx">
               <behavier.actions>
-                --><!--<action name="idle" src="kitten_Idle.fbx"/>--><!--
+                -->
+        <!--<action name="idle" src="kitten_Idle.fbx"/>-->
+        <!--
                 <action name="walk" src="kitten_Walk.fbx"/>
-                --><!--<action name="run" src="kitten_Run.fbx"/>
+                <action name="run" src="kitten_Run.fbx"/>
                 <action name="jump" src="kitten_Jump.fbx"/>
-                <action name="hit" src="kitten_Itching.fbx"/>
-                <action name="attack" src="kitten_Meow.fbx"/>--><!--
+                -->
+        <!--<action name="hit" src="kitten_Itching.fbx"/>
+                <action name="attack" src="kitten_Meow.fbx"/>-->
+        <!--
               </behavier.actions>
             </behavier>
           </creature.behavier>

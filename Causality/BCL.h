@@ -7,6 +7,9 @@
 #include <list>
 #include <memory>
 #include <functional>
+#include <iostream>
+#include <fstream>
+#include <algorithm>
 #include <chrono>
 #include <type_traits>
 
@@ -23,17 +26,27 @@
 
 // Math libraries
 #include <DirectXMath.h>
+#if defined(__SSE3__)
 #include <DirectXMathSSE3.h>
+#endif
+#if defined(__SSE4__)
 #include <DirectXMathSSE4.h>
+#endif
+#if defined(__AVX__)
 #include <DirectXMathAVX.h>
+#endif
+
 #include <DirectXCollision.h>
 
 #include <SimpleMath.h>
 
 #include "DirectXMathExtend.h"
 
+#if defined __AVX__
+#undef __AVX__ //#error Eigen have problem with AVX now
+#endif
+
 #include <Eigen\Dense>
-#include <Eigen\Sparse>
 
 // ComPtr and task
 #include <wrl/client.h>
@@ -44,6 +57,7 @@ extern template class std::vector<int>;
 extern template class std::vector<float>;
 //extern template class Eigen::Matrix<float,-1,-1>;
 //extern template class Eigen::Matrix<float,-1, 1>;
+//extern template class Eigen::Matrix<float, 1,-1>;
 #endif
 
 namespace Causality
@@ -87,7 +101,6 @@ namespace Causality
 	using VectorX = Eigen::VectorXf;
 	using RowVectorX = Eigen::RowVectorXf;
 	using MatrixX = Eigen::MatrixXf;
-	using Eigen::SparseMatrix;
 
 	template <class T>
 	using sptr = std::shared_ptr<T>;

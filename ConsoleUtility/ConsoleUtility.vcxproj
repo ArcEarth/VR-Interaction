@@ -71,24 +71,24 @@
     <NuGetPackageImportStamp>49df6a1e</NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;D:\SDKs\dlib-18.17\;$(IncludePath)</IncludePath>
     <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib\;$(LibraryPath)</LibraryPath>
     <ExecutablePath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;D:\SDKs\dlib-18.17\;$(IncludePath)</IncludePath>
     <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib\;$(LibraryPath)</LibraryPath>
     <ExecutablePath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
     <ExecutablePath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
-    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;D:\SDKs\dlib-18.17\;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LibraryPath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
     <ExecutablePath>$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
-    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(BOOST_ROOT);$(FBX_SDK_ROOT)\include\;D:\SDKs\DirectXTK\Inc;D:\SDKs\dlib-18.17\;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

@@ -49,16 +49,16 @@ namespace DirectX
 			GlobalTransform() *= parent.GlobalTransform();
 		}
 
-		void UpdateGlobalTransform(const ScaledRigidTransform& global)
+		void UpdateGlobalTransform(const IsometricTransform& global)
 		{
 			GlobalTransform() = LocalTransform();
 			GlobalTransform() *= global;
 		}
 
-		inline const DirectX::ScaledRigidTransform&		LocalTransform() const { return reinterpret_cast<const DirectX::ScaledRigidTransform&>(*this); }
-		inline DirectX::ScaledRigidTransform&			LocalTransform() { return reinterpret_cast<DirectX::ScaledRigidTransform&>(*this); }
-		inline const DirectX::ScaledRigidTransform&		GlobalTransform() const { return reinterpret_cast<const DirectX::ScaledRigidTransform&>(this->GblRotation); }
-		inline DirectX::ScaledRigidTransform&			GlobalTransform() { return reinterpret_cast<DirectX::ScaledRigidTransform&>(this->GblRotation); }
+		inline const DirectX::IsometricTransform&		LocalTransform() const { return reinterpret_cast<const DirectX::IsometricTransform&>(*this); }
+		inline DirectX::IsometricTransform&			LocalTransform() { return reinterpret_cast<DirectX::IsometricTransform&>(*this); }
+		inline const DirectX::IsometricTransform&		GlobalTransform() const { return reinterpret_cast<const DirectX::IsometricTransform&>(this->GblRotation); }
+		inline DirectX::IsometricTransform&			GlobalTransform() { return reinterpret_cast<DirectX::IsometricTransform&>(this->GblRotation); }
 	};
 
 }

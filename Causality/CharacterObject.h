@@ -5,14 +5,17 @@
 
 namespace Causality
 {
-	// Represent an SceneObjecy
+	// Represent an Character that have intrinsic animation
 	class CharacterObject : public VisualObject
 	{
 	public:
 		typedef BehavierSpace::frame_type frame_type;
+		typedef vector<BoneVelocity, DirectX::XMAllocator> velocity_frame_type;
 
 		CharacterObject();
 		~CharacterObject();
+
+		void							EnabeAutoDisplacement(bool is_enable);
 
 		const frame_type&				GetCurrentFrame() const;
 		frame_type&						MapCurrentFrameForUpdate();
@@ -34,7 +37,7 @@ namespace Causality
 
 		virtual void					SetRenderModel(DirectX::Scene::IModelNode* pMesh, int LoD = 0) override;
 
-		virtual void Update(time_seconds const& time_delta) override;
+		virtual void					Update(time_seconds const& time_delta) override;
 
 		// Inherited via IRenderable
 		virtual RenderFlags GetRenderFlags() const override;
@@ -42,8 +45,14 @@ namespace Causality
 		virtual void Render(RenderContext & pContext, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
+	protected:
+		// Automatic displacement by analyze joints contact ground
+		void							DisplaceByVelocityFrame();
+		void							ComputeVelocityFrame(time_seconds time_delta);
+
 	private:
 		BehavierSpace*					        m_pBehavier;
+		IArmature*								m_pArmature;
 		BehavierSpace::animation_type*			m_pCurrentAction;
 		BehavierSpace::animation_type*			m_pLastAction;
 		time_seconds							m_CurrentActionTime;
@@ -51,8 +60,11 @@ namespace Causality
 
 		int										m_FrameMapState;
 		frame_type						        m_CurrentFrame;
+		frame_type								m_LastFrame;
+		velocity_frame_type						m_VelocityFrame;
 
-		bool									m_DirtyFlag;
+		bool									m_UpdateLock;
+		bool									m_IsAutoDisplacement;
 	};
 
 	void DrawArmature(const IArmature & armature, const AffineFrame & frame, const Color & color, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);

@@ -131,7 +131,7 @@ namespace Causality
 			DirectX::Vector3 GetPosition() const;
 			DirectX::Quaternion GetOrientation() const;
 			DirectX::Vector3 GetScale() const;
-			DirectX::ScaledRigidTransform GetWorldTransform() const;
+			DirectX::IsometricTransform GetWorldTransform() const;
 			DirectX::XMMATRIX GetWorldTransformMatrix() const;
 
 		private:

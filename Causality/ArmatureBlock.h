@@ -1,5 +1,7 @@
 #pragma once
 #include "Armature.h"
+#include "GaussianProcess.h"
+#include "PcaCcaMap.h"
 
 namespace Causality
 {
@@ -29,6 +31,8 @@ namespace Causality
 	class BlockFeatureExtractor abstract
 	{
 	public:
+		using RowVectorX = Eigen::RowVectorXf;
+
 		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame) = 0;
 		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame, _In_ const AffineFrame& last_frame, float frame_time)
 		{
@@ -136,6 +140,7 @@ namespace Causality
 		int					Index;				// Index for this block, valid only through this layer
 		int					LoD;				// Level of detail
 		vector<const Joint*>Joints;				// Contained Joints
+		//AffineFrame			ChainFrame;			// Stores the length data and etc
 
 												// Structural feature
 		int					LoG;				// Level of Grounding
@@ -158,14 +163,21 @@ namespace Causality
 		// Saliansy properties
 		int					ActiveActionCount;
 		vector<string>		ActiveActions;
+		int					SubActiveActionCount;
+		vector<string>		SubActiveActions;
 
 		// Local motion and Principle displacement datas
 		Eigen::MatrixXf						X;		// (Ac*F) x d, Muilti-clip local-motion feature matrix, Ac = Active Action Count, d = block feature dimension
+		Eigen::VectorXf						Wxj;	// Jx1 Hirechical weights
+		Eigen::VectorXf						Wx;		// dJx1 Weights replicated along dim
 		Eigen::MatrixXf						Pd;		// Muilti-clip Principle Displacement
 
-		Eigen::PcaCcaMap					PdDriver; // Muilti-clip deducted driver from Principle displacement to local motion
+		PcaCcaMap							PdCca; // Muilti-clip deducted driver from Principle displacement to local motion
 		Eigen::MatrixXf						PvCorr; // ActiveActionCount x ActiveActionCount, record the pv : pv correlation 
 		float								PvDriveScore;
+
+		gaussian_process_regression			PdGpr;
+		double								ObrsvVar; // The cannonical value's varience give observation
 
 		KinematicBlock()
 		{
@@ -180,6 +192,7 @@ namespace Causality
 			LoDParent = 0;
 			Dominator = 0;
 			ActiveActionCount = 0;
+			SubActiveActionCount = 0;
 		}
 		// Motion and geometry feature
 		//bool				IsActive;			// Is this feature "Active" in energy?
@@ -221,6 +234,8 @@ namespace Causality
 		typedef std::vector<KinematicBlock*> cache_type;
 
 		void SetArmature(const IArmature& armature);
+
+		void ComputeWeights();
 
 		explicit BlockArmature(const IArmature& armature);
 

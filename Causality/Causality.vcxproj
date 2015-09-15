@@ -30,6 +30,8 @@
     <DirectXTKDir>D:\SDKs\DirectXTK</DirectXTKDir>
     <Bullet3Dir>..\..\bullet3</Bullet3Dir>
     <DirectXHelperDir>..\DirectX</DirectXHelperDir>
+    <DLibDir>D:\SDKs\dlib-18.17\</DLibDir>
+    <EigenDir>D:\SDKs\eigen_3_3_alpha1\</EigenDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -77,12 +79,9 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros">
-    <NuGetPackageImportStamp>812200d0</NuGetPackageImportStamp>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
@@ -90,20 +89,20 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)\</IntDir>
@@ -177,11 +176,12 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
       </AdditionalUsingDirectories>
       <AdditionalOptions>/D_SCL_SECURE_NO_WARNINGS /Zm200 %(AdditionalOptions)</AdditionalOptions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;FBXSDK_SHARED;__SSE3__;__SSE4_1__;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PrecompiledHeaderFile>pch_bcl.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)bcl.pch</PrecompiledHeaderOutputFile>
       <DisableSpecificWarnings>4267</DisableSpecificWarnings>
+      <UndefinePreprocessorDefinitions>__AVX__</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -209,12 +209,14 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <AdditionalUsingDirectories>
       </AdditionalUsingDirectories>
       <AdditionalOptions>/D_SCL_SECURE_NO_WARNINGS /Zm200 %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessorDefinitions>_UNICODE;UNICODE;FBXSDK_SHARED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_UNICODE;UNICODE;FBXSDK_SHARED;__SSE3__;__SSE4_1__;__SSE4_2__;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PrecompiledHeaderFile>pch_bcl.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)bcl.pch</PrecompiledHeaderOutputFile>
-      <DisableSpecificWarnings>4267</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4267;4244</DisableSpecificWarnings>
+      <UndefinePreprocessorDefinitions>__AVX__</UndefinePreprocessorDefinitions>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -235,8 +237,11 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AnimationAnalyzer.cpp" />
+    <ClCompile Include="ArmatureTransforms.cpp" />
     <ClCompile Include="CameraObject.cpp" />
+    <ClCompile Include="CharacterController.cpp" />
     <ClCompile Include="CharacterObject.cpp" />
+    <ClCompile Include="GaussianProcess.cpp" />
     <ClCompile Include="LightObject.cpp" />
     <ClCompile Include="pch_bcl.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -257,23 +262,33 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="PlayerProxy.cpp">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
+    <ClCompile Include="RegressionModel.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Armature.cpp" />
     <ClCompile Include="SceneObject.cpp" />
     <ClCompile Include="SceneParser.cpp" />
     <ClCompile Include="SelectorScene.cpp" />
+    <ClCompile Include="Settings.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="SkinningModelFromFbx.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationAnalyzer.h" />
     <ClInclude Include="Animations.h" />
     <ClInclude Include="ArmatureBlock.h" />
+    <ClInclude Include="ArmatureFeature.h" />
+    <ClInclude Include="ArmatureTransforms.h" />
     <ClInclude Include="AssetDictionary.h" />
     <ClInclude Include="BasicShapeModel.h" />
     <ClInclude Include="BoneFeatures.h" />
     <ClInclude Include="CausalityApplication.h" />
     <ClInclude Include="CCA.h" />
     <ClInclude Include="CharacterBehavier.h" />
+    <ClInclude Include="CharacterController.h" />
     <ClInclude Include="CharacterObject.h" />
     <ClInclude Include="Common\BCL.h" />
     <ClInclude Include="Common\CompositeFlag.h" />
@@ -282,6 +297,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="Common\tree.h" />
     <ClInclude Include="Content\OculusDisortionRenderer.h" />
     <ClInclude Include="FbxParser.h" />
+    <ClInclude Include="GaussianProcess.h" />
     <ClInclude Include="Interactive.h" />
     <ClInclude Include="Kinect.h" />
     <ClInclude Include="LeapMotion.h" />
@@ -289,10 +305,12 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="NativeWindow.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="OculusRift.h" />
+    <ClInclude Include="PcaCcaMap.h" />
     <ClInclude Include="pch_bcl.h" />
     <ClInclude Include="PlayerProxy.h" />
     <ClInclude Include="CameraObject.h" />
     <ClInclude Include="ProbalisticModel.h" />
+    <ClInclude Include="RegressionModel.h" />
     <ClInclude Include="RenderContext.h" />
     <ClInclude Include="EigenExtension.h" />
     <ClInclude Include="resource.h" />
@@ -301,6 +319,8 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="Armature.h" />
     <ClInclude Include="SceneParser.h" />
     <ClInclude Include="SelectorScene.h" />
+    <ClInclude Include="Settings.h" />
+    <ClInclude Include="StylizedIK.h" />
     <ClInclude Include="WorldTreeBranch.h" />
   </ItemGroup>
   <ItemGroup>
@@ -327,7 +347,6 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <None Include="Common.hlsli" />
-    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\Textures\SkyBox\GrimmNight\Back.dds">
@@ -387,15 +406,5 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-    <Import Project="packages\Eigen.3.2.4\build\native\Eigen.targets" Condition="Exists('packages\Eigen.3.2.4\build\native\Eigen.targets')" />
-    <Import Project="packages\cereal.1.0.0\build\native\cereal.targets" Condition="Exists('packages\cereal.1.0.0\build\native\cereal.targets')" />
-  </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('packages\Eigen.3.2.4\build\native\Eigen.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Eigen.3.2.4\build\native\Eigen.targets'))" />
-    <Error Condition="!Exists('packages\cereal.1.0.0\build\native\cereal.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\cereal.1.0.0\build\native\cereal.targets'))" />
-  </Target>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

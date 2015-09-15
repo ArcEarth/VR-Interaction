@@ -68,21 +68,12 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(BOOST_ROOT);D:\SDKs\DirectXTK\Inc;..\..\DirectX\Inc;$(IncludePath)</IncludePath>
-    <LibraryPath>$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
+  <PropertyGroup Label="UserMacros">
+    <CGALDIR>D:\SDKs\CGAL-4.6.2</CGALDIR>
+    <DirectXTKDir>D:\SDKs\DirectXTK</DirectXTKDir>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(BOOST_ROOT);D:\SDKs\DirectXTK\Inc;..\..\DirectX\Inc;$(IncludePath)</IncludePath>
-    <LibraryPath>$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(BOOST_ROOT);D:\SDKs\DirectXTK\Inc;..\..\DirectX\Inc;$(IncludePath)</IncludePath>
-    <LibraryPath>$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(BOOST_ROOT);D:\SDKs\DirectXTK\Inc;..\..\DirectX\Inc;$(IncludePath)</IncludePath>
+  <PropertyGroup>
+    <IncludePath>$(BOOST_ROOT);$(DirectXTKDir)\Inc;$(CGALDIR)\include;..\..\DirectX\Inc;$(IncludePath)</IncludePath>
     <LibraryPath>$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

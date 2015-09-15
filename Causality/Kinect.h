@@ -248,11 +248,23 @@ namespace Causality
 		bool operator==(const TrackedBody& rhs) const { return Id == rhs.Id; }
 		bool operator!=(const TrackedBody& rhs) const { return !(Id == rhs.Id); }
 
+		void SetBufferSize(size_t pastFrame, size_t unprocessFrame);
+
 		// Frame management
 		Causality::AffineFrame& PullLatestFrame() const;
 		Causality::AffineFrame& PullNextFrame() const;
 
 		Causality::AffineFrame& CurrentFrame() const;
+
+		// Get Historical or Future 
+		// relativeIndex = 0, returns latest unprocess frame
+		// relativeIndex > 0, return "future" frames
+		// relativeIndex < 0, return past frames
+		bool GetFrameAt(FrameType& outFrame, int relativeIndex) const;
+
+		// Get Historical or Future frames
+		// Body-pose is Lerp-ed between frame
+		bool GetFrameAt(FrameType& outFrame, const time_seconds& relateTimve) const;
 
 		// Accessers
 		Devices::KinectSensor& GetSensor() const { return *m_pKinectSensor; }
@@ -390,6 +402,9 @@ namespace Causality
 			// If Kinect is moving, this function should be called every frame
 			// Should be valiad before the call to Process Frame
 			void SetDeviceCoordinate(const DirectX::Matrix4x4& mat);
+			void EnableMirrowing(bool enable_mirrow);
+			bool IsMirrowingEnable() const;
+
 			const DirectX::Matrix4x4& GetDeviceCoordinate();
 
 			// Process frame and trigger the events

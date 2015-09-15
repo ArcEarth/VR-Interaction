@@ -1,31 +1,32 @@
 #include "pch_bcl.h"
 #include "AnimationAnalyzer.h"
 #include <algorithm>
-#include <Eigen\fft>
+#include <unsupported\Eigen\fft>
 #include <ppl.h>
+#include "CCA.h"
 
 using namespace Causality;
 using namespace std;
 using namespace Concurrency;
 
-AnimationAnalyzer::AnimationAnalyzer(const BlockArmature & bArm)
+ClipInfo::ClipInfo(const BlockArmature & bArm)
 	:pBlockArmature(&bArm), PcaCutoff(0.01f), IsReady(false), EnergyCutoff(0.35f), PerceptiveVectorReconstructor(pBlockArmature->size())
 {
 }
 
-AnimationAnalyzer::~AnimationAnalyzer()
+ClipInfo::~ClipInfo()
 {
 }
 
-task<void> AnimationAnalyzer::ComputeFromFramesAsync(const std::vector<AffineFrame>& frames)
+task<void> ClipInfo::ComputeFromFramesAsync(const std::vector<AffineFrame>& frames)
 {
 	return create_task([this, &frames]() {
 		this->ComputeFromFrames(frames);
 	});
-	//pComputingThread = make_unique<thread>(&AnimationAnalyzer::ComputeFromFrames,this, std::cref(frames));
+	//pComputingThread = make_unique<thread>(&ClipInfo::ComputeFromFrames,this, std::cref(frames));
 }
 
-void AnimationAnalyzer::ComputeFromFrames(const std::vector<AffineFrame>& frames)
+void ClipInfo::ComputeFromFrames(const std::vector<AffineFrame>& frames)
 {
 	//std::cout << "Computation start" << endl;
 	IsReady = false;
@@ -55,13 +56,13 @@ void AnimationAnalyzer::ComputeFromFrames(const std::vector<AffineFrame>& frames
 	//std::cout << "Computation finished" << endl;
 }
 
-void AnimationAnalyzer::ComputeFromBlocklizedMat(const Eigen::MatrixXf & mat)
+void ClipInfo::ComputeFromBlocklizedMat(const Eigen::MatrixXf & mat)
 {
 	X = mat;
 	ComputePcaQr();
 }
 
-void AnimationAnalyzer::BlocklizationAndComputeEnergy(const std::vector<AffineFrame>& frames)
+void ClipInfo::BlocklizationAndComputeEnergy(const std::vector<AffineFrame>& frames)
 {
 	static const auto DimPerBone = CharacterFeature::Dimension;
 	auto numBones = pBlockArmature->Armature().size();
@@ -109,11 +110,13 @@ void AnimationAnalyzer::BlocklizationAndComputeEnergy(const std::vector<AffineFr
 	Ejrot = Ej.replicate(3, 1) - Ej3;
 
 	const auto& blocks = *pBlockArmature;
-	Eb.resize(blocks.size());
-	Eb3.resize(3, blocks.size());
-	Ebrot.resize(3,blocks.size());
+	Eb.setZero(blocks.size());
+	Eb3.setZero(3, blocks.size());
+	Ebrot.setZero(3,blocks.size());
 	Xbs.resize(blocks.size());
+	DimX.resize(blocks.size());
 
+	Eigen::Pca<Eigen::MatrixXf> pca;
 	for (auto& block : blocks)
 	{
 		auto i = block->Index;
@@ -133,6 +136,9 @@ void AnimationAnalyzer::BlocklizationAndComputeEnergy(const std::vector<AffineFr
 		}
 
 		Xbs[i] = Yb;
+
+		pca.compute(Yb);
+		DimX[i] = pca.reducedRank(0.01f);
 	}
 
 	Eb = Eb.cwiseSqrt();
@@ -152,7 +158,7 @@ void AnimationAnalyzer::BlocklizationAndComputeEnergy(const std::vector<AffineFr
 	//}
 }
 
-void AnimationAnalyzer::ComputePcaQr()
+void ClipInfo::ComputePcaQr()
 {
 	static const auto DimPerBone = CharacterFeature::Dimension;
 	auto numBones = pBlockArmature->Armature().size();
@@ -179,14 +185,14 @@ void AnimationAnalyzer::ComputePcaQr()
 		auto d = pca.reducedRank(PcaCutoff);
 		Qrs[i].compute(pca.coordinates(d), true);
 
-		auto pvs = Eigen::Matrix<float, CLIP_FRAME_COUNT, 3, Eigen::RowMajor>::Map(Pvs.col(i).data());
+		auto pvs = Eigen::Matrix<float, -1, 3, Eigen::RowMajor>::Map(Pvs.col(i).data(), CLIP_FRAME_COUNT, 3);
 		PvPcas[i].compute(pvs);
 		PvQrs[i].compute(PvPcas[i].coordinates(3),true);
 		//std::cout << "Pca finish" << endl;
 	});
 }
 
-void AnimationAnalyzer::ComputeSpatialTraits(const std::vector<AffineFrame> &frames)
+void ClipInfo::ComputeSpatialTraits(const std::vector<AffineFrame> &frames)
 {
 	int gblRefId = (*pBlockArmature)[0]->Joints.back()->ID();
 	auto frameCount = frames.size();

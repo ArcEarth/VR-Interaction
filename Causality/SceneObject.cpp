@@ -10,6 +10,7 @@ using namespace DirectX::Scene;
 bool Causality::g_DebugView = false;
 bool Causality::g_ShowCharacterMesh = true;
 float Causality::g_DebugArmatureThinkness = 0.005f;
+bool Causality::g_MirrowInputX = false;
 
 
 void XM_CALLCONV DrawBox(_In_reads_(8) Vector3 *conners, FXMVECTOR color)
@@ -123,10 +124,14 @@ Vector3 Causality::SceneObject::GetPosition() const {
 }
 
 Quaternion Causality::SceneObject::GetOrientation() const {
+	if (m_TransformDirty)
+		UpdateTransformsParentWard();
 	return m_Transform.GblRotation;
 }
 
 Vector3 Causality::SceneObject::GetScale() const {
+	if (m_TransformDirty)
+		UpdateTransformsParentWard();
 	return m_Transform.GblScaling;
 }
 
@@ -179,13 +184,13 @@ void SceneObject::SetScale(const Vector3 & s)
 	SetTransformDirty();
 }
 
-void Causality::SceneObject::SetLocalTransform(const DirectX::ScaledRigidTransform & lcl)
+void Causality::SceneObject::SetLocalTransform(const DirectX::IsometricTransform & lcl)
 {
 	m_Transform.LocalTransform() = lcl;
 	SetTransformDirty();
 }
 
-const DirectX::ScaledRigidTransform & Causality::SceneObject::GetGlobalTransform() const
+const DirectX::IsometricTransform & Causality::SceneObject::GetGlobalTransform() const
 {
 	if (m_TransformDirty)
 		UpdateTransformsParentWard();
@@ -244,7 +249,7 @@ void VisualObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect)
 {
 	if (g_ShowCharacterMesh && m_pRenderModel)
 		m_pRenderModel->Render(pContext, GlobalTransformMatrix(), pEffect);
-	if (g_ShowCharacterMesh && g_DebugView)
+	if (g_ShowCharacterMesh && g_DebugView && m_pRenderModel)
 	{
 		BoundingGeometry geo(m_pRenderModel->GetBoundingBox());
 		geo.Transform(geo, GlobalTransformMatrix());
@@ -268,7 +273,7 @@ Causality::VisualObject::VisualObject()
 
 bool VisualObject::IsVisible(const BoundingGeometry & viewFrustum) const
 {
-	if (!m_isVisable) return false;
+	if (!m_isVisable || m_pRenderModel == nullptr) return false;
 	auto box = m_pRenderModel->GetOrientedBoundingBox();
 	box.Transform(box, this->GlobalTransformMatrix());
 	return viewFrustum.Contains(box) != DirectX::ContainmentType::DISJOINT;

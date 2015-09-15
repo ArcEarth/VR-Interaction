@@ -2,6 +2,7 @@
 #include "BezierClip.h"
 #include <vector>
 #include <list>
+#include <CGAL\Polyhedron_3.h>
 
 namespace Geometrics
 {
@@ -50,6 +51,8 @@ namespace Geometrics
 				// next half edge
 				HalfEdge* next;
 
+				Vertex* incident_vertex() const;
+				Vertex* incident_vertex() const;
 			};
 
 			struct Face

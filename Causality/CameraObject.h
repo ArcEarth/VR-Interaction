@@ -54,9 +54,6 @@ namespace Causality
 	class ICamera
 	{
 	public:
-		virtual ~ICamera()
-		{}
-
 		virtual size_t ViewCount() const = 0;
 		virtual IViewControl* GetView(int view = 0) = 0;
 		virtual size_t ViewRendererCount(int view = 0) const = 0;

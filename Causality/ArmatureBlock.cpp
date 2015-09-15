@@ -1,5 +1,6 @@
 #include "pch_bcl.h"
 #include "ArmatureBlock.h"
+#include "Animations.h"
 
 using namespace Causality;
 using namespace DirectX;
@@ -11,13 +12,39 @@ void Causality::BlockArmature::SetArmature(const IArmature & armature)
 	m_pArmature = &armature;
 	m_pRoot.reset(ShrinkChainToBlock(armature.root()));
 	int idx = 0, accumIdx = 0;
+
 	for (auto& block : m_pRoot->nodes())
 	{
 		m_BlocksCache.push_back(&block);
 		block.Index = idx++;
 		block.AccumulatedJointCount = accumIdx;
 		accumIdx += block.Joints.size();
+		//block.Wx = block.Wx.array().exp();
 	}
+}
+
+void Causality::BlockArmature::ComputeWeights()
+{
+	const auto& frame = m_pArmature->default_frame();
+
+	for (auto& pblcok : m_BlocksCache)
+	{
+		auto& block = *pblcok;
+		float length = 0;
+		block.Wxj.resize(block.Joints.size());
+		block.Wxj.setZero();
+		for (int i = block.Joints.size() - 1; i >= 0; --i)
+		{
+			length += frame[block.Joints[i]->ID()].LclTranslation.Length();
+			block.Wxj[i] = length;
+		}
+
+		//block.Wxj /= block.Wxj[block.Wxj.size()-1];
+
+		Matrix<float, -1, -1, RowMajor> wx = block.Wxj.replicate(1, 3).eval();
+		block.Wx = VectorXf::Map(wx.data(), wx.size());
+	}
+
 }
 
 Causality::BlockArmature::BlockArmature(const IArmature & armature)

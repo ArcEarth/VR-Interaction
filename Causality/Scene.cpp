@@ -34,7 +34,7 @@ ICamera * Scene::PrimaryCamera()
 bool Scene::SetAsPrimaryCamera(ICamera * camera)
 {
 	//if (camera->Scene != this) return false;
-	//primary_cameral = camera;
+	primary_cameral = camera;
 	//camera->SetRenderTarget(Canvas());
 	return true;
 }

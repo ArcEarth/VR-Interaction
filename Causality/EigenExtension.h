@@ -1,12 +1,9 @@
 #pragma once
-#include <Eigen\Dense>
-#include <Eigen\fft>
-#include <Eigen\Sparse>
+#include <Eigen\Core>
 #include <algorithm>
-#include "Common\BezierClip.h"
-
 #include <cstdlib>
 #include <cstdint>
+#include "Common\BezierClip.h"
 
 
 namespace Eigen {

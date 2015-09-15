@@ -2,8 +2,13 @@
 #include "Source.h"
 #include "..\Causality\CCA.h"
 #include "..\Causality\EigenExtension.h"
-#include <iomanip>
+#include "..\Causality\GaussianProcess.h"
+// good boy don't do this....
+#define _PCH_BCL_ // use this flag to trick the pre-compile header
+#include "..\Causality\GaussianProcess.cpp"
 
+
+using namespace Eigen;
 using namespace DirectX;
 using namespace std;
 using namespace boost::filesystem;
@@ -67,7 +72,7 @@ void PrintCurveNode(const char* propertyName, FbxAnimCurveNode* pCurveNode)
 {
 	PrintTabs();
 
-	printf("<animation property='%s'>\n",propertyName);
+	printf("<animation property='%s'>\n", propertyName);
 	++numTabs;
 	int numChannels = pCurveNode->GetChannelsCount();
 	for (int chlIdx = 0; chlIdx < numChannels; chlIdx++)
@@ -100,7 +105,7 @@ void PrintCurveNode(const char* propertyName, FbxAnimCurveNode* pCurveNode)
 }
 
 std::vector<const char*> g_NodeNames;
-Eigen::Array<Eigen::Array<float,2,3>, Eigen::Dynamic, Eigen::Dynamic> g_AnimationFrameBuffer;
+Eigen::Array<Eigen::Array<float, 2, 3>, Eigen::Dynamic, Eigen::Dynamic> g_AnimationFrameBuffer;
 std::vector<FbxNode*>	g_SkeletonNodes;
 
 int g_Frames;
@@ -158,6 +163,26 @@ void PrintNode(FbxNode* pNode) {
 	printf("</node>\n");
 }
 
+bool read_csv(MatrixXf& mat, const path& file_path)
+{
+	ifstream xin(file_path.wstring());
+	if (!xin.is_open())
+		return false;
+	char ch;
+	for (int i = 0; i < mat.rows(); i++)
+	{
+		for (int j = 0; j < mat.cols(); j++)
+		{
+			xin >> mat(i, j);
+			if (j < mat.cols() - 1)
+			{
+				xin >> ch; //  read the comma ','
+			}
+		}
+	}
+	return true;
+}
+
 /**
 * Main function - loads the hard-coded fbx file,
 * and prints its contents in an xml format to stdout.
@@ -168,14 +193,91 @@ int main(int argc, wchar_t** argv)
 	using namespace Eigen;
 
 	// Resample Test
-	Eigen::VectorXf v(6);
-	v << 0, 1, 3, 7, 3, 1;
-	cout << " X = " << v.transpose() << endl;;
-	laplacian_smooth(v);
-	cout << " Y = " << v.transpose() << endl;;
+	//Eigen::VectorXf v(6);
+	//v << 0, 1, 3, 7, 3, 1;
+	//cout << " X = " << v.transpose() << endl;;
+	//laplacian_smooth(v);
+	//cout << " Y = " << v.transpose() << endl;;
+
+	// CSV file
+	//string chara = "cat_LeftUpLeg";
+	//MatrixXf X(270, 3), Y(270, 15);
+	//auto param = Vector3d(1.0, 100, 0.1);
+	
+	//string chara = "cat_LeftUpLeg";
+
+	string chara = "horse_RightUpLeg";
+	MatrixXf X(180, 3), Y(180, 15);
+	auto param = Vector3d(0.862425, 1000, 0.1);
+
+	path Xfile(R"(D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CharacterAnalayze\)" + chara + ".pd.csv");
+	path Yfile(R"(D:\User\Yupeng\Documents\GitHub\VR-Interaction\Causality\CharacterAnalayze\)" + chara + ".x.csv");
+	read_csv(X, Xfile);
+	read_csv(Y, Yfile);
+
+	// downsample to 30 frame/clip
+	//X.topRows(30) = cublic_bezier_resample(X.topRows(90), 30);
+	//X.middleRows(30, 30) = cublic_bezier_resample(X.middleRows(90, 90), 30);
+	//X.middleRows(60, 30) = cublic_bezier_resample(X.middleRows(180, 90), 30);
+	//Y.topRows(30) = cublic_bezier_resample(Y.topRows(90), 30);
+	//Y.middleRows(30, 30) = cublic_bezier_resample(Y.middleRows(90, 90), 30);
+	//Y.middleRows(60, 30) = cublic_bezier_resample(Y.middleRows(180, 90), 30);
+	//X.conservativeResize(90, NoChange);
+	//Y.conservativeResize(90, NoChange);
+
+
+	RowVectorXf xmin = X.colwise().minCoeff();
+	RowVectorXf xmax = X.colwise().maxCoeff();
+
+	Causality::gaussian_process_regression gpr(X, Y);
+
+	//gpr.update_kernal(param);
+	//gpr.optimze_parameters(param);
+	gpr.optimze_parameters();
+
+	cout << "Parameters : " << gpr.get_parameters().transpose() << endl;
+
+
+	MatrixXd pdf(100, 100);
+	pdf.setZero();
+
+	//for (int i = 0; i < 100; i++)
+	//for (int j = 0; j < 100; j++)
+	concurrency::parallel_for(0, 100 * 100, [&pdf, &gpr, xmax, xmin](int ij)
+	{
+		RowVectorXd x(3);
+		int i = ij / 100;
+		int j = ij % 100;
+
+		double v = i / 99.0, u = j / 99.0;
+		x[0] = xmin[0] * (1 - v) + xmax[0] * v;
+		x[2] = xmin[2] * (u)+xmax[2] * (1 - u);
+		x[1] = gpr.uX[1];
+
+		//pdf(i, j) = std::max(-gpr.likelihood_in_exception(x), pdf(i, j));
+		double sum = numeric_limits<double>::min();
+		MatrixXd xs = x.replicate(100, 1);
+
+		for (int k = 0; k < 100; k++)
+		{
+			double w = k / 99.0;
+			xs(k,1) = xmin[1] * (1 - w) + xmax[1] * w;
+			x[1] = xs(k, 1);
+			//sum = std::max(sum, -gpr.get_expectation_and_likelihood(x, nullptr));
+		}
+
+		auto like = gpr.get_expectation_and_likelihood(xs, nullptr);
+		sum = -like.minCoeff();
+
+		pdf(i, j) = sum;
+	});
+
+	//char c;
+	//cin >> c;
+	return 0;
 
 	// CCA Test
-	Eigen::MatrixXf X(6,3), Y(6,3);
+	//Eigen::MatrixXf X(6,3), Y(6,3);
 	//X<< 1, 0, 0,
 	//	0, 1, 0,
 	//	0, 0, 1,
@@ -216,7 +318,7 @@ int main(int argc, wchar_t** argv)
 	system("PAUSE");
 	exit(0);
 
-	Eigen::MeanThinQr<Eigen::MatrixXf> qrX(X),qrY(Y);
+	Eigen::MeanThinQr<Eigen::MatrixXf> qrX(X), qrY(Y);
 	cout << "QR(X) : " << endl;
 	cout << "Qx = \n" << qrX.matrixQ() << endl;
 	cout << "Rx = \n" << qrX.m_R << endl;
@@ -229,7 +331,7 @@ int main(int argc, wchar_t** argv)
 	cout << "Qy * Ry = \n" << qrY.matrixQ() * qrY.matrixR() << endl;
 
 	Eigen::Cca<float> cca;
-	cca.computeFromQr(qrX, qrY,true);
+	cca.computeFromQr(qrX, qrY, true);
 	cout << "CCA : " << endl;
 	cout << "A = \n" << cca.matrixA() << endl;
 	cout << "B = \n" << cca.matrixB() << endl;
@@ -379,8 +481,8 @@ int main(int argc, wchar_t** argv)
 				q = XMQuaternionLn(q);
 
 				transform << t[0], t[1], t[2],
-							 //r[0], r[1], r[2];
-							 q.x,  q.y,  q.z;
+					//r[0], r[1], r[2];
+					q.x, q.y, q.z;
 				//s[0], s[1], s[2];
 				time += g_FrameTime;
 			}
@@ -403,7 +505,7 @@ int main(int argc, wchar_t** argv)
 				}
 
 				fout << m(0, 0) << ',' << m(0, 1) << ',' << m(0, 2) << ','
-					 << m(1, 0) << ',' << m(1, 1) << ',' << m(1, 2) << ',';
+					<< m(1, 0) << ',' << m(1, 1) << ',' << m(1, 2) << ',';
 			}
 			fout << endl;
 		}
@@ -463,10 +565,10 @@ void LogMapLinertyTest()
 	Lq3 = Lq1 - Lq2;
 	Lq3 = XMQuaternionExp(Lq3);
 	Lq3 = XMQuaternionNormalize(Lq3);
-	Quaternion lq = Lq3;
+	DirectX::Quaternion lq = Lq3;
 
 	XMVECTOR Sq3 = XMQuaternionMultiply(XMQuaternionConjugate(Q2), Q1);
-	Quaternion sq = Sq3;
+	DirectX::Quaternion sq = Sq3;
 	cout << "Log interpolate : " << lq << endl;
 	cout << "Sphere interpolate : " << sq << endl;
 }

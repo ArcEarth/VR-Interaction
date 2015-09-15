@@ -7,6 +7,7 @@ using namespace DirectX;
 using namespace Eigen;
 using namespace std;
 
+size_t Causality::CLIP_FRAME_COUNT = 90U;
 
 AffineFrame::AffineFrame(size_t size)
 	: BaseType(size)

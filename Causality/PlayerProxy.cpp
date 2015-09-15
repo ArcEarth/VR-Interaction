@@ -1,605 +1,55 @@
 #include "pch_bcl.h"
-#include "PlayerProxy.h"
 #include <PrimitiveVisualizer.h>
 #include <fstream>
-#include <Eigen\fft>
-#include "CCA.h"
-#include "EigenExtension.h"
-#include "ArmatureBlock.h"
 #include <algorithm>
-#include "AnimationAnalyzer.h"
 #include <ppl.h>
 #include <boost\filesystem.hpp>
 #include <random>
+#include <unsupported\Eigen\fft>
+#include "CCA.h"
+#include "EigenExtension.h"
+#include "GaussianProcess.h"
 
-bool				g_UseGeneralTransform = false;
-bool				g_EnableDebugLogging = true;
-bool				g_EnableRecordLogging = false;
-bool				g_EnableDependentControl = true;
+#include "ArmatureBlock.h"
+#include "AnimationAnalyzer.h"
+
+#include "PlayerProxy.h"
+#include "Scene.h"
+#include <tinyxml2.h>
+#include <boost\format.hpp>
+#include "ArmatureTransforms.h"
+#include "Settings.h"
+
+//					When this flag set to true, a CCA will be use to find the general linear transform between Player 'Limb' and Character 'Limb'
+
+//float				g_NoiseInterpolation = 1.0f;
+
 
 using namespace Causality;
 using namespace Eigen;
 using namespace std;
-
 using boost::filesystem::path;
 
 path g_LogRootDir = "Log";
-
-BlockArmature		g_PlayeerBlocks;
-
-bool				g_DebugLocalMotion = false;
-static const float	PcaCutoff = 0.04f; // 0.2^2
-//static const float	EnergyCutoff = 0.3f;
-static const float	EnergyCutoff = 0.3f;
-
-static const float	CharacterPcaCutoff = 0.004f; // 0.2^2
-static const float	CharacterEnergyCutoff = 0.40f;
-static const float	CharacterEnergyCutoff2 = 0.02f;
-static const float	alpha = 0.8f;
-
-static const float  MatchAccepetanceThreshold = 0.2f;
-
-bool				g_EnableInputFeatureLocalization = true;
-
 static const char*  DefaultAnimationSet = "walk";
+Eigen::RowVector3d	g_NoiseInterpolation = { 1.0,1.0,1.0 };
+const static Eigen::IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n");
+
+BlockArmature			 g_PlayeerBlocks;
 std::map<string, string> g_DebugLocalMotionAction;
-
-#define BEGIN_TO_END(range) range.begin(), range.end()
-
-template <class Derived>
-void ExpandQuadraticTerm(_Inout_ Eigen::DenseBase<Derived> &v, _In_ DenseIndex dim)
-{
-	assert(v.cols() == dim + (dim * (dim + 1) / 2));
-
-	int k = dim;
-	for (int i = 0; i < dim; i++)
-	{
-		for (int j = i; j < dim; j++)
-		{
-			v.col(k) = v.col(i).array() * v.col(j).array();
-			++k;
-		}
-	}
-}
-
-
-void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::FrameType& frame)
-{
-	using namespace Eigen;
-	using namespace DirectX;
-	std::lock_guard<std::mutex> guard(BufferMutex);
-
-	FeatureBuffer.push_back();
-
-	if (FeatureBuffer.size() > RecordFeatures)
-		FeatureBuffer.pop_front(); // everything works fine beside it invaliad the memery...
-
-	if (!FeatureBuffer.is_linearized())
-		FeatureBuffer.linearize();
-
-	auto& fb = FeatureBuffer.back();
-	float* vs = reinterpret_cast<float*>(fb.data());
-
-	for (const auto& block : g_PlayeerBlocks)
-	{
-		auto vsi = RowVectorXf::Map(
-			vs + block->AccumulatedJointCount * InputFeature::Dimension,
-			block->Joints.size() * InputFeature::Dimension);
-
-		vsi = pPlayerFeatureExtrator->Get(*block, frame);
-	}
-}
-
-void PlayerProxy::ResetPlayer(TrackedBody * pOld, TrackedBody * pNew)
-{
-	ClearPlayerFeatureBuffer();
-	SetActiveController(-1);
-}
-
-Eigen::Map<PlayerProxy::FeatureMatrixType> PlayerProxy::GetPlayerFeatureMatrix(time_seconds duration)
-{
-	using namespace std;
-	int si = duration.count() * 30;
-	if (FeatureBuffer.size() >= si)
-	{
-		std::lock_guard<mutex> guard(BufferMutex);
-		si = min(max(si, 0), (int)FeatureBuffer.size());
-		auto sidx = FeatureBuffer.size() - si;
-		auto head = &FeatureBuffer[sidx][0];
-		return FeatureMatrixType::Map(head, si, FeatureMatrixType::ColsAtCompileTime);
-	}
-	else
-	{
-		return FeatureMatrixType::Map((float*)nullptr, 0, FeatureMatrixType::ColsAtCompileTime);
-	}
-}
-
-class CcaArmatureTransform : virtual public ArmatureTransform
-{
-public:
-
-	vector<PcaCcaMap> Maps;
-
-public:
-	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
-	{
-		//const auto dF = frame_type::StdFeatureDimension;
-		//const auto dY = 3;
-		//RowVectorXf X(source_frame.size() * dF);Im
-		//RowVectorXf Y(target_frame.size() * dF);
-		//source_frame.PopulateStdFeatureVector(X);
-		//target_frame.PopulateStdFeatureVector(Y); //! populate non-mapped with default values
-
-		//for (const auto& map : Maps)
-		//{
-		//	auto& Xp = X.middleCols<dF>(map.Jx * dF);
-		//	auto& Yp = Y.middleCols<dY>(map.Jy * dF);
-		//	ApplyCcaMap(map, Xp, Yp);
-		//}
-
-		//target_frame.RebuildFromStdFeatureVector(Y, *pTarget);
-	}
-};
-
-class BlockEndEffectorGblPosQuadratic : public BlockFeatureExtractor
-{
-public:
-	BlockEndEffectorGblPosQuadratic()
-	{
-	}
-
-	typedef BoneFeatures::QuadraticGblPosFeature BoneFeatureType;
-	virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame) override
-	{
-		RowVectorX Y(BoneFeatureType::Dimension);
-
-		BoneFeatures::GblPosFeature::Get(Y.segment<3>(0), frame[block.Joints.back()->ID()]);
-
-		if (block.parent() != nullptr)
-		{
-			RowVectorX reference(BoneFeatures::GblPosFeature::Dimension);
-			BoneFeatures::GblPosFeature::Get(reference, frame[block.parent()->Joints.back()->ID()]);
-			Y.segment<3>(0) -= reference;
-		}
-
-		ExpandQuadraticTerm(Y, 3);
-
-		//Y[3] = Y[0] * Y[0];
-		//Y[4] = Y[1] * Y[1];
-		//Y[5] = Y[2] * Y[2];
-		//Y[6] = Y[0] * Y[1];
-		//Y[7] = Y[1] * Y[2];
-		//Y[8] = Y[2] * Y[0];
-		return Y;
-	}
-
-	// Inherited via BlockFeatureExtractor
-	virtual void Set(const KinematicBlock & block, AffineFrame & frame, const RowVectorX & feature) override
-	{
-		assert(false);
-	}
-};
-
-class BlockizedArmatureTransform : virtual public ArmatureTransform
-{
-protected:
-	const BlockArmature *pSblocks, *pTblocks;
-public:
-
-	BlockizedArmatureTransform() :pSblocks(nullptr), pTblocks(nullptr)
-	{
-		pSource = nullptr;
-		pTarget = nullptr;
-	}
-
-	BlockizedArmatureTransform(const BlockArmature * pSourceBlock, const BlockArmature * pTargetBlock)
-	{
-		SetFrom(pSourceBlock, pTargetBlock);
-	}
-
-	void SetFrom(const BlockArmature * pSourceBlock, const BlockArmature * pTargetBlock)
-	{
-		pSblocks = pSourceBlock; pTblocks = pTargetBlock;
-		pSource = &pSourceBlock->Armature();
-		pTarget = &pTargetBlock->Armature();
-	}
-};
-
-class BlockizedCcaArmatureTransform : public CcaArmatureTransform, public BlockizedArmatureTransform
-{
-public:
-	uptr<BlockFeatureExtractor> pInputExtractor, pOutputExtractor;
-public:
-
-	using BlockizedArmatureTransform::BlockizedArmatureTransform;
-
-	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
-	{
-		const auto& sblocks = *pSblocks;
-		const auto& tblocks = *pTblocks;
-		RowVectorXf X,Y;
-		for (const auto& map : Maps)
-		{
-			if (map.Jx == -1 || map.Jy == -1) continue;
-
-			auto pTb = tblocks[map.Jy];
-			Y = pOutputExtractor->Get(*pTb, target_frame);
-
-			if (map.Jx == -2 && map.Jy >= 0)
-			{
-				vector<RowVectorXf> Xs;
-				int Xsize = 0;
-				for (auto& pBlock : tblocks)
-				{
-					if (pBlock->ActiveActionCount > 0)
-					{
-						Xs.emplace_back(pInputExtractor->Get(*pBlock, source_frame));
-						Xsize += Xs.back().size();
-					}
-				}
-
-				X.resize(Xsize);
-				Xsize = 0;
-				for (auto& xr : Xs)
-				{
-					X.segment(Xsize, xr.size()) = xr;
-					Xsize += xr.size();
-				}
-			}
-			else
-			{
-				auto pSb = sblocks[map.Jx];
-				X = pInputExtractor->Get(*pSb, source_frame);
-			}
-
-			ApplyPcaCcaMap(map, X, Y);
-
-			//cout << " X = " << X << endl;
-			//cout << " Yr = " << Y << endl;
-			pOutputExtractor->Set(*pTb, target_frame, Y);
-
-		}
-
-		//target_frame[0].LclTranslation = source_frame[0].GblTranslation;
-		//target_frame[0].LclRotation = source_frame[0].LclRotation;
-		target_frame.RebuildGlobal(*pTarget);
-	}
-
-	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const AffineFrame& last_frame, float frame_time) const
-	{
-		// redirect to pose transform
-		Transform(target_frame, source_frame);
-		return;
-
-		const auto& sblocks = *pSblocks;
-		const auto& tblocks = *pTblocks;
-		for (const auto& map : Maps)
-		{
-			if (map.Jx == -1 || map.Jy == -1) continue;
-
-			auto pSb = sblocks[map.Jx];
-			auto pTb = tblocks[map.Jy];
-			auto X = pInputExtractor->Get(*pSb, source_frame, last_frame, frame_time);
-			auto Y = pOutputExtractor->Get(*pTb, target_frame);
-
-			ApplyPcaCcaMap(map, X, Y);
-
-			//cout << " X = " << X << endl;
-			//cout << " Yr = " << Y << endl;
-			pOutputExtractor->Set(*pTb, target_frame, Y);
-		}
-
-		//target_frame[0].LclTranslation = source_frame[0].GblTranslation;
-		//target_frame[0].LclRotation = source_frame[0].LclRotation;
-		target_frame.RebuildGlobal(*pTarget);
-	}
-};
-
-class Causality::ClipInfo : public AnimationAnalyzer
-{
-public:
-
-	ClipInfo(const BlockArmature& pBArm)
-		: AnimationAnalyzer(pBArm)
-	{
-		Phi = -1;
-		Score = 0;
-	}
-	// Information for current 'map'
-	int								Phi;
-	std::vector<Eigen::DenseIndex>	Matching;
-	float							Score;
-	MatrixXf						Ra; // Overall correlation
-	MatrixXf						Rk; // Kinetic correlation
-	MatrixXf						Rs; // Positional correlation
-
-	uptr<CcaArmatureTransform>		pLocalBinding;
-};
-
-class PerceptiveVectorBlockFeatureExtractor : public BlockFeatureExtractor
-{
-	map<string, ClipInfo*>*		pClipInfos;
-
-public:
-	float						segma;
-	bool						QuadraticInput;
-
-	PerceptiveVectorBlockFeatureExtractor(map<string, ClipInfo*>* pClips)
-	{
-		QuadraticInput = true;
-		segma = 10;
-		pClipInfos = pClips;
-	}
-public:
-
-	typedef BoneFeatures::GblPosFeature InputFeatureType;
-	typedef CharacterFeature CharacterFeatureType;
-	virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame) override
-	{
-		DenseIndex dim = InputFeatureType::Dimension;
-		if (QuadraticInput)
-			dim += dim * (dim + 1) / 2;
-
-		RowVectorX Y(dim);
-
-		auto& aJoint = *block.Joints.back();
-
-		BoneFeatures::GblPosFeature::Get(Y.segment<3>(0), frame[aJoint.ID()]);
-
-		if (block.parent() != nullptr)
-		{
-			RowVectorX reference(BoneFeatures::GblPosFeature::Dimension);
-			BoneFeatures::GblPosFeature::Get(reference, frame[block.parent()->Joints.back()->ID()]);
-			Y.segment<3>(0) -= reference;
-		}
-
-		if (QuadraticInput)
-		{
-			ExpandQuadraticTerm(Y, InputFeatureType::Dimension);
-		}
-
-		return Y;
-	}
-
-	template <class Derived>
-	void distance2prob(_Inout_ ArrayBase<Derived>& dis)
-	{
-		static const float ProbThreshold = 0.001f;
-
-		dis = (-(dis*dis) / (segma*segma)).exp() / (segma * sqrt(DirectX::XM_2PI));
-
-		float sum = dis.sum();
-		if (sum > ProbThreshold)
-			dis /= sum;
-		else
-			dis.setZero();
-		//return expf(-(dis * dis) / (segma*segma)) / (segma * sqrt(DirectX::XM_2PI));
-	}
-
-	// Inherited via BlockFeatureExtractor
-	virtual void Set(const KinematicBlock & block, AffineFrame & frame, const RowVectorX & feature) override
-	{
-		using namespace DirectX;
-		if (block.ActiveActionCount > 0)
-		{
-			RowVectorXf Y(CharacterFeatureType::Dimension * block.Joints.size());
-
-			if (block.PdDriver.Jx == -1 || block.PdDriver.Jy == -1) return;
-			block.PdDriver.Apply(feature, Y);
-
-			for (size_t j = 0; j < block.Joints.size(); j++)
-			{
-				auto jid = block.Joints[j]->ID();
-				auto Xj = Y.segment<CharacterFeatureType::Dimension>(j * CharacterFeatureType::Dimension);
-				CharacterFeatureType::Set(frame[jid], Xj);
-			}
-
-			return;
-
-			auto pv = feature.segment<3>(0);
-
-			MatrixXf locomotion(block.ActiveActionCount, CharacterFeatureType::Dimension * block.Joints.size());
-			VectorXf probs(block.ActiveActionCount);
-
-			int i = 0;
-			for (auto& action : block.ActiveActions)
-			{
-				auto& clipinfo = *(*pClipInfos)[action];
-
-				// input perceptive vector
-
-
-				// chracter perceptive vectors
-				auto cpvs = Eigen::Matrix<float, CLIP_FRAME_COUNT, 3, Eigen::RowMajor>::Map(clipinfo.Pvs.col(block.Index).data());
-
-				// use linear interpolation to evaluate
-				// distance from input feature vector to clip trajectory
-				float dis = LineSegmentTest::Distance(DirectX::XMLoadFloat3(pv.data()),
-					reinterpret_cast<XMFLOAT3*>(cpvs.data()),
-					CLIP_FRAME_COUNT);
-
-				//float dis = sqrtf((cpvs.rowwise() - pv).rowwise().squaredNorm().minCoeff());
-				probs[i] = dis;
-
-				auto& map = clipinfo.PerceptiveVectorReconstructor[block.Index];
-				map.Apply(feature, locomotion.row(i));
-				i++;
-			}
-
-			distance2prob(probs.array());
-
-			if (probs.maxCoeff() > 0.001)
-			{
-				locomotion = probs.asDiagonal() * locomotion;
-
-				Y = locomotion.colwise().sum();
-
-				for (size_t j = 0; j < block.Joints.size(); j++)
-				{
-					auto jid = block.Joints[j]->ID();
-					auto Xj = Y.segment<CharacterFeatureType::Dimension>(j * CharacterFeatureType::Dimension);
-					CharacterFeatureType::Set(frame[jid], Xj);
-				}
-			}
-		}
-	}
-};
-
-class BlockizedSpatialInterpolateQuadraticTransform : public BlockizedCcaArmatureTransform
-{
-
-public:
-	BlockizedSpatialInterpolateQuadraticTransform(map<string, ClipInfo*>* pClips)
-	{
-		pClipInfoMap = pClips;
-		auto pIF = new PerceptiveVectorBlockFeatureExtractor(pClips);
-		pIF->QuadraticInput = true;
-		pInputExtractor.reset(pIF);
-
-		auto pOF = new PerceptiveVectorBlockFeatureExtractor(pClips);
-		pOF->segma = 30;
-		pOutputExtractor.reset(pOF);
-
-		pDependentBlockFeature.reset(new BlockAllJointsFeatureExtractor<CharacterFeature>(false));
-	}
-
-	BlockizedSpatialInterpolateQuadraticTransform(map<string, ClipInfo*>* pClips, const BlockArmature * pSourceBlock, const BlockArmature * pTargetBlock)
-		: BlockizedSpatialInterpolateQuadraticTransform(pClips)
-	{
-		SetFrom(pSourceBlock, pTargetBlock);
-		pvs.resize(pTargetBlock->size());
-	}
-
-	map<string, ClipInfo*>*		pClipInfoMap;
-
-	mutable vector<pair<Vector3, Vector3>> pvs;
-	uptr<BlockFeatureExtractor> pDependentBlockFeature;
-
-	void Render(ID3D11DeviceContext *pContext, DirectX::CXMVECTOR color, DirectX::CXMMATRIX world)
-	{
-		using namespace DirectX;
-		auto& drawer = DirectX::Visualizers::g_PrimitiveDrawer;
-		drawer.SetWorld(DirectX::XMMatrixIdentity());
-		
-		//drawer.Begin();
-		for (const auto& map : Maps)
-		{
-			auto& line = pvs[map.Jy];
-			XMVECTOR p0, p1;
-			p0 = XMVector3Transform(line.first.Load(), world);
-			p1 = XMVector3Transform(line.second.Load(), world);
-			//drawer.DrawLine(line.first, line.second, color);
-
-			if (map.Jx >= 0)
-			{
-
-				drawer.DrawCylinder(p0, p1, g_DebugArmatureThinkness, color);
-				drawer.DrawSphere(p1, g_DebugArmatureThinkness * 1.5f, color);
-			}
-			else
-			{
-				drawer.DrawSphere(p0, g_DebugArmatureThinkness * 2.0f, color);
-			}
-		}
-		//drawer.End();
-	}
-
-	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
-	{
-		const auto& sblocks = *pSblocks;
-		const auto& tblocks = *pTblocks;
-
-		int abcount = 0;
-		for (const auto& map : Maps)
-		{
-			//Y = X;
-			if (map.Jx < 0 || map.Jy < 0) continue;
-
-			auto pSb = sblocks[map.Jx];
-			auto pTb = tblocks[map.Jy];
-			auto X = pInputExtractor->Get(*pSb, source_frame);
-			auto Y = pOutputExtractor->Get(*pTb, target_frame);
-
-
-			ApplyPcaCcaMap(map, X.leftCols<3>(), Y);
-
-			Y.conservativeResize(9);
-			ExpandQuadraticTerm(Y, 3);
-
-			//cout << " X = " << X << endl;
-			//cout << " Yr = " << Y << endl;
-			pOutputExtractor->Set(*pTb, target_frame, Y);
-
-			abcount++;
-			pvs[map.Jy].second = Vector3(Y.segment<3>(0).data());
-		}
-
-		target_frame.RebuildGlobal(*pTarget);
-
-		// Fill Xabpv
-		RowVectorXf Xabpv;
-		Xabpv.resize(abcount * 9);
-		abcount = 0;
-		for (const auto& map : Maps)
-		{
-			if (map.Jx < 0 || map.Jy < 0) continue;
-
-			auto Yi = Xabpv.segment<9>(abcount * 9);
-			Yi.segment<3>(0) = Vector3f::Map(&pvs[map.Jy].second.x);
-			ExpandQuadraticTerm(Yi, 3);
-
-			abcount++;
-		}
-
-		// Dependent blocks
-		for (const auto& map : Maps)
-		{
-			if (map.Jx == -2 && map.Jy >= 0)
-			{
-				if (map.uXpca.size() == Xabpv.size())
-				{
-					auto pTb = tblocks[map.Jy];
-					auto Y = pOutputExtractor->Get(*pTb, target_frame);
-					map.Apply(Xabpv, Y);
-					pDependentBlockFeature->Set(*pTb, target_frame, Y);
-				}
-				else
-				{
-
-				}
-			}
-		}
-
-
-		for (const auto& map : Maps)
-		{
-			auto pTb = tblocks[map.Jy];
-
-			if (pTb->parent())
-				pvs[map.Jy].first = target_frame[pTb->parent()->Joints.back()->ID()].GblTranslation;
-			pvs[map.Jy].second += pvs[map.Jy].first;
-		}
-
-	}
-
-	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const AffineFrame& last_frame, float frame_time) const override
-	{
-		Transform(target_frame, source_frame);
-	}
-};
-
+bool					 g_DebugLocalMotion = false;
 
 pair<JointType, JointType> XFeaturePairs[] = {
-	{JointType_SpineBase, JointType_SpineShoulder},
+	{ JointType_SpineBase, JointType_SpineShoulder },
 	{ JointType_SpineShoulder, JointType_Head },
-	{JointType_ShoulderLeft, JointType_ElbowLeft},
-	{JointType_ShoulderRight, JointType_ElbowRight },
+	{ JointType_ShoulderLeft, JointType_ElbowLeft },
+	{ JointType_ShoulderRight, JointType_ElbowRight },
 	{ JointType_ElbowLeft, JointType_HandLeft },
 	{ JointType_ElbowRight, JointType_HandRight },
-	{ JointType_HipLeft, JointType_KneeLeft},
-	{ JointType_HipRight, JointType_KneeRight},
-	{ JointType_KneeLeft, JointType_AnkleLeft},
-	{ JointType_KneeRight, JointType_AnkleRight},
+	{ JointType_HipLeft, JointType_KneeLeft },
+	{ JointType_HipRight, JointType_KneeRight },
+	{ JointType_KneeLeft, JointType_AnkleLeft },
+	{ JointType_KneeRight, JointType_AnkleRight },
 	//{ JointType_HandLeft, JointType_HandTipLeft },
 	//{ JointType_HandRight, JointType_HandTipRight },
 	//{ JointType_HandLeft, JointType_ThumbLeft },
@@ -625,13 +75,68 @@ JointType KeyJoints[] = {
 };
 
 float BoneRadius[JointType_Count] = {
-
 };
 
-//static const size_t KeyJointCount = ARRAYSIZE(KeyJoints);
-//
-//static const size_t FeatureCount = (KeyJointCount * (KeyJointCount - 1)) / 2;
-//static const size_t FeatureDim = FeatureCount * 3;
+#define BEGIN_TO_END(range) range.begin(), range.end()
+
+void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::FrameType& frame)
+{
+	using namespace Eigen;
+	using namespace DirectX;
+	std::lock_guard<std::mutex> guard(m_BufferMutex);
+
+	FeatureBuffer.push_back();
+
+	if (FeatureBuffer.size() > RecordFeatures)
+		FeatureBuffer.pop_front(); // everything works fine beside it invaliad the memery...
+
+	if (!FeatureBuffer.is_linearized())
+		FeatureBuffer.linearize();
+
+	auto& fb = FeatureBuffer.back();
+	float* vs = reinterpret_cast<float*>(fb.data());
+
+	AffineFrame rotatedFrame = frame;
+	if (g_IngnoreInputRootRotation)
+	{
+		auto& rotBone = rotatedFrame[m_pPlayerArmature->root()->ID()];
+		rotBone.GblRotation = rotBone.LclRotation = Quaternion::Identity;
+		rotatedFrame.RebuildGlobal(*m_pPlayerArmature);
+	}
+
+	for (const auto& block : g_PlayeerBlocks)
+	{
+		auto vsi = RowVectorXf::Map(
+			vs + block->AccumulatedJointCount * InputFeature::Dimension,
+			block->Joints.size() * InputFeature::Dimension);
+
+		vsi = m_pPlayerFeatureExtrator->Get(*block, frame);
+	}
+}
+
+void PlayerProxy::ResetPlayer(TrackedBody * pOld, TrackedBody * pNew)
+{
+	ClearPlayerFeatureBuffer();
+	SetActiveController(-1);
+}
+
+Eigen::Map<PlayerProxy::FeatureMatrixType> PlayerProxy::GetPlayerFeatureMatrix(time_seconds duration)
+{
+	using namespace std;
+	int si = duration.count() * 30;
+	if (FeatureBuffer.size() >= si)
+	{
+		std::lock_guard<mutex> guard(m_BufferMutex);
+		si = min(max(si, 0), (int)FeatureBuffer.size());
+		auto sidx = FeatureBuffer.size() - si;
+		auto head = &FeatureBuffer[sidx][0];
+		return FeatureMatrixType::Map(head, si, FeatureMatrixType::ColsAtCompileTime);
+	}
+	else
+	{
+		return FeatureMatrixType::Map((float*)nullptr, 0, FeatureMatrixType::ColsAtCompileTime);
+	}
+}
 
 VectorXf HumanFeatureFromFrame(const AffineFrame& frame)
 {
@@ -659,30 +164,32 @@ VectorXf HumanFeatureFromFrame(const AffineFrame& frame)
 }
 
 PlayerProxy::PlayerProxy()
-	: IsInitialized(false),
-	playerSelector(nullptr),
-	CurrentIdx(-1),
+	: m_IsInitialized(false),
+	m_playerSelector(nullptr),
+	m_CurrentIdx(-1),
 	FeatureBuffer(FeatureBufferCaptcity),
-	current_time(0)
+	current_time(0),
+	m_mapTaskOnGoing(false),
+	m_EnableOverShoulderCam(false)
 {
-	pPlayerFeatureExtrator.reset(new BlockAllJointsFeatureExtractor<InputFeature>(g_EnableInputFeatureLocalization));
-	pKinect = Devices::KinectSensor::GetForCurrentView();
-	pPlayerArmature = &pKinect->Armature();
+	m_pPlayerFeatureExtrator.reset(new BlockAllJointsFeatureExtractor<InputFeature>(g_EnableInputFeatureLocalization));
+	m_pKinect = Devices::KinectSensor::GetForCurrentView();
+	m_pPlayerArmature = &m_pKinect->Armature();
 	if (g_PlayeerBlocks.empty())
 	{
-		g_PlayeerBlocks.SetArmature(*pPlayerArmature);
+		g_PlayeerBlocks.SetArmature(*m_pPlayerArmature);
 	}
 
 	auto fReset = std::bind(&PlayerProxy::ResetPlayer, this, placeholders::_1, placeholders::_2);
-	playerSelector.SetPlayerChangeCallback(fReset);
+	m_playerSelector.SetPlayerChangeCallback(fReset);
 
 	auto fFrame = std::bind(&PlayerProxy::StreamPlayerFrame, this, placeholders::_1, placeholders::_2);
-	playerSelector.SetFrameCallback(fFrame);
+	m_playerSelector.SetFrameCallback(fFrame);
 
-	playerSelector.Initialize(pKinect.get(), TrackedBodySelector::SelectionMode::Closest);
+	m_playerSelector.Initialize(m_pKinect.get(), TrackedBodySelector::SelectionMode::Closest);
 
 	Register();
-	IsInitialized = true;
+	m_IsInitialized = true;
 }
 
 PlayerProxy::~PlayerProxy()
@@ -699,10 +206,10 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 	auto pChara = dynamic_cast<CharacterObject*>(pChild);
 	if (pChara)
 	{
-		Controllers.emplace_back();
-		auto& controller = Controllers.back();
-		controller.ID = Controllers.size() - 1;
-		controller.Initialize(*pPlayerArmature, *pChara);
+		m_Controllers.emplace_back();
+		auto& controller = m_Controllers.back();
+		controller.ID = m_Controllers.size() - 1;
+		controller.Initialize(*m_pPlayerArmature, *pChara);
 		pChara->SetOpticity(1.0f);
 
 		if (g_DebugLocalMotion)
@@ -721,14 +228,14 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 	}
 }
 
-const static Eigen::IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n");
-
 void PlayerProxy::SetActiveController(int idx)
 {
-	if (idx >= 0)
-		idx = idx % Controllers.size();
+	std::lock_guard<std::mutex> guard(m_controlMutex);
 
-	for (auto& c : Controllers)
+	if (idx >= 0)
+		idx = idx % m_Controllers.size();
+
+	for (auto& c : m_Controllers)
 	{
 		if (c.ID != idx)
 		{
@@ -745,17 +252,21 @@ void PlayerProxy::SetActiveController(int idx)
 			auto glow = chara.FirstChildOfType<GlowingBorder>();
 			glow->SetEnabled(false);
 
-			if (c.ID == CurrentIdx && CurrentIdx != idx)
+			if (c.ID == m_CurrentIdx && m_CurrentIdx != idx)
+			{
 				chara.SetPosition(c.CMapRefPos);
+				chara.SetOrientation(c.CMapRefRot);
+				chara.EnabeAutoDisplacement(false);
+			}
 		}
 	}
 
-	if (CurrentIdx != idx)
+	if (m_CurrentIdx != idx)
 	{
-		CurrentIdx = idx;
-		if (CurrentIdx != -1)
+		m_CurrentIdx = idx;
+		if (m_CurrentIdx != -1)
 		{
-			auto& controller = GetController(CurrentIdx);
+			auto& controller = GetController(m_CurrentIdx);
 			auto& chara = controller.Character();
 
 			if (!g_DebugLocalMotion && !chara.CurrentActionName().empty())
@@ -768,9 +279,14 @@ void PlayerProxy::SetActiveController(int idx)
 			auto glow = chara.FirstChildOfType<GlowingBorder>();
 			glow->SetEnabled(!g_DebugView);
 
-			controller.MapRefPos = playerSelector->CurrentFrame()[0].GblTranslation;
+			controller.MapRefPos = m_playerSelector->CurrentFrame()[0].GblTranslation;
+			controller.LastPos = controller.MapRefPos;
 			controller.CMapRefPos = chara.GetPosition();
 
+			controller.MapRefRot = m_playerSelector->CurrentFrame()[0].GblRotation;
+			controller.CMapRefRot = chara.GetOrientation();
+
+			chara.EnabeAutoDisplacement(g_UsePersudoPhysicsWalk);
 		}
 	}
 }
@@ -841,6 +357,52 @@ float GetConstraitedRotationFromSinVector(Eigen::Matrix3f &Rot, const Eigen::Mat
 	return atanf(tanX);
 }
 
+Matrix3f FindIsometricTransformXY(const Eigen::MatrixXf& X, const Eigen::MatrixXf& Y)
+{
+	assert(X.cols() == Y.cols() && X.rows() == Y.rows() && X.cols() == 3 && "input X,Y dimension disagree");
+
+	auto uX = X.colwise().mean().eval();
+	auto uY = Y.colwise().mean().eval();
+
+	//sum(Xi1*Yi1,Xi2*Yi2,Xi3*Yi3)
+	MatrixXf covXY = X.transpose() * Y;
+
+	// The one axis rotation matrix
+	Matrix3f BestRot;
+	float BestScale, bestAng;
+	int bestPiv = -1;
+	float bestErr = numeric_limits<float>::max();
+
+	for (int pivot = 0; pivot < 3; pivot++)
+	{
+		Matrix3f Rot;
+		float scale = 1.0f;
+		float ang = GetConstraitedRotationFromSinVector(Rot, covXY, pivot);
+		// the isometric scale factor
+		scale = ((X * Rot).array()*Y.array()).sum() / X.cwiseAbs2().sum();
+		float err = (X * scale * Rot - Y).cwiseAbs2().sum();
+		if (err < bestErr)
+		{
+			bestPiv = pivot;
+			BestRot = Rot;
+			BestScale = scale;
+			bestErr = err;
+			bestAng = ang;
+		}
+	}
+
+	if (bestPiv == -1)
+	{
+		cout << "[!] Error , Failed to find isometric transform about control handle" << endl;
+	}
+	else
+	{
+		static char xyz[] = "XYZ";
+		cout << "Isometric transform found : Scale [" << BestScale << "] , Rotation along axis [" << xyz[bestPiv] << "] for " << bestAng / DirectX::XM_PI << "pi , Error = " << bestErr << endl;
+	}
+
+	return BestScale * BestRot;
+}
 
 int PlayerProxy::MapCharacterByLatestMotion()
 {
@@ -849,7 +411,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	static const float Cutoff_Correlation = 0.5f;
 	time_seconds InputDuration(5);
 
-	auto& player = *playerSelector;
+	auto& player = *m_playerSelector;
 	static ofstream flog;
 	if (g_EnableDebugLogging)
 		flog.open("Xlog.txt");
@@ -931,7 +493,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	int nT = max(5, (int)(N / T));
 	Xs = cublic_bezier_resample(
 		X.middleRows(N - (2 * T + CropMargin + 1), T * 2),
-		StretchedSampleCount * 2,
+		CLIP_FRAME_COUNT * 2,
 		Eigen::CloseLoop);
 
 	if (flog.is_open())
@@ -940,7 +502,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 		flog.close();
 	}
 
-	T = StretchedSampleCount; // Since we have resampled , Time period "T" is now equals to StretchedSampleCount
+	T = CLIP_FRAME_COUNT; // Since we have resampled , Time period "T" is now equals to StretchedSampleCount
 	int Ti = 1; // 2
 	int Ts = T / Ti;
 
@@ -1016,7 +578,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 	for (size_t i = 0; i < Ju; i++)
 	{
-		if (Eub(i) > EnergyCutoff)
+		if (Eub(i) > g_PlayerEnergyCutoff)
 		{
 			Xsp.col(Juk.size()) = Xsp.col(i);
 			Eub(Juk.size()) = Eub(i);
@@ -1056,7 +618,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 		fout.close();
 	}
 
-	for (auto& controller : Controllers)			//? <= 5 character
+	for (auto& controller : m_Controllers)			//? <= 5 character
 	{
 		if (!controller.IsReady)
 			continue;
@@ -1065,7 +627,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 		size_t Jc = chraraBlocks.size();
 		auto& clips = character.Behavier().Clips();
 
-		//controller.CharacterScore = numeric_limits<float>::min();
+		controller.CharacterScore = numeric_limits<float>::min();
 		//auto& anim = character.Behavier()[DefaultAnimationSet];
 		auto& anim = *character.CurrentAction();
 		//for (auto& anim : clips)	//? <= 5 animation per character
@@ -1089,7 +651,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 				}
 			}
 			Ecb.conservativeResize(Jck.size());
-			Ecb3.conservativeResize(3,Jck.size());
+			Ecb3.conservativeResize(3, Jck.size());
 
 			// Alternate Spatial traits
 			Matrix<float, -1, -1> Csp(3, Jck.size());
@@ -1101,14 +663,16 @@ int PlayerProxy::MapCharacterByLatestMotion()
 				Csp2.col(i) = analyzer.Pvs.col(Jck[i]);
 
 				// Normalize Pvs to caculate directions
-				auto cpvs = Eigen::Matrix<float, CLIP_FRAME_COUNT, 3, Eigen::RowMajor>::Map(Csp2.col(i).data());
+				auto cpvs = Eigen::Matrix<float, -1, 3, Eigen::RowMajor>::Map(Csp2.col(i).data(), CLIP_FRAME_COUNT, 3);
 				cpvs.rowwise().normalize();
 
 				RowVector3f E3 = analyzer.Eb3.col(Jck[i]).transpose();
 
 				// d(X)*d(P) >= h/2, thus, more energy in movement means less important to measure it's position
-				E3 = (E3.array() + 0.1f).cwiseInverse();
 				E3 /= E3.maxCoeff();
+				E3 = (E3.array().cwiseSqrt() + 0.1f).cwiseInverse();
+				E3 /= E3.maxCoeff();
+				Ecb3.col(i) = E3.transpose();
 				cpvs.array() *= E3.replicate(T, 1).array();
 			}
 
@@ -1144,6 +708,10 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 
 				auto& Mcor = Rm[phidx];//.topLeftCorner(Juk.size(), Jck.size());
+				auto& Scor = Rs[phidx];
+
+				auto Xsp2 = XDir.middleRows((T - phi) * 3, T * 3);
+
 
 				for (int i = 0; i < Juk.size(); ++i)
 				{
@@ -1159,7 +727,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 						auto rawY = MatrixXf::Map(analyzer.Pvs.col(cid).data(), 3, CLIP_FRAME_COUNT).transpose();
 
 						float r = 0;
-						
+
 						if (qrX.rank() * qrY.rank() != 0)
 						{
 							Cca<float> cca;
@@ -1169,17 +737,17 @@ int PlayerProxy::MapCharacterByLatestMotion()
 							//float alpha = rawY.cwiseAbs2().sum() / rawX.cwiseAbs2().sum();
 							//float err = (rawY - rawY * alpha).cwiseAbs2().sum();
 						}
+
 						Mcor(i, j) = r;
+						Scor(i, j) = ((Xsp2.col(i) - Csp2.col(j)).array() * Ecb3.col(j).replicate(T, 1).array()).cwiseAbs2().sum();
 					}
 				}
 				// a = (a > cutoff) ? a : -1.0f
 				//Mcor = (Mcor.array() > Cutoff_Correlation).select(Mcor, -1.0f);
 
-				auto& Scor = Rs[phidx];
-				auto Xsp2 = XDir.middleRows((T - phi) * 3, T * 3);
-				Scor = Xsp2.transpose() * Csp2;
+				//Scor = Xsp2.transpose() * Csp2;
 				Scor /= (float)T;
-
+				Scor = (-(Scor.array() / (DirectX::XM_PI / 6)).cwiseAbs2()).exp();
 				auto& A = Ra[phidx];
 				// Cutoff the none-correlated match
 				//A *= alpha;
@@ -1188,7 +756,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 				Mcor.array() *= Eub.array().replicate(1, A.cols());
 				//Mcor.array() *= Ecb.array().replicate(A.rows(), 1);
 
-				A = Mcor * alpha + Scor;
+				A = Mcor * g_BlendWeight + Scor;
 
 				//CoR.topLeftCorner(Ju, Jc) = A;
 
@@ -1204,8 +772,9 @@ int PlayerProxy::MapCharacterByLatestMotion()
 				for (int k = 0; k < A.cols(); k++)
 				{
 					DenseIndex jx;
-					auto score = A.col(k).maxCoeff(&jx);
-					if (score < MatchAccepetanceThreshold) // Reject the match if it's less than a threshold
+					Scor.col(k).maxCoeff(&jx);
+					auto score = A(jx, k);
+					if (score < g_MatchAccepetanceThreshold) // Reject the match if it's less than a threshold
 						matching[k] = -1;
 					else
 					{
@@ -1315,7 +884,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 					auto& pcaX = PcaXs[maxPhi / Ti][Jx];
 
 					//? Again!!! PvQrs vs Qrs
-					auto rawY = MatrixXf::Map(analyzer.Pvs.col(Jy).data(),3, CLIP_FRAME_COUNT).transpose();
+					auto rawY = MatrixXf::Map(analyzer.Pvs.col(Jy).data(), 3, CLIP_FRAME_COUNT).transpose();
 					auto& qrY = analyzer.PvQrs[Jy];
 					auto& pcaY = analyzer.PvPcas[Jy];
 					//auto& qrY = analyzer.Qrs[Jy];
@@ -1367,50 +936,13 @@ int PlayerProxy::MapCharacterByLatestMotion()
 					}
 					else
 					{
-						assert(rawX.cols() == rawY.cols() && "input X,Y dimension disagree");
-						int rank = rawX.cols();
-
-						//sum(Xi1*Yi1,Xi2*Yi2,Xi3*Yi3)
-						MatrixXf covXY = rawX.transpose() * rawY;
-
-						// The one axis rotation matrix
-						Matrix3f BestRot;
-						float BestScale,bestAng;
-						int bestPiv = -1;
-						float bestErr = numeric_limits<float>::max();
-
-						for (int pivot = 0; pivot < 3; pivot++)
-						{
-							Matrix3f Rot;
-							float scale = 1.0f;
-							float ang = GetConstraitedRotationFromSinVector(Rot, covXY, pivot);
-							// the isometric scale factor
-							scale = ((rawX * Rot).array()*rawY.array()).sum() / rawX.cwiseAbs2().sum();
-							float err = (rawX * scale * Rot - rawY).cwiseAbs2().sum();
-							if (err < bestErr)
-							{
-								bestPiv = pivot;
-								BestRot = Rot;
-								BestScale = scale;
-								bestErr = err;
-								bestAng = ang;
-							}
-						}
-
-						if (bestPiv == -1)
-						{
-							cout << "Failed to find isometric transform about control handle" << endl;
-							continue;
-						}
-						else
-						{
-							static char xyz[] = "XYZ";
-							cout << "Isometric transform found : Scale [" << BestScale << "] , Rotation along axis [" << xyz[bestPiv] << "] for " << bestAng / DirectX::XM_PI << "pi , Error = " << bestErr << endl;
-						}
 						//RowVectorXf alpha = (rawY.cwiseAbs2().colwise().sum().array() / rawX.cwiseAbs2().colwise().sum().array()).cwiseSqrt();
 						//float err = (rawY - rawY * alpha.asDiagonal()).cwiseAbs2().sum();
 
-						map.A = BestScale * BestRot; //* MatrixXf::Identity(rank, rank);
+						auto Transf = FindIsometricTransformXY(rawX, rawY);
+						auto rank = rawX.cols();
+
+						map.A = Transf; //* MatrixXf::Identity(rank, rank);
 						map.B = MatrixXf::Identity(rank, rank);
 						map.uX = RowVectorXf::Zero(rank);
 						map.uY = RowVectorXf::Zero(rank);
@@ -1435,13 +967,14 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 		controller.SetBinding(pBinding);
 
-		auto clipinfos = controller.m_Analyzers | adaptors::map_values;
+		auto clipinfos = controller.GetClipInfos() | adaptors::map_values;
 		auto maxClip = std::max_element(BEGIN_TO_END(clipinfos), [](const ClipInfo* lhs, const ClipInfo *rhs) {
 			return (rhs != nullptr) && (lhs == nullptr || lhs->Score < rhs->Score);
 		});
 
-		pBinding->Maps = (*maxClip)->pLocalBinding->Maps;
-
+		auto pCcaBinding = dynamic_cast<CcaArmatureTransform*>((*maxClip)->pLocalBinding.get());
+		if (pCcaBinding)
+			pBinding->Maps = pCcaBinding->Maps;
 
 		if (g_EnableDependentControl)
 		{
@@ -1452,7 +985,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 				//	continue;
 				if (block.ActiveActionCount == 0 && block.PvDriveScore > 0.5f)
 				{
-					pBinding->Maps.emplace_back(block.PdDriver);
+					pBinding->Maps.emplace_back(block.PdCca);
 				}
 			}
 		}
@@ -1468,7 +1001,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 		//	auto bid = pBlock->Index;
 		//	if (pBlock->ActiveActionCount > 0)
 		//	{
-		//		float bestScore = MatchAccepetanceThreshold;
+		//		float bestScore = g_MatchAccepetanceThreshold;
 		//		PcaCcaMap* pMap = nullptr;
 		//		string bestAction = "<empty>";
 
@@ -1527,7 +1060,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	}
 
 	CharacterController* pControl = nullptr;
-	for (auto& con : Controllers)
+	for (auto& con : m_Controllers)
 	{
 		if (!pControl || con.CharacterScore > pControl->CharacterScore)
 			pControl = &con;
@@ -1556,32 +1089,32 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 void PlayerProxy::ClearPlayerFeatureBuffer()
 {
-	std::lock_guard<std::mutex> guard(BufferMutex);
+	std::lock_guard<std::mutex> guard(m_BufferMutex);
 	FeatureBuffer.clear();
 }
 
 // Character Map State
 
-bool PlayerProxy::IsMapped() const { return CurrentIdx >= 0; }
+bool PlayerProxy::IsMapped() const { return m_CurrentIdx >= 0; }
 
 const CharacterController & PlayerProxy::CurrentController() const {
-	for (auto& c : Controllers)
+	for (auto& c : m_Controllers)
 	{
-		if (c.ID == CurrentIdx)
+		if (c.ID == m_CurrentIdx)
 			return c;
 	}
 }
 
 CharacterController & PlayerProxy::CurrentController() {
-	for (auto& c : Controllers)
+	for (auto& c : m_Controllers)
 	{
-		if (c.ID == CurrentIdx)
+		if (c.ID == m_CurrentIdx)
 			return c;
 	}
 }
 
 const CharacterController & PlayerProxy::GetController(int state) const {
-	for (auto& c : Controllers)
+	for (auto& c : m_Controllers)
 	{
 		if (c.ID == state)
 			return c;
@@ -1590,7 +1123,7 @@ const CharacterController & PlayerProxy::GetController(int state) const {
 
 CharacterController & PlayerProxy::GetController(int state)
 {
-	for (auto& c : Controllers)
+	for (auto& c : m_Controllers)
 	{
 		if (c.ID == state)
 			return c;
@@ -1601,13 +1134,13 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 {
 	if (e.Key == VK_OEM_PERIOD || e.Key == '.' || e.Key == '>')
 	{
-		SetActiveController(CurrentIdx + 1);
+		SetActiveController(m_CurrentIdx + 1);
 	}
 	else if (e.Key == VK_OEM_COMMA || e.Key == ',' || e.Key == '<')
 	{
-		SetActiveController(CurrentIdx - 1);
+		SetActiveController(m_CurrentIdx - 1);
 	}
-	else if (e.Key == 'L' || e.Key == 'l')
+	else if (e.Key == 'L')
 	{
 		// this behavier should not change in mapped mode
 		if (IsMapped()) return;
@@ -1615,7 +1148,7 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 		g_DebugLocalMotion = !g_DebugLocalMotion;
 		if (g_DebugLocalMotion)
 		{
-			for (auto& controller : Controllers)
+			for (auto& controller : m_Controllers)
 			{
 				auto& chara = controller.Character();
 				g_DebugLocalMotionAction[chara.Name] = chara.CurrentActionName();
@@ -1624,7 +1157,7 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 		}
 		else
 		{
-			for (auto& controller : Controllers)
+			for (auto& controller : m_Controllers)
 			{
 				auto& chara = controller.Character();
 				auto& action = g_DebugLocalMotionAction[chara.Name];
@@ -1636,7 +1169,7 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 	}
 	else if (e.Key == VK_UP || e.Key == VK_DOWN)
 	{
-		for (auto& controller : Controllers)
+		for (auto& controller : m_Controllers)
 		{
 			auto& chara = controller.Character();
 			auto& clips = chara.Behavier().Clips();
@@ -1652,11 +1185,67 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 				chara.StartAction(clips[idx].Name);
 		}
 	}
-	else if (e.Key == 'P' || e.Key == 'p')
+	else if (e.Key == 'P')
 	{
 		g_EnableDependentControl = !g_EnableDependentControl;
+		cout << "Enable Dependency Control = " << g_EnableDependentControl << endl;
 	}
-}
+	else if (e.Key == 'C')
+	{
+		m_EnableOverShoulderCam = !m_EnableOverShoulderCam;
+		cout << "Over Shoulder Camera Mode = " << m_EnableOverShoulderCam << endl;
+	}
+	else if (e.Key == 'M')
+	{
+		g_MirrowInputX = !g_MirrowInputX;
+		cout << "Kinect Input Mirrowing = " << g_MirrowInputX << endl;
+		m_pKinect->EnableMirrowing(g_MirrowInputX);
+	}
+	else if (e.Key == VK_NUMPAD1)
+	{
+		g_NoiseInterpolation[0] -= 0.1f;
+		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
+	}
+	else if (e.Key == VK_NUMPAD3)
+	{
+		g_NoiseInterpolation[0] += 0.1f;
+		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
+	}
+	else if (e.Key == VK_NUMPAD2)
+	{
+		g_NoiseInterpolation[0] = 1.0f;
+		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
+	}
+	else if (e.Key == VK_NUMPAD4)
+	{
+		g_NoiseInterpolation[1] -= 0.1f;
+		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
+	}
+	else if (e.Key == VK_NUMPAD6)
+	{
+		g_NoiseInterpolation[1] += 0.1f;
+		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
+	}
+	else if (e.Key == VK_NUMPAD5)
+	{
+		g_NoiseInterpolation[1] = 1.0f;
+		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
+	}
+	else if (e.Key == VK_NUMPAD7)
+	{
+		g_NoiseInterpolation[2] -= 0.1f;
+		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
+	}
+	else if (e.Key == VK_NUMPAD9)
+	{
+		g_NoiseInterpolation[2] += 0.1f;
+		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
+	}
+	else if (e.Key == VK_NUMPAD8)
+	{
+		g_NoiseInterpolation[2] = 1.0f;
+		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
+	}}
 
 void PlayerProxy::OnKeyDown(const KeyboardEventArgs & e)
 {
@@ -1741,12 +1330,12 @@ void AddNoise(AffineFrame& frame, float sigma)
 	static std::random_device rd;
 	static std::mt19937 gen(rd());
 
-	std::normal_distribution<float> nd(1.0f, sigma);
+	//std::normal_distribution<float> nd(1.0f, sigma);
 
-	for (auto& bone : frame)
-	{
-		bone.GblTranslation *= nd(gen);
-	}
+	//for (auto& bone : frame)
+	//{
+	//	bone.GblTranslation *= 0.95;//nd(gen);
+	//}
 }
 
 void PlayerProxy::Update(time_seconds const & time_delta)
@@ -1755,20 +1344,21 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 	using namespace std;
 	using namespace Eigen;
 
-	if (!IsInitialized)
+	if (!m_IsInitialized)
 		return;
 
 	if (g_DebugLocalMotion && !IsMapped())
 	{
 		current_time += time_delta;
 		AffineFrame last_frame;
-		for (auto& controller : Controllers)
+		AffineFrame anotherFrame, anotherLastFrame;
+		for (auto& controller : m_Controllers)
 		{
 			if (!controller.IsReady)
 				continue;
 			auto& chara = controller.Character();
 			auto& actionName = g_DebugLocalMotionAction[chara.Name];
-			if (actionName.empty()) 
+			if (actionName.empty())
 				continue;
 			auto& action = controller.Character().Behavier()[actionName];
 			auto& target_frame = controller.Character().MapCurrentFrameForUpdate();
@@ -1777,6 +1367,16 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 			target_frame = frame;
 			action.GetFrameAt(frame, current_time);
 			action.GetFrameAt(last_frame, current_time - time_delta);
+
+			//auto& anotheraction = controller.Character().Behavier()["run"];
+			//anotheraction.GetFrameAt(anotherFrame, current_time);
+			//anotheraction.GetFrameAt(anotherLastFrame, current_time - time_delta);
+
+			//for (size_t i = 0; i < frame.size(); i++)
+			//{
+			//	frame[i].GblTranslation = DirectX::XMVectorLerp(frame[i].GblTranslation, anotherFrame[i].GblTranslation, g_NoiseInterpolation);
+			//	last_frame[i].GblTranslation = DirectX::XMVectorLerp(last_frame[i].GblTranslation, anotherLastFrame[i].GblTranslation, g_NoiseInterpolation);
+			//}
 
 			// Add motion to non-active joints that visualize more about errors for active joints
 			//target_frame = frame;
@@ -1787,20 +1387,24 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 	}
 
 
-	if (!IsInitialized || !playerSelector)
+	if (!m_IsInitialized || !m_playerSelector)
 		return;
 
 	static long long frame_count = 0;
 
-	auto& player = *playerSelector;
+	auto& player = *m_playerSelector;
 	if (!player.IsTracked()) return;
 
 	const auto& frame = player.PullLatestFrame();
+	m_LastPlayerFrame = m_CurrentPlayerFrame;
+	m_CurrentPlayerFrame = frame;
 
 	if (IsMapped())
 	{
 		auto& controller = CurrentController();
-		controller.UpdateTargetCharacter(frame);
+		controller.UpdateTargetCharacter(frame, m_LastPlayerFrame, time_delta.count());
+		if (m_EnableOverShoulderCam)
+			UpdatePrimaryCameraForTrack();
 		return;
 	}
 
@@ -1809,22 +1413,37 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 		return;
 	}
 
-	if (FeatureBuffer.size() >= 0)
+	if (FeatureBuffer.size() >= 0 && !m_mapTaskOnGoing)
 	{
-		auto idx = MapCharacterByLatestMotion();
-		if (IsMapped())
-		{
-			CurrentController().Character().StopAction();
-			cout << "Mapped!!!!!!!!!" << endl;
-		}
+		m_mapTaskOnGoing = true;
+		m_mapTask = concurrency::create_task([this]() {
+			auto idx = MapCharacterByLatestMotion();
+			if (IsMapped())
+			{
+				CurrentController().Character().StopAction();
+				cout << "Mapped!!!!!!!!!" << endl;
+			}
+			m_mapTaskOnGoing = false;
+		});
 	}
+}
+
+void PlayerProxy::UpdatePrimaryCameraForTrack()
+{
+	auto& camera = *this->Scene->PrimaryCamera();
+	auto& cameraPos = dynamic_cast<SceneObject&>(camera);
+	auto& contrl = this->CurrentController();
+	auto& chara = contrl.Character();
+	using namespace DirectX;
+	cameraPos.SetPosition((XMVECTOR)chara.GetPosition() + XMVector3Rotate(Vector3(0, 0.5f, -1.0f), chara.GetOrientation()));
+	camera.GetView()->FocusAt((XMVECTOR)chara.GetPosition(), g_XMIdentityR1.v);
 }
 
 bool PlayerProxy::UpdateByFrame(const AffineFrame & frame)
 {
 	AffineFrame tframe;
 	// Caculate likilihood
-	for (int i = 0, end = Controllers.size(); i < end; ++i)
+	for (int i = 0, end = m_Controllers.size(); i < end; ++i)
 	{
 		auto& obj = GetController(i);
 		auto& binding = obj.Binding();
@@ -1844,17 +1463,17 @@ bool PlayerProxy::UpdateByFrame(const AffineFrame & frame)
 	float c = StateProbality.sum();
 	StateProbality = StateProbality / c;
 
-	for (size_t i = 0; i < Controllers.size(); i++)
+	for (size_t i = 0; i < m_Controllers.size(); i++)
 	{
 		GetController(i).Character().SetOpticity(StateProbality(i));
 	}
 
 	int maxIdx = -1;
 	auto currentP = StateProbality.maxCoeff(&maxIdx);
-	if (maxIdx != CurrentIdx)
+	if (maxIdx != m_CurrentIdx)
 	{
-		int oldIdx = CurrentIdx;
-		CurrentIdx = maxIdx;
+		int oldIdx = m_CurrentIdx;
+		m_CurrentIdx = maxIdx;
 		//StateChangedEventArgs arg = { oldIdx,maxIdx,1.0f,GetController(oldIdx),GetController(maxIdx) };
 		//if (!StateChanged.empty())
 		//	StateChanged(arg);
@@ -1873,6 +1492,42 @@ bool PlayerProxy::UpdateByFrame(const AffineFrame & frame)
 bool PlayerProxy::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
 {
 	return true;
+}
+
+void DrawJammedGuidingVectors(const BlockArmature & barmature, const AffineFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness = 0.015f)
+{
+	using DirectX::Visualizers::g_PrimitiveDrawer;
+	using namespace DirectX;
+	if (frame.empty())
+		return;
+	//g_PrimitiveDrawer.SetWorld(world);
+	g_PrimitiveDrawer.SetWorld(XMMatrixIdentity());
+	//g_PrimitiveDrawer.Begin();
+	for (auto& block : barmature)
+	{
+		if (block->parent() != nullptr)
+		{
+			auto& bone = frame[block->Joints.back()->ID()];
+			XMVECTOR ep = bone.GblTranslation;
+
+			auto& pbone = frame[block->parent()->Joints.back()->ID()];
+			XMVECTOR sp = pbone.GblTranslation;
+
+			sp = XMVector3Transform(sp, world);
+			ep = XMVector3Transform(ep, world);
+			//g_PrimitiveDrawer.DrawLine(sp, ep, color);
+
+			//XMVECTOR v = ep - sp;
+			//RowVectorXf ux = block->PdGpr.uX.cast<float>();
+
+
+			g_PrimitiveDrawer.DrawCylinder(sp, ep, g_DebugArmatureThinkness, color);
+			g_PrimitiveDrawer.DrawSphere(ep, g_DebugArmatureThinkness * 1.5f, color);
+		}
+	}
+	//g_PrimitiveDrawer.End();
+
+
 }
 
 void DrawGuidingVectors(const BlockArmature & barmature, const AffineFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness = 0.015f)
@@ -1913,7 +1568,7 @@ void PlayerProxy::Render(RenderContext & context, DirectX::IEffect* pEffect)
 
 	if (g_DebugLocalMotion && g_DebugView)
 	{
-		for (auto& controller : Controllers)
+		for (auto& controller : m_Controllers)
 		{
 			if (!controller.IsReady)
 				continue;
@@ -1926,8 +1581,8 @@ void PlayerProxy::Render(RenderContext & context, DirectX::IEffect* pEffect)
 		}
 	}
 
-	if (!playerSelector) return;
-	auto& player = *playerSelector;
+	if (!m_playerSelector) return;
+	auto& player = *m_playerSelector;
 
 	Color color = DirectX::Colors::Yellow.v;
 
@@ -1946,7 +1601,7 @@ void PlayerProxy::Render(RenderContext & context, DirectX::IEffect* pEffect)
 	if (IsMapped() && g_DebugView)
 	{
 		//auto& controller = this->CurrentController().Character();
-		for (auto& controller : Controllers)
+		for (auto& controller : m_Controllers)
 		{
 			if (!controller.IsReady)
 				continue;
@@ -1962,7 +1617,7 @@ void PlayerProxy::Render(RenderContext & context, DirectX::IEffect* pEffect)
 
 				//DrawGuidingVectors(chara.Behavier().Blocks(), charaFrame, DirectX::Colors::Crimson.v, world);
 
-				pBinding->Render(context.Get(), DirectX::Colors::Crimson.v, world);
+				pBinding->Render(DirectX::Colors::Crimson.v, world);
 			}
 		}
 
@@ -2013,450 +1668,4 @@ RenderFlags Causality::KinectVisualizer::GetRenderFlags() const
 {
 	return RenderFlags::SpecialEffects;
 }
-
-CharacterController::~CharacterController()
-{
-	for (auto& p : m_Analyzers)
-	{
-		delete p.second;
-	}
-}
-
-void CharacterController::Initialize(const IArmature & player, CharacterObject & character)
-{
-	IsReady = false;
-	CurrentActionIndex = 0;
-	SetSourceArmature(player);
-	SetTargetCharacter(character);
-}
-
-const ArmatureTransform & CharacterController::Binding() const { return *m_pBinding; }
-
-ArmatureTransform & CharacterController::Binding() { return *m_pBinding; }
-
-void CharacterController::SetBinding(ArmatureTransform * pBinding)
-{
-	m_pBinding.reset(pBinding);
-}
-
-const CharacterObject & CharacterController::Character() const { return *m_pCharacter; }
-
-CharacterObject & CharacterController::Character() { return *m_pCharacter; }
-
-void CharacterController::UpdateTargetCharacter(const AffineFrame & frame) const
-{
-	auto& cframe = m_pCharacter->MapCurrentFrameForUpdate();
-	m_pBinding->Transform(cframe, frame);
-
-	float l = 100;
-	for (auto& bone : frame)
-	{
-		if (bone.GblTranslation.y < l)
-			l = bone.GblTranslation.y;
-	}
-
-	auto pos = frame[0].GblTranslation - MapRefPos + CMapRefPos;
-
-	m_pCharacter->SetPosition(pos);
-	m_pCharacter->ReleaseCurrentFrameFrorUpdate();
-}
-
-ClipInfo & CharacterController::GetAnimationInfo(const string & name) {
-	return *m_Analyzers[name];
-}
-
-void CharacterController::SetSourceArmature(const IArmature & armature) {
-	if (m_pBinding)
-		m_pBinding->SetSourceArmature(armature);
-}
-
-void CharacterController::SetTargetCharacter(CharacterObject & object) {
-	m_pCharacter = &object;
-	if (m_pBinding)
-		m_pBinding->SetTargetArmature(object.Armature());
-	auto & behavier = object.Behavier();
-	PotientialFrame = object.Armature().default_frame();
-
-	for (auto& anim : object.Behavier().Clips())
-	{
-		if (anim.Name == "die")
-			anim.IsCyclic = false;
-		else
-			anim.IsCyclic = true;
-
-	}
-
-	// Try to unify rotation pivot direction
-	auto& armature = object.Armature();
-	typedef vector<Vector4, DirectX::AlignedAllocator<Vector4, alignof(DirectX::XMVECTOR)>> aligned_vector_of_vector4;
-	aligned_vector_of_vector4 gbl_pivots(armature.size());
-	bool gbl_def = true;
-	for (auto& anim : object.Behavier().Clips())
-	{
-		using namespace DirectX;
-		aligned_vector_of_vector4 pivots(armature.size());
-		for (auto& frame : anim.GetFrameBuffer())
-		{
-			for (size_t i = 0; i < armature.size(); i++)
-			{
-				pivots[i] += frame[i].LclRotation.LoadA();
-			}
-		}
-
-		if (gbl_def)
-		{
-			for (size_t i = 0; i < armature.size(); i++)
-			{
-				gbl_pivots[i] = DirectX::XMVector3Normalize(pivots[i].LoadA());
-			}
-			gbl_def = false;
-		}
-		else
-		{
-			for (size_t i = 0; i < armature.size(); i++)
-			{
-				XMVECTOR pivot = DirectX::XMVector3Normalize(pivots[i].LoadA());
-				XMVECTOR gbl_pivot = gbl_pivots[i].Load();
-				if (XMVector4Less(XMVector3Dot(gbl_pivot, pivot), XMVectorZero()))
-				{
-					for (auto& frame : anim.GetFrameBuffer())
-					{
-						frame[i].LclRotation.StoreA(-frame[i].LclRotation.LoadA());
-					}
-				}
-			}
-		}
-	}
-
-	using namespace concurrency;
-	vector<task<void>> tasks;
-	for (auto& anim : object.Behavier().Clips())
-	{
-		if (!anim.Cyclic())
-			continue;
-
-		m_Analyzers[anim.Name] = new ClipInfo(behavier.Blocks());
-
-		auto& analyzer = m_Analyzers[anim.Name];
-
-		analyzer->Phi = -1;
-		//analyzer->Score = -1;
-		analyzer->PcaCutoff = CharacterPcaCutoff;
-		analyzer->EnergyCutoff = CharacterEnergyCutoff;
-
-		tasks.emplace_back(analyzer->ComputeFromFramesAsync(anim.GetFrameBuffer()));
-	}
-
-	when_all(tasks.begin(), tasks.end()).then([this]() {
-		float globalEnergyMax = 0;
-		for (auto pInfo : adaptors::values(m_Analyzers))
-		{
-			globalEnergyMax = std::max(pInfo->Eb.maxCoeff(), globalEnergyMax);
-		}
-
-		auto& blocks = m_pCharacter->Behavier().Blocks();
-		for (auto& pair : m_Analyzers)
-		{
-			auto& key = pair.first;
-			auto analyzer = pair.second;
-			auto& Eb = analyzer->Eb;
-			Eb /= globalEnergyMax;
-			analyzer->EnergyCutoff = CharacterEnergyCutoff;
-			for (int i = 0; i < Eb.size(); i++)
-			{
-				if (Eb[i] > analyzer->EnergyCutoff)
-				{
-					analyzer->ActiveBlocks.push_back(i);
-					++blocks[i]->ActiveActionCount;
-					blocks[i]->ActiveActions.emplace_back(key);
-				}
-			}
-		}
-
-		cout << "==========Drive correlation for character \"" << m_pCharacter->Name << "\"=================== " << endl;
-
-		cout << setprecision(2);
-
-		std::vector<KinematicBlock*> activeBlocks;
-		std::vector<KinematicBlock*> inactiveBlocks;
-
-		// for all inactive blocks, try to sythesis their sutle local motion based on action blocks
-		for (auto pBlock : blocks)
-		{
-			if (pBlock->ActiveActionCount == 0)
-				inactiveBlocks.push_back(pBlock);
-			else
-				activeBlocks.push_back(pBlock);
-		}
-
-		Eigen::MatrixXf Xabpv(CLIP_FRAME_COUNT * m_Analyzers.size(), activeBlocks.size() * 9);
-
-		int bid = 0; // active block index
-		std::for_each(activeBlocks.begin(), activeBlocks.end(), [&, this](KinematicBlock* pBlock)
-		{
-			auto& block = *pBlock;
-
-			cout << "{";
-			for (auto pJoint : block.Joints)
-			{
-				cout << pJoint->Name() << ", ";
-			}
-			cout << "\b\b} : ";
-
-			#pragma region Build Xabpv
-			auto Bft = Xabpv.middleCols<9>(bid * 9);
-			int cid = 0; // Clip index
-			for (auto clipinfo : adaptors::values(m_Analyzers))
-			{
-				auto map = Eigen::Matrix<float, CLIP_FRAME_COUNT, 3, Eigen::RowMajor>::Map(clipinfo->Pvs.col(block.Index).data());
-				auto displacement = Bft.block<CLIP_FRAME_COUNT, 3>(cid*CLIP_FRAME_COUNT, 0);
-				displacement = map;
-
-				ExpandQuadraticTerm(Bft, 3);
-				++cid;
-			}
-			++bid;
-			#pragma endregion 
-
-			block.X.resize(block.ActiveActionCount*CLIP_FRAME_COUNT, block.Joints.size() * CharacterFeature::Dimension);
-			block.Pd.resize(block.ActiveActionCount*CLIP_FRAME_COUNT, 9);
-			for (size_t i = 0; i < block.ActiveActionCount; i++)
-			{
-				auto &clip = *m_Analyzers[block.ActiveActions[i]];
-				auto &anim = m_pCharacter->Behavier()[block.ActiveActions[i]];
-				float frametime = (float)(anim.Duration.count() / CLIP_FRAME_COUNT);
-
-				block.X.middleRows<CLIP_FRAME_COUNT>(i*CLIP_FRAME_COUNT) = clip.Xbs[block.Index];
-
-				auto map = Eigen::Matrix<float, CLIP_FRAME_COUNT, 3, Eigen::RowMajor>::Map(clip.Pvs.col(block.Index).data());
-				auto displacement = block.Pd.block<CLIP_FRAME_COUNT, 3>(i*CLIP_FRAME_COUNT, 0);
-				displacement = map;
-
-				ExpandQuadraticTerm(block.Pd, 3);
-
-				//float dNorm = sqrtf(displacement.rowwise().squaredNorm().maxCoeff());
-				//displacement /= dNorm;
-
-				//auto velocity = block.Pd.block<CLIP_FRAME_COUNT, 3>(i*CLIP_FRAME_COUNT, 3);
-				////auto acceleration = block.Pd.block<CLIP_FRAME_COUNT, 3>(i*CLIP_FRAME_COUNT, 6);
-				////// caculate velocity as center difference
-				//velocity.row(0) = displacement.row(1) - displacement.row(CLIP_FRAME_COUNT - 1);
-				//velocity.row(CLIP_FRAME_COUNT-1) = displacement.row(0) - displacement.row(CLIP_FRAME_COUNT-2);
-				////velocity.row(0) = 2 * (displacement.row(1) - displacement.row(0));
-				////velocity.row(CLIP_FRAME_COUNT - 1) = 2 * (displacement.row(CLIP_FRAME_COUNT - 1) - displacement.row(CLIP_FRAME_COUNT - 2));
-
-				//velocity.middleRows<CLIP_FRAME_COUNT - 2>(1) = displacement.middleRows<CLIP_FRAME_COUNT - 2>(2) - displacement.middleRows<CLIP_FRAME_COUNT - 2>(0);
-
-				////float vNorm = sqrtf(velocity.rowwise().squaredNorm().maxCoeff());
-				//velocity /= 2 * frametime;
-
-
-
-				auto corr = CreatePcaCcaMap(clip.PerceptiveVectorReconstructor[block.Index], block.Pd.middleRows<CLIP_FRAME_COUNT>(i*CLIP_FRAME_COUNT), block.X.middleRows<CLIP_FRAME_COUNT>(i*CLIP_FRAME_COUNT),
-					0.01 * PcaCutoff, PcaCutoff);
-
-				cout << '(' << block.ActiveActions[i] << " [" << clip.Eb[block.Index] << "] : " << corr << "),";
-				//// caculate acceleration as center difference of velocity
-				//acceleration.row(0) = 2 * (velocity.row(1) - velocity.row(0));
-				//acceleration.row(CLIP_FRAME_COUNT - 1) = 2 * (velocity.row(CLIP_FRAME_COUNT - 1) - velocity.row(CLIP_FRAME_COUNT - 2));
-				//acceleration.middleRows<CLIP_FRAME_COUNT - 2>(1) = velocity.middleRows<CLIP_FRAME_COUNT - 2>(2) - velocity.middleRows<CLIP_FRAME_COUNT - 2>(0);
-			}
-
-			//Cca<float> cca;
-			//cca.compute(block.Pd, block.X);
-			//auto corr = cca.correlaltions().minCoeff();
-
-			auto corr = CreatePcaCcaMap(block.PdDriver, block.Pd, block.X, 0.01 * PcaCutoff, PcaCutoff);
-			if (corr < .001f)
-			{
-				block.PdDriver.Jx = -1;
-				block.PdDriver.Jy = -1;
-			}
-			else
-			{
-				block.PdDriver.Jx = block.Index;
-				block.PdDriver.Jy = block.Index;
-			}
-			//block.PvCorr.setIdentity(block.ActiveActionCount, block.ActiveActionCount);
-
-			//Cca<float> cca;
-			//for (size_t i = 0; i < block.ActiveActionCount; i++)
-			//{
-			//	auto &clipI = *m_Analyzers[block.ActiveActions[i]];
-			//	for (int j = i + 1; j < block.ActiveActionCount; j++)
-			//	{
-			//		auto &clipJ = *m_Analyzers[block.ActiveActions[j]];
-			//		//auto pvX = block.Pd.block<CLIP_FRAME_COUNT, 3>(i*CLIP_FRAME_COUNT, 0);
-			//		//auto pvY = block.Pd.block<CLIP_FRAME_COUNT, 3>(j*CLIP_FRAME_COUNT, 0);
-			//		//cca.compute(pvX, pvY);
-			//		//float corr = cca.correlaltions().minCoeff();
-
-
-			//		PcaCcaMap map;
-			//		float corr = CreatePcaCcaMap(map,clipI.X, clipJ.X);
-			//		block.PvCorr(i, j) = corr;
-			//		block.PvCorr(j, i) = corr;
-			//	}
-			//}
-
-			if (g_EnableDebugLogging)
-			{
-				ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name() + ".pd.csv");
-				fout << block.Pd.format(CSVFormat);
-				fout.close();
-
-				fout.open("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name() + ".x.csv");
-				fout << block.X.format(CSVFormat);
-				fout.close();
-
-				fout.open("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name() + ".pvcorr.csv");
-				fout << block.PvCorr.format(CSVFormat);
-				fout.close();
-			}
-
-			cout << "\b | [" << corr << ']';
-			cout << endl;
-
-		});
-
-		if (g_EnableDebugLogging)
-		{
-			ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_Xabpv.pd.csv");
-			fout << Xabpv.format(CSVFormat);
-			fout.close();
-		}
-
-		for (auto pBlock : inactiveBlocks)
-		{
-			auto &block = *pBlock;
-
-			int subAcitveClipCount = 0;
-			for (auto clipinfo : adaptors::values(m_Analyzers))
-			{
-				if (clipinfo->Eb[block.Index] > CharacterEnergyCutoff2)
-				{
-					++subAcitveClipCount;
-				}
-			}
-
-			if (subAcitveClipCount == 0)
-			{
-				block.PdDriver.Jx = block.PdDriver.Jy = -1;
-				block.PvDriveScore = -1;
-				continue;
-			}
-
-			int cid = 0, cid2 = 0; // Clip index
-			block.X.resize(subAcitveClipCount*CLIP_FRAME_COUNT, block.Joints.size() * CharacterFeature::Dimension);
-			block.Pd.resize(subAcitveClipCount*CLIP_FRAME_COUNT, Xabpv.cols());
-
-			for (auto clipinfo : adaptors::values(m_Analyzers))
-			{
-				if (clipinfo->Eb[block.Index] > CharacterEnergyCutoff2)
-				{
-					block.X.middleRows<CLIP_FRAME_COUNT>(cid*CLIP_FRAME_COUNT) = clipinfo->Xbs[block.Index];
-					block.Pd.middleRows<CLIP_FRAME_COUNT>(cid*CLIP_FRAME_COUNT) = Xabpv.middleRows<CLIP_FRAME_COUNT>(cid2*CLIP_FRAME_COUNT);
-					++cid;
-				}
-				++cid2;
-			}
-
-			auto corr = block.PdDriver.CreateFrom(block.Pd, block.X, 0.01 * PcaCutoff, PcaCutoff);
-			block.PvDriveScore = corr;
-
-			if (g_EnableDebugLogging)
-			{
-				ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name() + ".x.csv");
-				fout << block.X.format(CSVFormat);
-				fout.close();
-			}
-
-			cout << "[Inactive] {";
-			for (auto pJoint : block.Joints)
-			{
-				cout << pJoint->Name() << ", ";
-			}
-			cout << "\b\b} : " << corr << endl;
-
-			block.PdDriver.Jy = block.Index;
-			block.PdDriver.Jx = -2;
-		}
-
-		cout << "=================================================================" << endl;
-
-		auto pBinding = make_unique<BlockizedCcaArmatureTransform>(&blocks, &blocks);
-		pBinding->pInputExtractor.reset(new BlockEndEffectorGblPosQuadratic());
-		//pBinding->pInputExtractor.reset(new BlockEndEffectorFeatureExtractor<InputFeature>(true));
-		pBinding->pOutputExtractor.reset(new BlockAllJointsFeatureExtractor<CharacterFeature>(false));
-
-		//auto pBinding = make_unique<BlockizedSpatialInterpolateQuadraticTransform>(&m_Analyzers,&blocks, &blocks);
-
-		for (auto& pBlock : blocks)
-		{
-			auto& block = *pBlock;
-			//if (block.Index == 0)
-			//	continue;
-			if (block.ActiveActionCount > 0)
-			{
-				pBinding->Maps.emplace_back(block.PdDriver);
-			}
-		}
-		// The dependent block must be specified after independent block
-		for (auto& pBlock : blocks)
-		{
-			auto& block = *pBlock;
-			//if (block.Index == 0)
-			//	continue;
-			if (block.ActiveActionCount == 0 && block.PvDriveScore > 0.5f)
-			{
-				pBinding->Maps.emplace_back(block.PdDriver);
-			}
-		}
-
-
-		m_pSelfBinding = move(pBinding);
-		IsReady = true;
-	});
-}
-
-struct SkeletonBlock
-{
-	DirectX::XMVECTOR Scale;
-	DirectX::XMVECTOR CenterFromParentCenter;
-	JointType SkeletonJoint;
-	int ParentBlockIndex;
-};
-
-const SkeletonBlock g_SkeletonBlocks[] = {
-	{ { 0.75f, 1.0f, 0.5f, 0.0f },{ 0.0f, 0.0f, 0.0f, 0.0f }, JointType_SpineMid, -1 },      //  0 - lower torso
-	{ { 0.75f, 1.0f, 0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_SpineShoulder, 0 },  //  1 - upper torso
-
-	{ { 0.25f, 0.25f, 0.25f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_Neck, 1 },         //  2 - neck
-	{ { 0.5f, 0.5f, 0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_Head, 2 },            //  3 - head
-
-	{ { 0.35f, 0.4f, 0.35f, 0.0f },{ 0.5f, 1.0f, 0.0f, 0.0f }, JointType_ShoulderLeft, 1 },  //  4 - Left shoulderblade
-	{ { 0.25f, 1.0f, 0.25f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_ElbowLeft, 4 },     //  5 - Left upper arm
-	{ { 0.15f, 1.0f, 0.15f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_WristLeft, 5 },     //  6 - Left forearm
-	{ { 0.10f, 0.4f, 0.30f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_HandLeft, 6 },      //  7 - Left hand
-
-	{ { 0.35f, 0.4f, 0.35f, 0.0f },{ -0.5f, 1.0f, 0.0f, 0.0f }, JointType_ShoulderRight, 1 },//   8 - Right shoulderblade
-	{ { 0.25f, 1.0f, 0.25f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_ElbowRight, 8 },    //   9 - Right upper arm
-	{ { 0.15f, 1.0f, 0.15f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_WristRight, 9 },    //  10 - Right forearm
-	{ { 0.10f, 0.4f, 0.30f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_HandRight, 10 },    //  11 - Right hand
-
-	{ { 0.35f, 0.4f, 0.35f, 0.0f },{ 0.5f, 0.0f, 0.0f, 0.0f }, JointType_HipLeft, 0 },       //  12 - Left hipblade
-	{ { .4f, 1.0f, .4f, 0.0f },{ 0.5f, 0.0f, 0.0f, 0.0f }, JointType_KneeLeft, 12 },         //  13 - Left thigh
-	{ { .3f, 1.0f, .3f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_AnkleLeft, 13 },        //  14 - Left calf
-																							 //{ { .35f, .6f, .20f, 0.0f }, { 0.0f, 1.0f, 0.0f, 0.0f }, JointType_FootLeft , 14 },     //     - Left foot
-
-	{ { 0.35f, 0.4f, 0.35f, 0.0f },{ -0.5f, 0.0f, 0.0f, 0.0f }, JointType_HipRight, 0 },     //  15  - Right hipblade
-	{ { .4f, 1.0f, .4f, 0.0f },{ -0.5f, 0.0f, 0.0f, 0.0f }, JointType_KneeRight, 15 },       //  16  - Right thigh
-	{ { .3f, 1.0f, .3f, 0.0f },{ 0.0f, 1.0f, 0.0f, 0.0f }, JointType_AnkleRight, 16 },       //  17  - Right calf
-																							 //{ { .35f, .6f, .20f, 0.0f }, { 0.0f, 1.0f, 0.0f, 0.0f }, JointType_FootRight, 18 },     //      - Right foot
-
-};
-
-const UINT BLOCK_COUNT = _countof(g_SkeletonBlocks);
-const UINT BODY_COUNT = 6;
-const UINT JOINT_COUNT = 25;
 

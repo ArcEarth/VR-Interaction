@@ -1,8 +1,8 @@
 #pragma once
-#include "BCL.h"
 #include <unordered_map>
 #include <memory>
-#include "cca.h"
+#include <DirectXMathExtend.h>
+#include "Common\tree.h"
 
 namespace Causality
 {
@@ -65,10 +65,10 @@ namespace Causality
 		// Assuming Global position & orientation is known
 		void UpdateLocalData(const Bone& reference);
 
-		inline const DirectX::ScaledRigidTransform& LocalTransform() const { return reinterpret_cast<const DirectX::ScaledRigidTransform&>(*this); }
-		inline DirectX::ScaledRigidTransform& LocalTransform() { return reinterpret_cast<DirectX::ScaledRigidTransform&>(*this); }
-		inline const DirectX::ScaledRigidTransform& GlobalTransform() const { return reinterpret_cast<const DirectX::ScaledRigidTransform&>(this->GblRotation); }
-		inline DirectX::ScaledRigidTransform& GlobalTransform() { return reinterpret_cast<DirectX::ScaledRigidTransform&>(this->GblRotation); }
+		inline const DirectX::IsometricTransform& LocalTransform() const { return reinterpret_cast<const DirectX::IsometricTransform&>(*this); }
+		inline DirectX::IsometricTransform& LocalTransform() { return reinterpret_cast<DirectX::IsometricTransform&>(*this); }
+		inline const DirectX::IsometricTransform& GlobalTransform() const { return reinterpret_cast<const DirectX::IsometricTransform&>(this->GblRotation); }
+		inline DirectX::IsometricTransform& GlobalTransform() { return reinterpret_cast<DirectX::IsometricTransform&>(this->GblRotation); }
 	public:
 		// Static helper methods for caculate transform matrix
 		// Caculate the Transform Matrix from "FromState" to "ToState"
@@ -82,14 +82,14 @@ namespace Causality
 		// number of float elements per bone
 		static const auto BoneWidth = 28;
 
-		typedef Eigen::Map<Eigen::Matrix<float, BoneWidth, 1>, Eigen::Aligned> EigenType;
-		EigenType AsEigenType()
-		{
-			return EigenType(&LclRotation.x);
-		}
+		//typedef Eigen::Map<Eigen::Matrix<float, BoneWidth, 1>, Eigen::Aligned> EigenType;
+		//EigenType AsEigenType()
+		//{
+		//	return EigenType(&LclRotation.x);
+		//}
 	};
 
-	static_assert(offsetof(Bone, GblRotation) == sizeof(DirectX::ScaledRigidTransform),"Compilier not supported.");
+	static_assert(offsetof(Bone, GblRotation) == sizeof(DirectX::IsometricTransform),"Compilier not supported.");
 
 	XM_ALIGNATTR
 	struct BoneVelocity
