@@ -2,15 +2,17 @@
 #include "SceneObject.h"
 #include "CausalityApplication.h"
 #include <PrimitiveVisualizer.h>
+#include <ShadowMapGenerationEffect.h>
+//#include "CharacterObject.h"
 
 using namespace Causality;
 using namespace DirectX;
 using namespace DirectX::Scene;
 
-bool Causality::g_DebugView = false;
-bool Causality::g_ShowCharacterMesh = true;
-float Causality::g_DebugArmatureThinkness = 0.005f;
-bool Causality::g_MirrowInputX = false;
+bool g_DebugView = false;
+bool g_ShowCharacterMesh = true;
+float g_DebugArmatureThinkness = 0.005f;
+bool g_MirrowInputX = false;
 
 
 void XM_CALLCONV DrawBox(_In_reads_(8) Vector3 *conners, FXMVECTOR color)
@@ -33,7 +35,7 @@ void XM_CALLCONV DrawBox(_In_reads_(8) Vector3 *conners, FXMVECTOR color)
 
 }
 
-void XM_CALLCONV Causality::DrawGeometryOutline(const BoundingGeometry& geometry, FXMVECTOR color)
+void XM_CALLCONV DrawGeometryOutline(const BoundingGeometry& geometry, FXMVECTOR color)
 {
 	Vector3 conners[8];
 	if (geometry.Type == BoundingGeometryType::Geometry_Frustum)
@@ -56,27 +58,33 @@ void XM_CALLCONV Causality::DrawGeometryOutline(const BoundingGeometry& geometry
 	}
 }
 
-Causality::SceneObject::~SceneObject()
+SceneObject::~SceneObject()
 {
 	int *p = nullptr;
 }
 
-Causality::SceneObject::SceneObject() {
+SceneObject::SceneObject() {
 	m_IsEnabled = true;
 	m_IsStatic = false;
 	m_TransformDirty = false;
 }
 
-void Causality::SceneObject::AddChild(SceneObject * child)
+void SceneObject::AddChild(SceneObject * child)
 {
 	if (child != nullptr)
 	{
 		std::lock_guard<std::mutex> guard(Scene->ContentMutex());
+		auto oldParent = child->parent();
 		append_children_back(child);
+		child->OnParentChanged(oldParent);
 	}
 }
 
-void Causality::SceneObject::Update(time_seconds const & time_delta) {
+void SceneObject::OnParentChanged(SceneObject* oldParent)
+{
+}
+
+void SceneObject::Update(time_seconds const & time_delta) {
 	UpdateTransformsChildWard();
 }
 
@@ -95,17 +103,17 @@ DirectX::XMMATRIX SceneObject::GlobalTransformMatrix() const
 	//}
 }
 
-void XM_CALLCONV Causality::SceneObject::Move(FXMVECTOR p)
+void XM_CALLCONV SceneObject::Move(FXMVECTOR p)
 {
 	SetPosition((XMVECTOR)GetPosition() + XMVector3Rotate(p, GetOrientation()));
 }
 
-void XM_CALLCONV Causality::SceneObject::Rotate(FXMVECTOR q)
+void XM_CALLCONV SceneObject::Rotate(FXMVECTOR q)
 {
 	SetOrientation(XMQuaternionMultiply(q, GetOrientation()));
 }
 
-void Causality::SceneObject::SetTransformDirty()
+void SceneObject::SetTransformDirty()
 {
 	if (!m_TransformDirty)
 	{
@@ -117,19 +125,19 @@ void Causality::SceneObject::SetTransformDirty()
 	}
 }
 
-Vector3 Causality::SceneObject::GetPosition() const {
+Vector3 SceneObject::GetPosition() const {
 	if (m_TransformDirty)
 		UpdateTransformsParentWard();
 	return m_Transform.GblTranslation;
 }
 
-Quaternion Causality::SceneObject::GetOrientation() const {
+Quaternion SceneObject::GetOrientation() const {
 	if (m_TransformDirty)
 		UpdateTransformsParentWard();
 	return m_Transform.GblRotation;
 }
 
-Vector3 Causality::SceneObject::GetScale() const {
+Vector3 SceneObject::GetScale() const {
 	if (m_TransformDirty)
 		UpdateTransformsParentWard();
 	return m_Transform.GblScaling;
@@ -184,20 +192,20 @@ void SceneObject::SetScale(const Vector3 & s)
 	SetTransformDirty();
 }
 
-void Causality::SceneObject::SetLocalTransform(const DirectX::IsometricTransform & lcl)
+void SceneObject::SetLocalTransform(const DirectX::IsometricTransform & lcl)
 {
 	m_Transform.LocalTransform() = lcl;
 	SetTransformDirty();
 }
 
-const DirectX::IsometricTransform & Causality::SceneObject::GetGlobalTransform() const
+const DirectX::IsometricTransform & SceneObject::GetGlobalTransform() const
 {
 	if (m_TransformDirty)
 		UpdateTransformsParentWard();
 	return m_Transform.GlobalTransform();
 }
 
-void Causality::SceneObject::UpdateTransformsParentWard() const
+void SceneObject::UpdateTransformsParentWard() const
 {
 	if (!m_TransformDirty) return;
 	const SceneObject *pObj = parent();
@@ -213,7 +221,7 @@ void Causality::SceneObject::UpdateTransformsParentWard() const
 	m_TransformDirty = false;
 }
 
-void Causality::SceneObject::UpdateTransformsChildWard()
+void SceneObject::UpdateTransformsChildWard()
 {
 	if (m_TransformDirty)
 	{
@@ -240,7 +248,7 @@ void VisualObject::SetRenderModel(DirectX::Scene::IModelNode * pMesh, int LoD)
 	m_pRenderModel = pMesh;
 }
 
-RenderFlags Causality::VisualObject::GetRenderFlags() const
+RenderFlags VisualObject::GetRenderFlags() const
 {
 	return RenderFlags::OpaqueObjects;
 }
@@ -264,7 +272,7 @@ void XM_CALLCONV VisualObject::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX
 {
 }
 
-Causality::VisualObject::VisualObject()
+VisualObject::VisualObject()
 {
 	m_isVisable = true;
 	m_opticity = 1.0f;
@@ -414,12 +422,12 @@ void KeyboardMouseFirstPersonControl::OnMouseMove(const CursorMoveEventArgs & e)
 	}
 }
 
-bool Causality::CoordinateAxis::IsVisible(const BoundingGeometry & viewFrustum) const
+bool CoordinateAxis::IsVisible(const BoundingGeometry & viewFrustum) const
 {
 	return g_DebugView;
 }
 
-void Causality::CoordinateAxis::Render(RenderContext & context, DirectX::IEffect* pEffect)
+void CoordinateAxis::Render(RenderContext & context, DirectX::IEffect* pEffect)
 {
 	float ub = 10, lb = -10, majorIdent = 1, minorIdent = 0.25f;
 	using DirectX::Visualizers::g_PrimitiveDrawer;
@@ -463,7 +471,7 @@ void Causality::CoordinateAxis::Render(RenderContext & context, DirectX::IEffect
 	g_PrimitiveDrawer.End();
 }
 
-void XM_CALLCONV Causality::CoordinateAxis::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
+void XM_CALLCONV CoordinateAxis::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 	g_PrimitiveDrawer.SetView(view);
@@ -471,61 +479,70 @@ void XM_CALLCONV Causality::CoordinateAxis::UpdateViewMatrix(DirectX::FXMMATRIX 
 	g_PrimitiveDrawer.SetWorld(GlobalTransformMatrix());
 }
 
-RenderFlags Causality::CoordinateAxis::GetRenderFlags() const
+RenderFlags CoordinateAxis::GetRenderFlags() const
 {
 	return RenderFlags::SpecialEffects;
 }
 
-Causality::GlowingBorder::GlowingBorder()
+GlowingBorder::GlowingBorder()
 {
 	m_Color = Colors::Red.v;
 }
 
-Causality::GlowingBorder::GlowingBorder(const DirectX::Color & color)
+GlowingBorder::GlowingBorder(const DirectX::Color & color)
 	: m_Color(color)
 {
 
 }
 
-bool Causality::GlowingBorder::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
+bool GlowingBorder::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
 {
 	if (!IsEnabled()) return false;
-	auto pVisual = dynamic_cast<const VisualObject*>(parent());
+	auto pVisual = this->FirstAncesterOfType<VisualObject>();
 	if (pVisual)
 	{
 		return pVisual->IsVisible(viewFrustum);
 	}
 }
 
-RenderFlags Causality::GlowingBorder::GetRenderFlags() const
+RenderFlags GlowingBorder::GetRenderFlags() const
 {
 	return RenderFlags::BloomEffectSource;
 }
 
-void Causality::GlowingBorder::Render(RenderContext & pContext, DirectX::IEffect * pEffect)
+void GlowingBorder::Render(RenderContext & pContext, DirectX::IEffect * pEffect)
 {
-	auto pVisual = dynamic_cast<VisualObject*>(parent());
-	if (pVisual)
+	auto pVisual = this->FirstAncesterOfType<VisualObject>();
+	auto pModel = pVisual ? pVisual->RenderModel() : nullptr;
+	auto pSGEffect = dynamic_cast<ShadowMapGenerationEffect*> (pEffect);
+	if (pSGEffect)
 	{
-		auto pModel = pVisual->RenderModel();
+		if (pSGEffect->GetShadowFillMode() == ShadowMapGenerationEffect::SolidColorFill)
+		{
+			pSGEffect->SetShadowColor(m_Color);
+		}
+	}
+
+	if (pModel)
+	{
 		pModel->Render(pContext,pVisual->GlobalTransformMatrix(), pEffect); // Render parent model with customized effect
 	}
 }
 
-void XM_CALLCONV Causality::GlowingBorder::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
+void XM_CALLCONV GlowingBorder::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 }
 
-Causality::SkyDome::SkyDome()
+SkyDome::SkyDome()
 {
 }
 
-Causality::SkyDome::~SkyDome()
+SkyDome::~SkyDome()
 {
 
 }
 
-void Causality::SkyDome::CreateDeviceResource(ID3D11Device * device, DirectX::EnvironmentMapEffect * pEffect)
+void SkyDome::CreateDeviceResource(ID3D11Device * device, DirectX::EnvironmentMapEffect * pEffect)
 {
 	m_pSphere = DirectX::Scene::GeometricPrimtives::CreateSphere(device, 1.0f,16,true,true);
 	m_pSphere->CreateInputLayout(device, pEffect);
@@ -533,19 +550,19 @@ void Causality::SkyDome::CreateDeviceResource(ID3D11Device * device, DirectX::En
 }
 
 
-void Causality::SkyDome::SetTexture(DirectX::Texture & texture)
+void SkyDome::SetTexture(DirectX::Texture & texture)
 {
 	m_Texture = texture;
 }
 
 // Inherited via IRenderable
 
-bool Causality::SkyDome::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
+bool SkyDome::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
 {
 	return g_ShowCharacterMesh;
 }
 
-void Causality::SkyDome::Render(RenderContext & context, DirectX::IEffect * pEffect)
+void SkyDome::Render(RenderContext & context, DirectX::IEffect * pEffect)
 {
 	auto pStates = DirectX::Visualizers::g_PrimitiveDrawer.GetStates();
 	m_pEffect->SetTexture(NULL);
@@ -569,7 +586,7 @@ void Causality::SkyDome::Render(RenderContext & context, DirectX::IEffect * pEff
 	context->RSSetState(pStates->CullCounterClockwise());
 }
 
-void XM_CALLCONV Causality::SkyDome::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
+void XM_CALLCONV SkyDome::UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
 	XMMATRIX View = view;
 	// Last column of View Inverse is camera's position
@@ -580,7 +597,7 @@ void XM_CALLCONV Causality::SkyDome::UpdateViewMatrix(DirectX::FXMMATRIX view, D
 
 // Inherited via IRenderable
 
-RenderFlags Causality::SkyDome::GetRenderFlags() const
+RenderFlags SkyDome::GetRenderFlags() const
 {
 	return RenderFlags::SkyView;
 }

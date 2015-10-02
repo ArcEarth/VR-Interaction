@@ -194,14 +194,23 @@ void ParseSceneSettings(tinyxml2::XMLElement * nScene)
 	g_##name = val; \
 }
 
+#define PARSE_INT_SETTING(node,name,def) \
+{ \
+	int val = def;\
+	node->FirstChildElement(#name)->QueryIntText(&val); \
+	g_##name = val; \
+}
 
 	PARSE_BOOL_SETTING(nSettings, EnableDebugLogging, 0);
 	PARSE_BOOL_SETTING(nSettings, EnableRecordLogging, 0);
 
 	PARSE_BOOL_SETTING(nSettings, EnableDependentControl, 0);
 	PARSE_BOOL_SETTING(nSettings, IngnoreInputRootRotation, 1);
-	PARSE_BOOL_SETTING(nSettings, UseGeneralTransform, 0);
+
+	PARSE_INT_SETTING (nSettings, PartAssignmentTransform, 0);
+
 	PARSE_BOOL_SETTING(nSettings, UsePersudoPhysicsWalk, 1);
+	PARSE_FLOAT_SETTING(nSettings, MaxCharacterSpeed, 0.5f);
 
 	PARSE_BOOL_SETTING(nSettings, UseStylizedIK, 1);
 	PARSE_BOOL_SETTING(nSettings, UseVelocity, 1);
@@ -213,6 +222,9 @@ void ParseSceneSettings(tinyxml2::XMLElement * nScene)
 	PARSE_FLOAT_SETTING(nSettings, CharacterPcaCutoff, .004f);
 	PARSE_FLOAT_SETTING(nSettings, CharacterActiveEnergy, 0.40f);
 	PARSE_FLOAT_SETTING(nSettings, CharacterSubactiveEnergy, 0.02f);
+	PARSE_FLOAT_SETTING(nSettings, IKTermWeight, 1.0f);
+	PARSE_FLOAT_SETTING(nSettings, MarkovTermWeight, 1.0f);
+	PARSE_FLOAT_SETTING(nSettings, StyleLikelihoodTermWeight, 1.0f);
 }
 
 void ParseSceneAssets(AssetDictionary& assets, XMLElement* node)

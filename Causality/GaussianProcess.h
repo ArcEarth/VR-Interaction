@@ -20,6 +20,7 @@ namespace Causality
 
 		MatrixType X;
 		MatrixType Y;
+		RowVectorType wY; // Scale weights that applies to Y
 		RowVectorType uX;
 		RowVectorType uY;
 
@@ -84,10 +85,11 @@ namespace Causality
 		void get_expectation(_In_ const MatrixType& x, _Out_  MatrixType* y) const;
 
 		// negitive log likilihood of P(y | theta,x)
-		double likelihood_xy(const RowVectorType& x, const RowVectorType& y) const;
+		double get_likelihood_xy(const RowVectorType& x, const RowVectorType& y) const;
+		RowVectorType get_likelihood_xy_derivative(const RowVectorType& x, const RowVectorType& y) const;
 
-		double likelihood_x(const RowVectorType& x) const;
-		RowVectorType likelihood_x_derivative(const RowVectorType& x) const;
+		double get_likelihood_x(const RowVectorType& x) const;
+		RowVectorType get_ikelihood_x_derivative(const RowVectorType& x) const;
 
 		#pragma region Parameter Tuning Methods
 		// negitive log likilihood of P(theta | X,Y)
@@ -116,8 +118,8 @@ namespace Causality
 	class gaussian_process_lvm : protected gaussian_process_regression
 	{
 	public:
-		using gaussian_process_regression::likelihood_xy;
-		using gaussian_process_regression::likelihood_x;
+		using gaussian_process_regression::get_likelihood_xy;
+		using gaussian_process_regression::get_likelihood_x;
 		using gaussian_process_regression::get_parameters;
 		using gaussian_process_regression::alpha;
 		using gaussian_process_regression::beta;
@@ -129,7 +131,7 @@ namespace Causality
 		const MatrixType& latent_coords() const;
 
 		// optimize the latent coordinate X
-		double optimize_x(const MatrixXd& initalX);
+		double optimize_x(const MatrixType& initalX);
 	};
 
 	// gaussian-process-shared-latent-variable-model

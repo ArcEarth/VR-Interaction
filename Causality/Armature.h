@@ -3,13 +3,14 @@
 #include <memory>
 #include <DirectXMathExtend.h>
 #include "Common\tree.h"
+#include <gsl.h>
 
 namespace Causality
 {
 	class IArmature;
-	class KinematicBlock;
-	class BlockArmature;
-	class AffineFrame;
+	class ArmaturePart;
+	class ShrinkedArmature;
+	class BoneHiracheryFrame;
 
 	// Pure pose and Dynamic data for a bone
 	// "Structure" information is not stored here
@@ -89,6 +90,24 @@ namespace Causality
 		//}
 	};
 
+	XM_ALIGNATTR
+	struct BoneIntrinsic
+	{
+		Vector3 LclTranslation;
+		float	_padding0;
+		Vector3 LclScale;
+		float	_padding1;
+	};
+
+	XM_ALIGNATTR
+	struct BoneExtrinsic
+	{
+		Quaternion	LclRotation;
+		Quaternion	GblRotation;
+		Vector3		GblTranslation;
+		float		_padding;
+	};
+
 	static_assert(offsetof(Bone, GblRotation) == sizeof(DirectX::IsometricTransform),"Compilier not supported.");
 
 	XM_ALIGNATTR
@@ -129,7 +148,7 @@ namespace Causality
 		Semantic_Center = 0x4000000,
 	};
 
-	using JointSemanticProperty = CompositeFlag<JointSemantic>;
+	using JointSemanticProperty = JointSemantic;//CompositeFlag<JointSemantic>;
 	// A Joint descript the structure information of a joint
 	// Also represent the "bone" "end" with it
 	// the state information could be retrived by using it's ID
@@ -147,9 +166,10 @@ namespace Causality
 	{
 	};
 
-	class Joint : public stdx::tree_node<Joint, false>, protected JointBasicData
+	class Joint : public stdx::tree_node<Joint, false>, public JointBasicData
 	{
 	public:
+		Joint*						MirrorJoint; // the symetric pair of this joint
 		JointSemanticProperty		Semantic;
 		RotationConstriant			RotationConstraint;
 		Vector3						Scale;
@@ -169,40 +189,23 @@ namespace Causality
 		{
 			JointBasicData::ID = -1;
 			JointBasicData::ParentID = -1;
+			MirrorJoint = nullptr;
 		}
 
 		Joint(int id)
 		{
 			JointBasicData::ID = id;
 			JointBasicData::ParentID = -1;
+			MirrorJoint = nullptr;
 		}
 
 		Joint(const JointBasicData& data)
 			: JointBasicData(data)
 		{
+			MirrorJoint = nullptr;
 		}
 
-		int ID() const
-		{
-			return JointBasicData::ID;
-		}
 		void SetID(int idx) { JointBasicData::ID = idx; }
-
-		// will be -1 for root
-		int ParentID() const
-		{
-			return JointBasicData::ParentID;
-			//auto p = parent();
-			//if (p)
-			//	return parent()->ID();
-			//else
-			//	return -1;
-		}
-
-		const std::string& Name() const
-		{
-			return JointBasicData::Name;
-		}
 
 		void SetName(const std::string& name) { JointBasicData::Name = name; }
 		void SetParentID(int id) { JointBasicData::ParentID = id; }
@@ -220,7 +223,7 @@ namespace Causality
 	class IArmature
 	{
 	public:
-		typedef AffineFrame frame_type;
+		typedef BoneHiracheryFrame frame_type;
 
 		virtual ~IArmature() {}
 
@@ -271,6 +274,8 @@ namespace Causality
 		//std::vector<size_t> TopologyOrder;
 	};
 
+	void BuildJointMirrorRelation(Joint* root, const BoneHiracheryFrame& frame);
+
 	enum SymetricTypeEnum
 	{
 		Symetric_None = 0,
@@ -292,29 +297,8 @@ namespace Causality
 		uptr<frame_type>			DefaultFrame;
 
 	public:
-		template <template<class T> class Range>
-		StaticArmature(Range<JointBasicData> data)
-		{
-			size_t jointCount = data.size();
-			Joints.resize(jointCount);
 
-			for (size_t i = 0; i < jointCount; i++)
-			{
-				Joints[i].SetID(i);
-
-				int parentID = data[i].ParentID;
-				if (parentID != i &&parentID >= 0)
-				{
-					Joints[parentID].append_children_back(&Joints[i]);
-				}
-				else
-				{
-					RootIdx = i;
-				}
-			}
-
-			CaculateTopologyOrder();
-		}
+		StaticArmature(gsl::array_view<JointBasicData> data);
 
 		// deserialization
 		StaticArmature(std::istream& file);

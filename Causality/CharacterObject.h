@@ -67,5 +67,24 @@ namespace Causality
 		bool									m_IsAutoDisplacement;
 	};
 
-	void DrawArmature(const IArmature & armature, const AffineFrame & frame, const Color & color, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);
+	class CharacterGlowParts : public GlowingBorder
+	{
+	public:
+		typedef std::vector<DirectX::Color, DirectX::XMAllocator> BoneColorVector;
+		virtual void Render(RenderContext & pContext, DirectX::IEffect* pEffect = nullptr) override;
+
+		const	DirectX::Color& GetBoneColor(int id) const
+		{ return m_BoneColors[id]; }
+		void	SetBoneColor(int id, const DirectX::Color& color)
+		{ m_BoneColors[id] = color; }
+
+		virtual void OnParentChanged(SceneObject *oldParent) override;
+	private:
+		void Initialize();
+
+		CharacterObject*	m_pCharacter;
+		BoneColorVector		m_BoneColors;
+	};
+
+	void DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color & color, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);
 }

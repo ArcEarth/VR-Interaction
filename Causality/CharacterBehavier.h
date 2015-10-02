@@ -12,13 +12,13 @@ namespace Causality
 	{
 	public:
 		typedef ArmatureFrameAnimation animation_type;
-		typedef AffineFrame frame_type;
+		typedef BoneHiracheryFrame frame_type;
 		typedef BoneVelocityFrame velocity_frame_type;
 		typedef vector<ArmatureFrameAnimation> container_type;
 
 	private:
 		IArmature*						m_pArmature;
-		BlockArmature					m_Blocks;
+		ShrinkedArmature					m_Blocks;
 		vector<animation_type>			m_AnimClips;
 
 	public:
@@ -32,8 +32,8 @@ namespace Causality
 		bool Contains(const std::string& name) const;
 #pragma endregion
 
-		const BlockArmature&	Blocks() const { return m_Blocks; }
-		BlockArmature&	Blocks() { return m_Blocks; }
+		const ShrinkedArmature&	Blocks() const { return m_Blocks; }
+		ShrinkedArmature&	Blocks() { return m_Blocks; }
 
 		void					UpdateBlock();
 

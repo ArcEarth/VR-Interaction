@@ -15,11 +15,14 @@ namespace DirectX
 		{
 			DepthFill = 0,
 			SolidColorFill = 1,
+			BoneColorFill = 2,
 		};
 
 		void __cdecl SetShadowMap(ID3D11DepthStencilView* pShaodwMap, ID3D11RenderTargetView* pRTV = NULL);
+		ShadowFillMode GetShadowFillMode() const;
 		void XM_CALLCONV SetShadowFillMode(_In_ ShadowFillMode mode);
 		void XM_CALLCONV SetShadowColor(FXMVECTOR color = Colors::Black);
+		virtual void __cdecl SetBoneColors(_In_reads_(count) XMVECTOR const* value, size_t count);
 
 		// Use texture for alpha clipping
 		void __cdecl SetAlphaDiscardThreshold(float clipThreshold);

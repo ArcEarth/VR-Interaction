@@ -178,7 +178,12 @@ namespace DirectX{
 
 	void XM_CALLCONV PrimitveDrawer::DrawCone(FXMVECTOR Position, FXMVECTOR YDirection, float height, float radius, FXMVECTOR Color)
 	{
-		XMVECTOR rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, YDirection);
+		XMVECTOR rot;
+		if (XMVector4NearEqual(YDirection, g_XMZero.v, g_XMEpsilon.v))
+			rot = XMQuaternionIdentity();
+		else
+			rot = XMQuaternionRotationVectorToVector(g_XMIdentityR1, YDirection);
+
 		XMMATRIX world = XMMatrixAffineTransformation(XMVectorSet(radius, height, radius, 1), g_XMZero, rot, Position);
 		DrawGeometry(m_pCone.get(), world, Color);
 	}

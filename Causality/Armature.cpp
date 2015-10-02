@@ -34,16 +34,16 @@ Bone::Bone()
 
 void Bone::UpdateGlobalData(const Bone & reference)
 {
-	XMVECTOR ParQ = reference.GblRotation.LoadA();
-	XMVECTOR Q = XMQuaternionMultiply(LclRotation.LoadA(), ParQ);
-	XMVECTOR ParS = reference.GblScaling.LoadA();
-	XMVECTOR S = ParS * LclScaling.LoadA();
+	XMVECTOR ParQ = XMLoadA(reference.GblRotation);
+	XMVECTOR Q = XMQuaternionMultiply(XMLoadA(LclRotation), ParQ);
+	XMVECTOR ParS = XMLoadA(reference.GblScaling);
+	XMVECTOR S = ParS * XMLoadA(LclScaling);
 	GblRotation.StoreA(Q);
 	GblScaling.StoreA(S);
 
 	//OriginPosition = reference.GblTranslation; // should be a constriant
 
-	XMVECTOR V = LclTranslation.LoadA();
+	XMVECTOR V = XMLoadA(LclTranslation);
 
 	LclLength = XMVectorGetX(XMVector3Length(V));
 
@@ -51,8 +51,8 @@ void Bone::UpdateGlobalData(const Bone & reference)
 
 	GblLength = XMVectorGetX(XMVector3Length(V));
 
-	V = XMVector3Rotate(V, ParQ);
-	V = XMVectorAdd(V, reference.GblTranslation.LoadA());
+	V = XMVector3Rotate(V, ParQ);//ParQ
+	V = XMVectorAdd(V, XMLoadA(reference.GblTranslation));
 
 	GblTranslation.StoreA(V);
 }
@@ -73,23 +73,23 @@ void Bone::UpdateLocalData(const Bone& reference)
 
 	GblLength = XMVectorGetX(XMVector3Length(Q));
 
-	Q = XMVector3Rotate(Q,InvParQ);
+	Q = XMVector3Rotate(Q, InvParQ);
 
-	XMVECTOR S = GblScaling.LoadA();
+	XMVECTOR S = XMLoadA(GblScaling);
 	Q /= S;
 
 	LclLength = XMVectorGetX(XMVector3Length(Q));
 
 	LclTranslation = Q;
 
-	S /= reference.GblScaling.LoadA();
+	S /= XMLoadA(reference.GblScaling);
 	LclScaling = S;
 }
 
 
 void Bone::UpdateLocalDataByPositionOnly(const Bone & reference)
 {
-	XMVECTOR v0 = this->GblTranslation.LoadA() - reference.GblTranslation.LoadA();
+	XMVECTOR v0 = XMLoadA(this->GblTranslation) - XMLoadA(reference.GblTranslation);
 	v0 = DirectX::XMVector3InverseRotate(v0, reference.GblRotation);
 
 	LclScaling = { 1.0f, XMVectorGetX(XMVector3Length(v0)), 1.0f };
@@ -109,22 +109,25 @@ DirectX::XMMATRIX Bone::TransformMatrix(const Bone & from, const Bone & to)
 	using DirectX::operator+=;
 	using namespace DirectX;
 
-	XMMATRIX MScaling = XMMatrixScalingFromVector(to.GblScaling.LoadA() / from.GblScaling.LoadA());
-	XMVECTOR VRotationOrigin = XMVectorSelect(g_XMSelect1110.v, from.GblTranslation.LoadA(), g_XMSelect1110.v);
-	XMMATRIX MRotation = XMMatrixRotationQuaternion(XMQuaternionInverse(from.GblRotation));
-	XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, to.GblTranslation.LoadA(), g_XMSelect1110.v);
+	XMVECTOR VScaling = XMLoadA(to.GblScaling) / XMLoadA(from.GblScaling);
+	XMVECTOR VRotationOrigin = XMVectorSelect(g_XMSelect1110.v, XMLoadA(from.GblTranslation), g_XMSelect1110.v);
+	XMMATRIX MRotation = XMMatrixRotationQuaternion(XMQuaternionConjugate(XMLoadA(from.GblRotation)));
+	XMVECTOR VTranslation = XMVectorSelect(g_XMSelect1110.v, XMLoadA(to.GblTranslation), g_XMSelect1110.v);
 
-	XMMATRIX M = XMMatrixTranslationFromVector(-VRotationOrigin);
-	M = XMMatrixMultiply(M, MRotation);
-	M = XMMatrixMultiply(M, MScaling);
-	MRotation = XMMatrixRotationQuaternion(to.GblRotation);
+	VRotationOrigin = -VRotationOrigin;
+	VRotationOrigin = XMVector3Transform(VRotationOrigin, MRotation);
+	VRotationOrigin = VRotationOrigin * VScaling;
+	XMMATRIX M = MRotation;
+	M.r[3] = XMVectorSelect(g_XMIdentityR3.v, VRotationOrigin, g_XMSelect1110.v);
+
+	MRotation = XMMatrixRotationQuaternion(XMLoadA(to.GblRotation));
 	M = XMMatrixMultiply(M, MRotation);
 	M.r[3] += VTranslation;
 
-	XMVECTOR toEnd = XMVector3Transform(from.GblTranslation.LoadA(), M);
+	//XMVECTOR toEnd = XMVector3Transform(XMLoadA(from.GblTranslation), M);
 
-	if (XMVector4Greater(XMVector3LengthSq(toEnd - to.GblTranslation.LoadA()), XMVectorReplicate(0.001)))
-		std::cout << "NO!!!!" << std::endl;
+	//if (XMVector4Greater(XMVector3LengthSq(toEnd - XMLoadA(to.GblTranslation)), XMVectorReplicate(0.001)))
+	//	std::cout << "NO!!!!" << std::endl;
 	return M;
 }
 
@@ -132,16 +135,39 @@ DirectX::XMMATRIX Bone::RigidTransformMatrix(const Bone & from, const Bone & to)
 {
 	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
 	rot = XMQuaternionMultiply(rot, to.GblRotation);
-	XMVECTOR tra = to.GblTranslation.LoadA() - from.GblTranslation.LoadA();
-	return XMMatrixRigidTransform(from.GblTranslation.LoadA(), rot, tra);
+	XMVECTOR tra = XMLoadA(to.GblTranslation) - XMLoadA(from.GblTranslation);
+	return XMMatrixRigidTransform(XMLoadA(from.GblTranslation), rot, tra);
 }
 
 DirectX::XMDUALVECTOR Bone::RigidTransformDualQuaternion(const Bone & from, const Bone & to)
 {
 	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
 	rot = XMQuaternionMultiply(rot, to.GblRotation);
-	XMVECTOR tra = to.GblTranslation.LoadA() - from.GblTranslation.LoadA();
-	return XMDualQuaternionRigidTransform(from.GblTranslation.LoadA(), rot, tra);
+	XMVECTOR tra = XMLoadA(to.GblTranslation) - XMLoadA(from.GblTranslation);
+	return XMDualQuaternionRigidTransform(XMLoadA(from.GblTranslation), rot, tra);
+}
+
+Causality::StaticArmature::StaticArmature(gsl::array_view<JointBasicData> data)
+{
+	size_t jointCount = data.size();
+	Joints.resize(jointCount);
+
+	for (size_t i = 0; i < jointCount; i++)
+	{
+		Joints[i].SetID(i);
+
+		int parentID = data[i].ParentID;
+		if (parentID != i &&parentID >= 0)
+		{
+			Joints[parentID].append_children_back(&Joints[i]);
+		}
+		else
+		{
+			RootIdx = i;
+		}
+	}
+
+	CaculateTopologyOrder();
 }
 
 StaticArmature::StaticArmature(std::istream & file)
@@ -150,7 +176,7 @@ StaticArmature::StaticArmature(std::istream & file)
 	file >> jointCount;
 
 	Joints.resize(jointCount);
-	DefaultFrame.reset(new AffineFrame(jointCount));
+	DefaultFrame.reset(new BoneHiracheryFrame(jointCount));
 
 	// Joint line format: 
 	// Hip(Name) -1(ParentID)
@@ -161,9 +187,9 @@ StaticArmature::StaticArmature(std::istream & file)
 		auto& bone = default_frame()[idx];
 		((JointBasicData&)joint).ID = idx;
 		file >> ((JointBasicData&)joint).Name >> ((JointBasicData&)joint).ParentID;
-		if (joint.ParentID() != idx && joint.ParentID() >= 0)
+		if (joint.ParentID != idx && joint.ParentID >= 0)
 		{
-			Joints[joint.ParentID()].append_children_back(&joint);
+			Joints[joint.ParentID].append_children_back(&joint);
 		}
 		else
 		{
@@ -183,7 +209,7 @@ StaticArmature::StaticArmature(std::istream & file)
 StaticArmature::StaticArmature(size_t JointCount, int * Parents, const char* const* Names)
 	: Joints(JointCount)
 {
-	DefaultFrame.reset(new AffineFrame(JointCount));
+	DefaultFrame.reset(new BoneHiracheryFrame(JointCount));
 	for (size_t i = 0; i < JointCount; i++)
 	{
 		Joints[i].SetID(i);
@@ -250,7 +276,7 @@ void StaticArmature::CaculateTopologyOrder()
 	using namespace boost;
 	using namespace boost::adaptors;
 	TopologyOrder.resize(size());
-	copy(root()->nodes() | transformed([](const Joint& joint) {return joint.ID(); }), TopologyOrder.begin());
+	copy(root()->nodes() | transformed([](const Joint& joint) {return joint.ID; }), TopologyOrder.begin());
 
 }
 
@@ -329,5 +355,54 @@ const JointSemanticProperty & Joint::AssignSemanticsBasedOnName()
 
 const Bone & Causality::IArmature::default_bone(int index) const
 {
-	return default_frame()[at(index)->ID()];
+	return default_frame()[at(index)->ID];
+}
+
+// check if two tree node is "structural-similar"
+template <class Derived, bool ownnersip>
+bool is_similar(_In_ const stdx::tree_node<Derived, ownnersip> *p, _In_ const stdx::tree_node<Derived, ownnersip> *q)
+{
+	typedef const stdx::tree_node<Derived, ownnersip> * pointer;
+	pointer pc = p->first_child();
+	pointer qc = q->first_child();
+
+	if ((pc == nullptr) != (qc == nullptr))
+		return false;
+	else if (!(pc || qc))
+		return true;
+
+	while (pc != nullptr && qc != nullptr)
+	{
+		bool similar = is_similar(pc, qc);
+		if (!similar) return false;
+		pc = pc->next_sibling();
+		qc = qc->next_sibling();
+	}
+
+	return pc == nullptr && qc == nullptr;
+}
+
+void Causality::BuildJointMirrorRelation(Joint * root, const BoneHiracheryFrame & frame)
+{
+	float epsilon = 1.00f;
+	auto _children = root->descendants();
+	std::vector<std::reference_wrapper<Joint>> children(_children.begin(), _children.end());
+	std::vector<Joint*> &joints = reinterpret_cast<std::vector<Joint*> &>(children);
+
+	for (int i = 0; i < children.size(); i++)
+	{
+		auto& bonei = frame[joints[i]->ID];
+		auto& ti = bonei.GblTranslation;
+		for (int j = i + 1; j < children.size(); j++)
+		{
+			auto& bonej = frame[joints[j]->ID];
+			auto& tj = bonej.GblTranslation;
+
+			if (joints[i]->parent() == joints[j]->parent() && is_similar(joints[i], joints[j]))
+			{
+				joints[i]->MirrorJoint = joints[j];
+				joints[j]->MirrorJoint = joints[i];
+			}
+		}
+	}
 }

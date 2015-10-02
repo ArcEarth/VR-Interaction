@@ -7,10 +7,17 @@
     <EnableRecordLogging>0</EnableRecordLogging>
     <RecordLogRootDir>Log</RecordLogRootDir>
 
-    <EnableDependentControl>0</EnableDependentControl>
+    <!--When this switch is on, sub-active parts will be animated based on active parts-->
+    <EnableDependentControl>1</EnableDependentControl>
+
+    <!--When This switch is on, active body parts beside direct matched will be controlled by a cca of direct matched parts-->
+    <EnableActiveDependentControl>1</EnableActiveDependentControl>
     <IngnoreInputRootRotation>1</IngnoreInputRootRotation>
-    <UseGeneralTransform>0</UseGeneralTransform>
+    
+    <PartAssignmentTransform>4</PartAssignmentTransform>
+
     <UsePersudoPhysicsWalk>0</UsePersudoPhysicsWalk>
+    <MaxCharacterSpeed>0.5</MaxCharacterSpeed>
 
     <EnableInputFeatureLocalization>1</EnableInputFeatureLocalization>
     <MatchAccepetanceThreshold>0.2</MatchAccepetanceThreshold>
@@ -22,11 +29,21 @@
     <UseVelocity>1</UseVelocity>
     <FrameTimeScaleFactor>20</FrameTimeScaleFactor>
 
+    <!--<IKTermWeight>1.0</IKTermWeight>
+    <IKLimitWeight>200</IKLimitWeight>
+    <MarkovTermWeight>1.0</MarkovTermWeight>
+    <StyleLikelihoodTermWeight>0.1</StyleLikelihoodTermWeight>-->
+
+    <IKTermWeight>1.0</IKTermWeight>
+    <IKLimitWeight>20</IKLimitWeight>
+    <MarkovTermWeight>0.01</MarkovTermWeight>
+    <StyleLikelihoodTermWeight>0.3</StyleLikelihoodTermWeight>
+
     <LoadCharacterModelParameter>1</LoadCharacterModelParameter>
     <CharacterModelParameterFile>CharacterAnalayze\{0}.param.xml</CharacterModelParameterFile>
     <CharacterPcaCutoff>0.004</CharacterPcaCutoff>
     <CharacterActiveEnergy>0.40</CharacterActiveEnergy>
-    <CharacterSubactiveEnergy>0.02</CharacterSubactiveEnergy>
+    <CharacterSubactiveEnergy>0.04</CharacterSubactiveEnergy>
 
     <enviroment>
       <gravity>0,-0.1,0</gravity>
@@ -117,23 +134,23 @@
 
       <player_controller name="player" position="0,0.0,0">
 
-        <creature name="hrse" position="-1,0,0" scale ="0.01" action="walk" mesh="{horse_mesh}">
+        <creature name="horse" position="-1,0,0" scale ="0.01" action="run" mesh="{horse_mesh}">
           <creature.behavier>
             <behavier name="horse_behavier" armature="Horse_Idle.fbx">
               <behavier.actions>
                 <action name="walk" src="Horse_Walk.fbx"/>
                 <action name="run" src="Horse_Run.fbx"/>
-                <!--<action name="idle" src="Horse_Idle.fbx"/>-->
               </behavier.actions>
             </behavier>
           </creature.behavier>
         </creature>
+        <action name="idle" src="Horse_Idle.fbx"/>
 
-        <!--<creature name="spider" position="1,0,0" scale="0.00125" action="walk" mesh="{spider_mesh}">
+        <creature name="spider" position="1,0,0" scale="0.00125" action="walk" mesh="{spider_mesh}">
           <creature.behavier>
             <behavier name="spider_behavier" src="spider.fbx"></behavier>
           </creature.behavier>
-        </creature>-->
+        </creature>
 
         <!--<creature name="allosaurus" position="0,0,-1" scale ="0.01" action="idle" mesh="{allosaurus_mesh}">
           <creature.behavier>
@@ -154,16 +171,17 @@
           <creature.behavier>
             <behavier name="cat_beyhavier" armature="kitten.fbx">
               <behavier.actions>
-                -->
-        <!--<action name="idle" src="kitten_Idle.fbx"/>-->
-        <!--
+                
+        --><!--<action name="idle" src="kitten_Idle.fbx"/>--><!--
+        
                 <action name="walk" src="kitten_Walk.fbx"/>
                 <action name="run" src="kitten_Run.fbx"/>
-                <action name="jump" src="kitten_Jump.fbx"/>
-                -->
-        <!--<action name="hit" src="kitten_Itching.fbx"/>
+                --><!--<action name="jump" src="kitten_Jump.fbx"/>--><!--
+                
+        --><!--<action name="hit" src="kitten_Itching.fbx"/>
                 <action name="attack" src="kitten_Meow.fbx"/>-->
-        <!--
+            <!--
+        
               </behavier.actions>
             </behavier>
           </creature.behavier>

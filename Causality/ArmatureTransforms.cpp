@@ -11,6 +11,8 @@ namespace Causality
 }
 
 using namespace Causality;
+using namespace ArmaturePartFeatures;
+using namespace Eigen;
 
 template <class Derived>
 void ExpandQuadraticTerm(_Inout_ Eigen::DenseBase<Derived> &v, _In_ Eigen::DenseIndex dim)
@@ -29,21 +31,21 @@ void ExpandQuadraticTerm(_Inout_ Eigen::DenseBase<Derived> &v, _In_ Eigen::Dense
 }
 
 
-Causality::BlockEndEffectorGblPosQuadratic::BlockEndEffectorGblPosQuadratic()
+EndEffectorGblPosQuadratized::EndEffectorGblPosQuadratized()
 {
 }
 
-Eigen::RowVectorXf Causality::BlockEndEffectorGblPosQuadratic::Get(const KinematicBlock & block, const AffineFrame & frame)
+Eigen::RowVectorXf EndEffectorGblPosQuadratized::Get(const ArmaturePart & block, const BoneHiracheryFrame & frame)
 {
 	using namespace Eigen;
 	RowVectorXf Y(BoneFeatureType::Dimension);
 
-	BoneFeatures::GblPosFeature::Get(Y.segment<3>(0), frame[block.Joints.back()->ID()]);
+	BoneFeatures::GblPosFeature::Get(Y.segment<3>(0), frame[block.Joints.back()->ID]);
 
 	if (block.parent() != nullptr)
 	{
 		RowVectorXf reference(BoneFeatures::GblPosFeature::Dimension);
-		BoneFeatures::GblPosFeature::Get(reference, frame[block.parent()->Joints.back()->ID()]);
+		BoneFeatures::GblPosFeature::Get(reference, frame[block.parent()->Joints.back()->ID]);
 		Y.segment<3>(0) -= reference;
 	}
 
@@ -58,32 +60,32 @@ Eigen::RowVectorXf Causality::BlockEndEffectorGblPosQuadratic::Get(const Kinemat
 	return Y;
 }
 
-// Inherited via BlockFeatureExtractor
+// Inherited via IArmaturePartFeature
 
-void Causality::BlockEndEffectorGblPosQuadratic::Set(const KinematicBlock & block, AffineFrame & frame, const Eigen::RowVectorXf & feature)
+void EndEffectorGblPosQuadratized::Set(const ArmaturePart & block, BoneHiracheryFrame & frame, const Eigen::RowVectorXf & feature)
 {
 	assert(false);
 }
 
-Causality::BlockizedArmatureTransform::BlockizedArmatureTransform() :pSblocks(nullptr), pTblocks(nullptr)
+BlockizedArmatureTransform::BlockizedArmatureTransform() :pSblocks(nullptr), pTblocks(nullptr)
 {
 	pSource = nullptr;
 	pTarget = nullptr;
 }
 
-Causality::BlockizedArmatureTransform::BlockizedArmatureTransform(const BlockArmature * pSourceBlock, const BlockArmature * pTargetBlock)
+BlockizedArmatureTransform::BlockizedArmatureTransform(const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock)
 {
 	SetFrom(pSourceBlock, pTargetBlock);
 }
 
-void Causality::BlockizedArmatureTransform::SetFrom(const BlockArmature * pSourceBlock, const BlockArmature * pTargetBlock)
+void BlockizedArmatureTransform::SetFrom(const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock)
 {
 	pSblocks = pSourceBlock; pTblocks = pTargetBlock;
 	pSource = &pSourceBlock->Armature();
 	pTarget = &pTargetBlock->Armature();
 }
 
-void Causality::BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const frame_type & source_frame) const
+void BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const frame_type & source_frame) const
 {
 	using namespace Eigen;
 	using namespace std;
@@ -137,7 +139,7 @@ void Causality::BlockizedCcaArmatureTransform::Transform(frame_type & target_fra
 	target_frame.RebuildGlobal(*pTarget);
 }
 
-void Causality::BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const frame_type & source_frame, const AffineFrame & last_frame, float frame_time) const
+void BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const frame_type & source_frame, const BoneHiracheryFrame & last_frame, float frame_time) const
 {
 	// redirect to pose transform
 	Transform(target_frame, source_frame);
@@ -166,14 +168,14 @@ void Causality::BlockizedCcaArmatureTransform::Transform(frame_type & target_fra
 	target_frame.RebuildGlobal(*pTarget);
 }
 
-Causality::PerceptiveVectorBlockFeatureExtractor::PerceptiveVectorBlockFeatureExtractor(std::map<std::string, ClipInfo*>* pClips)
+PerceptiveVector::PerceptiveVector(std::map<std::string, ClipInfo*>* pClips)
 {
 	QuadraticInput = true;
 	segma = 10;
 	pClipInfos = pClips;
 }
 
-Eigen::RowVectorXf Causality::PerceptiveVectorBlockFeatureExtractor::Get(const KinematicBlock & block, const AffineFrame & frame)
+Eigen::RowVectorXf PerceptiveVector::Get(const ArmaturePart & block, const BoneHiracheryFrame & frame)
 {
 	using namespace Eigen;
 
@@ -185,12 +187,12 @@ Eigen::RowVectorXf Causality::PerceptiveVectorBlockFeatureExtractor::Get(const K
 
 	auto& aJoint = *block.Joints.back();
 
-	BoneFeatures::GblPosFeature::Get(Y.segment<3>(0), frame[aJoint.ID()]);
+	BoneFeatures::GblPosFeature::Get(Y.segment<3>(0), frame[aJoint.ID]);
 
 	if (block.parent() != nullptr)
 	{
 		RowVectorXf reference(BoneFeatures::GblPosFeature::Dimension);
-		BoneFeatures::GblPosFeature::Get(reference, frame[block.parent()->Joints.back()->ID()]);
+		BoneFeatures::GblPosFeature::Get(reference, frame[block.parent()->Joints.back()->ID]);
 		Y.segment<3>(0) -= reference;
 	}
 
@@ -202,11 +204,11 @@ Eigen::RowVectorXf Causality::PerceptiveVectorBlockFeatureExtractor::Get(const K
 	return Y;
 }
 
-// Inherited via BlockFeatureExtractor
+// Inherited via IArmaturePartFeature
 
 
 template <class CharacterFeatureType>
-Eigen::Vector3f GetChainEndPositionFromY(const AffineFrame & dFrame, const std::vector<Joint*> & joints, const Eigen::RowVectorXf & Y)
+Eigen::Vector3f GetChainEndPositionFromY(const BoneHiracheryFrame & dFrame, const std::vector<Joint*> & joints, const Eigen::RowVectorXf & Y)
 {
 	assert(joints.size() * CharacterFeatureType::Dimension == Y.size());
 
@@ -216,7 +218,7 @@ Eigen::Vector3f GetChainEndPositionFromY(const AffineFrame & dFrame, const std::
 
 	for (int i = 0; i < joints.size(); i++)
 	{
-		auto jid = joints[i]->ID();
+		auto jid = joints[i]->ID;
 
 		// set scale and translation
 		bones[sw].LocalTransform() = dFrame[jid].LocalTransform();
@@ -234,7 +236,7 @@ Eigen::Vector3f GetChainEndPositionFromY(const AffineFrame & dFrame, const std::
 }
 
 
-void Causality::PerceptiveVectorBlockFeatureExtractor::Set(const KinematicBlock & block, AffineFrame & frame, const RowVectorX & feature)
+void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & frame, const RowVectorX & feature)
 {
 	using namespace DirectX;
 	using namespace Eigen;
@@ -254,14 +256,22 @@ void Causality::PerceptiveVectorBlockFeatureExtractor::Set(const KinematicBlock 
 						   // since the feature is expanded to quadritic form, we remove the extra term
 			double varZ = 10;
 
-			MatrixXd covObsr(g_PvDimension, g_PvDimension);
-			covObsr = g_NoiseInterpolation.replicate(1, 2).transpose().asDiagonal() * varZ;
+			//MatrixXd covObsr(g_PvDimension, g_PvDimension);
+			//covObsr = g_NoiseInterpolation.replicate(1, 2).transpose().asDiagonal() * varZ;
 
+			if (g_PvDimension == 6 && g_UseVelocity)
+			{
+				auto dX = feature.cast<double>().eval();
+				auto& sik = const_cast<StylizedChainIK&>(block.PdStyleIk);
+				sik.SetBaseRotation(frame[block.parent()->Joints.back()->ID].GblRotation);
+				dY = sik.Apply(dX.segment<3>(0).transpose().eval(), dX.segment<3>(3).transpose().eval());
+			}
+			double likilyhood = 1.0;
 
-			auto likilyhood = block.PdGpr.get_expectation_from_observation(feature.cast<double>(), covObsr, &dY);
+			//auto likilyhood = block.PdGpr.get_expectation_from_observation(feature.cast<double>(), covObsr, &dY);
 			//auto likilyhood = block.PdGpr.get_expectation_and_likelihood(feature.cast<double>(), &dY);
 			Y = dY.cast<float>();
-			Y *= block.Wx.cwiseInverse().asDiagonal(); // Inverse scale feature
+			//Y *= block.Wx.cwiseInverse().asDiagonal(); // Inverse scale feature
 
 			if (g_StepFrame)
 				std::cout << block.Joints[0]->Name() << " : " << likilyhood << std::endl;
@@ -269,35 +279,35 @@ void Causality::PerceptiveVectorBlockFeatureExtractor::Set(const KinematicBlock 
 
 		for (size_t j = 0; j < block.Joints.size(); j++)
 		{
-			auto jid = block.Joints[j]->ID();
+			auto jid = block.Joints[j]->ID;
 			auto Xj = Y.segment<CharacterFeatureType::Dimension>(j * CharacterFeatureType::Dimension);
 			CharacterFeatureType::Set(frame[jid], Xj);
 		}
 	}
 }
 
-Causality::BlockizedSpatialInterpolateQuadraticTransform::BlockizedSpatialInterpolateQuadraticTransform(std::map<std::string, ClipInfo*>* pClips)
+RBFInterpolationTransform::RBFInterpolationTransform(std::map<std::string, ClipInfo*>* pClips)
 {
 	pClipInfoMap = pClips;
-	auto pIF = new PerceptiveVectorBlockFeatureExtractor(pClips);
+	auto pIF = new PerceptiveVector(pClips);
 	pIF->QuadraticInput = true;
 	pInputExtractor.reset(pIF);
 
-	auto pOF = new PerceptiveVectorBlockFeatureExtractor(pClips);
+	auto pOF = new PerceptiveVector(pClips);
 	pOF->segma = 30;
 	pOutputExtractor.reset(pOF);
 
-	pDependentBlockFeature.reset(new BlockAllJointsFeatureExtractor<CharacterFeature>(false));
+	pDependentBlockFeature.reset(new AllJoints<CharacterFeature>(false));
 }
 
-Causality::BlockizedSpatialInterpolateQuadraticTransform::BlockizedSpatialInterpolateQuadraticTransform(std::map<std::string, ClipInfo*>* pClips, const BlockArmature * pSourceBlock, const BlockArmature * pTargetBlock)
-	: BlockizedSpatialInterpolateQuadraticTransform(pClips)
+RBFInterpolationTransform::RBFInterpolationTransform(std::map<std::string, ClipInfo*>* pClips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock)
+	: RBFInterpolationTransform(pClips)
 {
 	SetFrom(pSourceBlock, pTargetBlock);
 	pvs.resize(pTargetBlock->size());
 }
 
-void Causality::BlockizedSpatialInterpolateQuadraticTransform::Render(DirectX::CXMVECTOR color, DirectX::CXMMATRIX world)
+void RBFInterpolationTransform::Render(DirectX::CXMVECTOR color, DirectX::CXMMATRIX world)
 {
 	using namespace DirectX;
 	auto& drawer = DirectX::Visualizers::g_PrimitiveDrawer;
@@ -326,7 +336,7 @@ void Causality::BlockizedSpatialInterpolateQuadraticTransform::Render(DirectX::C
 	//drawer.End();
 }
 
-void Causality::BlockizedSpatialInterpolateQuadraticTransform::Transform(frame_type & target_frame, const frame_type & source_frame) const
+void RBFInterpolationTransform::Transform(frame_type & target_frame, const frame_type & source_frame) const
 {
 	const auto& sblocks = *pSblocks;
 	const auto& tblocks = *pTblocks;
@@ -404,13 +414,13 @@ void Causality::BlockizedSpatialInterpolateQuadraticTransform::Transform(frame_t
 		auto pTb = tblocks[map.Jy];
 
 		if (pTb->parent())
-			pvs[map.Jy].first = target_frame[pTb->parent()->Joints.back()->ID()].GblTranslation;
+			pvs[map.Jy].first = target_frame[pTb->parent()->Joints.back()->ID].GblTranslation;
 		pvs[map.Jy].second += pvs[map.Jy].first;
 	}
 
 }
 
-void Causality::BlockizedSpatialInterpolateQuadraticTransform::Transform(frame_type & target_frame, const frame_type & source_frame, const AffineFrame & last_frame, float frame_time) const
+void RBFInterpolationTransform::Transform(frame_type & target_frame, const frame_type & source_frame, const BoneHiracheryFrame & last_frame, float frame_time) const
 {
 	using namespace Eigen;
 	using namespace DirectX;
@@ -454,7 +464,7 @@ void Causality::BlockizedSpatialInterpolateQuadraticTransform::Transform(frame_t
 		pvs[map.Jy].second = Vector3(Y.segment<3>(0).data());
 	}
 
-	target_frame.RebuildGlobal(*pTarget);
+	//target_frame.RebuildGlobal(*pTarget);
 
 	// Fill Xabpv
 	RowVectorXf Xabpv;
@@ -484,33 +494,171 @@ void Causality::BlockizedSpatialInterpolateQuadraticTransform::Transform(frame_t
 	{
 		if (map.Jx == -2 && map.Jy >= 0)
 		{
+			auto pTb = tblocks[map.Jy];
+			RowVectorXf Y = pDependentBlockFeature->Get(*pTb, target_frame);
+
 			if (!g_UseStylizedIK)
 			{
 				if (map.uXpca.size() == Xabpv.size())
 				{
-					auto pTb = tblocks[map.Jy];
-					auto Y = pOutputExtractor->Get(*pTb, target_frame);
 					map.Apply(Xabpv, Y);
 					pDependentBlockFeature->Set(*pTb, target_frame, Y);
 				}
 			}
 			else
 			{
-				auto pTb = tblocks[map.Jy];
-				auto Y = pOutputExtractor->Get(*pTb, target_frame);
-				pOutputExtractor->Set(*pTb, target_frame, Xabpv);
+				if (pTb->SubActiveActionCount > 0 && map.uXpca.size() == Xabpv.size())
+				{
+					auto _x = (Xabpv - map.uXpca) * map.pcX;
+
+					RowVectorXd Yd;
+					auto lk = pTb->PdGpr.get_expectation_and_likelihood(_x.cast<double>(), &Yd);
+
+					Yd.array() /= pTb->Wx.array().cast<double>();
+					Y = Yd.cast<float>();// *pTb->Wx.cwiseInverse().asDiagonal();
+					//Y.setOnes();
+
+					pDependentBlockFeature->Set(*pTb, target_frame, Y);
+				}
 			}
 		}
 	}
 
+	target_frame.RebuildGlobal(*pTarget);
 
 	for (const auto& map : Maps)
 	{
 		auto pTb = tblocks[map.Jy];
 
 		if (pTb->parent())
-			pvs[map.Jy].first = target_frame[pTb->parent()->Joints.back()->ID()].GblTranslation;
+			pvs[map.Jy].first = target_frame[pTb->parent()->Joints.back()->ID].GblTranslation;
 		pvs[map.Jy].second += pvs[map.Jy].first;
 	}
+
+}
+
+PartilizedTransform::PartilizedTransform()
+{
+	m_pInputF.reset(new EndEffector<InputFeature>());
+	m_pActiveF.reset(new AllJointsPca<InputFeature>());
+	m_pDrivenF.reset(new AllJointsPca<InputFeature>());
+	m_pAccesseryF.reset(new AllJointsPca<InputFeature>());
+}
+
+void Causality::PartilizedTransform::Transform(frame_type & target_frame, const frame_type & source_frame) const
+{
+	Transform(target_frame, source_frame, source_frame, 0);
+}
+
+void PartilizedTransform::Transform(frame_type & target_frame, const frame_type & source_frame, const BoneHiracheryFrame & last_frame, float frame_time) const
+{
+	const auto& blocks = *pTblocks;
+	RowVectorXd Xd(g_PvDimension),Xld, Y;
+	double semga = 1000;
+	RowVectorXf yf;
+
+	RowVectorXf AvtiveVector;
+	RowVectorXf DrivenActiveVector;
+
+	for (auto& ctrl : this->AccesseryParts)
+	{
+		auto block = const_cast<ArmaturePart*>(blocks[ctrl.DstIdx]);
+
+		if (block->ActiveActionCount > 0)
+		{
+			RowVectorXf xf = m_pInputF->Get(*block, source_frame);//,last_frame,frame_time
+			RowVectorXf xlf = m_pInputF->Get(*block, last_frame);
+			yf = m_pAccesseryF->Get(*block, target_frame);
+
+			Xd.segment<3>(0) = xf.cast<double>();
+			Xld.segment<3>(0) = xlf.cast<double>();
+
+			if (g_UseVelocity && g_PvDimension == 6)
+			{
+				auto Xv = Xd.segment<3>(3);
+				Xv = (Xd - Xld) / (frame_time * g_FrameTimeScaleFactor);
+			}
+
+			xf = Xd.cast<float>();
+
+			if (pHandles)
+			{
+				pHandles->at(block->Index).first = Vector3(xf.data());
+				if (g_UseVelocity && g_PvDimension == 6)
+				{
+					pHandles->at(block->Index).second = Vector3(xf.data() + 3);
+				}
+				else
+				{
+					pHandles->at(block->Index).second = Vector3::Zero;
+				}
+			}
+
+			m_Xs.row(block->Index) = Xd;
+			//Xabs.emplace_back(Xd);
+
+			MatrixXd covObsr(g_PvDimension, g_PvDimension);
+			covObsr.setZero();
+			//! This is not correct!!!
+			covObsr.diagonal() = g_NoiseInterpolation.replicate(1, g_PvDimension / 3).transpose();
+
+			auto baseRot = target_frame[block->parent()->Joints.back()->ID].GblRotation;
+			block->PdStyleIk.SetBaseRotation(baseRot);
+			block->PdStyleIk.SetChain(block->Joints, target_frame);
+			block->PdStyleIk.SetGplvmWeight(block->Wx.cast<double>());
+
+			if (!g_UseVelocity)
+				Y = block->PdStyleIk.Apply(Xd.transpose());
+			else
+				Y = block->PdStyleIk.Apply(Xd.leftCols<3>().transpose(), Xd.segment<3>(3).transpose().eval());
+
+			m_pActiveF->Set(*block, target_frame, Y.cast<float>());
+			for (int i = 0; i < block->Joints.size(); i++)
+			{
+				target_frame[block->Joints[i]->ID].UpdateGlobalData(target_frame[block->Joints[i]->parent()->ID]);
+			}
+
+			auto ep2 = target_frame[block->Joints.back()->ID].GblTranslation -
+				target_frame[block->Joints[0]->parent()->ID].GblTranslation;
+
+			//break;
+		}
+	}
+
+	// Fill Xabpv
+	//if (g_EnableDependentControl)
+	//{
+	//	RowVectorXd Xabpv;
+	//	Xabpv.resize(Xabs.size() * g_PvDimension);
+	//	int i = 0;
+	//	for (const auto& xab : Xabs)
+	//	{
+	//		auto Yi = Xabpv.segment(i * g_PvDimension, g_PvDimension);
+	//		Yi = xab;
+	//		++i;
+	//	}
+
+
+	//	for (auto& ctrl : this->AccesseryParts)
+	//	{
+	//		auto block = blocks[ctrl.DstIdx];
+	//		if (block->ActiveActionCount == 0 && block->SubActiveActionCount > 0)
+	//		{
+	//			auto _x = (Xabpv.cast<float>() - block->PdCca.uXpca) * block->PdCca.pcX;
+
+	//			auto lk = block->PdGpr.get_expectation_and_likelihood(_x.cast<double>(), &Y);
+
+	//			yf = Y.cast<float>();
+	//			yf *= block->Wx.cwiseInverse().asDiagonal();
+
+	//			m_pAccesseryF->Set(*block, target_frame, yf);
+	//		}
+
+	//	}
+	//}
+
+	target_frame[0].LclTranslation = source_frame[0].LclTranslation;
+	target_frame[0].GblTranslation = source_frame[0].GblTranslation;
+	target_frame.RebuildGlobal(*pTarget);
 
 }

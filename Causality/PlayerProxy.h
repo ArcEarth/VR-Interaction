@@ -10,6 +10,7 @@ namespace Causality
 {
 	using boost::circular_buffer;
 
+	// Player : public Character
 	class PlayerProxy : public SceneObject, public IRenderable, public IAppComponent, public IKeybordInteractive
 	{
 	public:
@@ -35,7 +36,7 @@ namespace Causality
 #pragma endregion
 
 #pragma region Typedefs
-		typedef AffineFrame frame_type;
+		typedef BoneHiracheryFrame frame_type;
 		typedef Eigen::Matrix<float, -1, FeatureDimension*JointType_Count, Eigen::RowMajor> FeatureMatrixType;
 #pragma endregion
 
@@ -79,7 +80,7 @@ namespace Causality
 	protected:
 		void	UpdatePrimaryCameraForTrack();
 		// Helper methods
-		bool	UpdateByFrame(const AffineFrame& frame);
+		bool	UpdateByFrame(const BoneHiracheryFrame& frame);
 
 		Eigen::Map<FeatureMatrixType> 
 			GetPlayerFeatureMatrix(time_seconds duration);
@@ -106,10 +107,10 @@ namespace Causality
 
 		Devices::KinectSensor::Refptr		m_pKinect;
 		TrackedBodySelector					m_playerSelector;
-		AffineFrame							m_CurrentPlayerFrame;
-		AffineFrame							m_LastPlayerFrame;
+		BoneHiracheryFrame							m_CurrentPlayerFrame;
+		BoneHiracheryFrame							m_LastPlayerFrame;
 
-		uptr<BlockFeatureExtractor>			m_pPlayerFeatureExtrator; // All joints block-Localized gbl-position 
+		uptr<IArmaturePartFeature>			m_pPlayerFeatureExtrator; // All joints block-Localized gbl-position 
 
 		int									m_CurrentIdx;
 		std::list<CharacterController>		m_Controllers;
@@ -132,9 +133,9 @@ namespace Causality
 		// deperacte
 		//circular_buffer<frame_type>			FrameBuffer;
 
-		VectorX								StateProbality;
-		VectorX								Likilihood;
-		MatrixX								TransferMatrix;
+		Eigen::VectorXf						StateProbality;
+		Eigen::VectorXf						Likilihood;
+		Eigen::MatrixXf						TransferMatrix;
 
 		time_seconds						current_time;
 

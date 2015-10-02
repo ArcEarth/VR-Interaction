@@ -12,7 +12,7 @@ using namespace Causality;
 using namespace Causality::Devices;
 using namespace Microsoft::WRL;
 
-extern BlockArmature g_PlayeerBlocks;
+extern ShrinkedArmature g_PlayeerBlocks;
 extern bool			 g_EnableInputFeatureLocalization;
 
 
@@ -228,7 +228,7 @@ public:
 		{
 			std::cout << "[DEBUG] Failed to intialize KINECT" << std::endl;
 			//SetStatusMessage(L"No ready Kinect found!", 10000, true);
-			return hr;
+			return false;
 		}
 
 		std::cout << "[DEBUG] Kinect is intialized succuessfuly!" << std::endl;
@@ -392,7 +392,7 @@ public:
 					player = &m_Players.back();
 					player->m_pKinectSensor = this->pWrapper;
 					player->Id = Id;
-					player->m_IsTracked = isTracked;
+					player->m_IsTracked = (bool)isTracked;
 
 					std::cout << "New Player Detected : ID = " << Id << std::endl;
 					isNew = true;
@@ -480,7 +480,7 @@ public:
 		for (auto jId : armature.joint_indices())
 		{
 			// Update 'intermediate" joints if not presented in Kinect
-			auto pId = armature[jId]->ParentID();
+			auto pId = armature[jId]->ParentID;
 			if (jId > JointType_Count)
 			{
 				frame[jId].UpdateGlobalData(frame[pId]);
@@ -526,7 +526,7 @@ public:
 		}
 	}
 
-	//static void FillFrameWithIBody(Kinematics::AffineFrame& frame, IBody* pBody)
+	//static void FillFrameWithIBody(Kinematics::BoneHiracheryFrame& frame, IBody* pBody)
 	//{
 	//	Joint joints[JointType_Count];
 	//	JointOrientation oris[JointType_Count];
@@ -662,15 +662,22 @@ void Causality::TrackedBody::PushFrame(FrameType && frame)
 	m_FrameBuffer.UnlockBuffer();
 }
 
-Causality::AffineFrame & Causality::TrackedBody::PullLatestFrame() const
+bool Causality::TrackedBody::ReadLatestFrame()
 {
-	return *m_FrameBuffer.MoveToLatest();
+	return m_FrameBuffer.MoveToLatest() != nullptr;
 }
 
-Causality::AffineFrame & Causality::TrackedBody::CurrentFrame() const
+bool Causality::TrackedBody::ReadNextFrame()
+{
+	return m_FrameBuffer.MoveNext() != nullptr;;
+}
+
+const Causality::BoneHiracheryFrame & Causality::TrackedBody::PeekFrame() const
 {
 	return *m_FrameBuffer.GetCurrent();
 }
+
+const IArmature & Causality::TrackedBody::GetArmature() const { return *BodyArmature; }
 
 float Causality::TrackedBody::DistanceToSensor() const
 {

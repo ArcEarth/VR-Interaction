@@ -9,21 +9,21 @@ using namespace std;
 
 size_t Causality::CLIP_FRAME_COUNT = 90U;
 
-AffineFrame::AffineFrame(size_t size)
+BoneHiracheryFrame::BoneHiracheryFrame(size_t size)
 	: BaseType(size)
 {
 }
 
-AffineFrame::AffineFrame(const IArmature & armature)
+BoneHiracheryFrame::BoneHiracheryFrame(const IArmature & armature)
 	: BaseType(armature.default_frame())
 {
 }
 
-void AffineFrame::RebuildGlobal(const IArmature & armature)
+void BoneHiracheryFrame::RebuildGlobal(const IArmature & armature)
 {
 	for (auto& joint : armature.joints())
 	{
-		auto& bone = at(joint.ID());
+		auto& bone = at(joint.ID);
 		if (joint.is_root())
 		{
 			bone.GblRotation = bone.LclRotation;
@@ -33,18 +33,18 @@ void AffineFrame::RebuildGlobal(const IArmature & armature)
 		}
 		else
 		{
-			//bone.OriginPosition = at(joint.ParentID()).GblTranslation;
+			//bone.OriginPosition = at(joint.ParentID).GblTranslation;
 
-			bone.UpdateGlobalData(at(joint.ParentID()));
+			bone.UpdateGlobalData(at(joint.ParentID));
 		}
 	}
 }
 
-void AffineFrame::RebuildLocal(const IArmature & armature)
+void BoneHiracheryFrame::RebuildLocal(const IArmature & armature)
 {
 	for (auto& joint : armature.joints())
 	{
-		auto& bone = at(joint.ID());
+		auto& bone = at(joint.ID);
 		if (joint.is_root())
 		{
 			bone.LclRotation = bone.GblRotation;
@@ -54,12 +54,12 @@ void AffineFrame::RebuildLocal(const IArmature & armature)
 		}
 		else
 		{
-			bone.UpdateLocalData(at(joint.ParentID()));
+			bone.UpdateLocalData(at(joint.ParentID));
 		}
 	}
 }
 
-//Eigen::VectorXf AffineFrame::LocalRotationVector() const
+//Eigen::VectorXf BoneHiracheryFrame::LocalRotationVector() const
 //{
 //	Eigen::VectorXf fvector(size() * 3);
 //	Eigen::Vector3f v{ 0,1,0 };
@@ -76,7 +76,7 @@ void AffineFrame::RebuildLocal(const IArmature & armature)
 //	return fvector;
 //}
 //
-//void AffineFrame::UpdateFromLocalRotationVector(const IArmature& armature, const Eigen::VectorXf fv)
+//void BoneHiracheryFrame::UpdateFromLocalRotationVector(const IArmature& armature, const Eigen::VectorXf fv)
 //{
 //	auto& This = *this;
 //	auto& sarmature = static_cast<const StaticArmature&>(armature);
@@ -86,12 +86,12 @@ void AffineFrame::RebuildLocal(const IArmature & armature)
 //		This[i].LclRotation = XMQuaternionExp(XMLoadFloat3(reinterpret_cast<const XMFLOAT3*>(data)));
 //		if (!armature[i]->is_root())
 //		{
-//			This[i].UpdateGlobalData(This[armature[i]->ParentID()]);
+//			This[i].UpdateGlobalData(This[armature[i]->ParentID]);
 //		}
 //	}
 //}
 
-void AffineFrame::Lerp(AffineFrame& out, const AffineFrame & lhs, const AffineFrame & rhs, float t, const IArmature& armature)
+void BoneHiracheryFrame::Lerp(BoneHiracheryFrame& out, const BoneHiracheryFrame & lhs, const BoneHiracheryFrame & rhs, float t, const IArmature& armature)
 {
 	//assert((Armature == lhs.pArmature) && (lhs.pArmature == rhs.pArmature));
 	XMVECTOR vt = XMVectorReplicate(t);
@@ -104,12 +104,25 @@ void AffineFrame::Lerp(AffineFrame& out, const AffineFrame & lhs, const AffineFr
 	out.RebuildGlobal(armature);
 }
 
-void AffineFrame::Blend(AffineFrame& out, const AffineFrame & lhs, const AffineFrame & rhs, float * blend_weights, const IArmature& armature)
+void Causality::BoneHiracheryFrame::TransformFrame(IsometricTransformFrame & out, const BoneHiracheryFrame & from, const BoneHiracheryFrame & to)
+{
+	auto n = std::min(from.size(), to.size());
+	if (out.size() < n)
+		out.resize(n);
+	for (size_t i = 0; i < n; i++)
+	{
+		auto& lt = out[i];
+		lt = from[i].LocalTransform().Inversed();
+		lt *= to[i].LocalTransform();
+	}
+}
+
+void BoneHiracheryFrame::Blend(BoneHiracheryFrame& out, const BoneHiracheryFrame & lhs, const BoneHiracheryFrame & rhs, float * blend_weights, const IArmature& armature)
 {
 
 }
 
-void AffineFrame::TransformMatrix(DirectX::XMFLOAT3X4 * pOut, const self_type & from, const self_type & to, size_t numOut)
+void BoneHiracheryFrame::TransformMatrix(DirectX::XMFLOAT3X4 * pOut, const self_type & from, const self_type & to, size_t numOut)
 {
 	using namespace std;
 	auto n = min(from.size(), to.size());
@@ -123,7 +136,7 @@ void AffineFrame::TransformMatrix(DirectX::XMFLOAT3X4 * pOut, const self_type & 
 	}
 }
 
-void AffineFrame::TransformMatrix(DirectX::XMFLOAT4X4 * pOut, const self_type & from, const self_type & to, size_t numOut)
+void BoneHiracheryFrame::TransformMatrix(DirectX::XMFLOAT4X4 * pOut, const self_type & from, const self_type & to, size_t numOut)
 {
 	using namespace std;
 	auto n = min(from.size(), to.size());
@@ -206,7 +219,7 @@ bool ArmatureFrameAnimation::InterpolateFrames(double frameRate)
 	return true;
 }
 
-bool ArmatureFrameAnimation::GetFrameAt(AffineFrame & outFrame, TimeScalarType time) const
+bool ArmatureFrameAnimation::GetFrameAt(BoneHiracheryFrame & outFrame, TimeScalarType time) const
 {
 	double t = fmod(time.count(), Duration.count());
 	int frameIdx = (int)floorf(t / FrameInterval.count());
@@ -218,7 +231,7 @@ bool ArmatureFrameAnimation::GetFrameAt(AffineFrame & outFrame, TimeScalarType t
 
 	if (outFrame.size() < Armature().size())
 		outFrame.resize(Armature().size());
-	AffineFrame::Lerp(outFrame, sframe, tframe,t, Armature());
+	BoneHiracheryFrame::Lerp(outFrame, sframe, tframe,t, Armature());
 	return true;
 }
 

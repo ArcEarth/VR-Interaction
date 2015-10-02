@@ -463,7 +463,7 @@ namespace Causality
 				temp.resize(m_BoneNodes.size());
 
 				auto revamped = m_Armature->joints() | adaptors::transformed([this](const Joint& joint) -> fbx::FbxNode* {
-					return *std::find_if(m_BoneNodes.begin(), m_BoneNodes.end(), 
+					return *std::find_if(m_BoneNodes.begin(), m_BoneNodes.end(),
 						[&joint](auto pNode) {return pNode->GetName() == joint.Name();});
 				});
 
@@ -586,9 +586,18 @@ namespace Causality
 				bone.LclRotation = Quaternion(q[0], q[1], q[2], q[3]);//q;
 				bone.LclScaling = Vector3(s[0], s[1], s[2]);
 				bone.LclTranslation = Vector3(t[0], t[1], t[2]);
+				auto glbM = pNode->EvaluateGlobalTransform();
+				auto gt = glbM.GetT();
+				auto gq = glbM.GetQ();
+				auto gs = glbM.GetS();
+				bone.GblRotation = Quaternion(gq[0], gq[1], gq[2], gq[3]);//q;
+				bone.GblScaling = Vector3(gs[0], gs[1], gs[2]);
+				bone.GblTranslation = Vector3(gt[0], gt[1], gt[2]);
+				//bone.LclTranslation = DirectX::XMVector3Rotate(DirectX::XMLoadA(bone.LclTranslation), DirectX::XMQuaternionInverse(DirectX::XMLoadA(bone.LclRotation)));
 			}
-			default_frame.RebuildGlobal(*pArmature);
+			//default_frame.RebuildGlobal(*pArmature);
 
+			BuildJointMirrorRelation(pArmature->root(), default_frame);
 			return pArmature;
 		}
 
@@ -840,6 +849,9 @@ namespace Causality
 					bone.LclScaling = Vector3(s[0], s[1], s[2]);
 					bone.LclTranslation = Vector3(t[0], t[1], t[2]);
 
+					// Rotate back
+					//bone.LclTranslation = DirectX::XMVector3Rotate(DirectX::XMLoadA(bone.LclTranslation), DirectX::XMQuaternionInverse(DirectX::XMLoadA(bone.LclRotation)));
+
 					//bone.GblScaling = Vector3(gs[0], gs[1], gs[2]);
 					//bone.GblRotation = Quaternion(gq[0], gq[1], gq[2], gq[3]);
 					//bone.GblTranslation = Vector3(gt[0], gt[1], gt[2]);
@@ -851,123 +863,24 @@ namespace Causality
 			}
 
 			//CaculateAnimationFeatures(anim);
+			Eigen::MatrixXf bone32(24, buffer.size());
+			for (int i = 0; i < buffer.size(); i++)
+			{
+				using namespace DirectX;
+				bone32.block(0, i, 4, 1) = Eigen::Vector4f::Map(&buffer[i][3].LclRotation.x);
+				bone32.block(4, i, 4, 1) = Eigen::Vector4f::Map(&buffer[i][4].LclRotation.x);
+				bone32.block(8, i, 4, 1) = Eigen::Vector4f::Map(&buffer[i][5].LclRotation.x);
+				Quaternion lq = XMQuaternionLn(XMLoadA(buffer[i][3].LclRotation));
+				bone32.block(12, i, 4, 1) = Eigen::Vector4f::Map(&lq.x);
+				lq = XMQuaternionLn(XMLoadA(buffer[i][4].LclRotation));
+				bone32.block(16, i, 4, 1) = Eigen::Vector4f::Map(&lq.x);
+				lq = XMQuaternionLn(XMLoadA(buffer[i][5].LclRotation));
+				bone32.block(20, i, 4, 1) = Eigen::Vector4f::Map(&lq.x);
+			}
 		}
 
-#pragma region CaculateAnimationFeatures
-		//void CaculateAnimationFeatures(Causality::ArmatureFrameAnimation & anim)
-		//{
-		//	auto& buffer = anim.GetFrameBuffer();
-		//	int numBones = m_Armature->size();
-		//	size_t frameCount = ANIM_STANDARD::CLIP_FRAME_COUNT;
-
-		//	MatrixX Y(frameCount, numBones * DimPerBone);
-		//	DirectX::Vector3 sq[2];
-		//	auto mapped = Eigen::Matrix<float, 1, DimPerBone>::Map(&sq[0].x);
-		//	for (size_t i = 0; i < frameCount; i++)
-		//	{
-		//		for (size_t j = 0; j < numBones; j++)
-		//		{
-		//			using namespace DirectX;
-		//			using namespace Eigen;
-		//			auto& feature = Y.block<1, DimPerBone>(i, j * DimPerBone);
-		//			auto& bone = buffer[i][j];
-
-		//			CharacterFeature::Get(feature, bone);
-		//		}
-		//	}
-
-		//	using namespace std;
-
-		//	anim.animMatrix = Y;
-
-		//	Eigen::FFT<float> fft;
-		//	Eigen::MatrixXcf Yf(Y.rows(), Y.cols());
-		//	for (size_t i = 0; i < Y.cols(); i++)
-		//	{
-		//		fft.fwd(Yf.col(i).data(), Y.col(i).data(), Y.rows());
-		//	}
-
-		//	{
-		//		Eigen::VectorXf Ecd = Yf.middleRows(1, 5).cwiseAbs2().colwise().sum();
-		//		auto Ecjm = Eigen::Matrix<float, DimPerBone, -1>::Map(Ecd.data(), DimPerBone, numBones);
-		//		anim.Ecj = Ecjm.colwise().sum();
-		//		// Do not normalize normalize yet.
-		//	}
-
-		//	//? We can do better by using a permutation matrix
-		//	const auto& blocks = m_Behavier->Blocks();
-		//	auto bSize = blocks.size();
-
-		//	anim.Ecb.resize(bSize);
-		//	anim.QrYs.resize(bSize);
-		//	anim.PcaYs.resize(bSize);
-		//	anim.Ys.resize(bSize);
-		//	anim.Ysp.setZero(DimPerBone, bSize);
-		//	for (auto& block : blocks)
-		//	{
-		//		auto i = block->Index;
-		//		auto& joints = block->Joints;
-
-		//		auto lastJid = joints.back()->ID();
-		//		auto vtc = anim.Ysp.col(i);
-		//		for (const auto& frame : buffer)
-		//		{
-		//			vtc += Eigen::Vector3f::MapAligned(&frame[lastJid].GblTranslation.x);
-		//		}
-		//		vtc /= frameCount;
-
-		//		Eigen::MatrixXf Yb(Y.rows(), block->GetFeatureDim<CharacterFeature>());
-		//		for (size_t j = 0; j < joints.size(); j++)
-		//		{
-		//			Yb.middleCols<DimPerBone>(j * DimPerBone) = Y.middleCols<DimPerBone>(joints[j]->ID() * DimPerBone);
-		//			anim.Ecb(i) = max(anim.Ecb(i), anim.Ecj(joints[j]->ID()));
-		//		}
-
-		//		anim.Ys[i] = Yb;
-
-		//		if (i == 14 && anim.Name == "walk")
-		//		{
-		//			const Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
-		//			ofstream b14lnq("J14.csv");
-		//			b14lnq << Yb.format(CSVFormat) << endl;
-		//			b14lnq.close();
-		//		}
-
-		//		auto & pca = anim.PcaYs[i];
-		//		pca.compute(Yb, true);
-		//		auto d = pca.reducedRank(PcaCutoff);
-		//		anim.QrYs[i].compute(pca.coordinates(d), true);
-
-		//		using namespace DirectX;
-		//		using DirectX::operator+=;
-		//		auto jid = block->Joints.back()->ID();
-		//		auto sum = XMVectorZero();
-		//		for (auto& frame : buffer)
-		//		{
-		//			auto v = frame[jid].GblTranslation.LoadA();
-		//			sum += v;
-		//		}
-		//		sum /= buffer.size();
-		//		auto pData = reinterpret_cast<XMFLOAT3*>(anim.Ysp.col(i).data());
-		//		XMStoreFloat3(pData, sum);
-
-		//		//sum = XMVector3Normalize(sum);
-		//	}
-
-		//	for (auto& block : blocks)
-		//	{
-		//		auto i = block->Index;
-		//		auto& joints = block->Joints;
-		//		if (block->parent() != nullptr)
-		//		{
-		//			auto pi = block->parent()->Index;
-		//			anim.Ysp.col(i) -= anim.Ysp.col(pi);
-		//		}
-		//	}
-		//	anim.Ysp.colwise().normalize();
-		//}
 	};
-#pragma endregion
+
 
 	FbxParser::FbxParser(const string & file, unsigned mode)
 	{

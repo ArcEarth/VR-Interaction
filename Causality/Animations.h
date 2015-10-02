@@ -1,5 +1,6 @@
 #pragma once
 #include "Armature.h"
+#include <gsl.h>
 
 namespace Causality
 {
@@ -25,23 +26,25 @@ namespace Causality
 		//concept frame_type& operator[]
 	};
 
-	class AffineFrame : public std::vector<Bone, DirectX::XMAllocator>
+	typedef std::vector<DirectX::IsometricTransform, DirectX::XMAllocator> IsometricTransformFrame;
+
+	class BoneHiracheryFrame : public std::vector<Bone, DirectX::XMAllocator>
 	{
 	public:
-		typedef AffineFrame self_type;
+		typedef BoneHiracheryFrame self_type;
 
 		typedef public std::vector<Bone, DirectX::XMAllocator> BaseType;
 		using BaseType::operator[];
 		//using BaseType::operator=;
 
-		AffineFrame() = default;
-		explicit AffineFrame(size_t size);
+		BoneHiracheryFrame() = default;
+		explicit BoneHiracheryFrame(size_t size);
 		// copy from default frame
-		explicit AffineFrame(const IArmature& armature);
-		AffineFrame(const AffineFrame&) = default;
-		AffineFrame(AffineFrame&& rhs) { *this = std::move(rhs); }
-		AffineFrame& operator=(const AffineFrame&) = default;
-		AffineFrame& operator=(AffineFrame&& rhs)
+		explicit BoneHiracheryFrame(const IArmature& armature);
+		BoneHiracheryFrame(const BoneHiracheryFrame&) = default;
+		BoneHiracheryFrame(BoneHiracheryFrame&& rhs) { *this = std::move(rhs); }
+		BoneHiracheryFrame& operator=(const BoneHiracheryFrame&) = default;
+		BoneHiracheryFrame& operator=(BoneHiracheryFrame&& rhs)
 		{
 			BaseType::_Assign_rv(std::move(rhs));
 			return *this;
@@ -55,10 +58,12 @@ namespace Causality
 		void RebuildLocal(const IArmature& armature);
 
 		// Lerp the local-rotation and scaling, "interpolate in Time"
-		static void Lerp(AffineFrame& out, const AffineFrame &lhs, const AffineFrame &rhs, float t, const IArmature& armature);
+		static void Lerp(BoneHiracheryFrame& out, const BoneHiracheryFrame &lhs, const BoneHiracheryFrame &rhs, float t, const IArmature& armature);
+
+		static void TransformFrame(IsometricTransformFrame& out, const BoneHiracheryFrame &from, const BoneHiracheryFrame &to);
 
 		// Blend Two Animation Frame, "Blend different parts in Space"
-		static void Blend(AffineFrame& out, const AffineFrame &lhs, const AffineFrame &rhs, float* blend_weights, const IArmature& armature);
+		static void Blend(BoneHiracheryFrame& out, const BoneHiracheryFrame &lhs, const BoneHiracheryFrame &rhs, float* blend_weights, const IArmature& armature);
 
 		static void TransformMatrix(DirectX::XMFLOAT3X4* pOut, const self_type &from, const self_type& to, size_t numOut = 0);
 		static void TransformMatrix(DirectX::XMFLOAT4X4* pOut, const self_type &from, const self_type& to, size_t numOut = 0);
@@ -202,13 +207,12 @@ namespace Causality
 		return false;
 	}
 
-
-	class ArmatureFrameAnimation : public KeyframeAnimation<AffineFrame>
+	class ArmatureFrameAnimation : public KeyframeAnimation<BoneHiracheryFrame>
 	{
 	public:
 		typedef ArmatureFrameAnimation self_type;
-		typedef KeyframeAnimation<AffineFrame> base_type;
-		typedef AffineFrame frame_type;
+		typedef KeyframeAnimation<BoneHiracheryFrame> base_type;
+		typedef BoneHiracheryFrame frame_type;
 
 		self_type() = default;
 		self_type(const self_type& rhs) = default;
@@ -231,7 +235,7 @@ namespace Causality
 		std::vector<frame_type>& GetFrameBuffer() { return frames; }
 
 		bool InterpolateFrames(double frameRate);
-		virtual bool GetFrameAt(AffineFrame& outFrame, TimeScalarType time) const override;
+		virtual bool GetFrameAt(BoneHiracheryFrame& outFrame, TimeScalarType time) const override;
 
 		enum DataType
 		{
@@ -271,7 +275,7 @@ namespace Causality
 		{
 		}
 
-		typedef AffineFrame frame_type;
+		typedef BoneHiracheryFrame frame_type;
 
 		const IArmature& SourceArmature() const { return *pSource; }
 		const IArmature& TargetArmature() const { return *pTarget; }
@@ -284,7 +288,7 @@ namespace Causality
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const = 0;
 
 		// Transform with history data
-		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const AffineFrame& last_frame, float frame_time) const
+		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const
 		{
 			Transform(target_frame, source_frame);
 		}
@@ -296,31 +300,27 @@ namespace Causality
 	};
 
 	template <typename FrameType>
-	class RealTimeAnimation
+	class IStreamAnimation abstract
 	{
-		FrameType *m_pDefaultFrame; // Use to generate
-		const FrameType& DefaultFrame() const
+		// Advance the stream by 1 
+		virtual bool ReadNextFrame();
+
+		// Advance the stream to latest
+		virtual bool ReadLatestFrame()
 		{
-			return *m_pDefaultFrame;
+			while (ReadNextFrame());
 		}
-		void SetDefaultFrame(FrameType *default_frame)
-		{
-			m_pDefaultFrame = default_frame;
-		}
-		FrameType& CurrentFrame() { return m_CurrentFrame; }
-		const FrameType& CurrentFrame() const { return m_CurrentFrame; }
-		FrameType m_CurrentFrame;
+
+		// Peek the current frame head
+		virtual const FrameType& PeekFrame() const;
 	};
 
-	class ArmatureRealTimeAnimation : public RealTimeAnimation<AffineFrame>
+	class IArmatureStreamAnimation : public IStreamAnimation<BoneHiracheryFrame>
 	{
 	public:
-		typedef AffineFrame frame_type;
+		typedef BoneHiracheryFrame frame_type;
 
-		const IArmature& Armature() const;
-
-	private:
-		IArmature* pArmature;
+		virtual const IArmature& GetArmature() const;
 	};
 
 	enum AnimationPlayState

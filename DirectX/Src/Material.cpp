@@ -188,7 +188,7 @@ void PhongMaterial::SetupEffect(IEffect *pEffect) const
 	}
 
 	auto pSGEffect = dynamic_cast<ShadowMapGenerationEffect*>(pEffect);
-	if (pSGEffect)
+	if (pSGEffect && pSGEffect->GetShadowFillMode() != ShadowMapGenerationEffect::BoneColorFill)
 	{
 		if (DiffuseMap != nullptr && UseAlphaDiscard)
 		{

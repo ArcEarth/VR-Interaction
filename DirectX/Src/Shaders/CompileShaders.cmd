@@ -38,15 +38,21 @@ call :CompileShaderHLSL%platform% ShadowMapGen vs VS_NoBone
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_OneBone
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_TwoBone
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_FourBone
+
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_NoBoneTex
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_OneBoneTex
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_TwoBoneTex
 call :CompileShaderHLSL%platform% ShadowMapGen vs VS_FourBoneTex
 
+call :CompileShaderHLSL%platform% ShadowMapGen vs VS_OneBoneColor
+call :CompileShaderHLSL%platform% ShadowMapGen vs VS_TwoBoneColor
+call :CompileShaderHLSL%platform% ShadowMapGen vs VS_FourBoneColor
+
 call :CompileShaderHLSL%platform% ShadowMapGen ps PS_DepthNoTex
 call :CompileShaderHLSL%platform% ShadowMapGen ps PS_DepthTex
 call :CompileShaderHLSL%platform% ShadowMapGen ps PS_ColorNoTex
 call :CompileShaderHLSL%platform% ShadowMapGen ps PS_ColorTex
+call :CompileShaderHLSL%platform% ShadowMapGen ps PS_VertexColor
 goto finish
 
 :ShadowMapEffectVS

@@ -1,6 +1,8 @@
 #include "pch_bcl.h"
 #include "CharacterObject.h"
 #include <PrimitiveVisualizer.h>
+#include <ShadowMapGenerationEffect.h>
+#include "Settings.h"
 
 using namespace Causality;
 using namespace DirectX;
@@ -34,8 +36,15 @@ void CharacterObject::DisplaceByVelocityFrame()
 			count++;
 		}
 	}
-	vsum /= count;
+
+	if (count != 0)
+		vsum /= count;
+
 	vsum *= -0.1f;
+	XMVECTOR speed = XMVector3Length(vsum);
+	if (XMVectorGetX(speed) > g_MaxCharacterSpeed)
+		vsum = vsum / speed * g_MaxCharacterSpeed;
+
 	vsum = XMVectorAndInt(vsum, g_XMSelect1010);
 	this->SetPosition((XMVECTOR)GetPosition() + vsum);
 }
@@ -60,7 +69,7 @@ void CharacterObject::ComputeVelocityFrame(time_seconds time_delta)
 	}
 }
 
-const CharacterObject::frame_type & Causality::CharacterObject::GetCurrentFrame() const
+const CharacterObject::frame_type & CharacterObject::GetCurrentFrame() const
 {
 	return m_CurrentFrame;
 }
@@ -90,11 +99,11 @@ void CharacterObject::SetBehavier(BehavierSpace & behaver) {
 	m_pArmature = &m_pBehavier->Armature();
 }
 
-const ArmatureFrameAnimation * Causality::CharacterObject::CurrentAction() const { return m_pCurrentAction; }
+const ArmatureFrameAnimation * CharacterObject::CurrentAction() const { return m_pCurrentAction; }
 
-string Causality::CharacterObject::CurrentActionName() const { return m_pCurrentAction ? m_pCurrentAction->Name : ""; }
+string CharacterObject::CurrentActionName() const { return m_pCurrentAction ? m_pCurrentAction->Name : ""; }
 
-bool Causality::CharacterObject::StartAction(const string & key, time_seconds begin_time, bool loop, time_seconds transition_time)
+bool CharacterObject::StartAction(const string & key, time_seconds begin_time, bool loop, time_seconds transition_time)
 {
 	auto& anim = (*m_pBehavier)[key];
 	if (&anim == nullptr) return false;
@@ -146,11 +155,11 @@ void CharacterObject::Update(time_seconds const & time_delta)
 	if (m_pSkinModel)
 	{
 		auto pBones = reinterpret_cast<XMFLOAT4X4*>(m_pSkinModel->GetBoneTransforms());
-		AffineFrame::TransformMatrix(pBones, Armature().default_frame(), m_CurrentFrame, m_pSkinModel->GetBonesCount());
+		BoneHiracheryFrame::TransformMatrix(pBones, Armature().default_frame(), m_CurrentFrame, m_pSkinModel->GetBonesCount());
 	}
 }
 
-RenderFlags Causality::CharacterObject::GetRenderFlags() const
+RenderFlags CharacterObject::GetRenderFlags() const
 {
 	return RenderFlags::OpaqueObjects;
 }
@@ -212,12 +221,12 @@ CharacterObject::~CharacterObject()
 {
 }
 
-void Causality::CharacterObject::EnabeAutoDisplacement(bool is_enable)
+void CharacterObject::EnabeAutoDisplacement(bool is_enable)
 {
 	m_IsAutoDisplacement = is_enable;
 }
 
-void Causality::DrawArmature(const IArmature & armature, const AffineFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness)
+void Causality::DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness)
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 
@@ -229,12 +238,12 @@ void Causality::DrawArmature(const IArmature & armature, const AffineFrame & fra
 	//g_PrimitiveDrawer.Begin();
 	for (auto& joint : armature.joints())
 	{
-		auto& bone = frame[joint.ID()];
+		auto& bone = frame[joint.ID];
 		XMVECTOR ep = bone.GblTranslation;
 
 		if (!joint.is_root())
 		{
-			auto& pbone = frame[joint.parent()->ID()];
+			auto& pbone = frame[joint.parent()->ID];
 			XMVECTOR sp = pbone.GblTranslation;
 
 			//g_PrimitiveDrawer.DrawLine(sp, ep, color);
@@ -243,4 +252,28 @@ void Causality::DrawArmature(const IArmature & armature, const AffineFrame & fra
 		g_PrimitiveDrawer.DrawSphere(ep, thinkness * 1.5f, color);
 	}
 	//g_PrimitiveDrawer.End();
+}
+
+void CharacterGlowParts::Render(RenderContext & pContext, DirectX::IEffect * pEffect)
+{
+	auto pSGEffect = dynamic_cast<ShadowMapGenerationEffect*> (pEffect);
+	if (pSGEffect && pSGEffect->GetShadowFillMode() == ShadowMapGenerationEffect::BoneColorFill)
+	{
+		pSGEffect->SetBoneColors(reinterpret_cast<XMVECTOR*>(m_BoneColors.data()), m_BoneColors.size());
+	}
+}
+
+void CharacterGlowParts::OnParentChanged(SceneObject* oldParent)
+{
+	Initialize();
+}
+
+void CharacterGlowParts::Initialize()
+{
+	m_pCharacter = this->FirstAncesterOfType<CharacterObject>();
+	m_BoneColors.resize(m_pCharacter->Armature().size());
+	for (auto& color : m_BoneColors)
+	{
+		color.A(0);
+	}
 }

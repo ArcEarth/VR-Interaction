@@ -208,14 +208,14 @@ namespace Causality
 		mutable std::mutex			m_BufferMutex;
 	};
 
-	typedef Causality::AffineFrame BodyFrame;
+	typedef Causality::BoneHiracheryFrame BodyFrame;
 
 	// TrackedBody will host frames streaming from the Sensor
 	// You can select to process all frams incoming or the lastest one only
-	class TrackedBody
+	class TrackedBody : public IArmatureStreamAnimation
 	{
 	public:
-		typedef Causality::AffineFrame		FrameType;
+		typedef Causality::BoneHiracheryFrame		FrameType;
 
 		typedef LowPassDynamicFilter<Vector3, float>			Vector3DynamicFilter;
 		typedef LowPassDynamicFilter<QuaternionWrapper, float>  QuaternionDynamicFilter;
@@ -250,11 +250,16 @@ namespace Causality
 
 		void SetBufferSize(size_t pastFrame, size_t unprocessFrame);
 
-		// Frame management
-		Causality::AffineFrame& PullLatestFrame() const;
-		Causality::AffineFrame& PullNextFrame() const;
+		// Advance the stream to latest and peek the frame
+		bool ReadLatestFrame() override;
 
-		Causality::AffineFrame& CurrentFrame() const;
+		// Advance the stream by 1 and peek the frame
+		bool ReadNextFrame() override;
+
+		// Peek the current frame head
+		const FrameType& PeekFrame() const override;
+
+		const IArmature& GetArmature() const override;
 
 		// Get Historical or Future 
 		// relativeIndex = 0, returns latest unprocess frame

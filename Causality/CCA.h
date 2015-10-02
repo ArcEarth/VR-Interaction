@@ -4,8 +4,20 @@
 namespace Eigen {
 
 	// zero mean and Decompose X, thus (X + repmat(uX,n,1)) * E = [Q 0] * [R ; 0]
+	template <class Derived>
+	struct QrViewBase
+	{
+		inline DenseIndex rows() const { return Derived::rows(); }
+		inline DenseIndex cols() const { return Derived::cols(); }
+		inline DenseIndex rank() const { return Derived::rank(); }
+		inline auto mean() const { return Derived::mean(); }
+		inline auto matrixQ() const { return Derived::matrixQ(); }
+		inline auto matrixR() const { return Derived::matrixR(); }
+		inline auto colsPermutation() const { return Derived::colsPermutation(); }
+	};
+
 	template< class _MatrixType>
-	struct MeanThinQr
+	struct MeanThinQr : public QrViewBase<MeanThinQr<_MatrixType>>
 	{
 		typedef _MatrixType MatrixType;
 		enum {
@@ -23,9 +35,9 @@ namespace Eigen {
 		typedef Matrix<Scalar, Dynamic, Dynamic, Options, MaxColsAtCompileTime, MaxColsAtCompileTime> MatrixRType;
 		typedef PermutationMatrix<ColsAtCompileTime, MaxColsAtCompileTime> PermutationType;
 		typedef TriangularView<const MatrixRType, Upper> MatrixRTriangularViewType;
-		typedef Matrix<Scalar, 1, ColsAtCompileTime,RowMajor,1,MaxColsAtCompileTime> MeanVectorType;
+		typedef Matrix<Scalar, 1, ColsAtCompileTime, RowMajor, 1, MaxColsAtCompileTime> MeanVectorType;
 
-		DenseIndex m_rows,m_cols,m_rank;	 // cols, rows, and rank
+		DenseIndex m_rows, m_cols, m_rank;	 // cols, rows, and rank
 		MeanVectorType m_mean;			 // Rowwise Mean Vector of X, 1 x cols
 		MatrixQType m_Q;		 // Self-Adjoint matrix Q , rows x rank
 		MatrixRType m_R;		 // Upper triangluar matrix R , rank x rank
@@ -35,8 +47,8 @@ namespace Eigen {
 		inline DenseIndex cols() const { return m_cols; }
 		inline DenseIndex rank() const { return m_rank; }
 		inline const MeanVectorType& mean() const { return m_mean; }
-		inline const MatrixQType& matrixQ() const{ return m_Q; }
-		inline MatrixRTriangularViewType matrixR() const{ return m_R.triangularView<Upper>(); }
+		inline const MatrixQType& matrixQ() const { return m_Q; }
+		inline MatrixRTriangularViewType matrixR() const { return m_R.triangularView<Upper>(); }
 		inline const PermutationType& colsPermutation() const { return m_E; }
 
 		MeanThinQr()
@@ -68,7 +80,7 @@ namespace Eigen {
 			}
 			else
 			{
-				m_mean.setZero(1,X.cols());
+				m_mean.setZero(1, X.cols());
 			}
 
 			// QR-decomposition
@@ -83,6 +95,84 @@ namespace Eigen {
 			m_Q = qX.leftCols(m_rank);
 		}
 
+	};
+
+	template< class _MatrixType>
+	struct MeanThickQr : public QrViewBase<MeanThickQr<_MatrixType>>
+	{
+		typedef ColPivHouseholderQR<_MatrixType> QrType;
+
+		typedef _MatrixType MatrixType;
+		enum {
+			RowsAtCompileTime = MatrixType::RowsAtCompileTime,
+			ColsAtCompileTime = MatrixType::ColsAtCompileTime,
+			Options = MatrixType::Options,
+			MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
+			MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime
+		};
+
+		typedef typename MatrixType::Scalar Scalar;
+		typedef typename MatrixType::RealScalar RealScalar;
+		typedef typename MatrixType::Index Index;
+		typedef Matrix<Scalar, RowsAtCompileTime, Dynamic, Options, MaxRowsAtCompileTime, MaxColsAtCompileTime> MatrixQType;
+		typedef Matrix<Scalar, 1, ColsAtCompileTime, RowMajor, 1, MaxColsAtCompileTime> MeanVectorType;
+
+		inline DenseIndex rows() const { return Qr.rows(); }
+		inline DenseIndex cols() const { return Qr.cols(); }
+		inline DenseIndex rank() const { return Qr.rank(); }
+		inline const MeanVectorType& mean() const { return Mean; }
+		inline const MatrixQType& matrixQ() const { return Q; }
+		inline auto matrixR() const { return Qr.matrixR().triangularView<Upper>(); }
+		inline auto colsPermutation() const { return Qr.colsPermutation(); }
+
+
+		QrType			Qr;
+		MatrixQType		Q;
+		MeanVectorType	Mean;
+	};
+
+	// light weight wrapper for view part of a QR decomposition
+	template< class _MatrixType>
+	struct QrView : public QrViewBase<QrView<_MatrixType>>
+	{
+	public:
+		typedef ColPivHouseholderQR<_MatrixType> QrType;
+
+		typedef _MatrixType MatrixType;
+		enum {
+			RowsAtCompileTime = MatrixType::RowsAtCompileTime,
+			ColsAtCompileTime = MatrixType::ColsAtCompileTime,
+			Options = MatrixType::Options,
+			MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
+			MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime
+		};
+
+		typedef typename MatrixType::Scalar Scalar;
+		typedef typename MatrixType::RealScalar RealScalar;
+		typedef typename MatrixType::Index Index;
+		typedef Matrix<Scalar, RowsAtCompileTime, Dynamic, Options, MaxRowsAtCompileTime, MaxColsAtCompileTime> MatrixQType;
+		typedef Matrix<Scalar, 1, ColsAtCompileTime, RowMajor, 1, MaxColsAtCompileTime> MeanVectorType;
+
+		QrView(const QrType& qr, const MatrixType& matrixQ, const MeanVectorType& mean, DenseIndex startRow = 0, DenseIndex rows = -1)
+			: m_Qr(qr), m_Q(matrixQ), m_mean(mean), m_sRow(startRow), m_rows(rows), m_rank(m_Qr.rank())
+		{
+			if (m_rows == -1)
+				m_rows = m_Qr.rows();
+		}
+
+		inline DenseIndex rows() const { return m_rows; }
+		inline DenseIndex cols() const { return m_Qr.cols(); }
+		inline DenseIndex rank() const { return m_rank; }
+		inline const MeanVectorType& mean() const { return m_mean; }
+		inline auto matrixQ() const { return m_Q.block(m_sRow, m_sRow, m_rows, m_rank); }
+		inline auto matrixR() const { return m_Qr.matrixR().block(m_sRow, m_sRow, m_rank, m_rank).triangularView<Upper>(); }
+		inline auto colsPermutation() const { return m_Qr.colsPermutation(); }
+
+	private:
+		DenseIndex	  m_sRow, m_rows, m_rank;
+		const QrType& m_Qr;
+		const MatrixQType& m_Q;
+		const MeanVectorType& m_mean;
 	};
 
 	template<class _MatrixType>
@@ -103,12 +193,13 @@ namespace Eigen {
 		typedef typename MatrixType::Index Index;
 
 		typedef Matrix<Scalar, _MatrixType::ColsAtCompileTime, _MatrixType::ColsAtCompileTime> PrincipleComponentsType;
+		typedef Matrix<Scalar, _MatrixType::RowsAtCompileTime, _MatrixType::ColsAtCompileTime> CordsMatrixType;
 		typedef Matrix<Scalar, 1, _MatrixType::ColsAtCompileTime> RowVectorType;
 	private:
 		PrincipleComponentsType m_Comps;
 		RowVectorType			m_Variences;
 		RowVectorType			m_Mean;
-		MatrixXf				m_Coords;
+		CordsMatrixType			m_Coords;
 	public:
 		Pca()
 		{
@@ -123,7 +214,7 @@ namespace Eigen {
 		void compute(const DenseBase<Derived>& X, bool computeCoords = true)
 		{
 			m_Mean = X.colwise().mean();
-			MatrixType Xz = (X.rowwise() - m_Mean).eval();
+			auto Xz = (X.rowwise() - m_Mean).eval();
 
 			auto svd = Xz.jacobiSvd(ComputeThinV);
 			m_Comps = svd.matrixV();
@@ -134,9 +225,24 @@ namespace Eigen {
 				m_Coords = Xz * m_Comps;
 		}
 
+		// compute pca from zero-mean data
+		template <typename Derived>
+		void computeCentered(const DenseBase<Derived>& X, bool computeCoords = true)
+		{
+			m_Mean.setZero(X.cols);
+
+			auto svd = X.jacobiSvd(ComputeThinV);
+			m_Comps = svd.matrixV();
+			m_Variences = svd.singularValues();
+			m_Variences = m_Variences.cwiseAbs2();
+
+			if (computeCoords)
+				m_Coords = Xz * m_Comps;
+		}
+
 		// the demension after projection
-		DenseIndex reducedRank(float cut_threshold_percentage) const 
-		{ 
+		DenseIndex reducedRank(float cut_threshold_percentage) const
+		{
 			int rank;
 			float cut_threshold = m_Variences[0] * cut_threshold_percentage;
 			auto cols = m_Variences.size();
@@ -163,8 +269,14 @@ namespace Eigen {
 		{
 			return m_Variences;
 		}
+
 		const auto& mean() const { return m_Mean; }
 
+		template <class Derived>
+		void setMean(const DenseBase<Derived>& mean)
+		{
+			m_Mean = mean;
+		}
 	};
 
 	// Canonical correlation analysis
@@ -184,8 +296,8 @@ namespace Eigen {
 		typedef typename _TScalar Scalar;
 
 		typedef Matrix<Scalar, -1, -1> MatrixType;
-		typedef Matrix<Scalar,  1, -1> RowVectorType;
-		typedef Matrix<Scalar, -1,  1> VectorType;
+		typedef Matrix<Scalar, 1, -1> RowVectorType;
+		typedef Matrix<Scalar, -1, 1> VectorType;
 
 	private:
 		bool m_initialized;
@@ -199,14 +311,14 @@ namespace Eigen {
 		JacobiSVD<MatrixType, 2> svdCovQXY;
 
 		// for transform
-		mutable JacobiSVD<MatrixType,2> svdBt;
+		mutable JacobiSVD<MatrixType, 2> svdBt;
 		mutable MatrixType				invB;
 	public:
 		Cca() : m_initialized(false) {}
 
 
 		template <typename DerivedX, typename DerivedY>
-		Cca(const DenseBase<DerivedX> &X, const DenseBase<DerivedY> &Y, bool computeAB = false) 
+		Cca(const DenseBase<DerivedX> &X, const DenseBase<DerivedY> &Y, bool computeAB = false)
 		{
 			compute(X, Y, computeAB);
 		}
@@ -217,8 +329,11 @@ namespace Eigen {
 		template<typename _MatrixTypeX, typename _MatrixTypeY>
 		Cca& computeFromQr(const ColPivHouseholderQR<_MatrixTypeX>& qrX, const ColPivHouseholderQR<_MatrixTypeY>& qrY, bool computeAB = false);
 
-		template<typename _MatrixTypeX, typename _MatrixTypeY>
-		Cca& computeFromQr(const MeanThinQr<_MatrixTypeX>& qrX, const MeanThinQr<_MatrixTypeY>& qrY, bool computeAB = false);
+		//template<typename _MatrixTypeX, typename _MatrixTypeY>
+		//Cca& computeFromQr(const MeanThinQr<_MatrixTypeX>& qrX, const MeanThinQr<_MatrixTypeY>& qrY, bool computeAB = false);
+
+		template<typename DerivedX, typename DerivedY>
+		Cca& computeFromQr(const QrViewBase<DerivedX>& qrX, const QrViewBase<DerivedY>& qrY, bool computeAB = false);
 
 		template<typename _MatrixTypeX, typename _MatrixTypeY>
 		Cca& computeFromPca(const Pca<_MatrixTypeX>& pcaX, const Pca<_MatrixTypeY>& pcaY, bool computeAB = false);
@@ -322,8 +437,8 @@ namespace Eigen {
 	}
 
 	template<typename _TScalar>
-	template<typename _MatrixTypeX, typename _MatrixTypeY>
-	inline Cca<_TScalar>& Cca<_TScalar>::computeFromQr(const MeanThinQr<_MatrixTypeX>& qrX, const MeanThinQr<_MatrixTypeY>& qrY, bool computeAB)
+	template<typename DerivedX, typename DerivedY>
+	inline Cca<_TScalar>& Cca<_TScalar>::computeFromQr(const QrViewBase<DerivedX>& qrX, const QrViewBase<DerivedY>& qrY, bool computeAB)
 	{
 		using namespace std;
 		assert(qrX.rows() == qrX.rows());
@@ -390,6 +505,8 @@ namespace Eigen {
 		return *this;
 	}
 
+
+
 	template<class _TScalar>
 	template <typename DerivedX, typename DerivedY>
 	inline Cca<_TScalar>& Cca<_TScalar>::compute(const DenseBase<DerivedX> &X, const DenseBase<DerivedY> &Y, bool computeAB)
@@ -410,7 +527,7 @@ namespace Eigen {
 		// QR-decomposition
 		auto qrX = mX.colPivHouseholderQr();
 		auto qrY = mY.colPivHouseholderQr();
-		
+
 		return computeFromQr(qrX, qrY, computeAB);
 	}
 }

@@ -12,6 +12,10 @@ namespace Causality
 		Eigen::MatrixXf invB;
 		bool useInvB;
 
+		// Get the homogenens transform matrix (X.rows + 1) x (Y.rows + 1)
+		Eigen::MatrixXf TransformMatrix() const;
+
+
 		template <class DerivedX, class DerivedY>
 		void Apply(_In_ const Eigen::DenseBase<DerivedX> &Xp, _Out_ Eigen::DenseBase<DerivedY> &Yp) const;
 
@@ -22,6 +26,9 @@ namespace Causality
 	{
 		Eigen::MatrixXf	pcX, pcY; // Principle components of X or Y
 		Eigen::RowVectorXf uXpca, uYpca; // Mean of X or Y
+
+		// Get the homogenens transform matrix (X.rows + 1) x (Y.rows + 1)
+		Eigen::MatrixXf TransformMatrix() const;
 
 		template <class DerivedX, class DerivedY>
 		void Apply(_In_ const Eigen::DenseBase<DerivedX> &Xp, _Out_ Eigen::MatrixBase<DerivedY> &Yp) const;
@@ -120,6 +127,48 @@ namespace Causality
 	inline float CcaMap::CreateFrom(_In_ const Eigen::MatrixXf &X, const _In_ Eigen::MatrixXf &Y)
 	{
 		return CreateCcaMap(*this, X, Y);
+	}
+
+	inline Eigen::MatrixXf CcaMap::TransformMatrix() const
+	{
+		auto dX = uX.size(), dY = uY.size();
+		Eigen::MatrixXf T(dX + 1, dY + 1);
+
+		auto r = T.block(0, 0, dX, dY);
+
+		if (useInvB)
+			r = A * invB;
+		else
+			r = svdBt.solve(r.transpose()).transpose();
+
+		// translation
+		T.block(dX, 0, 1, dY) = uY - uX * r;
+		T(dX, dY) = 1.0f;
+
+		return T;
+	}
+
+	inline Eigen::MatrixXf PcaCcaMap::TransformMatrix() const
+	{
+		assert("Not implented yet, uXpca, uYpca is not considered yet");
+		auto dX = uX.size(), dY = uY.size();
+		Eigen::MatrixXf T(dX + 1, dY + 1);
+
+		auto r = T.block(0, 0, dX, dY);
+
+		if (useInvB)
+			r = pcX * A * invB * pcY.transpose();
+		else
+		{
+			r = svdBt.solve(A.transpose()).transpose();
+			r = pcX * r * pcY.transpose(); // pcX, pcY is orthgonal
+		}
+
+		// translation
+		T.block(dX, 0, 1, dY) = uY - uX * r;
+		T(dX, dY) = 1.0f;
+
+		return T;
 	}
 
 	inline float PcaCcaMap::CreateFrom(_In_ const Eigen::MatrixXf &X, const _In_ Eigen::MatrixXf &Y, float Xcutoff, float Ycutoff)

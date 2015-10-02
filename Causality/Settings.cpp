@@ -2,8 +2,11 @@
 
 namespace Causality
 {
-	bool				g_UseGeneralTransform = false;
+	int					g_PartAssignmentTransform = PAT_RST;
+
 	bool				g_UsePersudoPhysicsWalk = false;
+	float				g_MaxCharacterSpeed = 0.5f;
+
 
 	//					Use GPR instead of CCA for rigging local chain
 	bool				g_UseStylizedIK = true;
@@ -28,6 +31,8 @@ namespace Causality
 
 	float				g_BlendWeight = 0.8f;
 
+	float				g_AssignWeight = 1.0f;
+
 	float				g_MatchAccepetanceThreshold = 0.2f;
 
 	bool				g_EnableInputFeatureLocalization = true;
@@ -37,4 +42,8 @@ namespace Causality
 	float				g_CharacterActiveEnergy = 0.40f;
 	float				g_CharacterSubactiveEnergy = 0.02f;
 
+	float				g_IKTermWeight = 1.0f;
+	float				g_MarkovTermWeight = 1.0f;
+	float				g_StyleLikelihoodTermWeight = 1.0f;
+	float				g_IKLimitWeight = 1.0;
 }

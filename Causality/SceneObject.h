@@ -29,6 +29,8 @@ namespace Causality
 		AcceptCustomizeEffects = 7,
 	};
 
+	#include "Common\CompositeFlag.h"
+
 	class RenderFlags : public CompositeFlag<RenderFlagPrimtive>
 	{
 	public:
@@ -104,8 +106,21 @@ namespace Causality
 
 		virtual void AddChild(SceneObject* child);
 
+		virtual void OnParentChanged(SceneObject* oldParent);
+
 		template <typename T>
 		T* FirstAncesterOfType()
+		{
+			auto node = parent();
+			while (node && !node->Is<T>())
+				node = node->parent();
+			if (node)
+				return node->As<T>();
+			else
+				return nullptr;
+		}
+		template <typename T>
+		const T* FirstAncesterOfType() const
 		{
 			auto node = parent();
 			while (node && !node->Is<T>())
@@ -128,18 +143,30 @@ namespace Causality
 				return nullptr;
 		}
 
-		//template <typename TInterface>
-		//auto descendents_of_type() 
-		//{
-		//	using namespace boost;
-		//	using namespace adaptors;
-		//	return 
-		//		descendants()
-		//		| transformed([](auto pCom) {
-		//			return dynamic_cast<TInterface*>(pCom); }) 
-		//		| filtered([](auto pCom){
-		//			return pCom != nullptr;});
-		//}
+		template <typename T>
+		const T* FirstChildOfType() const
+		{
+			auto node = first_child();
+			while (node && !node->Is<T>())
+				node = node->next_sibling();
+			if (node)
+				return node->As<T>();
+			else
+				return nullptr;
+		}
+
+		template <typename TInterface>
+		auto DescendantsOfType() 
+		{
+			using namespace boost;
+			using namespace adaptors;
+			return 
+				descendants()
+				| transformed([](auto pCom) {
+					return dynamic_cast<TInterface*>(pCom); }) 
+				| filtered([](auto pCom){
+					return pCom != nullptr;});
+		}
 
 		virtual void						Update(time_seconds const& time_delta);
 

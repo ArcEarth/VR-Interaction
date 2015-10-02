@@ -34,6 +34,9 @@
     <Filter Include="Causality">
       <UniqueIdentifier>{897e627e-a0e0-4504-8de2-12624d21ab1b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\gsl">
+      <UniqueIdentifier>{f7bc6025-df95-4e14-887e-2c5386be59f9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -114,10 +117,10 @@
     <ClCompile Include="Settings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="RegressionModel.cpp">
+    <ClCompile Include="ArmatureTransforms.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ArmatureTransforms.cpp">
+    <ClCompile Include="StylizedIK.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -255,6 +258,21 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ArmatureFeature.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GSL\array_view.h">
+      <Filter>Header Files\gsl</Filter>
+    </ClInclude>
+    <ClInclude Include="GSL\fail_fast.h">
+      <Filter>Header Files\gsl</Filter>
+    </ClInclude>
+    <ClInclude Include="GSL\gsl.h">
+      <Filter>Header Files\gsl</Filter>
+    </ClInclude>
+    <ClInclude Include="GSL\string_view.h">
+      <Filter>Header Files\gsl</Filter>
+    </ClInclude>
+    <ClInclude Include="Events.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

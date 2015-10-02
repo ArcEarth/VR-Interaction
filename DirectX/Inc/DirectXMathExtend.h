@@ -231,7 +231,7 @@ namespace DirectX
 		struct rebind { typedef AlignedAllocator<_T2, _Align_Boundary> other; };
 	};
 
-	// Aligned Aloocator for holding XMVECTOR/16 btyes aligned data
+		// Aligned Aloocator for holding XMVECTOR/16 btyes aligned data
 	typedef AlignedAllocator<XMVECTOR> XMAllocator;
 
 #endif //DIRECTX_ALLIGNED_NEW
@@ -1374,8 +1374,46 @@ namespace DirectX
 	}
 #pragma endregion
 
+	template <class Derived>
+	struct TransformBase : public DirectX::AlignedNew<XMVECTOR>
+	{
+		typedef Derived DerivedType;
+
+		inline Derived& Inverse()
+		{
+			return Derived::Inverse();
+		}
+
+		inline Derived Inversed() const
+		{
+			Derived t = static<const Derived&>(*this);
+			return t.Inverse();
+		}
+
+		inline XMMATRIX TransformMatrix() const
+		{
+			return Derived::TransformMatrix();
+		}
+
+		inline void XM_CALLCONV SetFromTransformMatrix(FXMMATRIX M)
+		{
+			Derived::SetFromTransformMatrix(M);
+		}
+
+		// transform concate
+		template <typename Derived>
+		inline Derived& operator *=(const TransformBase<Derived>& transform)
+		{
+			XMMATRIX mat = TransformMatrix();
+			XMMATRIX mat2 = transform.TransformMatrix();
+			mat *= mat2;
+			SetFromTransformMatrix(mat);
+			return *this;
+		}
+	};
+
 	XM_ALIGNATTR
-	struct RotationTransform : public DirectX::AlignedNew<XMVECTOR>
+	struct RotationTransform : public TransformBase<RotationTransform>
 	{
 		XM_ALIGNATTR
 			Quaternion  Rotation;
@@ -1386,14 +1424,14 @@ namespace DirectX
 			return M;
 		}
 
-		RotationTransform() = default;
+		inline RotationTransform() = default;
 
-		RotationTransform(const Quaternion& q)
+		inline RotationTransform(const Quaternion& q)
 			: Rotation(q)
 		{
 		}
 
-		operator XMVECTOR() const
+		inline operator XMVECTOR() const
 		{
 			return XMLoadFloat4A(reinterpret_cast<const XMFLOAT4A*>(&Rotation));
 		}
@@ -1408,7 +1446,7 @@ namespace DirectX
 		}
 	};
 	XM_ALIGNATTR
-	struct TranslationTransform : public DirectX::AlignedNew<XMVECTOR>
+	struct TranslationTransform : public TransformBase<TranslationTransform>
 	{
 		XM_ALIGNATTR
 			Vector3  Translation;
@@ -1420,7 +1458,7 @@ namespace DirectX
 			return M;
 		}
 
-		operator XMVECTOR() const
+		inline operator XMVECTOR() const
 		{
 			return XMLoadFloat3A(reinterpret_cast<const XMFLOAT3A*>(&Translation));
 		}
@@ -1434,7 +1472,7 @@ namespace DirectX
 		}
 	};
 	XM_ALIGNATTR
-	struct ScaleTransform : public DirectX::AlignedNew<XMVECTOR>
+	struct ScaleTransform : public TransformBase<ScaleTransform>
 	{
 		XM_ALIGNATTR
 			Vector3 Scale;
@@ -1461,7 +1499,7 @@ namespace DirectX
 
 	XM_ALIGNATTR
 		// Composition of Translation and Rotation
-	struct RigidTransform : public DirectX::AlignedNew<XMVECTOR>
+	struct RigidTransform : public TransformBase<RigidTransform>
 	{
 	public:
 		XM_ALIGNATTR
@@ -1490,8 +1528,22 @@ namespace DirectX
 			Translation = tra;
 		}
 
+		// x = 
+		inline void Inverse()
+		{
+			// R' = R^-1
+			XMVECTOR q = XMLoadA(Rotation);
+			q = XMQuaternionConjugate(q);
+			XMStoreA(Rotation, q);
+
+			// T' = -T*R^-1
+			q = XMVector3Rotate(XMLoadA(Translation), q);
+			q = -q;
+			XMStoreA(Translation, q);
+		}
+
 		template <typename _TTransform>
-		RigidTransform& operator *=(const _TTransform& transform)
+		inline RigidTransform& operator *=(const _TTransform& transform)
 		{
 			XMMATRIX mat = TransformMatrix();
 			XMMATRIX mat2 = transform.TransformMatrix();
@@ -1502,7 +1554,7 @@ namespace DirectX
 
 		// Rigid * Rigid
 		template <>
-		RigidTransform& operator *=(const RigidTransform& global)
+		inline RigidTransform& operator *=(const RigidTransform& global)
 		{
 			auto& local = *this;
 			XMVECTOR ParQ = XMLoadA(global.Rotation);
@@ -1517,7 +1569,7 @@ namespace DirectX
 		}
 
 		template <>
-		RigidTransform& operator *=(const Quaternion& rot)
+		inline RigidTransform& operator *=(const Quaternion& rot)
 		{
 			auto& local = *this;
 			XMVECTOR ParQ = XMLoad(rot);
@@ -1531,7 +1583,7 @@ namespace DirectX
 		}
 
 		template <>
-		RigidTransform& operator *=(const Vector3& trans)
+		inline RigidTransform& operator *=(const Vector3& trans)
 		{
 			this->Translation += trans;
 		}
@@ -1558,32 +1610,45 @@ namespace DirectX
 		//! SRT(RST) transform is not a 'Group' in term of MATRIX production
 		//! Thus, We define SRT * SRT -> (S0*S1)*R0*T0*R1*T1
 		//! A simple extension to rigid transform, but will apply well for uniform scaling
-	struct ScaledRigidTransform : protected RigidTransform
+	struct IsometricTransform : public TransformBase<IsometricTransform>
 	{
-		using RigidTransform::Rotation;
-		using RigidTransform::Translation;
-		using RigidTransform::Tw;
+	public:
 		XM_ALIGNATTR
-			Vector3 Scale;
-		float Sw; // Padding
+			Quaternion  Rotation;
+		XM_ALIGNATTR
+			Vector3		Translation;
+		float			Tw; // padding
+		XM_ALIGNATTR
+			Vector3		Scale;
+		float			Sw; // Padding
 
-		static ScaledRigidTransform Identity()
+		static IsometricTransform Identity()
 		{
-			return ScaledRigidTransform();
+			return IsometricTransform();
 		}
 
 
-		ScaledRigidTransform()
+		IsometricTransform()
 			: Scale(1.0f)
 		{}
 
-		inline explicit ScaledRigidTransform(CXMMATRIX transform)
+		inline explicit IsometricTransform(CXMMATRIX transform)
 		{
 			SetFromTransformMatrix(transform);
 		}
 
-		inline explicit ScaledRigidTransform(const RigidTransform &rigid)
-			: RigidTransform(rigid), Scale(1.0f)
+		operator RigidTransform& ()
+		{
+			return reinterpret_cast<RigidTransform&>(*this);
+		}
+
+		operator const RigidTransform& () const
+		{
+			return reinterpret_cast<const RigidTransform&>(*this);
+		}
+
+		inline explicit IsometricTransform(const RigidTransform &rigid)
+			: Rotation(rigid.Rotation), Translation(rigid.Translation), Scale(1.0f)
 		{
 		}
 
@@ -1596,12 +1661,29 @@ namespace DirectX
 			Translation = tra;
 		}
 
-		inline void Inverse();
+		// x = 
+		inline void Inverse()
+		{
+			// S' = 1 / S;
+			XMVECTOR s = XMVectorReciprocal(XMLoadA(Scale));
+			XMStoreA(Scale, s);
 
-		inline ScaledRigidTransform Inversed() const;
+			// R' = R^-1
+			XMVECTOR q = XMLoadA(Rotation);
+			q = XMQuaternionConjugate(q);
+			XMStoreA(Rotation, q);
 
-		template <typename _TTransform>
-		ScaledRigidTransform& operator *=(const _TTransform& transform)
+			// T' = -T*R^-1 * S^-1
+			q = XMVector3Rotate(XMLoadA(Translation), q);
+			q = -q;
+			q = q * s;
+			XMStoreA(Translation, q);
+		}
+
+
+		// transform concate
+		template <typename Derived>
+		inline IsometricTransform& operator *=(const TransformBase<Derived>& transform)
 		{
 			XMMATRIX mat = TransformMatrix();
 			XMMATRIX mat2 = transform.TransformMatrix();
@@ -1609,13 +1691,13 @@ namespace DirectX
 			SetFromTransformMatrix(mat);
 			return *this;
 		}
-
 		// SRT * SRT -> (S0*S1)*R0*T0*R1*T1
 		// caculate the transform of Local transform 'this' conacting with Global transform 'rhs'
 		template <>
-		ScaledRigidTransform& operator *=(const ScaledRigidTransform& global)
+		inline IsometricTransform& operator *=(const TransformBase<IsometricTransform>& glb)
 		{
 			auto& local = *this;
+			auto& global = static_cast<const IsometricTransform&>(glb);
 			XMVECTOR ParQ = XMLoadA(global.Rotation);
 			XMVECTOR Q = XMQuaternionMultiply(XMLoadA(local.Rotation), ParQ);
 			XMVECTOR ParS = XMLoadA(global.Scale);
@@ -1633,9 +1715,10 @@ namespace DirectX
 		}
 
 		template <>
-		ScaledRigidTransform& operator *=(const ScaleTransform& global)
+		IsometricTransform& operator *=(const TransformBase<ScaleTransform>& glb)
 		{
 			auto& local = *this;
+			auto& global = static_cast<const ScaleTransform&>(glb);
 			XMVECTOR ParS = XMLoadA(global.Scale);
 			XMVECTOR S = ParS * XMLoadA(local.Scale);
 			XMStoreA(this->Scale, S);
@@ -1649,9 +1732,10 @@ namespace DirectX
 
 		// ScaledRigid * Rigid
 		template <>
-		ScaledRigidTransform& operator *=(const RigidTransform& global)
+		IsometricTransform& operator *=(const TransformBase<RigidTransform>& glb)
 		{
 			auto& local = *this;
+			auto& global = static_cast<const RigidTransform&>(glb);
 			XMVECTOR ParQ = XMLoadA(global.Rotation);
 			XMVECTOR Q = XMQuaternionMultiply(XMLoadA(local.Rotation), ParQ);
 			XMStoreA(this->Rotation, Q);
@@ -1664,8 +1748,7 @@ namespace DirectX
 			return *this;
 		}
 
-		template <>
-		ScaledRigidTransform& operator *=(const Quaternion& globalRot)
+		IsometricTransform& operator *=(const Quaternion& globalRot)
 		{
 			auto& local = *this;
 			XMVECTOR ParQ = XMLoad(globalRot);
@@ -1680,9 +1763,10 @@ namespace DirectX
 		}
 
 		template <>
-		ScaledRigidTransform& operator *=(const RotationTransform& global)
+		IsometricTransform& operator *=(const TransformBase<RotationTransform>& glb)
 		{
 			auto& local = *this;
+			auto& global = static_cast<const RotationTransform&>(glb);
 			XMVECTOR ParQ = XMLoadA(global.Rotation);
 			XMVECTOR Q = XMQuaternionMultiply(XMLoadA(local.Rotation), ParQ);
 			XMStoreA(this->Rotation, Q);
@@ -1695,8 +1779,9 @@ namespace DirectX
 		}
 
 		template <>
-		ScaledRigidTransform& operator *=(const TranslationTransform& global)
+		IsometricTransform& operator *=(const TransformBase<TranslationTransform>& glb)
 		{
+			auto& global = static_cast<const TranslationTransform&>(glb);
 			this->Translation += global.Translation;
 			return *this;
 		}
@@ -1716,7 +1801,8 @@ namespace DirectX
 		}
 	};
 
-	struct MatrixTransform : public Matrix4x4
+	XM_ALIGNATTR
+	struct LinearTransform : public TransformBase<LinearTransform> , public Matrix4x4
 	{
 		using Matrix4x4::operator();
 		using Matrix4x4::operator+=;
@@ -1731,13 +1817,13 @@ namespace DirectX
 			*this = transform;
 		}
 
-		MatrixTransform& operator=(const Matrix4x4& rhs)
+		LinearTransform& operator=(const Matrix4x4& rhs)
 		{
 			Matrix4x4::operator=(rhs);
 		}
 
 		template <typename _TTransform>
-		MatrixTransform& operator *=(const _TTransform& transform)
+		LinearTransform& operator *=(const _TTransform& transform)
 		{
 			XMMATRIX mat = TransformMatrix();
 			XMMATRIX mat2 = transform.TransformMatrix();
@@ -1748,7 +1834,7 @@ namespace DirectX
 
 		inline XMMATRIX TransformMatrix() const
 		{
-			return XMLoadFloat4x4(this);
+			return XMLoadFloat4x4A(reinterpret_cast<const XMFLOAT4X4A*>(this));
 		}
 	};
 

@@ -2,6 +2,9 @@
 #include "Armature.h"
 #include "GaussianProcess.h"
 #include "PcaCcaMap.h"
+#include "RegressionModel.h"
+#include "StylizedIK.h"
+
 
 namespace Causality
 {
@@ -26,121 +29,208 @@ namespace Causality
 		static const bool BlockwiseLocalize = true;
 	};
 
-	class KinematicBlock;
+	class ArmaturePart;
 
-	class BlockFeatureExtractor abstract
+	class IArmaturePartFeature abstract
 	{
 	public:
 		using RowVectorX = Eigen::RowVectorXf;
 
-		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame) = 0;
-		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame, _In_ const AffineFrame& last_frame, float frame_time)
+		//virtual int GetDimension(_In_ const ArmaturePart& block) = 0;
+
+		virtual RowVectorX Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) = 0;
+
+		virtual RowVectorX Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time)
 		{
 			return Get(block, frame);
 		}
 
-		virtual void Set(_In_ const KinematicBlock& block, _Out_ AffineFrame& frame, _In_ const RowVectorX& feature) = 0;
+		virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const RowVectorX& feature) = 0;
 	};
 
-	template <class BoneFeatureType>
-	class BlockAllJointsFeatureExtractor : public BlockFeatureExtractor
+	namespace ArmaturePartFeatures
 	{
-	public :
-		bool EnableLocalization;
-
-		BlockAllJointsFeatureExtractor(bool enableLocalzation = false)
-			: EnableLocalization(enableLocalzation)
-		{}
-
-		BlockAllJointsFeatureExtractor(const BlockAllJointsFeatureExtractor&) = default;
-
-		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame) override
+		template <class BoneFeatureType>
+		class AllJoints : public IArmaturePartFeature
 		{
-			RowVectorX Y(block.Joints.size() * BoneFeatureType::Dimension);
-			for (size_t j = 0; j < block.Joints.size(); j++)
+		public:
+			bool EnableLocalization;
+
+			AllJoints(bool enableLocalzation = false)
+				: EnableLocalization(enableLocalzation)
+			{}
+
+			AllJoints(const AllJoints&) = default;
+
+			virtual RowVectorX Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
 			{
-				auto jid = block.Joints[j]->ID();
-				auto Yj = Y.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
-				BoneFeatureType::Get(Yj, frame[jid]);
+				RowVectorX Y(block.Joints.size() * BoneFeatureType::Dimension);
+				for (size_t j = 0; j < block.Joints.size(); j++)
+				{
+					auto jid = block.Joints[j]->ID;
+					auto Yj = Y.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
+					BoneFeatureType::Get(Yj, frame[jid]);
+				}
+
+				if (block.parent() != nullptr && EnableLocalization)
+				{
+					RowVectorX reference(BoneFeatureType::Dimension);
+					BoneFeatureType::Get(reference, frame[block.parent()->Joints.back()->ID]);
+					Y -= reference.replicate(1, block.Joints.size());
+				}
+				return Y;
 			}
 
-			if (block.parent() != nullptr && EnableLocalization)
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const RowVectorX& feature) override
 			{
-				RowVectorX reference(BoneFeatureType::Dimension);
-				BoneFeatureType::Get(reference, frame[block.parent()->Joints.back()->ID()]);
-				Y -= reference.replicate(1, block.Joints.size());
+				for (size_t j = 0; j < block.Joints.size(); j++)
+				{
+					auto jid = block.Joints[j]->ID;
+					auto Xj = feature.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
+					BoneFeatureType::Set(frame[jid], Xj);
+				}
 			}
-			return Y;
-		}
+		};
 
-		virtual void Set(_In_ const KinematicBlock& block, _Out_ AffineFrame& frame, _In_ const RowVectorX& feature) override
+		// Joints feature with pca
+		template <class BoneFeatureType>
+		class AllJointsPca : public AllJoints<BoneFeatureType>
 		{
-			for (size_t j = 0; j < block.Joints.size(); j++)
+			float	PcaCutoff;
+
+			int GetDimension(_In_ const ArmaturePart& block)
 			{
-				auto jid = block.Joints[j]->ID();
-				auto Xj = feature.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
-				BoneFeatureType::Set(frame[jid], Xj);
+				return block.ChainPcaMatrix.cols();
 			}
-		}
-	};
 
-	template <class BoneFeatureType>
-	class BlockEndEffectorFeatureExtractor : public BlockFeatureExtractor
-	{
-	public:
-		bool EnableLocalization;
-		float FrameTime;
-
-		BlockEndEffectorFeatureExtractor(bool enableLocalzation = false, float frameTime = 1.0f)
-			: EnableLocalization(enableLocalzation), FrameTime(frameTime)
-		{}
-
-		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame) override
-		{
-			RowVectorX Y(BoneFeatureType::Dimension);
-
-			BoneFeatureType::Get(Y, frame[block.Joints.back()->ID()]);
-
-			if (block.parent() != nullptr && EnableLocalization)
+			virtual RowVectorX Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
 			{
-				RowVectorX reference(BoneFeatureType::Dimension);
-				BoneFeatureType::Get(reference, frame[block.parent()->Joints.back()->ID()]);
-				Y -= reference;
+				RowVectorX Y(block.Joints.size() * BoneFeatureType::Dimension);
+				for (size_t j = 0; j < block.Joints.size(); j++)
+				{
+					auto jid = block.Joints[j]->ID;
+					auto Yj = Y.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
+					BoneFeatureType::Get(Yj, frame[jid]);
+				}
+
+				if (block.parent() != nullptr && EnableLocalization)
+				{
+					RowVectorX reference(BoneFeatureType::Dimension);
+					BoneFeatureType::Get(reference, frame[block.parent()->Joints.back()->ID]);
+					Y -= reference.replicate(1, block.Joints.size());
+				}
+
+				Y = (Y - block.ChainPcaMean) * block.ChainPcaMatrix;
+
+				return Y;
 			}
-			return Y;
-		}
 
-		virtual RowVectorX Get(_In_ const KinematicBlock& block, _In_ const AffineFrame& frame, _In_ const AffineFrame& last_frame, float frame_time) override
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const RowVectorX& feature) override
+			{
+				RowVectorX Y = feature * block.ChainPcaMatrix.transpose() + block.ChainPcaMean;
+
+				for (size_t j = 0; j < block.Joints.size(); j++)
+				{
+					auto jid = block.Joints[j]->ID;
+					auto Xj = Y.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
+					BoneFeatureType::Set(frame[jid], Xj);
+				}
+			}
+		};
+
+		template <class BoneFeatureType>
+		class EndEffector : public IArmaturePartFeature
 		{
-			static const auto Dim = BoneFeatureType::Dimension;
-			RowVectorX Y(Dim * 2);
+		public:
+			bool EnableLocalization;
+			float FrameTime;
 
-			Y.segment<Dim>(0) = Get(block, frame);
-			Y.segment<Dim>(Dim) = Y.segment<Dim>(0);
-			Y.segment<Dim>(Dim) -= Get(block, last_frame);
-			Y.segment<Dim>(Dim) /= frame_time;
+			EndEffector(bool enableLocalzation = false, float frameTime = 1.0f)
+				: EnableLocalization(enableLocalzation), FrameTime(frameTime)
+			{}
 
-			return Y;
-		}
+			virtual RowVectorX Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			{
+				RowVectorX Y(BoneFeatureType::Dimension);
 
-		virtual void Set(_In_ const KinematicBlock& block, _Out_ AffineFrame& frame, _In_ const RowVectorX& feature) override
+				BoneFeatureType::Get(Y, frame[block.Joints.back()->ID]);
+
+				if (block.parent() != nullptr && EnableLocalization)
+				{
+					RowVectorX reference(BoneFeatureType::Dimension);
+					BoneFeatureType::Get(reference, frame[block.parent()->Joints.back()->ID]);
+					Y -= reference;
+				}
+				return Y;
+			}
+
+			virtual RowVectorX Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) override
+			{
+				static const auto Dim = BoneFeatureType::Dimension;
+				RowVectorX Y(Dim * 2);
+
+				Y.segment<Dim>(0) = Get(block, frame);
+				Y.segment<Dim>(Dim) = Y.segment<Dim>(0);
+				Y.segment<Dim>(Dim) -= Get(block, last_frame);
+				Y.segment<Dim>(Dim) /= frame_time;
+
+				return Y;
+			}
+
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const RowVectorX& feature) override
+			{
+				assert(!"End Effector only block feature could not be use to set frame");
+			}
+		};
+
+		template <class BoneFeatureType>
+		class ExtentedEndEffector : public IArmaturePartFeature
 		{
-			assert(!"End Effector only block feature could not be use to set frame");
-		}
-	};
+		};
 
+		template <class PartFeatureType>
+		class DeformationFromDefault : protected PartFeatureType
+		{
+		public:
+			using PartFeatureType::PartFeatureType;
+			void SetDefaultFrame(const BoneHiracheryFrame& frame)
+			{
+				m_rframe = m_rlframe = m_dframe = frame;
+			}
+
+			virtual RowVectorX Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			{
+				BoneHiracheryFrame::Difference(m_rframe, m_dframe, frame);
+				return Get(block, m_rframe);
+			}
+
+			virtual RowVectorX Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) override
+			{
+				BoneHiracheryFrame::Difference(m_rframe, m_dframe, frame);
+				return Get(block, m_rframe);
+			}
+
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const RowVectorX& feature) override
+			{
+				//BoneHiracheryFrame::Difference(m_rframe, m_dframe, frame);
+				//return Set(block, m_rframe);
+			}
+		private:
+			BoneHiracheryFrame m_dframe, m_rframe, m_rlframe;
+		};
+	}
 
 	// A Kinematic Block is a one-chain in the kinmatic tree, with additional anyalaze information 
 	// usually constructed from shrinking the kinmatic tree
 	// Each Block holds the children joints and other structural information
 	// It is also common to build Multi-Level-of-Detail Block Layers
-	class KinematicBlock : public tree_node<KinematicBlock>
+	class ArmaturePart : public tree_node<ArmaturePart>
 	{
 	public:
 		int					Index;				// Index for this block, valid only through this layer
 		int					LoD;				// Level of detail
 		vector<const Joint*>Joints;				// Contained Joints
-		//AffineFrame			ChainFrame;			// Stores the length data and etc
+		//BoneHiracheryFrame			ChainFrame;			// Stores the length data and etc
 
 												// Structural feature
 		int					LoG;				// Level of Grounding
@@ -148,17 +238,17 @@ namespace Causality
 		float				ExpandThreshold;	// The threshold to expand this part
 		int					GroundIdx;
 
-		KinematicBlock*		GroundParent;		// Path to grounded bone
-		KinematicBlock*		SymetricPair;		// Path to grounded bone
+		ArmaturePart*		GroundParent;		// Path to grounded bone
+		ArmaturePart*		SymetricPair;		// Path to grounded bone
 
-		KinematicBlock*			LoDParent;		// Parent in LoD term
-		vector<KinematicBlock*> LoDChildren;	// Children in LoD term
+		ArmaturePart*		LoDParent;		// Parent in LoD term
+		vector<ArmaturePart*> LoDChildren;	// Children in LoD term
 
 		int					AccumulatedJointCount; // The count of joints that owned by blocks who have minor index
 
 		// Local Animation Domination properties
-		KinematicBlock*			Dominator;
-		list<KinematicBlock*>	Slaves;
+		ArmaturePart*		Dominator;
+		list<ArmaturePart*>	Slaves;
 
 		// Saliansy properties
 		int					ActiveActionCount;
@@ -168,9 +258,15 @@ namespace Causality
 
 		// Local motion and Principle displacement datas
 		Eigen::MatrixXf						X;		// (Ac*F) x d, Muilti-clip local-motion feature matrix, Ac = Active Action Count, d = block feature dimension
+		Eigen::MatrixXf						LimitX;
 		Eigen::VectorXf						Wxj;	// Jx1 Hirechical weights
 		Eigen::VectorXf						Wx;		// dJx1 Weights replicated along dim
 		Eigen::MatrixXf						Pd;		// Muilti-clip Principle Displacement
+
+		// feature Pca
+		Eigen::Pca<Eigen::MatrixXf>			ChainPca;
+		Eigen::RowVectorXf					ChainPcaMean;
+		Eigen::MatrixXf						ChainPcaMatrix;
 
 		PcaCcaMap							PdCca; // Muilti-clip deducted driver from Principle displacement to local motion
 		Eigen::MatrixXf						PvCorr; // ActiveActionCount x ActiveActionCount, record the pv : pv correlation 
@@ -179,7 +275,9 @@ namespace Causality
 		gaussian_process_regression			PdGpr;
 		double								ObrsvVar; // The cannonical value's varience give observation
 
-		KinematicBlock()
+		StylizedChainIK						PdStyleIk;
+
+		ArmaturePart()
 		{
 			Index = -1;
 			LoD = 0;
@@ -200,13 +298,13 @@ namespace Causality
 		//float				MotionEnergy;		// Motion Energy Level
 		//float				PotientialEnergy;	// Potenial Energy Level
 
-		BoundingOrientedBox GetBoundingBox(const AffineFrame& frame) const;
+		BoundingOrientedBox GetBoundingBox(const BoneHiracheryFrame& frame) const;
 
 		//template <class FeatureType>
-		//RowVectorX			GetFeatureVector(const AffineFrame& frame, bool blockwiseLocalize = false) const;
+		//RowVectorX			GetFeatureVector(const BoneHiracheryFrame& frame, bool blockwiseLocalize = false) const;
 
 		//template <class FeatureType>
-		//void				SetFeatureVector(_Out_ AffineFrame& frame, _In_ const RowVectorX& feature) const;
+		//void				SetFeatureVector(_Out_ BoneHiracheryFrame& frame, _In_ const RowVectorX& feature) const;
 		//template <class FeatureType>
 		//size_t				GetFeatureDim() const {
 		//	return FeatureType::Dimension * Joints.size();
@@ -220,75 +318,75 @@ namespace Causality
 		bool				HasSlaves() const;
 	};
 
-	// Shrink a Kinmatic Chain structure to a KinematicBlock
-	KinematicBlock* ShrinkChainToBlock(const Joint* pJoint);
+	// Shrink a Kinmatic Chain structure to a ArmaturePart
+	ArmaturePart* ShrinkChainToBlock(const Joint* pJoint);
 
 
-	class BlockArmature
+	class ShrinkedArmature
 	{
 	private:
-		std::unique_ptr<KinematicBlock> m_pRoot;
-		const IArmature*				m_pArmature;
-		std::vector<KinematicBlock*>	m_BlocksCache;
+		std::unique_ptr<ArmaturePart> m_pRoot;
+		const IArmature*			m_pArmature;
+		std::vector<ArmaturePart*>	m_Parts;
 	public:
-		typedef std::vector<KinematicBlock*> cache_type;
+		typedef std::vector<ArmaturePart*> cache_type;
 
 		void SetArmature(const IArmature& armature);
 
 		void ComputeWeights();
 
-		explicit BlockArmature(const IArmature& armature);
+		explicit ShrinkedArmature(const IArmature& armature);
 
-		BlockArmature() = default;
+		ShrinkedArmature() = default;
 
 		bool   empty() const { return m_pArmature == nullptr; }
-		size_t size() const { return m_BlocksCache.size(); }
+		size_t size() const { return m_Parts.size(); }
 
-		auto begin() { return m_BlocksCache.begin(); }
-		auto end() { return m_BlocksCache.end(); }
-		auto begin() const { return m_BlocksCache.begin(); }
-		auto end() const { return m_BlocksCache.end(); }
-		auto rbegin() { return m_BlocksCache.rbegin(); }
-		auto rend() { return m_BlocksCache.rend(); }
-		auto rbegin() const { return m_BlocksCache.rbegin(); }
-		auto rend() const { return m_BlocksCache.rend(); }
+		auto begin() { return m_Parts.begin(); }
+		auto end() { return m_Parts.end(); }
+		auto begin() const { return m_Parts.begin(); }
+		auto end() const { return m_Parts.end(); }
+		auto rbegin() { return m_Parts.rbegin(); }
+		auto rend() { return m_Parts.rend(); }
+		auto rbegin() const { return m_Parts.rbegin(); }
+		auto rend() const { return m_Parts.rend(); }
 
 		const IArmature& Armature() const { return *m_pArmature; }
-		KinematicBlock* Root() { return m_pRoot.get(); }
-		const KinematicBlock* Root() const { return m_pRoot.get(); }
-		KinematicBlock* operator[](int id) { return m_BlocksCache[id]; }
-		const KinematicBlock* operator[](int id) const { return m_BlocksCache[id]; }
+		ArmaturePart* Root() { return m_pRoot.get(); }
+		const ArmaturePart* Root() const { return m_pRoot.get(); }
+		ArmaturePart* operator[](int id) { return m_Parts[id]; }
+		const ArmaturePart* operator[](int id) const { return m_Parts[id]; }
 
 		// the matrix which alters joints into 
 		Eigen::PermutationMatrix<Eigen::Dynamic> GetJointPermutationMatrix(size_t feature_dim) const;
 	};
 
 	//template <class FeatureType>
-	//inline RowVectorX KinematicBlock::GetFeatureVector(const AffineFrame & frame, bool blockwiseLocalize) const
+	//inline RowVectorX ArmaturePart::GetFeatureVector(const BoneHiracheryFrame & frame, bool blockwiseLocalize) const
 	//{
 	//	RowVectorX Y(GetFeatureDim<FeatureType>());
 	//	for (size_t j = 0; j < Joints.size(); j++)
 	//	{
-	//		auto jid = Joints[j]->ID();
+	//		auto jid = Joints[j]->ID;
 	//		auto Yj = Y.middleCols<FeatureType::Dimension>(j * FeatureType::Dimension).transpose();
-	//		FeatureType::Get(Yj, frame[Joints[j]->ID()]);
+	//		FeatureType::Get(Yj, frame[Joints[j]->ID]);
 	//	}
 
 	//	if (parent() != nullptr && blockwiseLocalize && FeatureType::BlockwiseLocalize)
 	//	{
 	//		RowVectorX reference(FeatureType::Dimension);
-	//		FeatureType::Get(reference, frame[parent()->Joints.back()->ID()]);
+	//		FeatureType::Get(reference, frame[parent()->Joints.back()->ID]);
 	//		Y -= reference.replicate(1, Joints.size());
 	//	}
 	//	return Y;
 	//}
 
 	//template <class FeatureType>
-	//inline void KinematicBlock::SetFeatureVector(AffineFrame & frame, const RowVectorX & X) const
+	//inline void ArmaturePart::SetFeatureVector(BoneHiracheryFrame & frame, const RowVectorX & X) const
 	//{
 	//	for (size_t j = 0; j < Joints.size(); j++)
 	//	{
-	//		auto jid = Joints[j]->ID();
+	//		auto jid = Joints[j]->ID;
 	//		auto Xj = X.middleCols<FeatureType::Dimension>(j * FeatureType::Dimension);
 	//		FeatureType::Set(frame[jid], Xj);
 	//	}

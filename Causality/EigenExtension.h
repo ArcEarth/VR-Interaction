@@ -24,11 +24,11 @@ namespace Eigen {
 
 	// Apply Laplacian smooth in Row-wise sense (Each row is treated as a data point)
 	template <class InputDerived>
-	inline void laplacian_smooth(DenseBase<InputDerived> &X, unsigned IterationTimes = 2)
+	inline void laplacian_smooth(DenseBase<InputDerived> &X, DenseBase<InputDerived>::RealScalar alpha = 0.8, unsigned IterationTimes = 2)
 	{
 		auto N = X.rows();
 		using traits = internal::traits<InputDerived>;
-		using Scalar = typename traits::Scalar;
+		using Scalar = typename traits::Real;
 		typedef Array<Scalar, traits::RowsAtCompileTime, traits::ColsAtCompileTime> MatrixType;
 		typedef Map<MatrixType, 0, Stride<Dynamic, Dynamic>> MapType;
 		MatrixType Cache (X.rows(),X.cols());
@@ -43,7 +43,7 @@ namespace Eigen {
 			BUFF[dst].row(0) = BUFF[src].row(0);
 			BUFF[dst].row(N - 1) = BUFF[src].row(N - 1);
 
-			BUFF[dst].middleRows(1, N - 2) = 0.5f * (BUFF[src].topRows(N-2) + BUFF[src].bottomRows(N-2));
+			BUFF[dst].middleRows(1, N - 2) = alpha * BUFF[dst].middleRows(1, N - 2) + (Scalar(0.5) * (1 - alpha) * (BUFF[src].topRows(N-2) + BUFF[src].bottomRows(N-2)));
 			dst = !dst;
 			src = !src;
 		}
@@ -57,11 +57,8 @@ namespace Eigen {
 	// Cyclic boundary condition
 	// Cublic-Bezier interpolation
 	// Uniform sample assumption
-	template <class InputDerived> inline 
-	Matrix< typename internal::traits<InputDerived>::Scalar,
-			Dynamic,
-			internal::traits<InputDerived>::ColsAtCompileTime>
-	cublic_bezier_resample(const DenseBase<InputDerived> &X, DenseIndex nr, SplineBoundryType boundryType = OpenLoop)
+	template <class OutputDerived, class InputDerived> inline 
+	void cublic_bezier_resample(DenseBase<OutputDerived> &Xr, const DenseBase<InputDerived> &X, DenseIndex nr, SplineBoundryType boundryType = OpenLoop)
 	{
 		using xtype = DenseBase<InputDerived>;
 		using traits = internal::traits<InputDerived>;
@@ -110,7 +107,8 @@ namespace Eigen {
 		else
 			ti = (float)(N) / (float)(nr);
 
-		ResampledMatrixType Xr(nr, K);
+		//ResampledMatrixType Xr(nr, K);
+		Xr.resize(nr, K);
 		BezeirType bezier;
 		for (int i = 0, j = -1; i < nr; i++)
 		{
@@ -127,8 +125,6 @@ namespace Eigen {
 			}
 			Xr.row(i) = bezier(r);
 		}
-
-		return Xr;
 
 
 		//assert(!xtype::IsRowMajor);

@@ -6,8 +6,9 @@ using namespace Causality;
 using namespace DirectX;
 using namespace Eigen;
 using namespace std;
+using namespace ArmaturePartFeatures;
 
-void Causality::BlockArmature::SetArmature(const IArmature & armature)
+void ShrinkedArmature::SetArmature(const IArmature & armature)
 {
 	m_pArmature = &armature;
 	m_pRoot.reset(ShrinkChainToBlock(armature.root()));
@@ -15,7 +16,7 @@ void Causality::BlockArmature::SetArmature(const IArmature & armature)
 
 	for (auto& block : m_pRoot->nodes())
 	{
-		m_BlocksCache.push_back(&block);
+		m_Parts.push_back(&block);
 		block.Index = idx++;
 		block.AccumulatedJointCount = accumIdx;
 		accumIdx += block.Joints.size();
@@ -23,11 +24,11 @@ void Causality::BlockArmature::SetArmature(const IArmature & armature)
 	}
 }
 
-void Causality::BlockArmature::ComputeWeights()
+void ShrinkedArmature::ComputeWeights()
 {
 	const auto& frame = m_pArmature->default_frame();
 
-	for (auto& pblcok : m_BlocksCache)
+	for (auto& pblcok : m_Parts)
 	{
 		auto& block = *pblcok;
 		float length = 0;
@@ -35,7 +36,7 @@ void Causality::BlockArmature::ComputeWeights()
 		block.Wxj.setZero();
 		for (int i = block.Joints.size() - 1; i >= 0; --i)
 		{
-			length += frame[block.Joints[i]->ID()].LclTranslation.Length();
+			length += frame[block.Joints[i]->ID].LclTranslation.Length();
 			block.Wxj[i] = length;
 		}
 
@@ -47,15 +48,15 @@ void Causality::BlockArmature::ComputeWeights()
 
 }
 
-Causality::BlockArmature::BlockArmature(const IArmature & armature)
+ShrinkedArmature::ShrinkedArmature(const IArmature & armature)
 {
 	SetArmature(armature);
 }
 
-KinematicBlock* Causality::ShrinkChainToBlock(const Joint* pJoint)
+ArmaturePart* Causality::ShrinkChainToBlock(const Joint* pJoint)
 {
 	if (pJoint == nullptr || pJoint->is_null()) return nullptr;
-	KinematicBlock* pBlock = new KinematicBlock;
+	ArmaturePart* pBlock = new ArmaturePart;
 
 	auto pChild = pJoint;
 	do
@@ -70,10 +71,11 @@ KinematicBlock* Causality::ShrinkChainToBlock(const Joint* pJoint)
 		auto childBlcok = ShrinkChainToBlock(&child);
 		pBlock->append_children_back(childBlcok);
 	}
+
 	return pBlock;
 }
 
-Eigen::PermutationMatrix<Eigen::Dynamic> Causality::BlockArmature::GetJointPermutationMatrix(size_t feature_dim) const
+Eigen::PermutationMatrix<Eigen::Dynamic> ShrinkedArmature::GetJointPermutationMatrix(size_t feature_dim) const
 {
 	using namespace Eigen;
 
@@ -84,12 +86,12 @@ Eigen::PermutationMatrix<Eigen::Dynamic> Causality::BlockArmature::GetJointPermu
 	vector<int> indices(N);
 	int idx = 0;
 
-	for (auto pBlock : m_BlocksCache)
+	for (auto pBlock : m_Parts)
 	{
 		for (auto& pj : pBlock->Joints)
 		{
-			//indices[pj->ID()] = idx++;
-			indices[idx++] = pj->ID();
+			//indices[pj->ID] = idx++;
+			indices[idx++] = pj->ID;
 		}
 	}
 

@@ -29,16 +29,16 @@ dlib_vector dlib_likelihood_derv(gaussian_process_regression* pThis, const dlib_
 	return result;
 }
 
-Causality::gaussian_process_regression::gaussian_process_regression(const Eigen::MatrixXf & _X, const Eigen::MatrixXf & _Y)
+gaussian_process_regression::gaussian_process_regression(const Eigen::MatrixXf & _X, const Eigen::MatrixXf & _Y)
 //: DenseFunctor<float, 3, 1>()
 {
 	initialize(_X, _Y);
 }
 
-Causality::gaussian_process_regression::gaussian_process_regression()
+gaussian_process_regression::gaussian_process_regression()
 {}
 
-void Causality::gaussian_process_regression::initialize(const Eigen::MatrixXf & _X, const Eigen::MatrixXf & _Y)
+void gaussian_process_regression::initialize(const Eigen::MatrixXf & _X, const Eigen::MatrixXf & _Y)
 {
 	assert(_X.rows() == _Y.rows() && _X.rows() > 0 && "Observations count agree");
 	N = _X.rows();
@@ -62,7 +62,7 @@ void Causality::gaussian_process_regression::initialize(const Eigen::MatrixXf & 
 	iKYYtiK.resize(N, N);
 }
 
-void Causality::gaussian_process_regression::update_kernal(const ParamType & param)
+void gaussian_process_regression::update_kernal(const ParamType & param)
 {
 	if ((lparam - param).cwiseAbs().sum() < 1e-8)
 		return;
@@ -71,7 +71,7 @@ void Causality::gaussian_process_regression::update_kernal(const ParamType & par
 
 	int N = X.rows();
 
-	dKalpha = (Dx * gamma()).array().exp();
+	dKalpha.array() = (Dx * gamma()).array().exp();
 	K = (alpha() * dKalpha);
 	K.diagonal().array() += 1.0 / beta();
 
@@ -79,10 +79,10 @@ void Causality::gaussian_process_regression::update_kernal(const ParamType & par
 	assert(ldltK.info() == Eigen::Success);
 
 	iK = ldltK.solve(Eigen::MatrixXd::Identity(N, N));
-	iKY = iK * Y;//ldltK.solve(Y);
+	iKY.noalias() = iK * Y;//ldltK.solve(Y);
 }
 
-double Causality::gaussian_process_regression::get_expectation_from_observation(const RowVectorType & z, _In_ const MatrixType &covXZ, RowVectorType * y) const
+double gaussian_process_regression::get_expectation_from_observation(const RowVectorType & z, _In_ const MatrixType &covXZ, RowVectorType * y) const
 {
 	// Center Z with the mean
 	assert(z.size() == covXZ.rows() && covXZ.rows() == covXZ.cols() && "CovXZ should be positive semi-defined");
@@ -96,12 +96,12 @@ double Causality::gaussian_process_regression::get_expectation_from_observation(
 		auto x = RowVectorType::Map(_x.begin(), _x.end() - _x.begin());
 
 		ColVectorType Kx = (x.replicate(N, 1) - X).cwiseAbs2().rowwise().sum();
-		Kx = ((-0.5*gamma()) * Kx.array()).exp() * alpha();
+		Kx.array() = ((-0.5*gamma()) * Kx.array()).exp() * alpha();
 
 		ColVectorType iKkx = iK * Kx;//ldltK.solve(Kx);
 		double cov = Kx.transpose() * iKkx;
 		double varX = alpha() + 1.0 / beta() - cov;
-
+		varX = std::max(varX, 1e-5);
 		assert(varX > 0);
 		RowVectorType dxCz = x - cZ;
 		double value = 0.5 * D * log(varX) + 0.5 * dxCz * invCov * dxCz.transpose();
@@ -170,7 +170,7 @@ double Causality::gaussian_process_regression::get_expectation_from_observation(
 	return likelihood;
 }
 
-double Causality::gaussian_process_regression::get_expectation_and_likelihood(const RowVectorType & x, RowVectorType * y) const
+double gaussian_process_regression::get_expectation_and_likelihood(const RowVectorType & x, RowVectorType * y) const
 {
 	assert(x.cols() == X.cols());
 
@@ -178,11 +178,11 @@ double Causality::gaussian_process_regression::get_expectation_and_likelihood(co
 
 	RowVectorType dx = x.cast<double>() - uX;
 	ColVectorType Kx = (dx.replicate(N, 1) - X).cwiseAbs2().rowwise().sum();
-	Kx = ((-0.5*gamma()) * Kx.array()).exp() * alpha();
+	Kx.array() = ((-0.5*gamma()) * Kx.array()).exp() * alpha();
 
 	ColVectorType iKkx = iK * Kx;//ldltK.solve(Kx);
 	double cov = Kx.transpose() * iKkx;
-	varX -= cov;
+	varX = std::max(1e-5,varX-cov);
 
 	assert(varX > 0);
 
@@ -192,7 +192,7 @@ double Causality::gaussian_process_regression::get_expectation_and_likelihood(co
 	return 0.5 * D * log(varX);
 }
 
-gaussian_process_regression::ColVectorType Causality::gaussian_process_regression::get_expectation_and_likelihood(const MatrixType & x, MatrixType * y) const
+gaussian_process_regression::ColVectorType gaussian_process_regression::get_expectation_and_likelihood(const MatrixType & x, MatrixType * y) const
 {
 	assert(x.cols() == X.cols());
 
@@ -222,7 +222,7 @@ gaussian_process_regression::ColVectorType Causality::gaussian_process_regressio
 
 }
 
-void Causality::gaussian_process_regression::get_expectation(const RowVectorType & x, RowVectorType * y) const
+void gaussian_process_regression::get_expectation(const RowVectorType & x, RowVectorType * y) const
 {
 	assert(x.cols() == X.cols());
 
@@ -238,7 +238,7 @@ void Causality::gaussian_process_regression::get_expectation(const RowVectorType
 	}
 }
 
-void Causality::gaussian_process_regression::get_expectation(const MatrixType & x, MatrixType * y) const
+void gaussian_process_regression::get_expectation(const MatrixType & x, MatrixType * y) const
 {
 	assert(x.cols() == X.cols());
 	MatrixType dx = x - uX.replicate(x.rows(), 1);
@@ -247,7 +247,7 @@ void Causality::gaussian_process_regression::get_expectation(const MatrixType & 
 	{
 		Kx.row(i) = (-0.5*gamma()) * (dx.row(i).replicate(N, 1) - X).cwiseAbs2().rowwise().sum().transpose();
 	}
-	Kx = (Kx.array()).exp() * alpha(); // m x N, m = x.rows()
+	Kx.array() = (Kx.array()).exp() * alpha(); // m x N, m = x.rows()
 
 	if (y != nullptr)
 	{
@@ -257,27 +257,60 @@ void Causality::gaussian_process_regression::get_expectation(const MatrixType & 
 }
 
 // negitive log likilihood of P(y | theta,x)
-
-double Causality::gaussian_process_regression::likelihood_xy(const RowVectorType & x, const RowVectorType & y) const
+double gaussian_process_regression::get_likelihood_xy(const RowVectorType & x, const RowVectorType & y) const
 {
-	RowVectorType ey(y);
+	RowVectorType ey(y.size());
+	double varX = alpha() + 1.0 / beta();
+
+	RowVectorType dx = x.cast<double>() - uX;
+	ColVectorType Kx = (dx.replicate(N, 1) - X).cwiseAbs2().rowwise().sum();
+	Kx.array() = ((-0.5*gamma()) * Kx.array()).exp() * alpha();
+
+	ColVectorType iKkx = iK * Kx;//ldltK.solve(Kx);
+	double cov = Kx.transpose() * iKkx;
+	varX = std::max(1e-5,varX-cov);
+
+	assert(varX > 0);
+
+	ey = uY + iKkx.transpose() * Y;
+
+	double difY = (y - ey).cwiseAbs2().sum();
+
+	double lxy = 0.5*(difY / varX + D * log(varX));
+	return lxy;
+}
+
+gaussian_process_regression::RowVectorType gaussian_process_regression::get_likelihood_xy_derivative(const RowVectorType & x, const RowVectorType & y) const
+{
+	RowVectorType ey(y.size());
+	double varX = alpha() + 1.0 / beta();
+
 	RowVectorType dx = x.cast<double>() - uX;
 	ColVectorType Kx = (dx.replicate(N, 1) - X).cwiseAbs2().rowwise().sum();
 	Kx = ((-0.5*gamma()) * Kx.array()).exp() * alpha();
 
 	ColVectorType iKkx = iK * Kx;//ldltK.solve(Kx);
+	double cov = Kx.transpose() * iKkx;
+	varX = std::max(1e-5,varX-cov);
+
+	assert(varX > 0);
+
 	ey = uY + iKkx.transpose() * Y;
 
-	double difY = (y - ey).cwiseAbs2().sum();
+	RowVectorType derv(x.size()+y.size());
+	auto difY = (y - ey) / varX;
 
-	double cov = Kx.transpose() * iKkx;
-	double difX = alpha() + 1.0 / beta() - cov;
+	derv.segment(x.size(), y.size()) = difY;
 
-	double lxy = 0.5*(difY / difX + D * log(difX));
-	return lxy;
+	// the derivative to x is complicate.... let's ingnore that term first
+	derv.segment(0, x.size()).setZero();
+
+	//double lxy = 0.5*(difY / difX + D * log(difX));
+	return derv;
 }
 
-double Causality::gaussian_process_regression::likelihood(const ParamType & param)
+
+double gaussian_process_regression::likelihood(const ParamType & param)
 {
 	//if ((param - lparam).cwiseAbs2().sum() > epsilon() * epsilon())
 	update_kernal(param);
@@ -299,7 +332,7 @@ double Causality::gaussian_process_regression::likelihood(const ParamType & para
 	return L;
 }
 
-gaussian_process_regression::ParamType Causality::gaussian_process_regression::likelihood_derivative(const ParamType & param)
+gaussian_process_regression::ParamType gaussian_process_regression::likelihood_derivative(const ParamType & param)
 {
 	//if ((param - lparam).cwiseAbs2().sum() > epsilon() * epsilon())
 	update_kernal(param);
@@ -327,7 +360,7 @@ gaussian_process_regression::ParamType Causality::gaussian_process_regression::l
 	return grad;
 }
 
-double Causality::gaussian_process_regression::optimze_parameters(const ParamType & initial_param)
+double gaussian_process_regression::optimze_parameters(const ParamType & initial_param)
 {
 	update_kernal(initial_param);
 
@@ -364,7 +397,7 @@ double Causality::gaussian_process_regression::optimze_parameters(const ParamTyp
 	return min_likelihood;
 }
 
-double Causality::gaussian_process_regression::optimze_parameters()
+double gaussian_process_regression::optimze_parameters()
 {
 	auto varX = sqrt((X.cwiseAbs2().sum() / (N - 1)));
 	ParamType param;

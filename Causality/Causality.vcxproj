@@ -32,6 +32,7 @@
     <DirectXHelperDir>..\DirectX</DirectXHelperDir>
     <DLibDir>D:\SDKs\dlib-18.17\</DLibDir>
     <EigenDir>D:\SDKs\eigen_3_3_alpha1\</EigenDir>
+    <FftwDir>D:\SDKs\fftw-dll64-3.3.4</FftwDir>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -81,7 +82,7 @@
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(FftwDir);.\GSL;$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
@@ -89,23 +90,25 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(FftwDir);.\GSL;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(FftwDir);$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)\</IntDir>
+    <ExecutablePath>$(VC_ExecutablePath_x64);$(WindowsSDK_ExecutablePath);$(VS_ExecutablePath);$(MSBuild_ExecutablePath);$(FxCopDir);$(FftwDir);$(PATH);</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(FftwDir);.\GSL;$(IncludePath)</IncludePath>
     <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(IncludePath)</IncludePath>
-    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(LibOvr_Root)\Include;$(LeapSDK_Root)\include;$(FBX_SDK_ROOT)\include;$(BOOST_ROOT);$(KINECTSDK20_DIR)inc;$(Bullet3Dir)\src;$(DirectXTKDir)\Inc;$(TinyXml2Dir);$(DirectXHelperDir)\Inc;$(DLibDir);$(EigenDir);$(FftwDir);.\GSL;$(IncludePath)</IncludePath>
+    <LibraryPath>$(LeapSDK_Root)\lib\$(PlatformTarget)\;$(LibOvr_Root)\Lib\$(Platform)\$(PlatformToolsetVersion)\;$(BOOST_ROOT)\stage\$(PlatformToolset)\$(PlatformTarget)\lib;$(KINECTSDK20_DIR)lib\$(PlatformTarget)\;$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\;$(LibraryPath);$(FftwDir);</LibraryPath>
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)\</IntDir>
+    <ExecutablePath>$(VC_ExecutablePath_x64);$(WindowsSDK_ExecutablePath);$(VS_ExecutablePath);$(MSBuild_ExecutablePath);$(FxCopDir);$(PATH);$(FftwDir);</ExecutablePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -262,7 +265,6 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="PlayerProxy.cpp">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <ClCompile Include="RegressionModel.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Armature.cpp" />
     <ClCompile Include="SceneObject.cpp" />
@@ -275,6 +277,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SkinningModelFromFbx.cpp" />
+    <ClCompile Include="StylizedIK.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationAnalyzer.h" />
@@ -296,8 +299,13 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="Common\stride_range.h" />
     <ClInclude Include="Common\tree.h" />
     <ClInclude Include="Content\OculusDisortionRenderer.h" />
+    <ClInclude Include="Events.h" />
     <ClInclude Include="FbxParser.h" />
     <ClInclude Include="GaussianProcess.h" />
+    <ClInclude Include="GSL\array_view.h" />
+    <ClInclude Include="GSL\fail_fast.h" />
+    <ClInclude Include="GSL\gsl.h" />
+    <ClInclude Include="GSL\string_view.h" />
     <ClInclude Include="Interactive.h" />
     <ClInclude Include="Kinect.h" />
     <ClInclude Include="LeapMotion.h" />

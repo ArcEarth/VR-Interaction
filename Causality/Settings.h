@@ -4,7 +4,17 @@ namespace Causality
 {
 	const static size_t	g_PvDimension = 6U;
 
-	extern bool			g_UseGeneralTransform;
+	enum PartAssignmentTransformMethodEnum
+	{
+		PAT_Default = 0,
+		PAT_CCA = 1,
+		PAT_OneAxisRotation = 2,
+		PAT_AnisometricScale = 3,
+		PAT_RST = 4,
+	};
+
+	extern int			g_PartAssignmentTransform;
+
 	extern bool			g_UsePersudoPhysicsWalk;
 
 	//					Use GPR instead of CCA for rigging local chain
@@ -42,4 +52,13 @@ namespace Causality
 
 	extern float		g_CharacterSubactiveEnergy;
 
+	extern float		g_IKTermWeight;
+
+	extern float		g_MarkovTermWeight;
+
+	extern float		g_StyleLikelihoodTermWeight;
+
+	extern float		g_IKLimitWeight;
+
+	extern float		g_MaxCharacterSpeed;
 }
