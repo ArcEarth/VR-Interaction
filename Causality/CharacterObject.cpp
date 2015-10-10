@@ -161,6 +161,8 @@ void CharacterObject::Update(time_seconds const & time_delta)
 
 RenderFlags CharacterObject::GetRenderFlags() const
 {
+	if (m_pSkinModel)
+		return RenderFlags::Skinable | RenderFlags::OpaqueObjects;
 	return RenderFlags::OpaqueObjects;
 }
 

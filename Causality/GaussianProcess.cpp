@@ -64,8 +64,8 @@ void gaussian_process_regression::initialize(const Eigen::MatrixXf & _X, const E
 
 void gaussian_process_regression::update_kernal(const ParamType & param)
 {
-	if ((lparam - param).cwiseAbs().sum() < 1e-8)
-		return;
+	//if ((lparam - param).cwiseAbs().sum() < 1e-8)
+	//	return;
 
 	lparam = param;
 
@@ -317,7 +317,7 @@ double gaussian_process_regression::likelihood(const ParamType & param)
 
 	//it's log detK
 	double lndetK = ldltK.vectorD().array().log().sum();
-	double L = 0.5* D *lndetK; +param.array().log().sum();
+	double L = 0.5* D *lndetK + param.array().log().sum();
 
 	// L += tr(Y' * iK * Y) = tr(iK * Y * Y') = tr(iK * YY') = sum(iK .* YY') = sum (Y .* iKY)
 
@@ -402,9 +402,9 @@ double gaussian_process_regression::optimze_parameters()
 	auto varX = sqrt((X.cwiseAbs2().sum() / (N - 1)));
 	ParamType param;
 
-	std::vector<double> alphas = { 0.1, 0.5 , 0.8, 1.0, 1.2, 1.5, 10.0 };
+	std::vector<double> alphas = { 0.1, /*0.5 , 0.8,*/ 1.0, /*1.2,*/ 1.5/*, 10.0*/ };
 	std::vector<double> betas = {0.1 * varX, varX, 10.0 * varX};
-	std::vector<double> gemmas = { 0.01 / varX, 0.05 / varX ,0.1 / varX ,0.5 / varX ,1.0 / varX ,5 / varX ,10 / varX };
+	std::vector<double> gemmas = { /*0.01 / varX,*/ 0.05 / varX /*,0.1 / varX ,0.5 / varX*/ ,1.0 / varX /*,5 / varX*/ ,10 / varX };
 
 	ParamType bestParam;
 	double bestLikelihood = std::numeric_limits<double>::max();

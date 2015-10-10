@@ -50,13 +50,13 @@ namespace Causality
 		std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> m_PvHandles;
 
 		// Principle displacement driver
-		ClipInfo& GetAnimationInfo(const std::string& name);
+		ClipInfo& GetClipInfo(const std::string& name);
 
-		std::map<std::string, ClipInfo*>& GetClipInfos() { return m_Clipinfos; }
+		std::vector<ClipInfo>& GetClipInfos() { return m_Clipinfos; }
 
 	public:
 		CharacterObject*										m_pCharacter;
-		std::map<std::string, ClipInfo*>						m_Clipinfos;
+		std::vector<ClipInfo>									m_Clipinfos;
 		std::unique_ptr<ArmatureTransform>						m_pBinding;
 		std::unique_ptr<ArmatureTransform>						m_pSelfBinding;
 		//std::unique_ptr<IArmaturePartFeature>					m_pFeatureExtrator;

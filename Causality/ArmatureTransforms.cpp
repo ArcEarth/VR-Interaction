@@ -168,11 +168,11 @@ void BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const f
 	target_frame.RebuildGlobal(*pTarget);
 }
 
-PerceptiveVector::PerceptiveVector(std::map<std::string, ClipInfo*>* pClips)
+PerceptiveVector::PerceptiveVector(gsl::array_view<ClipInfo>		clipinfos)
+	: Clipinfos(clipinfos)
 {
 	QuadraticInput = true;
 	segma = 10;
-	pClipInfos = pClips;
 }
 
 Eigen::RowVectorXf PerceptiveVector::Get(const ArmaturePart & block, const BoneHiracheryFrame & frame)
@@ -236,7 +236,7 @@ Eigen::Vector3f GetChainEndPositionFromY(const BoneHiracheryFrame & dFrame, cons
 }
 
 
-void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & frame, const RowVectorX & feature)
+void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & frame, const Eigen::RowVectorXf& feature)
 {
 	using namespace DirectX;
 	using namespace Eigen;
@@ -274,7 +274,7 @@ void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & fram
 			//Y *= block.Wx.cwiseInverse().asDiagonal(); // Inverse scale feature
 
 			if (g_StepFrame)
-				std::cout << block.Joints[0]->Name() << " : " << likilyhood << std::endl;
+				std::cout << block.Joints[0]->Name << " : " << likilyhood << std::endl;
 		}
 
 		for (size_t j = 0; j < block.Joints.size(); j++)
@@ -286,22 +286,22 @@ void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & fram
 	}
 }
 
-RBFInterpolationTransform::RBFInterpolationTransform(std::map<std::string, ClipInfo*>* pClips)
+RBFInterpolationTransform::RBFInterpolationTransform(gsl::array_view<ClipInfo> clips)
 {
-	pClipInfoMap = pClips;
-	auto pIF = new PerceptiveVector(pClips);
+	Clipinfos = clips;
+	auto pIF = new PerceptiveVector(clips);
 	pIF->QuadraticInput = true;
 	pInputExtractor.reset(pIF);
 
-	auto pOF = new PerceptiveVector(pClips);
+	auto pOF = new PerceptiveVector(clips);
 	pOF->segma = 30;
 	pOutputExtractor.reset(pOF);
 
 	pDependentBlockFeature.reset(new AllJoints<CharacterFeature>(false));
 }
 
-RBFInterpolationTransform::RBFInterpolationTransform(std::map<std::string, ClipInfo*>* pClips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock)
-	: RBFInterpolationTransform(pClips)
+RBFInterpolationTransform::RBFInterpolationTransform(gsl::array_view<ClipInfo> clips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock)
+	: RBFInterpolationTransform(clips)
 {
 	SetFrom(pSourceBlock, pTargetBlock);
 	pvs.resize(pTargetBlock->size());
@@ -540,9 +540,9 @@ void RBFInterpolationTransform::Transform(frame_type & target_frame, const frame
 PartilizedTransform::PartilizedTransform()
 {
 	m_pInputF.reset(new EndEffector<InputFeature>());
-	m_pActiveF.reset(new AllJointsPca<InputFeature>());
-	m_pDrivenF.reset(new AllJointsPca<InputFeature>());
-	m_pAccesseryF.reset(new AllJointsPca<InputFeature>());
+	m_pActiveF.reset(new AllJointRltLclRotLnQuatPcad());
+	m_pDrivenF.reset(new AllJointRltLclRotLnQuatPcad());
+	m_pAccesseryF.reset(new AllJointRltLclRotLnQuatPcad());
 }
 
 void Causality::PartilizedTransform::Transform(frame_type & target_frame, const frame_type & source_frame) const
@@ -594,7 +594,7 @@ void PartilizedTransform::Transform(frame_type & target_frame, const frame_type 
 				}
 			}
 
-			m_Xs.row(block->Index) = Xd;
+			//m_Xs.row(block->Index) = Xd;
 			//Xabs.emplace_back(Xd);
 
 			MatrixXd covObsr(g_PvDimension, g_PvDimension);

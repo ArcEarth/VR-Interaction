@@ -60,7 +60,8 @@ namespace Causality
 		// Lerp the local-rotation and scaling, "interpolate in Time"
 		static void Lerp(BoneHiracheryFrame& out, const BoneHiracheryFrame &lhs, const BoneHiracheryFrame &rhs, float t, const IArmature& armature);
 
-		static void TransformFrame(IsometricTransformFrame& out, const BoneHiracheryFrame &from, const BoneHiracheryFrame &to);
+		static void Difference(BoneHiracheryFrame& out, const BoneHiracheryFrame &from, const BoneHiracheryFrame &to);
+		static void Deform(BoneHiracheryFrame& out, const BoneHiracheryFrame &from, const BoneHiracheryFrame &deformation);
 
 		// Blend Two Animation Frame, "Blend different parts in Space"
 		static void Blend(BoneHiracheryFrame& out, const BoneHiracheryFrame &lhs, const BoneHiracheryFrame &rhs, float* blend_weights, const IArmature& armature);
@@ -303,16 +304,19 @@ namespace Causality
 	class IStreamAnimation abstract
 	{
 		// Advance the stream by 1 
-		virtual bool ReadNextFrame();
+		virtual bool ReadNextFrame() = 0;
 
 		// Advance the stream to latest
 		virtual bool ReadLatestFrame()
 		{
-			while (ReadNextFrame());
+			bool flag = false;
+			while (ReadNextFrame())
+				flag = true;
+			return flag;
 		}
 
 		// Peek the current frame head
-		virtual const FrameType& PeekFrame() const;
+		virtual const FrameType& PeekFrame() const = 0;
 	};
 
 	class IArmatureStreamAnimation : public IStreamAnimation<BoneHiracheryFrame>
@@ -320,7 +324,7 @@ namespace Causality
 	public:
 		typedef BoneHiracheryFrame frame_type;
 
-		virtual const IArmature& GetArmature() const;
+		virtual const IArmature& GetArmature() const = 0;
 	};
 
 	enum AnimationPlayState
@@ -366,7 +370,7 @@ namespace Causality
 		void AdvanceTimeBy(TimeScalarType time);
 		void Seek(TimeScalarType time);
 
-		TypedEvent<StoryBoard> Completed;
+		//TypedEvent<StoryBoard> Completed;
 
 		//std::vector<IFrameAnimation*> ChildrenAnimation;
 	protected:

@@ -18,13 +18,33 @@ namespace Causality
 {
 	class CcaArmatureTransform;
 
+	class ClipFacade
+	{
+		std::unique_ptr<IArmaturePartFeature>
+								m_pFeature;
+
+		Eigen::MatrixXf			m_X;	// Raw data
+		Eigen::MatrixXf			m_cX;	// Centered X
+		Eigen::RowVectorXf		m_uX;	// X mean
+		std::vector<Eigen::Pca<Eigen::MatrixXf>>
+								m_Pcas; // Pca of the raw data, partiwise
+		std::vector<Eigen::MeanThickQr<Eigen::MatrixXf>>
+								m_thickQrs; // Qr of the Pca of the raw data, partiwise
+	};
+
 	class ClipInfo
 	{
 	public:
 		typedef CharacterFeature FeatureType;
 
+		ClipInfo();
 		explicit ClipInfo(const ShrinkedArmature& pBArm);
+		ClipInfo(const ClipInfo& rhs) = default;
+		ClipInfo(ClipInfo&& rhs) = default;
 		~ClipInfo();
+
+		bool HasInputFeature() const;
+		bool HasOutputFeature() const;
 
 		void ProcessFrames(gsl::array_view<BoneHiracheryFrame> frames);
 		void ComputeFromFrames(const std::vector<BoneHiracheryFrame> &frames);
@@ -34,10 +54,11 @@ namespace Causality
 		void ComputeSpatialTraits(const std::vector<BoneHiracheryFrame> &frames);
 
 		std::string						ClipName;
-		std::atomic_bool				IsReady;
+		bool							IsReady;
 		//std::unique_ptr<std::thread>	pComputingThread;
 
 		const ShrinkedArmature*			pBlockArmature;
+		const ShrinkedArmature&			ArmatureParts() const { return *pBlockArmature; }
 
 		std::vector<int>	ActiveParts; // it's a set
 		std::vector<int>	SubactiveParts;
@@ -61,12 +82,14 @@ namespace Causality
 		Eigen::MatrixXf		Ebrot; // 3xB, Blockwise Rotation Energy 
 		Eigen::MatrixXf		Sp;	// 6xB, Spatial traits, B = block count
 		Eigen::MatrixXf		Pvs; // 3FxB, block end-effector displacements, F = frame count, B = block count
+		Eigen::MatrixXf		uPvs;// 3xB, part wise pv mean
+		Eigen::MatrixXf		PvNormals; // Normalized Perceptive vectors
 		std::vector<Eigen::VectorXf>	MaxBs;
 		std::vector<Eigen::VectorXf>	MinBs;
 
-		std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> Qrs; // Blockwise Qr Decomposition 
-		std::vector<Eigen::Pca<Eigen::MatrixXf>>		Pcas;// Blockwise Pca
-		std::vector<Eigen::MatrixXf>	Xbs;				 // Blockwise Data
+		std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> Qrs;  // Blockwise Qr Decomposition 
+		std::vector<Eigen::Pca<Eigen::MatrixXf>>		Pcas; // Blockwise Pca
+		std::vector<Eigen::MatrixXf>					Xbs;  // Blockwise Data
 		std::vector<PcaCcaMap>	PerceptiveVectorReconstructor;
 		std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> PvQrs; // Blockwise Qr Decomposition 
 		std::vector<Eigen::Pca<Eigen::MatrixXf>>		PvPcas;// Blockwise Pca
@@ -75,9 +98,9 @@ namespace Causality
 		Eigen::Array<Eigen::Matrix3f, Eigen::Dynamic, Eigen::Dynamic>		PvDifCov;
 
 		float						GetPartEnergy() const;
-		auto						GetActivePartsDifferenceSequence(int pi, int pj);
-		const Eigen::RowVector3f&	GetActivePartsDifferenceAverage(int pi, int pj);
-		const Eigen::Matrix3f&		GetActivePartsDifferenceCovarience(int pi, int pj);
+		auto						GetActivePartsDifferenceSequence(int pi, int pj) const;
+		const Eigen::RowVector3f&	GetActivePartsDifferenceAverage(int pi, int pj) const;
+		const Eigen::Matrix3f&		GetActivePartsDifferenceCovarience(int pi, int pj) const;
 
 		const Eigen::RowVector3f&	XpvMean(int i, int j) const { return PvDifMean(i, j); }
 		const Eigen::Matrix3f&		XpvCov(int i, int j) const { return PvDifCov(i, j); }
@@ -95,6 +118,60 @@ namespace Causality
 		std::unique_ptr<ArmatureTransform>				pLocalBinding;
 
 		DirectX::BoundingBox							BoundingBox;
+
+
+		auto							GetPartSequence(int pid) const
+		{
+			return X.middleCols(pid * 3, 3);
+		}
+		const Eigen::RowVectorXf&		GetPartMean(int pid) const
+		{
+			return Pcas[pid].mean();
+		}
+		auto&							GetPartPca(int pid) const
+		{
+			return Pcas[pid];
+		}
+		auto							GetPartPcaedSequence(int pid, int d) const
+		{
+			return Pcas[pid].coordinates(d);
+		}
+
+		auto&							GetAllPartsPvMean() const
+		{
+			return uPvs;
+		}
+		auto							GetPartPvSequence(int pid) const
+		{
+			return Pvs.middleCols(pid * 3, 3);
+		}
+		auto&							GetAllPartsNormalizedPvSequence() const
+		{
+			return Pvs;
+		}
+		auto							GetPartNormalizedPvSequence(int pid) const
+		{
+			return Pvs.middleCols(pid * 3, 3);
+		}
+
+		auto&							GetPartPvPca(int pid) const
+		{
+			return Pcas[pid];
+		}
+		auto&							GetPartPvPcaQr(int pid) const
+		{
+			return Qrs[pid];
+		}
+
+		// process the clipinfo by using input from X
+		// T : the actual Period
+		void CaculatePartsMatricFromX();
+
+	protected:
+		Eigen::MatrixXf			m_cX; // Centered X
+		Eigen::RowVectorXf		m_uX; // X mean
+		std::vector<Eigen::MeanThickQr<Eigen::MatrixXf>>
+			m_thickQrs;
 	};
 
 	class InputClipInfo : public ClipInfo
@@ -113,43 +190,25 @@ namespace Causality
 			return Xbs[pid].middleRows(tid * TemproalSampleInterval, Period);
 		}
 
-
-		// New interfaces
-		auto							GetPartSequence(int pid) const
+		auto	GetPartPvSequence(int pid) const
 		{
 			return X.middleCols(pid * 3, 3);
 		}
-		const Eigen::RowVectorXf&		GetPartMean(int pid) const
+		auto	GetPartPvSequence(int pid, int stFrame, int frames) const
 		{
-			return Pcas[pid].mean();
+			return X.block(stFrame,pid * 3,frames, 3);
 		}
-		auto&							GetPartPca(int pid) const
+		auto	GetPartNormalizedPvSequence(int pid, int stFrame, int frames) const
 		{
-			return Pcas[pid];
+			return Pvs.block(stFrame, pid * 3, frames, 3);
 		}
-		auto							GetPartPcaedSequence(int pid, int d) const
-		{
-			return Pcas[pid].coordinates(d);
-		}
-		auto							GetPartDirectionSequence(int pid) const
-		{
-			return Pvs.middleCols(pid * 3, 3);
-		}
-		Eigen::QrView<Eigen::MatrixXf>	GetPartQrView(int pid, int stFrame, int frames) const
+
+		// New interfaces
+		auto	GetPartPvPcaQrView(int pid, int stFrame, int frames) const
 		{
 			auto& qr = m_thickQrs[pid];
 			return Eigen::QrView<Eigen::MatrixXf>(qr.Qr, qr.Q, qr.Mean, stFrame, frames);
 		}
-
-		// process the clipinfo by using input from X
-		// T : the actual Period
-		void CaculatePartsMatricFromX(size_t T);
-
-	protected:
-		Eigen::MatrixXf			m_cX; // Centered X
-		Eigen::RowVectorXf		m_uX; // X mean
-		std::vector<Eigen::MeanThickQr<Eigen::MatrixXf>>			
-								m_thickQrs;
 	};
 
 	class CyclicStreamClipinfo : public InputClipInfo
@@ -209,7 +268,8 @@ namespace Causality
 					m_pFeature;
 		int			m_featureDim;
 
-		atomic_bool	m_enableCyclicDtc;
+		std::atomic_bool	
+					m_enableCyclicDtc;
 		int			m_frameCounter;
 		float		m_cyclicDtcThr; // The threshold to classify as Cyclic motion
 

@@ -76,10 +76,10 @@ bool Causality::BehavierSpace::Contains(const std::string & name) const
 	return false;
 }
 
-void Causality::BehavierSpace::UpdateBlock()
+void Causality::BehavierSpace::UpdateArmatureParts()
 {
 	auto& armature = *m_pArmature;
-	m_Blocks.SetArmature(armature);
+	m_Parts.SetArmature(armature);
 }
 
 const IArmature & BehavierSpace::Armature() const { return *m_pArmature; }
@@ -89,7 +89,7 @@ IArmature & BehavierSpace::Armature() { return *m_pArmature; }
 void BehavierSpace::SetArmature(IArmature & armature) {
 	assert(this->Clips().empty());
 	m_pArmature = &armature;
-	UpdateBlock();
+	UpdateArmatureParts();
 }
 
 const BehavierSpace::frame_type & BehavierSpace::RestFrame() const { return Armature().default_frame(); }
@@ -177,7 +177,7 @@ float BehavierSpace::PoseDistancePCAProjection(const frame_type & frame) const
 	auto w = XpInv * fv;
 	auto w0 = 1.0f - w.sum();
 
-	VectorX px = X * w;
+	VectorXf px = X * w;
 	px += w0 * X0;
 
 	// px is the projected point from fv to Space [X0 X]

@@ -148,7 +148,7 @@ namespace Causality
 		Semantic_Center = 0x4000000,
 	};
 
-	using JointSemanticProperty = JointSemantic;//CompositeFlag<JointSemantic>;
+	using JointSemanticProperty = unsigned;//CompositeFlag<JointSemantic>;
 	// A Joint descript the structure information of a joint
 	// Also represent the "bone" "end" with it
 	// the state information could be retrived by using it's ID

@@ -275,7 +275,7 @@ namespace DirectX
 		public:
 			struct ModelTransformPair
 			{
-				MatrixTransform	Transform;
+				LinearTransform	Transform;
 				std::shared_ptr<IModelNode> Model;
 			};
 
@@ -293,7 +293,7 @@ namespace DirectX
 
 			// All the data in Children's postion/orientation is 
 			// In the local coordinate of it's parent!
-			void AddChild(const std::shared_ptr<IModelNode> &model, const MatrixTransform &transform = reinterpret_cast<const MatrixTransform&>(MatrixTransform::Identity));
+			void AddChild(const std::shared_ptr<IModelNode> &model, const LinearTransform &transform = reinterpret_cast<const LinearTransform&>(LinearTransform::Identity));
 			//void push_back(const value_type& _Val);
 			//void push_back(value_type&& _Val);
 			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, IEffect* pEffect) override;

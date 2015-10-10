@@ -17,6 +17,7 @@
 #define BOOST_CB_DISABLE_DEBUG
 #include <boost\circular_buffer.hpp>
 #undef BOOST_CB_DISABLE_DEBUG
+#include "Events.h"
 
 namespace Causality
 {

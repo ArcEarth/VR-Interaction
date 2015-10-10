@@ -12,6 +12,7 @@
 #include "FbxParser.h"
 #include <new>
 #include <unordered_map>
+#include <boost\any.hpp>
 
 namespace Causality
 {
@@ -291,7 +292,7 @@ namespace Causality
 		template<typename TAsset>
 		TAsset&						GetAsset(const string& key)
 		{
-			return *any_cast<TAsset*>(assets[key]);
+			return *boost::any_cast<TAsset*>(assets[key]);
 		}
 
 		mesh_type*					GetMesh(const string& key)
@@ -399,7 +400,7 @@ namespace Causality
 		map<std::type_index, cptr<ID3D11InputLayout>> layouts;
 
 		// other assets
-		map<string, any>					assets;
+		map<string, boost::any>					assets;
 
 	public:
 

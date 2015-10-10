@@ -11,12 +11,22 @@ public:
 		return CompositeFlag(none);
 	}
 
-	CompositeFlag(){}
-	explicit CompositeFlag(unsigned int flag)
+	CompositeFlag() = default;
+
+	CompositeFlag(unsigned int flag)
 	{
 		Flag = flag;
 	}
-	~CompositeFlag(void){}
+
+	CompositeFlag(int flag)
+	{
+		Flag = (unsigned)flag;
+	}
+
+	CompositeFlag(_Tenum flag)
+	{
+		Flag = flag;
+	}
 
 	unsigned int& RawData() { return Flag; }
 
@@ -49,7 +59,7 @@ public:
 	}
 	unsigned int Contains(const CompositeFlag& rhs) 
 	{
-		return (Flag & rhs.Flag);
+		return (Flag == rhs.Flag) || ((Flag & (Flag ^ rhs.Flag)) == (Flag ^ rhs.Flag));
 	}
 
 	CompositeFlag& operator+= (_Tenum Key) 

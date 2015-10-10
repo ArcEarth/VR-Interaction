@@ -4,14 +4,62 @@
 #include "RegressionModel.h"
 #include "GaussianProcess.h"
 #include "PcaCcaMap.h"
+#include <memory>
 
 namespace Causality
 {
+	class IFeatureDecoder abstract
+	{
+	public:
+		virtual ~IFeatureDecoder();
+
+		virtual void operator()(DirectX::Quaternion* rots, const Eigen::RowVectorXd& y) = 0;
+		virtual void EncodeJacobi(Eigen::MatrixXd& jacb);
+	};
+
+	class AbsoluteLnQuaternionDecoder : public IFeatureDecoder
+	{
+	public:
+		~AbsoluteLnQuaternionDecoder();
+		void operator()(DirectX::Quaternion* rots, const Eigen::RowVectorXd& y) override;
+	};
+
+	class RelativeLnQuaternionDecoder : public IFeatureDecoder
+	{
+	public:
+		std::vector<DirectX::Quaternion, DirectX::XMAllocator>
+			bases;
+	public:
+		~RelativeLnQuaternionDecoder();
+		void Decode(DirectX::Quaternion* rots, const Eigen::RowVectorXd& y);
+		void operator()(DirectX::Quaternion* rots, const Eigen::RowVectorXd& y) override;
+	};
+
+	class RelativeLnQuaternionPcaDecoder : public RelativeLnQuaternionDecoder
+	{
+	public:
+		Eigen::RowVectorXd	meanY;
+		Eigen::MatrixXd		pcaY;
+		Eigen::MatrixXd		invPcaY;
+	public:
+		~RelativeLnQuaternionPcaDecoder();
+		void DecodePcad(DirectX::Quaternion* rots, const Eigen::RowVectorXd& y);
+		void EncodeJacobi(Eigen::MatrixXd& jacb) override;
+		void operator()(DirectX::Quaternion* rots, const Eigen::RowVectorXd& y) override;
+	};
+
+
 	class StylizedChainIK : public IRegression
 	{
+	private:
 		// translation of local chain, 128 bit aligned
 		std::vector<DirectX::Vector4, DirectX::XMAllocator>	m_chain;
 		float												m_chainLength;
+
+		// intermediate variable for IK caculation
+		std::vector<DirectX::Quaternion, DirectX::XMAllocator>
+															m_chainRot;
+
 		gaussian_process_regression							m_gplvm;
 
 		double												m_ikWeight;
@@ -23,12 +71,12 @@ namespace Causality
 
 		double												m_meanLk;
 		long												m_counter;
-		bool												m_cValiad;
-		Eigen::RowVectorXd									m_iy;// initial y, default y
-		Eigen::RowVectorXd									m_cx;
-		Eigen::RowVectorXd									m_cy;
-		Eigen::RowVectorXd									m_wy;//weights of y
-		Eigen::MatrixXd										m_limy;//weights of y
+		bool												m_cValiad;	// is current validate
+		Eigen::RowVectorXd									m_iy;	// initial y, default y
+		Eigen::RowVectorXd									m_cx;	// current x
+		Eigen::RowVectorXd									m_cy;	// current y
+		Eigen::RowVectorXd									m_wy;	//weights of y
+		Eigen::MatrixXd										m_limy;	//weights of y
 
 		Eigen::RowVectorXd									m_ey;
 		double												m_segmaX;
@@ -36,9 +84,16 @@ namespace Causality
 		Eigen::Vector3d										m_goal;
 		Quaternion											m_baseRot;
 
+		std::unique_ptr<IFeatureDecoder>					m_fpDecoder;
+
 	public:
 		StylizedChainIK();
 		StylizedChainIK(const std::vector<const Joint*> &joints, const BoneHiracheryFrame& defaultframe);
+
+		// set the functional that decode feature vector "Y" to local rotation quaternions
+		// by default, Decoder is set to "Absolute Ln Quaternion of joint local orientation" 
+		// you can use RelativeLnQuaternionDecoder and 
+		void SetFeatureDecoder(std::unique_ptr<IFeatureDecoder>&& decoder);
 
 		void SetChain(const std::vector<const Joint*> &joints, const BoneHiracheryFrame& defaultframe);
 		void SetGoal(const Eigen::Vector3d& goal);

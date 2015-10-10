@@ -61,4 +61,8 @@ namespace Causality
 	extern float		g_IKLimitWeight;
 
 	extern float		g_MaxCharacterSpeed;
+
+	extern float		g_DebugArmatureThinkness;
+
+	extern bool			g_DebugView;
 }

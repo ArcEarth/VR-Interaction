@@ -41,6 +41,14 @@ namespace Causality
 			// Inherited via IArmaturePartFeature
 			virtual void Set(const ArmaturePart & block, BoneHiracheryFrame & frame, const Eigen::RowVectorXf & feature) override;
 		};
+
+		class AllJointRltLclRotLnQuatPcad : public Pcad<RelativeDeformation<AllJoints<BoneFeatures::LclRotLnQuatFeature>>>
+		{
+		public:
+			typedef Pcad<RelativeDeformation<AllJoints<BoneFeatures::LclRotLnQuatFeature>>> BaseType;
+
+
+		};
 	}
 
 	class BlockizedArmatureTransform : virtual public ArmatureTransform
@@ -75,13 +83,13 @@ namespace Causality
 	{
 		class PerceptiveVector : public IArmaturePartFeature
 		{
-			std::map<std::string, ClipInfo*>*		pClipInfos;
+			gsl::array_view<ClipInfo>		Clipinfos;
 
 		public:
 			float						segma;
 			bool						QuadraticInput;
 
-			PerceptiveVector(std::map<std::string, ClipInfo*>* pClips);
+			PerceptiveVector(gsl::array_view<ClipInfo>		clipinfos);
 		public:
 
 			typedef BoneFeatures::GblPosFeature InputFeatureType;
@@ -89,7 +97,7 @@ namespace Causality
 			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override;
 
 			// Inherited via IArmaturePartFeature
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const RowVectorX& feature) override;
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override;
 		};
 	}
 
@@ -97,11 +105,11 @@ namespace Causality
 	{
 
 	public:
-		RBFInterpolationTransform(std::map<std::string, ClipInfo*>* pClips);
+		RBFInterpolationTransform(gsl::array_view<ClipInfo> clips);
 
-		RBFInterpolationTransform(std::map<std::string, ClipInfo*>* pClips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock);
+		RBFInterpolationTransform(gsl::array_view<ClipInfo> clips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock);
 
-		std::map<std::string, ClipInfo*>*		pClipInfoMap;
+		gsl::array_view<ClipInfo>		Clipinfos;
 
 		mutable std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> pvs;
 		std::unique_ptr<IArmaturePartFeature> pDependentBlockFeature;
@@ -121,33 +129,38 @@ namespace Causality
 		NoInputParts = -1,
 	};
 
-	struct BlockPvControl
+	//Part to Part transform
+	struct P2PTransform
 	{
 		int DstIdx, SrcIdx;
-		MatrixX Transform; // homogenians transfrom matrix
+		Eigen::MatrixXf HomoMatrix; // homogenians transfrom matrix
 	};
 
 	class PartilizedTransform : public BlockizedArmatureTransform
 	{
 	public:
-		std::vector<BlockPvControl> ActiveParts;	// Direct controlled by input armature, with stylized IK
-		std::vector<BlockPvControl> DrivenParts;	// These parts will be drive by active parts on Cca base than stylized IK
-		std::vector<BlockPvControl> AccesseryParts; // These parts will be animated based on active parts (and driven parts?)
+		std::vector<P2PTransform> ActiveParts;	// Direct controlled by input armature, with stylized IK
+		std::vector<P2PTransform> DrivenParts;	// These parts will be drive by active parts on Cca base than stylized IK
+		std::vector<P2PTransform> AccesseryParts; // These parts will be animated based on active parts (and driven parts?)
 
 		PartilizedTransform();
+		using BlockizedArmatureTransform::BlockizedArmatureTransform;
 
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override;
 
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const override;
 
 	private:
-		std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> * pHandles;
+		typedef std::pair<DirectX::Vector3, DirectX::Vector3> LineSegment;
+		std::vector<LineSegment> * pHandles;
 
-		std::unique_ptr<IArmaturePartFeature>	m_pInputF;
-		std::unique_ptr<IArmaturePartFeature>	m_pActiveF;
-		std::unique_ptr<IArmaturePartFeature>	m_pDrivenF;
-		std::unique_ptr<IArmaturePartFeature>	m_pAccesseryF;
+		const Eigen::RowVectorXf& GetInputVector(int SrcIdx);
 
-		mutable Eigen::MatrixXd m_Xs;
+		typedef std::unique_ptr<IArmaturePartFeature> FeaturePtr;
+
+		FeaturePtr	m_pInputF;
+		FeaturePtr	m_pActiveF;
+		FeaturePtr	m_pDrivenF;
+		FeaturePtr	m_pAccesseryF;
 	};
 }

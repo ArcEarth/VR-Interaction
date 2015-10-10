@@ -18,7 +18,7 @@ namespace Causality
 		template <typename T>
 		const T* As() const
 		{
-			return dynamic_cast<const T&>(this);
+			return dynamic_cast<const T*>(this);
 		}
 
 		template <typename T>

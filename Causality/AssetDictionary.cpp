@@ -8,6 +8,7 @@ using namespace Causality;
 using namespace boost::filesystem;
 using namespace DirectX;
 using namespace DirectX::Scene;
+using boost::any;
 
 AssetDictionary::AssetDictionary()
 {

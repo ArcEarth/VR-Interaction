@@ -6,10 +6,12 @@
 #include <boost\filesystem.hpp>
 #include <random>
 #include <unsupported\Eigen\fft>
+#pragma warning (disable:4554)
 #include <unsupported\Eigen\CXX11\Tensor>
 #include "CCA.h"
 #include "EigenExtension.h"
 #include "GaussianProcess.h"
+#include "QudraticAssignment.h"
 
 #include "ArmatureBlock.h"
 #include "AnimationAnalyzer.h"
@@ -41,6 +43,37 @@ const static Eigen::IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n
 ShrinkedArmature		 g_PlayeerBlocks;
 std::map<string, string> g_DebugLocalMotionAction;
 bool					 g_DebugLocalMotion = false;
+
+void CaculateQuadraticDistanceMatrix(Tensor<float, 4> &C, const ClipInfo& iclip, const ClipInfo& cclip);
+
+static const DirectX::XMVECTORF32 HumanBoneColors[JointType_Count] = {
+	{ 0.0f,0.0f,0.0f,0.0f }, //JointType_SpineBase = 0,
+	{ 0.0f,0.0f,0.0f,0.0f },//JointType_SpineMid = 1,
+	{ 0.9f,0.3f,0.9f,1.0f },//JointType_Neck = 2,
+	{ 0.9f,0.3f,0.9f,1.0f },//JointType_Head = 3,
+	{ 0.9f,0.3f,0.3f,1.0f },//JointType_ShoulderLeft = 4,
+	{ 0.9f,0.3f,0.3f,1.0f },//JointType_ElbowLeft = 5,
+	{ 0.9f,0.3f,0.3f,1.0f },//JointType_WristLeft = 6,
+	{ 0.9f,0.3f,0.3f,1.0f },//JointType_HandLeft = 7,
+	{ 0.3f,0.3f,0.9f,1.0f },//JointType_ShoulderRight = 8,
+	{ 0.3f,0.3f,0.9f,1.0f },//JointType_ElbowRight = 9,
+	{ 0.3f,0.3f,0.9f,1.0f },//JointType_WristRight = 10,
+	{ 0.3f,0.3f,0.9f,1.0f },//JointType_HandRight = 11,
+	{ 0.9f,0.9f,0.3f,1.0f },//JointType_HipLeft = 12,
+	{ 0.9f,0.9f,0.3f,1.0f },//JointType_KneeLeft = 13,
+	{ 0.9f,0.9f,0.3f,1.0f },//JointType_AnkleLeft = 14,
+	{ 0.9f,0.9f,0.3f,1.0f },//JointType_FootLeft = 15,
+	{ 0.3f,0.9f,0.9f,1.0f },//JointType_HipRight = 16,
+	{ 0.3f,0.9f,0.9f,1.0f },//JointType_KneeRight = 17,
+	{ 0.3f,0.9f,0.9f,1.0f },//JointType_AnkleRight = 18,
+	{ 0.3f,0.9f,0.9f,1.0f },//JointType_FootRight = 19,
+	{ 0.0f,0.0f,0.0f,0.0f },//JointType_SpineShoulder = 20,
+	{ 0.9f,0.3f,0.3f,1.0f },//JointType_HandTipLeft = 21,
+	{ 0.9f,0.3f,0.3f,1.0f },//JointType_ThumbLeft = 22,
+	{ 0.3f,0.3f,0.9f,1.0f },//JointType_HandTipRight = 23,
+	{ 0.3f,0.3f,0.9f,1.0f },//JointType_ThumbRight = 24,
+	//JointType_Count = (JointType_ThumbRight + 1)
+};
 
 pair<JointType, JointType> XFeaturePairs[] = {
 	{ JointType_SpineBase, JointType_SpineShoulder },
@@ -233,6 +266,67 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 	}
 }
 
+void SetGlowBoneColorPartPair(Causality::CharacterGlowParts * glow, int Jx, int Jy,const DirectX::XMVECTORF32 *colors, const Causality::ShrinkedArmature & sparts, const Causality::ShrinkedArmature & cparts);
+
+void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& controller)
+{
+	auto pTrans = &controller.Binding();
+	auto pCcaTrans = dynamic_cast<const BlockizedCcaArmatureTransform*>(pTrans);
+	auto pPartTrans = dynamic_cast<const PartilizedTransform*>(pTrans);
+
+	auto& cparts = controller.Character().Behavier().ArmatureParts();
+	auto& sparts = g_PlayeerBlocks; //! Not Good!!!
+	auto& colors = HumanBoneColors;
+
+	if (pCcaTrans)
+	{
+		for (auto& tp : pCcaTrans->Maps)
+		{
+			auto Jx = tp.Jx, Jy = tp.Jy;
+			SetGlowBoneColorPartPair(glow, Jx, Jy, colors, sparts, cparts);
+		}
+	}
+	else if (pPartTrans)
+	{
+		for (auto& tp : pPartTrans->ActiveParts )
+		{
+			auto Jx = tp.SrcIdx, Jy = tp.DstIdx;
+			SetGlowBoneColorPartPair(glow, Jx, Jy, colors, sparts, cparts);
+		}
+		for (auto& tp : pPartTrans->DrivenParts)
+		{
+			auto Jx = tp.SrcIdx, Jy = tp.DstIdx;
+			SetGlowBoneColorPartPair(glow, Jx, Jy, colors, sparts, cparts);
+		}
+		for (auto& tp : pPartTrans->AccesseryParts)
+		{
+			auto Jx = tp.SrcIdx, Jy = tp.DstIdx;
+			SetGlowBoneColorPartPair(glow, Jx, Jy, colors, sparts, cparts);
+		}
+	}
+
+}
+
+void SetGlowBoneColorPartPair(Causality::CharacterGlowParts * glow, int Jx, int Jy,const DirectX::XMVECTORF32 *colors, const Causality::ShrinkedArmature & sparts, const Causality::ShrinkedArmature & cparts)
+{
+	using namespace DirectX;
+	XMVECTOR color;
+	if (Jx == NoInputParts)
+		color = Colors::Transparent;
+	else if (Jx == ActiveAndDrivenParts)
+		color = Colors::LightBlue;
+	else if (Jx == ActiveParts)
+		color = Colors::ForestGreen;
+	else if (Jx >= 0)
+		color = colors[sparts[Jx]->Joints.front()->ID];
+
+	color = XMVectorSetW(color, 0.5f);
+	for (auto joint : cparts[Jy]->Joints)
+	{
+		glow->SetBoneColor(joint->ID, color);
+	}
+}
+
 void PlayerProxy::SetActiveController(int idx)
 {
 	std::lock_guard<std::mutex> guard(m_controlMutex);
@@ -282,6 +376,7 @@ void PlayerProxy::SetActiveController(int idx)
 
 			chara.SetOpticity(1.0f);
 			auto glow = chara.FirstChildOfType<CharacterGlowParts>();
+			SetGlowBoneColor(glow, controller);
 			glow->SetEnabled(!g_DebugView);
 
 			controller.MapRefPos = m_playerSelector->PeekFrame()[0].GblTranslation;
@@ -409,103 +504,6 @@ Matrix3f FindIsometricTransformXY(const Eigen::MatrixXf& X, const Eigen::MatrixX
 	return BestScale * BestRot;
 }
 
-template <typename Iterator>
-inline bool next_combination(Iterator first,
-	Iterator k,
-	Iterator last);
-
-template <typename Iterator>
-inline bool next_combination(const Iterator first, Iterator k, const Iterator last)
-{
-	/* Credits: Thomas Draper */
-	// http://stackoverflow.com/a/5097100/8747
-	if ((first == last) || (first == k) || (last == k))
-		return false;
-	Iterator itr1 = first;
-	Iterator itr2 = last;
-	++itr1;
-	if (last == itr1)
-		return false;
-	itr1 = last;
-	--itr1;
-	itr1 = k;
-	--itr2;
-	while (first != itr1)
-	{
-		if (*--itr1 < *itr2)
-		{
-			Iterator j = k;
-			while (!(*itr1 < *j)) ++j;
-			std::iter_swap(itr1, j);
-			++itr1;
-			++j;
-			itr2 = k;
-			std::rotate(itr1, j, last);
-			while (last != j)
-			{
-				++j;
-				++itr2;
-			}
-			std::rotate(k, itr2, last);
-			return true;
-		}
-	}
-	std::rotate(first, k, last);
-	return false;
-}
-
-float quadratic_assignment_cost(const MatrixXf& A, const Tensor<float, 4> &C, _In_reads_(A.rows()) DenseIndex* ass)
-{
-	int n = A.rows();
-	float score = 0;
-	for (int i = 0; i < n; i++)
-	{
-		score += A(i, ass[i]);
-		for (int j = i + 1; j < n; j++)
-		{
-			score += C(i, j, ass[i], ass[j]);
-		}
-	}
-	return score;
-}
-
-
-float max_quadratic_assignment(const MatrixXf& A, const Tensor<float, 4> &C, _Out_ std::vector<DenseIndex>& assignment)
-{
-	auto nx = A.rows(), ny = A.cols();
-	assert(ny >= nx);
-	vector<DenseIndex> s(std::max(nx, ny));
-	for (int i = 0; i < s.size(); i++)
-	{
-		s[i] = i;
-	}
-
-	vector<DenseIndex>  optAss(nx);
-	float optScore = std::numeric_limits<float>::min();
-
-	do {
-		do {
-			float score = quadratic_assignment_cost(A, C, s.data());
-			if (score > optScore)
-			{
-				optAss.assign(s.begin(), s.begin() + nx);
-				optScore = score;
-			}
-			for (auto& i : s)
-			{
-				cout << i << ' ';
-			}
-			//cout << ':' << score << endl;
-		} while (std::next_permutation(s.begin(), s.begin() + nx));
-	} while (next_combination(s.begin(), s.begin() + nx, s.end()));
-
-	assignment = optAss;
-	return optScore;
-}
-
-// helper functions
-void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipInfo& iclip, const ClipInfo& cclip);
-
 void CreateControlBinding(CharacterController & controller, const InputClipInfo& iclip);
 
 void SetIdentity(Causality::PcaCcaMap & map, const Eigen::Index &rank);
@@ -601,7 +599,9 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	//! Smooth the input 
 	laplacian_smooth(X, 0.8f, FilterStregth);
 
-	 cublic_bezier_resample(Xs,
+	Xs.resize(CLIP_FRAME_COUNT * 2, X.cols());
+	// colwise
+	cublic_bezier_resample(Xs,
 		X.middleRows(N - (2 * T + CropMargin + 1), T * 2),
 		CLIP_FRAME_COUNT * 2,
 		Eigen::CloseLoop);
@@ -809,7 +809,7 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 	const auto & Eub = iclip.Eb;
 
 	auto& character = controller.Character();
-	auto& chraraBlocks = character.Behavier().Blocks();
+	auto& chraraBlocks = character.Behavier().ArmatureParts();
 	size_t Jc = chraraBlocks.size();
 	auto& clips = character.Behavier().Clips();
 
@@ -818,7 +818,7 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 	auto& anim = *character.CurrentAction();
 	//for (auto& anim : clips)	//? <= 5 animation per character
 	{
-		auto& cclip = controller.GetAnimationInfo(anim.Name);
+		auto& cclip = controller.GetClipInfo(anim.Name);
 		if (&cclip == nullptr)
 			return;
 
@@ -905,8 +905,8 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 			for (int i = 0; i < Juk.size(); ++i)
 			{
 				int uid = Juk[i];
-				auto& qrX = iclip.QrXs(phi / Ti,uid);
-				auto& rawX = iclip.RawXs(phi / Ti,uid);
+				auto& qrX = iclip.QrXs(phi / Ti, uid);
+				auto& rawX = iclip.RawXs(phi / Ti, uid);
 
 				for (int j = 0; j < Jck.size(); j++)
 				{
@@ -999,7 +999,7 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 		cout << "Scores : " << maxScore << endl;
 
 		cout << "*********************************************" << endl;
-		cout << "Human Skeleton Blocks : " << endl;
+		cout << "Human Skeleton ArmatureParts : " << endl;
 		for (auto i : Juk)
 		{
 			const auto& blX = *g_PlayeerBlocks[i];
@@ -1012,11 +1012,11 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 		}
 
 		cout << "*********************************************" << endl;
-		cout << "Character " << controller.Character().Name << "'s Skeleton Blocks : " << endl;
+		cout << "Character " << controller.Character().Name << "'s Skeleton ArmatureParts : " << endl;
 
 		for (auto& i : Jck)
 		{
-			const auto& blY = *controller.Character().Behavier().Blocks()[i];
+			const auto& blY = *controller.Character().Behavier().ArmatureParts()[i];
 			cout << "Block " << i << " = {";
 			for (auto pJoint : blY.Joints)
 			{
@@ -1032,9 +1032,9 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 			//cout << "New best : " << anim.Name << endl;
 			controller.CharacterScore = std::max(maxScore, controller.CharacterScore);
 
-			auto pBinding = new RBFInterpolationTransform(&controller.GetClipInfos(),
+			auto pBinding = new RBFInterpolationTransform(controller.GetClipInfos(),
 				&g_PlayeerBlocks,
-				&controller.Character().Behavier().Blocks());
+				&controller.Character().Behavier().ArmatureParts());
 
 			//auto pBinding = new BlockizedCcaArmatureTransform(&g_PlayeerBlocks, &controller.Character().Behavier().Blocks());
 			//pBinding->pInputExtractor.reset(new AllJoints<InputFeature>(g_EnableInputFeatureLocalization));
@@ -1051,11 +1051,11 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 				Jx = Juk[Jx]; Jy = Jck[Jy];
 
 				const auto& blX = *g_PlayeerBlocks[Jx];
-				const auto& blY = *controller.Character().Behavier().Blocks()[Jy];
+				const auto& blY = *controller.Character().Behavier().ArmatureParts()[Jy];
 
 				//cout << pPlayerArmature->at(Jx)->Name() << " ==> " << controller.Character().Armature()[Jy]->Name() << endl;
 
-				auto& rawX = iclip.RawXs(maxPhi / Ti,Jx);
+				auto& rawX = iclip.RawXs(maxPhi / Ti, Jx);
 				auto rawY = MatrixXf::Map(cclip.Pvs.col(Jy).data(), 3, CLIP_FRAME_COUNT).transpose();
 
 				cout << '{';
@@ -1081,7 +1081,7 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 				if (g_PartAssignmentTransform == PAT_CCA)
 				{
 					//? Again!!! PvQrs vs Qrs
-					auto& qrX = iclip.QrXs(maxPhi / Ti,Jx);
+					auto& qrX = iclip.QrXs(maxPhi / Ti, Jx);
 					auto& pcaX = PcaXs[Jx];
 
 					auto& qrY = cclip.PvQrs[Jy];
@@ -1167,18 +1167,18 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 	  //pBinding->pInputExtractor.reset(new AllJoints<InputFeature>(g_EnableInputFeatureLocalization));
 	  //pBinding->pOutputExtractor.reset(new AllJoints<CharacterFeature>(false));
 
-	auto pBinding = new RBFInterpolationTransform(&controller.GetClipInfos(),
+	auto pBinding = new RBFInterpolationTransform(controller.GetClipInfos(),
 		&g_PlayeerBlocks,
-		&controller.Character().Behavier().Blocks());
+		&controller.Character().Behavier().ArmatureParts());
 
 	controller.SetBinding(pBinding);
 
-	auto clipinfos = controller.GetClipInfos() | adaptors::map_values;
-	auto maxClip = std::max_element(BEGIN_TO_END(clipinfos), [](const ClipInfo* lhs, const ClipInfo *rhs) {
-		return (rhs != nullptr) && (lhs == nullptr || lhs->Score < rhs->Score);
+	auto& clipinfos = controller.GetClipInfos();
+	auto maxClip = std::max_element(BEGIN_TO_END(clipinfos), [](const ClipInfo& lhs, const ClipInfo &rhs) {
+		return (lhs.Score < rhs.Score);
 	});
 
-	auto pCcaBinding = dynamic_cast<CcaArmatureTransform*>((*maxClip)->pLocalBinding.get());
+	auto pCcaBinding = dynamic_cast<CcaArmatureTransform*>(maxClip->pLocalBinding.get());
 	if (pCcaBinding)
 		pBinding->Maps = pCcaBinding->Maps;
 
@@ -1219,7 +1219,7 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 	//		cout << "\b\b} <<== {";
 	//		for (const auto& action : pBlock->ActiveActions)
 	//		{
-	//			auto& clipinfo = controller.GetAnimationInfo(action);
+	//			auto& clipinfo = controller.GetClipInfo(action);
 	//			if (clipinfo.Phi == -1) continue;
 	//			auto jyid = std::find(BEGIN_TO_END(clipinfo.ActiveParts), bid) - clipinfo.ActiveParts.begin();
 	//			auto jxid = clipinfo.Matching[jyid];
@@ -1265,7 +1265,7 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 	//cout << endl;
 }
 
-void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C,const ClipInfo& iclip, const ClipInfo& cclip)
+void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipInfo& iclip, const ClipInfo& cclip)
 {
 	C.setZero();
 
@@ -1281,10 +1281,10 @@ void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C,const ClipInfo& 
 			{
 				for (int sj = si + 1; sj < Jck.size(); sj++)
 				{
-					auto xu = iclip.XpvMean(i, j);
-					auto xc = cclip.XpvMean(si, sj);
-					auto &cu = iclip.XpvCov(i, j);
-					auto &cc = cclip.XpvCov(si, sj);
+					auto xu = iclip.GetActivePartsDifferenceAverage(i, j);
+					auto xc = cclip.GetActivePartsDifferenceAverage(si, sj);
+					auto &cu = iclip.GetActivePartsDifferenceCovarience(i, j);
+					auto &cc = cclip.GetActivePartsDifferenceCovarience(si, sj);
 
 					float val = 0;
 					if (xu.norm() > 0.1f && xc.norm() > 0.1f)
@@ -1691,7 +1691,7 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 	if (!player.IsTracked()) return;
 
 	// no new frame is coming
-	if (!player.ReadLatestFrame()) 
+	if (!player.ReadLatestFrame())
 		return;
 	const auto& frame = player.PeekFrame();
 	m_LastPlayerFrame = m_CurrentPlayerFrame;
@@ -1871,7 +1871,7 @@ void DrawControllerHandle(const CharacterController& controller)
 	g_PrimitiveDrawer.SetWorld(XMMatrixIdentity());
 	XMMATRIX world = controller.Character().GlobalTransformMatrix();
 
-	auto& barmature = controller.Character().Behavier().Blocks();
+	auto& barmature = controller.Character().Behavier().ArmatureParts();
 	auto& frame = controller.Character().GetCurrentFrame();
 	XMVECTOR color = Colors::Pink;
 	XMVECTOR vel_color = Colors::Navy;

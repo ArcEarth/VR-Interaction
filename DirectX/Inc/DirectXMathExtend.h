@@ -1386,8 +1386,9 @@ namespace DirectX
 
 		inline Derived Inversed() const
 		{
-			Derived t = static<const Derived&>(*this);
-			return t.Inverse();
+			Derived t = static_cast<const Derived&>(*this);
+			t.Inverse();
+			return t;
 		}
 
 		inline XMMATRIX TransformMatrix() const

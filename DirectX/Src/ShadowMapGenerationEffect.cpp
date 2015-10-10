@@ -67,7 +67,8 @@ public:
 			weightsPerVertex(0),
 			fillMode(DepthFill),
 			pRenderTargetView(NULL),
-			pDepthMap(NULL)
+			pDepthMap(NULL),
+			boneColorsBuffer(device)
 		{
 			static_assert(_countof(Base::VertexShaderIndices) == Traits::ShaderPermutationCount, "array/max mismatch");
 			static_assert(_countof(Base::VertexShaderBytecode) == Traits::VertexShaderCount, "array/max mismatch");
@@ -92,12 +93,11 @@ public:
 		if (texture != nullptr)
 			perm += 4;
 
-		if (fillMode == SolidColorFill)
+		if (fillMode == SolidColorFill || (weightsPerVertex == 0 && fillMode == BoneColorFill))
 			perm += 8;
-
-		else if (fillMode == BoneColorFill)
+		else if (weightsPerVertex > 0 && fillMode == BoneColorFill)
 		{
-			assert(weightsPerVertex != 0);
+			//assert(weightsPerVertex != 0);
 			perm = 16;
 			if (weightsPerVertex <= 2) perm += weightsPerVertex - 1;
 			if (weightsPerVertex == 4) perm += 2;

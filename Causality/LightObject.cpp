@@ -46,7 +46,7 @@ IEffect * Light::GetRenderEffect()
 
 bool Light::AcceptRenderFlags(RenderFlags flags)
 {
-	bool result = flags.Contains(RenderFlags::OpaqueObjects);
+	bool result = flags.Contains(RenderFlags(RenderFlags::OpaqueObjects));
 	return result;
 }
 

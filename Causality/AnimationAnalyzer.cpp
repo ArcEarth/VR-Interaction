@@ -5,24 +5,37 @@
 #include "CCA.h"
 #include "Settings.h"
 #include "EigenExtension.h"
-#include <fftw3.h>
 #include <unsupported\Eigen\fft>
+
+#define FFTW
+
+#ifdef FFTW
+#include <fftw3.h>
+#pragma comment(lib, "libfftw3f-3.lib")
+#endif
 
 using namespace Causality;
 using namespace std;
 using namespace Concurrency;
 using namespace Eigen;
 
-ClipInfo::ClipInfo(const ShrinkedArmature & bArm)
-	:pBlockArmature(&bArm), PcaCutoff(0.01f), IsReady(false), ActiveEnergyThreshold(0.35f), PerceptiveVectorReconstructor(pBlockArmature->size())
+ClipInfo::ClipInfo()
+:pBlockArmature(nullptr), PcaCutoff(0.01f), IsReady(false), ActiveEnergyThreshold(0.35f)
 {
+}
+
+ClipInfo::ClipInfo(const ShrinkedArmature & bArm)
+	: ClipInfo()
+{
+	pBlockArmature = &bArm;
+	PerceptiveVectorReconstructor.resize(pBlockArmature->size());
 }
 
 ClipInfo::~ClipInfo()
 {
 }
 
-void Causality::ClipInfo::ProcessFrames(gsl::array_view<BoneHiracheryFrame> frames)
+void ClipInfo::ProcessFrames(gsl::array_view<BoneHiracheryFrame> frames)
 {
 }
 
@@ -185,7 +198,7 @@ void ClipInfo::ComputePcaQr()
 		auto d = pca.reducedRank(PcaCutoff);
 		Qrs[i].compute(pca.coordinates(d), true);
 
-		auto pvs = Eigen::Matrix<float, -1, 3, Eigen::RowMajor>::Map(Pvs.col(i).data(), CLIP_FRAME_COUNT, 3);
+		auto pvs = Eigen::Matrix<float, -1, -1, Eigen::RowMajor>::Map(Pvs.col(i).data(), CLIP_FRAME_COUNT, 3);
 		PvPcas[i].compute(pvs);
 		PvQrs[i].compute(PvPcas[i].coordinates(3), true);
 
@@ -250,16 +263,36 @@ void ClipInfo::ComputeSpatialTraits(const std::vector<BoneHiracheryFrame> &frame
 	}
 }
 
+const Eigen::RowVector3f & Causality::ClipInfo::GetActivePartsDifferenceAverage(int pi, int pj) const
+{
+	return PvDifMean(pi, pj);
+}
+
+const Eigen::Matrix3f & Causality::ClipInfo::GetActivePartsDifferenceCovarience(int pi, int pj) const
+{
+	return PvDifCov(pi, pj);
+}
+
 CyclicStreamClipinfo::CyclicStreamClipinfo(ShrinkedArmature* pArmature)
 	: InputClipInfo(*pArmature)
 {
-
 	Initalize();
 }
 
-void Causality::CyclicStreamClipinfo::Initalize()
+CyclicStreamClipinfo::CyclicStreamClipinfo(ShrinkedArmature * pArmature, time_seconds minT, time_seconds maxT, double sampleRateHz, size_t interval_frames)
+	: InputClipInfo(*pArmature) 
 {
-	m_windowSize = CaculateWindowSize();
+	m_minHz = 1 / maxT.count();
+	m_maxHz = 1 / minT.count();
+	m_sampleRate = sampleRateHz;
+	m_windowSize = (int)ceil(log2(maxT.count() * sampleRateHz * 4));
+	m_analyzeInterval = interval_frames;
+	Initalize();
+}
+
+void CyclicStreamClipinfo::Initalize()
+{
+	//m_windowSize = CaculateWindowSize();
 
 	m_frameWidth = pBlockArmature->size() * InputFeature::Dimension;
 	m_bufferWidth = ((m_frameWidth + 1) / 4) * 4;
@@ -272,13 +305,15 @@ void Causality::CyclicStreamClipinfo::Initalize()
 	m_cropMargin = m_sampleRate * 0.3; // 0.3s margin
 
 	int n = m_windowSize;
+#ifdef FFTW
 	fftwf_plan plan = fftwf_plan_many_dft_r2c(1, &n, m_frameWidth,
 		m_buffer.data(), nullptr, m_bufferWidth, 1,
 		(fftwf_complex*)m_Spectrum.data(), nullptr, m_bufferWidth, 1,
 		0);
+#endif
 }
 
-void Causality::CyclicStreamClipinfo::StreamFrame(const FrameType & frame)
+void CyclicStreamClipinfo::StreamFrame(const FrameType & frame)
 {
 	using namespace Eigen;
 	using namespace DirectX;
@@ -321,7 +356,7 @@ void Causality::CyclicStreamClipinfo::StreamFrame(const FrameType & frame)
 	}
 }
 
-void Causality::CyclicStreamClipinfo::AnaylzeRecentStream()
+void CyclicStreamClipinfo::AnaylzeRecentStream()
 {
 	// Anaylze starting
 	size_t head = m_bufferHead;
@@ -339,7 +374,7 @@ void Causality::CyclicStreamClipinfo::AnaylzeRecentStream()
 	}
 }
 
-void Causality::CyclicStreamClipinfo::CaculateSpecturum(size_t head, size_t windowSize)
+void CyclicStreamClipinfo::CaculateSpecturum(size_t head, size_t windowSize)
 {
 	m_readerHead = head;
 	m_readerSize = windowSize;
@@ -347,6 +382,7 @@ void Causality::CyclicStreamClipinfo::CaculateSpecturum(size_t head, size_t wind
 	std::lock_guard<std::mutex> guard(m_mutex);
 
 	int n = windowSize;
+#ifdef FFTW
 	fftwf_plan plan = fftwf_plan_many_dft_r2c(1, &n, m_frameWidth,
 		m_buffer.col(head).data(), nullptr, m_bufferWidth, 1,
 		(fftwf_complex*)m_Spectrum.data(), nullptr, m_bufferWidth, 1,
@@ -359,9 +395,10 @@ void Causality::CyclicStreamClipinfo::CaculateSpecturum(size_t head, size_t wind
 	m_fftplan = plan;
 
 	fftwf_execute(plan);
+#endif
 }
 
-void Causality::CyclicStreamClipinfo::CropResampleInput(size_t head, size_t inputPeriod, size_t framePerCycle, float smoothStrength)
+void CyclicStreamClipinfo::CropResampleInput(size_t head, size_t inputPeriod, size_t framePerCycle, float smoothStrength)
 {
 	const int SmoothIteration = 4;
 	auto T = inputPeriod;
@@ -390,8 +427,8 @@ CyclicStreamClipinfo::FrequencyResolveResult CyclicStreamClipinfo::CaculatePeekF
 	FrequencyResolveResult fr;
 
 	auto& Xf = spectrum;
-	m_Spmod = Xf;
-	auto& Xs = m_Spmod;
+	//m_Spmod = Xf;
+	//auto& Xs = m_Spmod;
 
 	int idx;
 	auto& Ea = m_SpectrumEnergy;
@@ -420,9 +457,18 @@ CyclicStreamClipinfo::FrequencyResolveResult CyclicStreamClipinfo::CaculatePeekF
 	fr.Frequency = peekFreq;
 	fr.PeriodInFrame = T;
 	fr.Support = snr;
+
+	return fr;
 }
 
-void Causality::InputClipInfo::CaculatePartsMatricFromX(size_t T)
+int CyclicStreamClipinfo::CaculateWindowSize()
+{
+	m_sampleRate;
+	m_analyzeInterval;
+	return 0;
+}
+
+void ClipInfo::CaculatePartsMatricFromX()
 {
 	auto& parts = *pBlockArmature;
 
@@ -458,7 +504,10 @@ void Causality::InputClipInfo::CaculatePartsMatricFromX(size_t T)
 			pca.setMean(m_uX.segment(i*fDim, fDim));
 			auto d = pca.reducedRank(PcaCutoff);
 
-			Qrs[i].compute(Pcas[i].coordinates(d),true);
+			//! Potiential unnessary matrix copy here!!!
+			m_thickQrs[i].Qr.compute(Pcas[i].coordinates(d));
+			m_thickQrs[i].Qr.matrixQ().evalTo(m_thickQrs[i].Q);
+			m_thickQrs[i].Mean.setZero(d);
 		}
 	}
 
@@ -466,5 +515,8 @@ void Causality::InputClipInfo::CaculatePartsMatricFromX(size_t T)
 	Pvs.resizeLike(X);
 	MatrixXf::Map(Pvs.data(), fDim, Pvs.size() / fDim) = 
 		MatrixXf::Map(X.data(), fDim, X.size() / fDim).colwise().normalized();
+
+	// just for legacy code compitiable
+	uPvs = MatrixXf::MapAligned(m_uX.data(), 3, m_uX.size() / 3);
 
 }

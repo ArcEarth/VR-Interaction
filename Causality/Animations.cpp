@@ -104,7 +104,7 @@ void BoneHiracheryFrame::Lerp(BoneHiracheryFrame& out, const BoneHiracheryFrame 
 	out.RebuildGlobal(armature);
 }
 
-void Causality::BoneHiracheryFrame::TransformFrame(IsometricTransformFrame & out, const BoneHiracheryFrame & from, const BoneHiracheryFrame & to)
+void Causality::BoneHiracheryFrame::Difference(BoneHiracheryFrame & out, const BoneHiracheryFrame & from, const BoneHiracheryFrame & to)
 {
 	auto n = std::min(from.size(), to.size());
 	if (out.size() < n)
@@ -112,8 +112,26 @@ void Causality::BoneHiracheryFrame::TransformFrame(IsometricTransformFrame & out
 	for (size_t i = 0; i < n; i++)
 	{
 		auto& lt = out[i];
-		lt = from[i].LocalTransform().Inversed();
-		lt *= to[i].LocalTransform();
+		lt.LocalTransform() = from[i].LocalTransform();
+		lt.LocalTransform().Inverse();
+		lt.LocalTransform() *= to[i].LocalTransform();
+
+		lt.GlobalTransform() = from[i].GlobalTransform();
+		lt.GlobalTransform().Inverse();
+		lt.GlobalTransform() *= to[i].GlobalTransform();
+	}
+}
+
+void Causality::BoneHiracheryFrame::Deform(BoneHiracheryFrame & out, const BoneHiracheryFrame & from, const BoneHiracheryFrame & deformation)
+{
+	auto n = std::min(from.size(), deformation.size());
+	if (out.size() < n)
+		out.resize(n);
+	for (size_t i = 0; i < n; i++)
+	{
+		auto& lt = out[i];
+		lt.LocalTransform() = from[i].LocalTransform();
+		lt.LocalTransform() *= deformation[i].LocalTransform();
 	}
 }
 

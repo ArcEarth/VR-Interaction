@@ -9,12 +9,6 @@ using namespace Causality;
 using namespace DirectX;
 using namespace DirectX::Scene;
 
-bool g_DebugView = false;
-bool g_ShowCharacterMesh = true;
-float g_DebugArmatureThinkness = 0.005f;
-bool g_MirrowInputX = false;
-
-
 void XM_CALLCONV DrawBox(_In_reads_(8) Vector3 *conners, FXMVECTOR color)
 {
 	auto& drawer = Visualizers::g_PrimitiveDrawer;
@@ -35,7 +29,7 @@ void XM_CALLCONV DrawBox(_In_reads_(8) Vector3 *conners, FXMVECTOR color)
 
 }
 
-void XM_CALLCONV DrawGeometryOutline(const BoundingGeometry& geometry, FXMVECTOR color)
+void XM_CALLCONV Causality::DrawGeometryOutline(const BoundingGeometry& geometry, FXMVECTOR color)
 {
 	Vector3 conners[8];
 	if (geometry.Type == BoundingGeometryType::Geometry_Frustum)

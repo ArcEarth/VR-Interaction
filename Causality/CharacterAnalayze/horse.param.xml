@@ -35,4 +35,10 @@
         <Volume03 alpha="9.9999999999999995e-08" beta="10000000" gamma="9.9999999999999995e-08"/>
         <Volume04 alpha="9.9999999999999995e-08" beta="10000000" gamma="9.9999999999999995e-08"/>
     </clip_rasterize_75_run_walk>
+    <clip_rasterize_75_walk_run>
+        <LeftUpLeg alpha="131.04651783623424" beta="224.49480762072989" gamma="0.0049277635658481287"/>
+        <RightUpLeg alpha="185.57185617803964" beta="178.72544833974743" gamma="0.0051765110588978744"/>
+        <LeftArm alpha="221.9881551082496" beta="5.3620307658516273" gamma="0.0029646805664005267"/>
+        <RightArm alpha="219.00847605593887" beta="57.384064099590908" gamma="0.0065927896974285983"/>
+    </clip_rasterize_75_walk_run>
 </param_store>

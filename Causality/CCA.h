@@ -2,22 +2,30 @@
 #include <Eigen\Dense>
 
 namespace Eigen {
-
 	// zero mean and Decompose X, thus (X + repmat(uX,n,1)) * E = [Q 0] * [R ; 0]
 	template <class Derived>
 	struct QrViewBase
 	{
+		typedef internal::traits<Derived> traits;
+		typedef typename traits::Scalar Scalar;
+		typedef typename traits::RealScalar RealScalar;
+		typedef typename traits::Index Index;
+		typedef typename traits::MatrixQReturnType MatrixQReturnType;
+		typedef typename traits::MatrixRReturnType MatrixRReturnType;
+		typedef typename traits::MeanReturnType MeanReturnType;
+		typedef typename traits::ColsPermutationReturnType ColsPermutationReturnType;
+
 		inline DenseIndex rows() const { return Derived::rows(); }
 		inline DenseIndex cols() const { return Derived::cols(); }
 		inline DenseIndex rank() const { return Derived::rank(); }
-		inline auto mean() const { return Derived::mean(); }
-		inline auto matrixQ() const { return Derived::matrixQ(); }
-		inline auto matrixR() const { return Derived::matrixR(); }
-		inline auto colsPermutation() const { return Derived::colsPermutation(); }
+		inline MeanReturnType mean() const { return Derived::mean(); }
+		inline MatrixQReturnType matrixQ() const { return Derived::matrixQ(); }
+		inline MatrixRReturnType matrixR() const { return Derived::matrixR(); }
+		inline ColsPermutationReturnType colsPermutation() const { return Derived::colsPermutation(); }
 	};
 
 	template< class _MatrixType>
-	struct MeanThinQr : public QrViewBase<MeanThinQr<_MatrixType>>
+	struct MeanThinQr
 	{
 		typedef _MatrixType MatrixType;
 		enum {
@@ -98,7 +106,7 @@ namespace Eigen {
 	};
 
 	template< class _MatrixType>
-	struct MeanThickQr : public QrViewBase<MeanThickQr<_MatrixType>>
+	struct MeanThickQr
 	{
 		typedef ColPivHouseholderQR<_MatrixType> QrType;
 
@@ -123,7 +131,7 @@ namespace Eigen {
 		inline const MeanVectorType& mean() const { return Mean; }
 		inline const MatrixQType& matrixQ() const { return Q; }
 		inline auto matrixR() const { return Qr.matrixR().triangularView<Upper>(); }
-		inline auto colsPermutation() const { return Qr.colsPermutation(); }
+		inline auto& colsPermutation() const { return Qr.colsPermutation(); }
 
 
 		QrType			Qr;
@@ -133,7 +141,7 @@ namespace Eigen {
 
 	// light weight wrapper for view part of a QR decomposition
 	template< class _MatrixType>
-	struct QrView : public QrViewBase<QrView<_MatrixType>>
+	struct QrView
 	{
 	public:
 		typedef ColPivHouseholderQR<_MatrixType> QrType;
@@ -164,9 +172,9 @@ namespace Eigen {
 		inline DenseIndex cols() const { return m_Qr.cols(); }
 		inline DenseIndex rank() const { return m_rank; }
 		inline const MeanVectorType& mean() const { return m_mean; }
-		inline auto matrixQ() const { return m_Q.block(m_sRow, m_sRow, m_rows, m_rank); }
-		inline auto matrixR() const { return m_Qr.matrixR().block(m_sRow, m_sRow, m_rank, m_rank).triangularView<Upper>(); }
-		inline auto colsPermutation() const { return m_Qr.colsPermutation(); }
+		inline Eigen::Block<const MatrixQType> matrixQ() const { return m_Q.block(m_sRow, m_sRow, m_rows, m_rank); }
+		inline Eigen::TriangularView<const Eigen::Block<const MatrixQType>, Upper> matrixR() const { return m_Qr.matrixR().block(m_sRow, m_sRow, m_rank, m_rank).triangularView<Upper>(); }
+		inline auto& colsPermutation() const { return m_Qr.colsPermutation(); }
 
 	private:
 		DenseIndex	  m_sRow, m_rows, m_rank;
@@ -211,7 +219,7 @@ namespace Eigen {
 		}
 
 		template <typename Derived>
-		void compute(const DenseBase<Derived>& X, bool computeCoords = true)
+		void compute(const MatrixBase<Derived>& X, bool computeCoords = true)
 		{
 			m_Mean = X.colwise().mean();
 			auto Xz = (X.rowwise() - m_Mean).eval();
@@ -227,17 +235,19 @@ namespace Eigen {
 
 		// compute pca from zero-mean data
 		template <typename Derived>
-		void computeCentered(const DenseBase<Derived>& X, bool computeCoords = true)
+		void computeCentered(const MatrixBase<Derived>& X, bool computeCoords = true)
 		{
-			m_Mean.setZero(X.cols);
-
+			m_Mean.setZero(X.cols());
+			//JacobiSVD<Matrix<Derived::Scalar, Derived::RowsAtCompileTime, Derived::ColsAtCompileTime>> svd;
+			//svd.compute(X,ComputeThinV);
 			auto svd = X.jacobiSvd(ComputeThinV);
+
 			m_Comps = svd.matrixV();
 			m_Variences = svd.singularValues();
 			m_Variences = m_Variences.cwiseAbs2();
 
 			if (computeCoords)
-				m_Coords = Xz * m_Comps;
+				m_Coords = X * m_Comps;
 		}
 
 		// the demension after projection
@@ -332,8 +342,10 @@ namespace Eigen {
 		//template<typename _MatrixTypeX, typename _MatrixTypeY>
 		//Cca& computeFromQr(const MeanThinQr<_MatrixTypeX>& qrX, const MeanThinQr<_MatrixTypeY>& qrY, bool computeAB = false);
 
-		template<typename DerivedX, typename DerivedY>
-		Cca& computeFromQr(const QrViewBase<DerivedX>& qrX, const QrViewBase<DerivedY>& qrY, bool computeAB = false);
+		//template<typename DerivedX, typename DerivedY>
+		//Cca& computeFromQr(const QrViewBase<DerivedX>& qrX, const QrViewBase<DerivedY>& qrY, bool computeAB = false);
+		template<typename QrViewX, typename QrViewY>
+		Cca& computeFromQr(const QrViewX& qrX, const QrViewY& qrY, bool computeAB = false);
 
 		template<typename _MatrixTypeX, typename _MatrixTypeY>
 		Cca& computeFromPca(const Pca<_MatrixTypeX>& pcaX, const Pca<_MatrixTypeY>& pcaY, bool computeAB = false);
@@ -437,8 +449,8 @@ namespace Eigen {
 	}
 
 	template<typename _TScalar>
-	template<typename DerivedX, typename DerivedY>
-	inline Cca<_TScalar>& Cca<_TScalar>::computeFromQr(const QrViewBase<DerivedX>& qrX, const QrViewBase<DerivedY>& qrY, bool computeAB)
+	template<typename QrViewX, typename QrViewY>
+	inline Cca<_TScalar>& Cca<_TScalar>::computeFromQr(const QrViewX& qrX, const QrViewY& qrY, bool computeAB)
 	{
 		using namespace std;
 		assert(qrX.rows() == qrX.rows());
@@ -529,5 +541,83 @@ namespace Eigen {
 		auto qrY = mY.colPivHouseholderQr();
 
 		return computeFromQr(qrX, qrY, computeAB);
+	}
+
+	namespace internal
+	{
+		//template <class _MatrixType>
+		//struct traits<MeanThinQr<_MatrixType>>
+		//{
+		//	typedef _MatrixType MatrixType;
+		//	enum {
+		//		RowsAtCompileTime = MatrixType::RowsAtCompileTime,
+		//		ColsAtCompileTime = MatrixType::ColsAtCompileTime,
+		//		Options = MatrixType::Options,
+		//		MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
+		//		MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime
+		//	};
+
+		//	typedef typename MatrixType::Scalar Scalar;
+		//	typedef typename MatrixType::RealScalar RealScalar;
+		//	typedef typename MatrixType::Index Index;
+		//	typedef Matrix<Scalar, RowsAtCompileTime, Dynamic, Options, MaxRowsAtCompileTime, MaxColsAtCompileTime> MatrixQType;
+		//	typedef Matrix<Scalar, Dynamic, Dynamic, Options, MaxColsAtCompileTime, MaxColsAtCompileTime> MatrixRType;
+		//	typedef PermutationMatrix<ColsAtCompileTime, MaxColsAtCompileTime> PermutationType;
+		//	typedef Matrix<Scalar, 1, ColsAtCompileTime, RowMajor, 1, MaxColsAtCompileTime> MeanVectorType;
+
+		//	typedef const MatrixQType& MatrixQReturnType;
+		//	typedef TriangularView<const MatrixRType, Upper> MatrixRReturnType;
+		//	typedef const MeanVectorType& MeanReturnType;
+		//	typedef const PermutationType& ColsPermutationReturnType;
+		//};
+		//template <class _MatrixType>
+		//struct traits<MeanThickQr<_MatrixType>>
+		//{
+		//	typedef _MatrixType MatrixType;
+		//	enum {
+		//		RowsAtCompileTime = MatrixType::RowsAtCompileTime,
+		//		ColsAtCompileTime = MatrixType::ColsAtCompileTime,
+		//		Options = MatrixType::Options,
+		//		MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
+		//		MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime
+		//	};
+
+		//	typedef typename MatrixType::Scalar Scalar;
+		//	typedef typename MatrixType::RealScalar RealScalar;
+		//	typedef typename MatrixType::Index Index;
+		//	typedef Matrix<Scalar, RowsAtCompileTime, Dynamic, Options, MaxRowsAtCompileTime, MaxColsAtCompileTime> MatrixQType;
+		//	typedef Matrix<Scalar, 1, ColsAtCompileTime, RowMajor, 1, MaxColsAtCompileTime> MeanVectorType;
+		//	typedef PermutationMatrix<ColsAtCompileTime, MaxColsAtCompileTime> PermutationType;
+
+		//	typedef const MatrixQType& MatrixQReturnType;
+		//	typedef Eigen::TriangularView<MatrixQType, Upper> MatrixRReturnType;
+		//	typedef const MeanVectorType& MeanReturnType;
+		//	typedef const PermutationType& ColsPermutationReturnType;
+
+		//};
+		//template <class _MatrixType>
+		//struct traits<QrView<_MatrixType>>
+		//{
+		//	typedef _MatrixType MatrixType;
+		//	enum {
+		//		RowsAtCompileTime = MatrixType::RowsAtCompileTime,
+		//		ColsAtCompileTime = MatrixType::ColsAtCompileTime,
+		//		Options = MatrixType::Options,
+		//		MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
+		//		MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime
+		//	};
+
+		//	typedef typename MatrixType::Scalar Scalar;
+		//	typedef typename MatrixType::RealScalar RealScalar;
+		//	typedef typename MatrixType::Index Index;
+		//	typedef Matrix<Scalar, RowsAtCompileTime, Dynamic, Options, MaxRowsAtCompileTime, MaxColsAtCompileTime> MatrixQType;
+		//	typedef Matrix<Scalar, 1, ColsAtCompileTime, RowMajor, 1, MaxColsAtCompileTime> MeanVectorType;
+		//	typedef PermutationMatrix<ColsAtCompileTime, MaxColsAtCompileTime> PermutationType;
+
+		//	typedef Eigen::Block<const MatrixQType> MatrixQReturnType;
+		//	typedef Eigen::TriangularView<const Eigen::Block<const MatrixQType>, Upper> MatrixRReturnType;
+		//	typedef const MeanVectorType& MeanReturnType;
+		//	typedef const PermutationType& ColsPermutationReturnType;
+		//};
 	}
 }

@@ -1,8 +1,6 @@
 #pragma once
 #include <Eigen\Core>
 #include <algorithm>
-#include <cstdlib>
-#include <cstdint>
 #include "Common\BezierClip.h"
 
 
@@ -22,13 +20,41 @@ namespace Eigen {
 		}
 	}
 
+	template <class DerivedIn, class ArrayView, class DerivedOut>
+	void selectCols(_In_ const DenseBase<DerivedIn>& In, _In_ const ArrayView& indices, _Out_ DenseBase<DerivedOut>* Out)
+	{
+		Out->resize(In.rows(), indices.size());
+		for (size_t i = 0; i < indices.size(); i++)
+		{
+			Out->col(i) = In.col(indices[i]);
+		}
+	};
+
+	template <class DerivedIn, class ArrayView, class DerivedOut>
+	//	typename Dummy = std::enable_if_t<std::is_integral<decltype(std::declval<ArrayView>()[0])>::value >
+	void selectRows(_In_ const DenseBase<DerivedIn>& In, _In_ const ArrayView& indices, _Out_ DenseBase<DerivedOut>* Out)
+	{
+		Out->resize(indices.size(), In.cols());
+		for (size_t i = 0; i < indices.size(); i++)
+		{
+			Out->row(i) = In.row(indices[i]);
+		}
+	};
+
+	template <class Derived, int _Rows = Dynamic, int _Cols = Dynamic>
+	auto reshape(const DenseBase<Derived>& X, int rows = _Rows, int cols = _Cols)
+	{
+		assert(X.size() == cols * rows);
+		return Matrix<Derived::Scalar, _Cols, _Cols, Derived::Options>::Map(X.data(), rows, cols);
+	}
+
 	// Apply Laplacian smooth in Row-wise sense (Each row is treated as a data point)
 	template <class InputDerived>
-	inline void laplacian_smooth(DenseBase<InputDerived> &X, DenseBase<InputDerived>::RealScalar alpha = 0.8, unsigned IterationTimes = 2)
+	inline void laplacian_smooth(DenseBase<InputDerived> &X, double alpha = 0.8, unsigned IterationTimes = 2)
 	{
 		auto N = X.rows();
 		using traits = internal::traits<InputDerived>;
-		using Scalar = typename traits::Real;
+		using Scalar = typename traits::Scalar;
 		typedef Array<Scalar, traits::RowsAtCompileTime, traits::ColsAtCompileTime> MatrixType;
 		typedef Map<MatrixType, 0, Stride<Dynamic, Dynamic>> MapType;
 		MatrixType Cache (X.rows(),X.cols());
@@ -203,7 +229,7 @@ namespace Eigen {
 		//}
 		//Xr.row(nr - 1) = X.row(X.rows() - 1);
 
-		return Xr;
+		//return Xr;
 	}
 
 	namespace impl

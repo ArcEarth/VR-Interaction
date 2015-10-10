@@ -366,7 +366,7 @@ DefaultStaticModel::~DefaultStaticModel()
 
 }
 
-void CollectionModel::AddChild(const std::shared_ptr<IModelNode>& model, const MatrixTransform & transform)
+void CollectionModel::AddChild(const std::shared_ptr<IModelNode>& model, const LinearTransform & transform)
 {
 	//model->SetParent(this);
 	Children.emplace_back();

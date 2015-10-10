@@ -8,7 +8,7 @@
     <RecordLogRootDir>Log</RecordLogRootDir>
 
     <!--When this switch is on, sub-active parts will be animated based on active parts-->
-    <EnableDependentControl>1</EnableDependentControl>
+    <EnableDependentControl>0</EnableDependentControl>
 
     <!--When This switch is on, active body parts beside direct matched will be controlled by a cca of direct matched parts-->
     <EnableActiveDependentControl>1</EnableActiveDependentControl>
@@ -146,11 +146,11 @@
         </creature>
         <action name="idle" src="Horse_Idle.fbx"/>
 
-        <creature name="spider" position="1,0,0" scale="0.00125" action="walk" mesh="{spider_mesh}">
+        <!--<creature name="spider" position="1,0,0" scale="0.00125" action="walk" mesh="{spider_mesh}">
           <creature.behavier>
             <behavier name="spider_behavier" src="spider.fbx"></behavier>
           </creature.behavier>
-        </creature>
+        </creature>-->
 
         <!--<creature name="allosaurus" position="0,0,-1" scale ="0.01" action="idle" mesh="{allosaurus_mesh}">
           <creature.behavier>

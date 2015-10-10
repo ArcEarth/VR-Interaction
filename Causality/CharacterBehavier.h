@@ -18,7 +18,7 @@ namespace Causality
 
 	private:
 		IArmature*						m_pArmature;
-		ShrinkedArmature					m_Blocks;
+		ShrinkedArmature				m_Parts;
 		vector<animation_type>			m_AnimClips;
 
 	public:
@@ -32,10 +32,10 @@ namespace Causality
 		bool Contains(const std::string& name) const;
 #pragma endregion
 
-		const ShrinkedArmature&	Blocks() const { return m_Blocks; }
-		ShrinkedArmature&	Blocks() { return m_Blocks; }
+		const ShrinkedArmature&	ArmatureParts() const { return m_Parts; }
+		ShrinkedArmature&		ArmatureParts() { return m_Parts; }
 
-		void					UpdateBlock();
+		void					UpdateArmatureParts();
 
 		const IArmature&		Armature() const;
 		IArmature&				Armature();

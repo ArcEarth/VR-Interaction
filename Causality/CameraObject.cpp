@@ -319,7 +319,7 @@ Causality::SoftShadowCamera::SoftShadowCamera(ID3D11Device * pDevice, DirectX::R
 	pEffectRender->SetRequestRenderFlags(RenderFlags::Visible); // minium requirement
 	m_pRenderers.push_back(pEffectRender);
 
-	// pass 1 : render highlights (blooming) effect
+	// pass 2 : render highlights (blooming) effect
 	pEffectRender = std::make_shared<EffectRenderControl>();
 	auto pShadowGenEffect = std::make_shared<ShadowMapGenerationEffect>(pDevice);
 	pShadowGenEffect->SetShadowFillMode(ShadowMapGenerationEffect::BoneColorFill);
@@ -336,7 +336,7 @@ Causality::SoftShadowCamera::SoftShadowCamera(ID3D11Device * pDevice, DirectX::R
 	pBlurEffect->SetOutputMode(BlendWithSource);
 	pBlurEffect->SetOutputDepthStencil(canvas.DepthBuffer().DepthStencilView());
 	pEffectRender->SetPostEffect(pBlurEffect);
-	pEffectRender->SetRequestRenderFlags(RenderFlags::BloomEffectSource); // minium requirement
+	pEffectRender->SetRequestRenderFlags(RenderFlags::BloomEffectSource | RenderFlags::Skinable); // minium requirement
 	pEffectRender->SetPostEffectOutput(canvas.ColorBuffer());
 	m_pRenderers.push_back(pEffectRender);
 

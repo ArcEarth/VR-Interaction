@@ -1,6 +1,9 @@
 #include "pch_bcl.h"
 #include "StylizedIK.h"
+#pragma warning (push)
+#pragma warning (disable : 4297 )
 #include <dlib\optimization\optimization.h>
+#pragma warning (pop)
 #include <unsupported\Eigen\LevenbergMarquardt>
 #include "Settings.h"
 
@@ -36,10 +39,16 @@ StylizedChainIK::StylizedChainIK(const std::vector<const Joint*>& joints, const 
 	SetChain(joints, defaultframe);
 }
 
+void Causality::StylizedChainIK::SetFeatureDecoder(std::unique_ptr<IFeatureDecoder>&& decoder)
+{
+	m_fpDecoder = move(decoder);
+}
+
 void Causality::StylizedChainIK::SetChain(const std::vector<const Joint*>& joints, const BoneHiracheryFrame & defaultframe)
 {
 	m_chain.resize(joints.size());
-	m_iy.resize(joints.size() * 3);
+	m_chainRot.resize(joints.size());
+	m_iy.setZero(joints.size() * 3);
 	m_chainLength = 0;
 	for (int i = 0; i < joints.size(); i++)
 	{
@@ -48,9 +57,9 @@ void Causality::StylizedChainIK::SetChain(const std::vector<const Joint*>& joint
 		reinterpret_cast<DirectX::Vector3&>(m_chain[i]) = bone.LclTranslation;
 		m_chainLength += bone.LclTranslation.Length();
 
-		Vector3f lq;
-		XMStoreFloat3(lq.data(),XMQuaternionLn(XMLoadA(bone.LclRotation)));
-		m_iy.segment<3>(i * 3) = lq.cast<double>();
+		 Vector3f lq;
+		 XMStoreFloat3(lq.data(),XMQuaternionLn(XMLoadA(bone.LclRotation)));
+		 m_iy.segment<3>(i * 3) = lq.cast<double>();
 	}
 
 }
@@ -107,10 +116,9 @@ DirectX::XMVECTOR StylizedChainIK::EndPosition(const XMFLOAT4A* rotqs)
 	return gt;
 }
 
-std::vector<XMFLOAT4A, XMAllocator> FeatureToRotQ(const Eigen::RowVectorXd& y)
+void AbsoluteLnQuaternionDecode(_Out_cap_(n) DirectX::Quaternion* rots, const Eigen::RowVectorXd& y)
 {
 	int n = y.size() / 3;
-	std::vector<XMFLOAT4A, XMAllocator> rotqs(n);
 	Eigen::Vector4f qs;
 	XMVECTOR q;
 	qs.setZero();
@@ -119,10 +127,10 @@ std::vector<XMFLOAT4A, XMAllocator> FeatureToRotQ(const Eigen::RowVectorXd& y)
 		qs.segment<3>(0) = y.segment<3>(i * 3).cast<float>();
 		q = XMLoadFloat4A(qs.data());
 		q = XMQuaternionExp(q); // revert the log map
-		XMStoreFloat4A(&rotqs[i], q);
+		XMStoreA(rots[i], q);
 	}
 
-	return rotqs;
+	//return rots;
 }
 
 Eigen::Matrix3Xf StylizedChainIK::EndPositionJacobi(const XMFLOAT4A* rotqs)
@@ -190,21 +198,22 @@ double StylizedChainIK::objective(const Eigen::RowVectorXd & x, const Eigen::Row
 {
 	const auto n = m_chain.size();
 
-	auto rotqs = FeatureToRotQ(y);
-	XMVECTOR ep = EndPosition(rotqs.data());
+	(*m_fpDecoder)(m_chainRot.data(), y);
+
+	XMVECTOR ep = EndPosition(reinterpret_cast<XMFLOAT4A*>(m_chainRot.data()));
 	Vector3f epf;
 	XMStoreFloat3(epf.data(), ep);
 
 	double ikdis = (epf.cast<double>() - m_goal).cwiseAbs2().sum() * m_ikWeight;
 
-	double iklimdis = ((m_limy.row(0) - y).cwiseMax(y - m_limy.row(1))).cwiseMax(0).cwiseAbs2().sum() * m_ikLimitWeight;
+	//double iklimdis = ((m_limy.row(0) - y).cwiseMax(y - m_limy.row(1))).cwiseMax(0).cwiseAbs2().sum() * m_ikLimitWeight;
 
 	double markovdis = (y - m_cy).cwiseAbs2().sum() * m_markovWeight;
 
-	double fitlikelihood = (y.array() * m_wy.array() - m_ey.array()).cwiseAbs2().sum() * (0.5 * m_styleWeight / m_segmaX);
+	double fitlikelihood = (y.array()/* * m_wy.array()*/ - m_ey.array()).cwiseAbs2().sum() * (0.5 * m_styleWeight / m_segmaX);
 	//double fitlikelihood = m_gplvm.get_likelihood_xy(x, y) * g_StyleLikelihoodTermWeight;
 
-	return fitlikelihood +ikdis + markovdis + iklimdis;
+	return fitlikelihood + ikdis + markovdis;//+iklimdis;
 }
 
 RowVectorXd StylizedChainIK::objective_derv(const Eigen::RowVectorXd & x, const Eigen::RowVectorXd & y)
@@ -213,30 +222,33 @@ RowVectorXd StylizedChainIK::objective_derv(const Eigen::RowVectorXd & x, const 
 
 	RowVectorXd derv(x.size() + y.size());
 
-	auto rotqs = FeatureToRotQ(y);
+	(*m_fpDecoder)(m_chainRot.data(), y);
 
-	XMVECTOR ep = EndPosition(rotqs.data());
-	auto jacb = EndPositionJacobi(rotqs.data());
+	XMVECTOR ep = EndPosition(reinterpret_cast<XMFLOAT4A*>(m_chainRot.data()));
+	MatrixXd jacb = EndPositionJacobi(reinterpret_cast<XMFLOAT4A*>(m_chainRot.data())).cast<double>();
+
+	m_fpDecoder->EncodeJacobi(jacb);
+
 	Vector3f epf;
 	Vector3f goalf = m_goal.cast<float>();
 	XMStoreFloat3(epf.data(), ep);
 
 	// IK term derv
-	RowVectorXf ikderv = (2.0 * m_ikWeight * (epf - goalf)).transpose() * jacb;
+	RowVectorXd ikderv = (2.0 * m_ikWeight * (epf - goalf)).transpose().cast<double>() * jacb;
 
-	RowVectorXd iklimderv = 2.0 * m_ikLimitWeight * ((y - m_limy.row(0)).cwiseMin(0) + (y - m_limy.row(1)).cwiseMax(0));
+	//RowVectorXd iklimderv = 2.0 * m_ikLimitWeight * ((y - m_limy.row(0)).cwiseMin(0) + (y - m_limy.row(1)).cwiseMax(0));
 
 	// Markov progation derv
 	RowVectorXd markovderv = 2.0 * m_markovWeight * (y - m_cy);
 	//markovderv.setZero();
 
-	RowVectorXd animLkderv = (y.array() * m_wy.array() - m_ey.array()) * (m_styleWeight / m_segmaX ); //m_gplvm.get_likelihood_xy_derivative(x, y) * g_StyleLikelihoodTermWeight;
+	RowVectorXd animLkderv = (y.array()/* * m_wy.array()*/ - m_ey.array()) * (m_styleWeight / m_segmaX ); //m_gplvm.get_likelihood_xy_derivative(x, y) * g_StyleLikelihoodTermWeight;
 
 
-	derv.segment(x.size(), y.size()) = ikderv.cast<double>() + markovderv;// + gplvm.likelihood_xy_derv;
+	derv.segment(x.size(), y.size()) = ikderv + markovderv;// + gplvm.likelihood_xy_derv;
 	derv.segment(0, x.size()).setZero();
 	derv.segment(x.size(), y.size()) += animLkderv;
-	derv.segment(x.size(), y.size()) += iklimderv;
+	//derv.segment(x.size(), y.size()) += iklimderv;
 
 	return derv;//derv
 }
@@ -256,6 +268,7 @@ void StylizedChainIK::Reset()
 	m_styleWeight = g_StyleLikelihoodTermWeight;
 	m_ikLimitWeight = g_IKLimitWeight;
 	m_baseRot = Quaternion::Identity;
+	m_fpDecoder.reset(new AbsoluteLnQuaternionDecoder());
 }
 
 void DecomposeOptimizeVector(const dlib_vector & v, RowVectorXd & x, RowVectorXd & y)
@@ -302,7 +315,7 @@ const Eigen::RowVectorXd & Causality::StylizedChainIK::Apply(const Eigen::Vector
 
 	RowVectorXd hint_y;
 	double lk = m_gplvm.get_expectation_and_likelihood(x, &hint_y);
-	hint_y.array() /= m_wy.array();
+	//hint_y.array() /= m_wy.array();
 	lk = exp(-lk);
 
 	if (!m_cValiad)
@@ -410,4 +423,66 @@ float Causality::GaussianProcessIK::Predict(const Eigen::RowVectorXf & X, Eigen:
 	auto lh = m_gpr.get_expectation_from_observation(x, m_obsrCov,&y);
 	Y = y.cast<float>();
 	return lh;
+}
+
+Causality::RelativeLnQuaternionDecoder::~RelativeLnQuaternionDecoder()
+{
+}
+
+inline void Causality::RelativeLnQuaternionDecoder::Decode(DirectX::Quaternion * rots, const Eigen::RowVectorXd & y)
+{
+	int n = y.size() / 3;
+	Eigen::Vector4f qs;
+	XMVECTOR q, qb;
+	qs.setZero();
+	for (int i = 0; i < n; i++)
+	{
+		qs.segment<3>(0) = y.segment<3>(i * 3).cast<float>();
+		q = XMLoadFloat4A(qs.data());
+		q = XMQuaternionExp(q); // revert the log map
+		qb = XMLoadA(bases[i]);
+		q = XMQuaternionMultiply(qb, q);
+		XMStoreA(rots[i], q);
+	}
+}
+
+inline void Causality::RelativeLnQuaternionDecoder::operator()(DirectX::Quaternion * rots, const Eigen::RowVectorXd & y)
+{
+	Decode(rots, y);
+}
+
+Causality::RelativeLnQuaternionPcaDecoder::~RelativeLnQuaternionPcaDecoder()
+{
+
+}
+
+inline void Causality::RelativeLnQuaternionPcaDecoder::DecodePcad(DirectX::Quaternion * rots, const Eigen::RowVectorXd & y)
+{
+	Eigen::RowVectorXd dy = y * invPcaY + meanY;
+	Decode(rots, dy);
+}
+
+void Causality::RelativeLnQuaternionPcaDecoder::EncodeJacobi(Eigen::MatrixXd & jacb)
+{
+	jacb *= pcaY;
+}
+
+inline void Causality::RelativeLnQuaternionPcaDecoder::operator()(DirectX::Quaternion * rots, const Eigen::RowVectorXd & y)
+{
+	DecodePcad(rots, y);
+}
+
+Causality::IFeatureDecoder::~IFeatureDecoder()
+{
+}
+
+void Causality::IFeatureDecoder::EncodeJacobi(Eigen::MatrixXd & jacb)
+{
+}
+
+Causality::AbsoluteLnQuaternionDecoder::~AbsoluteLnQuaternionDecoder() {}
+
+inline void Causality::AbsoluteLnQuaternionDecoder::operator()(DirectX::Quaternion * rots, const Eigen::RowVectorXd & y)
+{
+	AbsoluteLnQuaternionDecode(rots, y);
 }

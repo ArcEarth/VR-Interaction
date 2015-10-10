@@ -334,7 +334,7 @@ const JointSemanticProperty & Joint::AssignSemanticsBasedOnName()
 	using namespace std;
 	using namespace boost::adaptors;
 
-	auto words = words_from_string(Name());
+	auto words = words_from_string(Name);
 	for (auto& word : words)
 	{
 		string word_str;
@@ -348,7 +348,7 @@ const JointSemanticProperty & Joint::AssignSemanticsBasedOnName()
 			c = std::tolower(c);
 		}
 
-		this->Semantic += name2semantic[word_str];
+		this->Semantic |= name2semantic[word_str];
 	}
 	return this->Semantic;
 }

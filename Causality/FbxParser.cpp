@@ -464,7 +464,7 @@ namespace Causality
 
 				auto revamped = m_Armature->joints() | adaptors::transformed([this](const Joint& joint) -> fbx::FbxNode* {
 					return *std::find_if(m_BoneNodes.begin(), m_BoneNodes.end(),
-						[&joint](auto pNode) {return pNode->GetName() == joint.Name();});
+						[&joint](auto pNode) ->bool {return pNode->GetName() == joint.Name;});
 				});
 
 				std::copy(revamped.begin(), revamped.end(), temp.begin());

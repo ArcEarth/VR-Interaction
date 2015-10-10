@@ -46,4 +46,12 @@ namespace Causality
 	float				g_MarkovTermWeight = 1.0f;
 	float				g_StyleLikelihoodTermWeight = 1.0f;
 	float				g_IKLimitWeight = 1.0;
+
+	float				g_DebugArmatureThinkness = 0.005f;
+
+	bool				g_DebugView = false;
+
+	bool				g_ShowCharacterMesh = true;
+
+	bool				g_MirrowInputX = false;
 }

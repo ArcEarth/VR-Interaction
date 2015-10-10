@@ -239,10 +239,17 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AnimationAnalyzer.cpp" />
+    <ClCompile Include="AnimationAnalyzer.cpp">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
     <ClCompile Include="ArmatureTransforms.cpp" />
     <ClCompile Include="CameraObject.cpp" />
-    <ClCompile Include="CharacterController.cpp" />
+    <ClCompile Include="CharacterController.cpp">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
     <ClCompile Include="CharacterObject.cpp" />
     <ClCompile Include="GaussianProcess.cpp" />
     <ClCompile Include="LightObject.cpp" />
@@ -318,6 +325,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="PlayerProxy.h" />
     <ClInclude Include="CameraObject.h" />
     <ClInclude Include="ProbalisticModel.h" />
+    <ClInclude Include="QudraticAssignment.h" />
     <ClInclude Include="RegressionModel.h" />
     <ClInclude Include="RenderContext.h" />
     <ClInclude Include="EigenExtension.h" />
