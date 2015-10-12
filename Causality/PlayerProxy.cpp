@@ -14,7 +14,7 @@
 #include "QudraticAssignment.h"
 
 #include "ArmatureBlock.h"
-#include "AnimationAnalyzer.h"
+#include "ClipMetric.h"
 
 #include "PlayerProxy.h"
 #include "Scene.h"
@@ -210,7 +210,11 @@ PlayerProxy::PlayerProxy()
 	m_mapTaskOnGoing(false),
 	m_EnableOverShoulderCam(false)
 {
-	m_pPlayerFeatureExtrator.reset(new AllJoints<InputFeature>(g_EnableInputFeatureLocalization));
+	if (g_EnableInputFeatureLocalization)
+		m_pPlayerFeatureExtrator.reset(new Localize<AllJoints<InputFeature>>());
+	else
+		m_pPlayerFeatureExtrator.reset(new AllJoints<InputFeature>());
+
 	m_pKinect = Devices::KinectSensor::GetForCurrentView();
 	m_pPlayerArmature = &m_pKinect->Armature();
 	if (g_PlayeerBlocks.empty())
@@ -597,11 +601,11 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	int nT = max(5, (int)(N / T));
 
 	//! Smooth the input 
-	laplacian_smooth(X, 0.8f, FilterStregth);
+	laplacianSmooth(X, 0.8f, FilterStregth);
 
 	Xs.resize(CLIP_FRAME_COUNT * 2, X.cols());
 	// colwise
-	cublic_bezier_resample(Xs,
+	cublicBezierResample(Xs,
 		X.middleRows(N - (2 * T + CropMargin + 1), T * 2),
 		CLIP_FRAME_COUNT * 2,
 		Eigen::CloseLoop);
@@ -627,7 +631,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	// Spatial Traits
 	Eigen::MatrixXf Xsp(3, Ju);
 	//vector<vector<MatrixXf>> RawXs(Ts);
-	vector<vector<MeanThinQr<MatrixXf>>> QrXs(Ts);
+	vector<vector<QrStore<MatrixXf>>> QrXs(Ts);
 	vector<Pca<MatrixXf>> PcaXs(Ju);
 	for (size_t i = 0; i < Ts; i++)
 	{
@@ -1171,7 +1175,7 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 		&g_PlayeerBlocks,
 		&controller.Character().Behavier().ArmatureParts());
 
-	controller.SetBinding(pBinding);
+	controller.SetBinding(unique_ptr<RBFInterpolationTransform>(pBinding));
 
 	auto& clipinfos = controller.GetClipInfos();
 	auto maxClip = std::max_element(BEGIN_TO_END(clipinfos), [](const ClipInfo& lhs, const ClipInfo &rhs) {
@@ -1313,7 +1317,6 @@ void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipInfo&
 						C(j, i, sj, si) = 0;
 						C(i, j, sj, si) = 0;
 						C(j, i, si, sj) = 0;
-
 					}
 
 				}

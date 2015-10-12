@@ -41,35 +41,63 @@ namespace Eigen {
 		}
 	};
 
-	template <class Derived, int _Rows = Dynamic, int _Cols = Dynamic>
-	auto reshape(const DenseBase<Derived>& X, int rows = _Rows, int cols = _Cols)
+	template <class Derived>
+	Eigen::Map<Matrix<typename Derived::Scalar, -1, -1, Derived::Options>>
+		reshape(PlainObjectBase<Derived>& X, int rows = -1, int cols = -1)
 	{
+		if (rows == -1)
+			rows = X.size() / cols;
+		else if (cols == -1)
+			cols = X.size() / rows;
+
 		assert(X.size() == cols * rows);
-		return Matrix<Derived::Scalar, _Cols, _Cols, Derived::Options>::Map(X.data(), rows, cols);
+		return Matrix<typename Derived::Scalar, -1, -1, Derived::Options>::Map(X.data(), rows, cols);
+	}
+
+	template <class Derived>
+	Eigen::Map<const Matrix<typename Derived::Scalar, -1, -1, Derived::Options>>
+		reshape(const PlainObjectBase<Derived>& X, int rows = -1, int cols = -1)
+	{
+		if (rows == -1)
+			rows = X.size() / cols;
+		else if (cols == -1)
+			cols = X.size() / rows;
+
+		assert(X.size() == cols * rows);
+		return Matrix<typename Derived::Scalar, -1, -1, Derived::Options>::Map(X.data(), rows, cols);
 	}
 
 	// Apply Laplacian smooth in Row-wise sense (Each row is treated as a data point)
 	template <class InputDerived>
-	inline void laplacian_smooth(DenseBase<InputDerived> &X, double alpha = 0.8, unsigned IterationTimes = 2)
+	inline void laplacianSmooth(DenseBase<InputDerived> &X, double alpha = 0.8, unsigned IterationTimes = 2, SplineBoundryType boundryType = OpenLoop)
 	{
 		auto N = X.rows();
 		using traits = internal::traits<InputDerived>;
 		using Scalar = typename traits::Scalar;
 		typedef Array<Scalar, traits::RowsAtCompileTime, traits::ColsAtCompileTime> MatrixType;
 		typedef Map<MatrixType, 0, Stride<Dynamic, Dynamic>> MapType;
-		MatrixType Cache (X.rows(),X.cols());
+		MatrixType Cache(X.rows(), X.cols());
 
-		MapType MapX(&X(0,0), X.rows(), X.cols(), Stride<Dynamic, Dynamic>(X.outerStride(), X.innerStride()));
+		MapType MapX(&X(0, 0), X.rows(), X.cols(), Stride<Dynamic, Dynamic>(X.outerStride(), X.innerStride()));
 		MapType MapCache(Cache.data(), Cache.rows(), Cache.cols(), Stride<Dynamic, Dynamic>(Cache.outerStride(), Cache.innerStride()));
-		MapType BUFF[2] = {MapX,MapCache};
+		MapType BUFF[2] = { MapX,MapCache };
 
 		unsigned int src = 0, dst = 1;
+		Scalar invAlpha = Scalar(0.5 * (1 - alpha));
 		for (unsigned int k = 0; k < IterationTimes; k++)
 		{
-			BUFF[dst].row(0) = BUFF[src].row(0);
-			BUFF[dst].row(N - 1) = BUFF[src].row(N - 1);
+			if (boundryType == SplineBoundryType::OpenLoop)
+			{
+				BUFF[dst].row(0) = BUFF[src].row(0);
+				BUFF[dst].row(N - 1) = BUFF[src].row(N - 1);
+			}
+			else // if (boundryType == SplineBoundryType::CloseLoop)
+			{
+				BUFF[dst].row(0) = alpha * BUFF[src].row(0) + invAlpha * (BUFF[src].row(N -1 ) + BUFF[src].row(1));
+				BUFF[dst].row(N-1) = alpha * BUFF[src].row(0) + invAlpha * (BUFF[src].row(N - 2) + BUFF[src].row(0));
+			}
 
-			BUFF[dst].middleRows(1, N - 2) = alpha * BUFF[dst].middleRows(1, N - 2) + (Scalar(0.5) * (1 - alpha) * (BUFF[src].topRows(N-2) + BUFF[src].bottomRows(N-2)));
+			BUFF[dst].middleRows(1, N - 2) = alpha * BUFF[dst].middleRows(1, N - 2) + (invAlpha * (BUFF[src].topRows(N - 2) + BUFF[src].bottomRows(N - 2)));
 			dst = !dst;
 			src = !src;
 		}
@@ -83,15 +111,15 @@ namespace Eigen {
 	// Cyclic boundary condition
 	// Cublic-Bezier interpolation
 	// Uniform sample assumption
-	template <class OutputDerived, class InputDerived> inline 
-	void cublic_bezier_resample(DenseBase<OutputDerived> &Xr, const DenseBase<InputDerived> &X, DenseIndex nr, SplineBoundryType boundryType = OpenLoop)
+	template <class OutputDerived, class InputDerived> inline
+		void cublicBezierResample(DenseBase<OutputDerived> &Xr, const DenseBase<InputDerived> &X, DenseIndex nr, SplineBoundryType boundryType = OpenLoop)
 	{
 		using xtype = DenseBase<InputDerived>;
 		using traits = internal::traits<InputDerived>;
 		typedef typename traits::Scalar Scalar;
 		using namespace std;
-		typedef Stride<traits::OuterStrideAtCompileTime, traits::InnerStrideAtCompileTime == Dynamic? Dynamic : traits::InnerStrideAtCompileTime * 2> StrideType;
-		typedef Matrix<Scalar, Dynamic , traits::ColsAtCompileTime> StrideMatrixType;
+		typedef Stride<traits::OuterStrideAtCompileTime, traits::InnerStrideAtCompileTime == Dynamic ? Dynamic : traits::InnerStrideAtCompileTime * 2> StrideType;
+		typedef Matrix<Scalar, Dynamic, traits::ColsAtCompileTime> StrideMatrixType;
 		typedef Matrix<Scalar, 1, traits::ColsAtCompileTime> VectorType;
 		typedef Matrix< typename internal::traits<InputDerived>::Scalar, Dynamic, traits::ColsAtCompileTime> ResampledMatrixType;
 		typedef Geometrics::Bezier::BezierClipping<Matrix<Scalar, 1, traits::ColsAtCompileTime>, 3U> BezeirType;
@@ -107,7 +135,7 @@ namespace Eigen {
 		}
 		else
 		{
-			T.row(0) -= X.row(N-1);
+			T.row(0) -= X.row(N - 1);
 			T.row(N - 1) = X.row(0);
 		}
 		T.bottomRows(N - 1) -= X.middleRows(0, N - 1);
@@ -129,7 +157,7 @@ namespace Eigen {
 		float ti;
 		int Segs = N;
 		if (boundryType == OpenLoop)
-			ti = (float)(N - 1) / (float)(nr-1);
+			ti = (float)(N - 1) / (float)(nr - 1);
 		else
 			ti = (float)(N) / (float)(nr);
 
@@ -257,7 +285,7 @@ namespace Eigen {
 	}
 
 	template <class Derived> inline
-		typename internal::traits<Derived>::Scalar 
+		typename internal::traits<Derived>::Scalar
 		matching_cost(const DenseBase<Derived> &cost, const std::vector<DenseIndex>& matching)
 	{
 		typedef typename internal::traits<Derived>::Scalar Scalar;
@@ -271,7 +299,7 @@ namespace Eigen {
 		return sum;
 	}
 
-	template <class Derived> inline 
+	template <class Derived> inline
 		std::vector<DenseIndex>
 		max_weight_bipartite_matching(const DenseBase<Derived> &cost_)
 	{
@@ -285,8 +313,8 @@ namespace Eigen {
 		if (cost_.size() == 0)
 			return std::vector<index_type>();
 
-		size_t n = std::max(cost_.rows(),cost_.cols());
-		Matrix<scalar_type, -1, -1> cost(n,n);
+		size_t n = std::max(cost_.rows(), cost_.cols());
+		Matrix<scalar_type, -1, -1> cost(n, n);
 		cost.setZero();
 		cost.block(0, 0, cost_.rows(), cost_.cols()) = cost_;
 
@@ -315,7 +343,7 @@ namespace Eigen {
 		// code we will always have: 
 		//     for all valid x and y:  lx[x] + ly[y] >= cost(x,y)
 		// Intialize flexable labels
-		auto Lx = VectorXf::Map(lx.data(), n) ;
+		auto Lx = VectorXf::Map(lx.data(), n);
 		Lx = cost.rowwise().maxCoeff();
 		ly.resize(n);
 		ly.assign(n, 0);

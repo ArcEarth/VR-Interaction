@@ -264,7 +264,7 @@ namespace Causality
 	//	Eigen::RowVectorXf  Ecj;	// Jointwise Energy
 	//	Eigen::RowVectorXf	Ecb;	// Blockwise Energy
 	//	Eigen::Matrix<float,3,-1> Ysp;	// Spatial traits
-	//	std::vector<Eigen::MeanThinQr<Eigen::MatrixXf>> QrYs;
+	//	std::vector<Eigen::QrStore<Eigen::MatrixXf>> QrYs;
 	//	std::vector<Eigen::Pca<Eigen::MatrixXf>> PcaYs;
 	//	std::vector<Eigen::MatrixXf> Ys;
 	};

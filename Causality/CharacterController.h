@@ -8,6 +8,7 @@ namespace Causality
 	class ClipInfo;
 	class CharacterObject;
 	class InputClipInfo;
+	class CharacterClipinfo;
 
 	class CharacterController
 	{
@@ -17,7 +18,7 @@ namespace Causality
 
 		const ArmatureTransform& Binding() const;
 		ArmatureTransform& Binding();
-		void SetBinding(ArmatureTransform* pBinding);
+		void SetBinding(std::unique_ptr<ArmatureTransform> &&upBinding);
 
 		const CharacterObject& Character() const;
 		CharacterObject& Character();
@@ -54,9 +55,12 @@ namespace Causality
 
 		std::vector<ClipInfo>& GetClipInfos() { return m_Clipinfos; }
 
+		CharacterClipinfo& GetCharacterClipinfo(const std::string& name);
+
 	public:
 		CharacterObject*										m_pCharacter;
 		std::vector<ClipInfo>									m_Clipinfos;
+		std::vector<CharacterClipinfo>							m_CClipinfos;
 		std::unique_ptr<ArmatureTransform>						m_pBinding;
 		std::unique_ptr<ArmatureTransform>						m_pSelfBinding;
 		//std::unique_ptr<IArmaturePartFeature>					m_pFeatureExtrator;

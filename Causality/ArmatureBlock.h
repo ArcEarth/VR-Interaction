@@ -9,224 +9,25 @@
 namespace Causality
 {
 	class ArmaturePart;
+	class ShrinkedArmature;
 
 	class IArmaturePartFeature abstract
 	{
 	public:
-		//using Eigen::RowVectorXf = Eigen::RowVectorXf;
+		virtual ~IArmaturePartFeature();
 
-		//virtual int GetDimension(_In_ const ArmaturePart& block) = 0;
+		virtual int GetDimension(_In_ const ArmaturePart& block) = 0;
+
+		//void Get(_In_ const ShrinkedArmature& parts, _Out_ Eigen::RowVectorXf& feature, _In_ const BoneHiracheryFrame& frame);
+
+		//virtual void Get(_In_ const ArmaturePart& block, _Out_ Eigen::RowVectorXf& feature, _In_ const BoneHiracheryFrame& frame);
 
 		virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) = 0;
 
-		virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time)
-		{
-			return Get(block, frame);
-		}
-
 		virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) = 0;
+
+		virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time);
 	};
-
-	namespace ArmaturePartFeatures
-	{
-		template <class BoneFeatureType>
-		class AllJoints : public IArmaturePartFeature
-		{
-		public:
-			bool EnableLocalization;
-
-			AllJoints(bool enableLocalzation = false)
-				: EnableLocalization(enableLocalzation)
-			{}
-
-			AllJoints(const AllJoints&) = default;
-
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
-			{
-				Eigen::RowVectorXf Y(block.Joints.size() * BoneFeatureType::Dimension);
-				for (size_t j = 0; j < block.Joints.size(); j++)
-				{
-					auto jid = block.Joints[j]->ID;
-					auto Yj = Y.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
-					BoneFeatureType::Get(Yj, frame[jid]);
-				}
-
-				if (block.parent() != nullptr && EnableLocalization)
-				{
-					Eigen::RowVectorXf reference(BoneFeatureType::Dimension);
-					BoneFeatureType::Get(reference, frame[block.parent()->Joints.back()->ID]);
-					Y -= reference.replicate(1, block.Joints.size());
-				}
-				return Y;
-			}
-
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
-			{
-				for (size_t j = 0; j < block.Joints.size(); j++)
-				{
-					auto jid = block.Joints[j]->ID;
-					auto Xj = feature.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
-					BoneFeatureType::Set(frame[jid], Xj);
-				}
-			}
-		};
-
-		// Joints feature with pca
-		template <class PartFeatureType>
-		class Pcad : public PartFeatureType
-		{
-		public:
-			std::vector<Eigen::MatrixXf> m_pcas;
-			std::vector<Eigen::RowVectorXf> m_means;
-
-			int GetDimension(_In_ const ArmaturePart& block)
-			{
-				auto bid = block.Index;
-				return m_pcas[bid].cols();
-			}
-
-			Eigen::MatrixXf& GetPca(int bid) { return m_pcas[bid]; }
-			const Eigen::MatrixXf& GetPca(int bid) const { return m_pcas[bid]; }
-
-			Eigen::RowVectorXf& GetMean(int bid) { return m_means[bid]; }
-			const Eigen::RowVectorXf& GetMean(int bid) const { return m_means[bid]; }
-			void InitPcas(int size) {
-				m_pcas.resize(size);
-				m_means.resize(size);
-			}
-			template <class DerivedPca,class DerivedMean>
-			void SetPca(int bid, const Eigen::MatrixBase<DerivedPca>& principleComponents, const Eigen::MatrixBase<DerivedMean>& mean) {
-				assert(!m_means.empty() && "Call InitPcas before SetPca");
-				m_means[bid] = mean;
-				m_pcas[bid] = principleComponents;
-			}
-
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
-			{
-				auto X = PartFeatureType::Get(block, frame);
-
-				auto bid = block.Index;
-				return (X - m_means[bid]) * m_pcas[bid];
-			}
-
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
-			{
-				auto bid = block.Index;
-				auto X = (feature * m_pcas[bid].transpose() + m_means[bid]).eval();
-				PartFeatureType::Set(block, frame, X);
-			}
-		};
-
-		template <class BoneFeatureType>
-		class EndEffector : public IArmaturePartFeature
-		{
-		public:
-			bool EnableLocalization;
-			float FrameTime;
-
-			EndEffector(bool enableLocalzation = false, float frameTime = 1.0f)
-				: EnableLocalization(enableLocalzation), FrameTime(frameTime)
-			{}
-
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
-			{
-				Eigen::RowVectorXf Y(BoneFeatureType::Dimension);
-
-				BoneFeatureType::Get(Y, frame[block.Joints.back()->ID]);
-
-				if (block.parent() != nullptr && EnableLocalization)
-				{
-					Eigen::RowVectorXf reference(BoneFeatureType::Dimension);
-					BoneFeatureType::Get(reference, frame[block.parent()->Joints.back()->ID]);
-					Y -= reference;
-				}
-				return Y;
-			}
-
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) override
-			{
-				static const auto Dim = BoneFeatureType::Dimension;
-				Eigen::RowVectorXf Y(Dim * 2);
-
-				Y.segment<Dim>(0) = Get(block, frame);
-				Y.segment<Dim>(Dim) = Y.segment<Dim>(0);
-				Y.segment<Dim>(Dim) -= Get(block, last_frame);
-				Y.segment<Dim>(Dim) /= frame_time;
-
-				return Y;
-			}
-
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
-			{
-				assert(!"End Effector only block feature could not be use to set frame");
-			}
-		};
-
-		template <class PartFeatureType>
-		class RelativeDeformation : public PartFeatureType
-		{
-		public:
-			using PartFeatureType::PartFeatureType;
-
-			void SetDefaultFrame(const BoneHiracheryFrame& frame)
-			{
-				m_rframe = m_rlframe = m_dframe = m_dframeInv = frame;
-				for (auto& bone : m_dframeInv)
-				{
-					bone.LocalTransform().Inverse();
-					bone.GlobalTransform().Inverse();
-				}
-			}
-
-		protected:
-			void GetRelativeFrame(const Causality::ArmaturePart & block, const Causality::BoneHiracheryFrame & frame)
-			{
-				for (auto joint : block.Joints)
-				{
-					auto i = joint->ID;
-					auto& lt = m_rframe[i];
-					lt.LocalTransform() = m_dframeInv[i].LocalTransform();
-					lt.LocalTransform() *= frame[i].LocalTransform();
-
-					lt.GlobalTransform() = m_dframeInv[i].LocalTransform();
-					lt.GlobalTransform() *= frame[i].GlobalTransform();
-				}
-			}
-
-			void SetAbsoluteFrame(const Causality::ArmaturePart & block, _Out_ Causality::BoneHiracheryFrame & frame)
-			{
-				for (auto joint : block.Joints)
-				{
-					auto i = joint->ID;
-					auto& lt = frame[i];
-					lt.LocalTransform() = m_dframe[i].LocalTransform();
-					lt.LocalTransform() *= m_rframe[i].LocalTransform();
-				}
-			}
-
-		public:
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
-			{
-				GetRelativeFrame(block, frame);
-				return PartFeatureType::Get(block, m_rframe);
-			}
-
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) override
-			{
-				GetRelativeFrame(block, frame);
-				return PartFeatureType::Get(block, m_rframe);
-			}
-
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
-			{
-				PartFeatureType::Set(block, m_rframe, feature);
-				SetAbsoluteFrame(block, frame);
-			}
-
-		private:
-			BoneHiracheryFrame m_dframe, m_dframeInv, m_rframe, m_rlframe;
-		};
-	}
 
 	// A Kinematic Block is a one-chain in the kinmatic tree, with additional anyalaze information 
 	// usually constructed from shrinking the kinmatic tree
@@ -400,4 +201,256 @@ namespace Causality
 	//		FeatureType::Set(frame[jid], Xj);
 	//	}
 	//}
+
+	namespace ArmaturePartFeatures
+	{
+		template <class BoneFeatureType>
+		class AllJoints : public IArmaturePartFeature
+		{
+		public:
+
+			AllJoints() = default;
+
+			AllJoints(const AllJoints&) = default;
+
+			int GetDimension(_In_ const ArmaturePart& block)
+			{
+				return block.Joints.size() * BoneFeatureType::Dimension;
+			}
+
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			{
+				Eigen::RowVectorXf Y(block.Joints.size() * BoneFeatureType::Dimension);
+				for (size_t j = 0; j < block.Joints.size(); j++)
+				{
+					auto jid = block.Joints[j]->ID;
+					auto Yj = Y.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
+					BoneFeatureType::Get(Yj, frame[jid]);
+				}
+
+				return Y;
+			}
+
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			{
+				for (size_t j = 0; j < block.Joints.size(); j++)
+				{
+					auto jid = block.Joints[j]->ID;
+					auto Xj = feature.segment<BoneFeatureType::Dimension>(j * BoneFeatureType::Dimension);
+					BoneFeatureType::Set(frame[jid], Xj);
+				}
+			}
+		};
+
+		// Joints feature with pca
+		template <class PartFeatureType>
+		class Pcad : public PartFeatureType
+		{
+		public:
+			static_assert(std::is_base_of<IArmaturePartFeature, PartFeatureType>::value, "PartFeatureType must be derived type of IArmaturePartFeature");
+
+			std::vector<Eigen::MatrixXf> m_pcas;
+			std::vector<Eigen::RowVectorXf> m_means;
+
+			int GetDimension(_In_ const ArmaturePart& block)
+			{
+				auto bid = block.Index;
+				return m_pcas[bid].cols();
+			}
+
+			Eigen::MatrixXf& GetPca(int bid) { return m_pcas[bid]; }
+			const Eigen::MatrixXf& GetPca(int bid) const { return m_pcas[bid]; }
+
+			Eigen::RowVectorXf& GetMean(int bid) { return m_means[bid]; }
+			const Eigen::RowVectorXf& GetMean(int bid) const { return m_means[bid]; }
+			void InitPcas(int size) {
+				m_pcas.resize(size);
+				m_means.resize(size);
+			}
+			template <class DerivedPca, class DerivedMean>
+			void SetPca(int bid, const Eigen::MatrixBase<DerivedPca>& principleComponents, const Eigen::MatrixBase<DerivedMean>& mean) {
+				assert(!m_means.empty() && "Call InitPcas before SetPca");
+				m_means[bid] = mean;
+				m_pcas[bid] = principleComponents;
+			}
+
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			{
+				auto X = PartFeatureType::Get(block, frame);
+
+				auto bid = block.Index;
+				return (X - m_means[bid]) * m_pcas[bid];
+			}
+
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			{
+				auto bid = block.Index;
+				auto X = (feature * m_pcas[bid].transpose() + m_means[bid]).eval();
+				PartFeatureType::Set(block, frame, X);
+			}
+		};
+
+		template <class PartFeatureType>
+		class WithVelocity : public PartFeatureType
+		{
+		public:
+			static_assert(std::is_base_of<IArmaturePartFeature, PartFeatureType>::value, "PartFeatureType must be derived type of IArmaturePartFeature");
+
+			int GetDimension(_In_ const ArmaturePart& block)
+			{
+				return PartFeatureType::GetDimension(block) * 2;
+			}
+
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) override
+			{
+				int dim = PartFeatureType::GetDimension(block);
+				Eigen::RowVectorXf Y(dim * 2);
+
+				Y.segment(0, dim) = PartFeatureType::Get(block, frame);
+				Y.segment(dim, dim) = Y.segment(0, dim);
+				Y.segment(dim, dim) -= PartFeatureType::Get(block, last_frame);
+				Y.segment(dim, dim) /= frame_time;
+
+				return Y;
+			}
+
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			{
+				int dim = PartFeatureType::GetDimension(block);
+				assert(feature.cols() == dim * 2);
+				PartFeatureType::Set(block, frame, feature.segment(0, dim));
+			}
+		};
+
+		template <class PartFeatureType>
+		class Localize : public PartFeatureType
+		{
+		public:
+			static_assert(std::is_base_of<IArmaturePartFeature, PartFeatureType>::value, "PartFeatureType must be derived type of IArmaturePartFeature");
+
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			{
+				Eigen::RowVectorXf Y = PartFeatureType::Get(block, frame);
+
+				if (block.parent() != nullptr)
+				{
+					Eigen::RowVectorXf ref = PartFeatureType::Get(*block.parent(), frame);
+					Y -= ref;
+				}
+				return Y;
+			}
+
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			{
+				assert(!"Localize could not be use to set frame");
+			}
+		};
+
+
+		template <class BoneFeatureType>
+		class EndEffector : public IArmaturePartFeature
+		{
+		public:
+			EndEffector() = default;
+
+			int GetDimension(_In_ const ArmaturePart& block)
+			{
+				return BoneFeatureType::Dimension;
+			}
+
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			{
+				Eigen::RowVectorXf Y(BoneFeatureType::Dimension);
+
+				BoneFeatureType::Get(Y, frame[block.Joints.back()->ID]);
+
+				return Y;
+			}
+
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			{
+				assert(!"End Effector only block feature could not be use to set frame");
+			}
+		};
+
+		template <class PartFeatureType>
+		class RelativeDeformation : public PartFeatureType
+		{
+		public:
+			static_assert(std::is_base_of<IArmaturePartFeature, PartFeatureType>::value, "PartFeatureType must be derived type of IArmaturePartFeature");
+
+			using PartFeatureType::PartFeatureType;
+
+			void SetDefaultFrame(const BoneHiracheryFrame& frame)
+			{
+				m_rframe = m_rlframe = m_dframe = m_dframeInv = frame;
+				for (auto& bone : m_dframeInv)
+				{
+					bone.LocalTransform().Inverse();
+					bone.GlobalTransform().Inverse();
+				}
+			}
+
+		protected:
+			void GetRelativeFrame(const Causality::ArmaturePart & block, const Causality::BoneHiracheryFrame & frame)
+			{
+				for (auto joint : block.Joints)
+				{
+					auto i = joint->ID;
+					auto& lt = m_rframe[i];
+					lt.LocalTransform() = m_dframeInv[i].LocalTransform();
+					lt.LocalTransform() *= frame[i].LocalTransform();
+
+					lt.GlobalTransform() = m_dframeInv[i].LocalTransform();
+					lt.GlobalTransform() *= frame[i].GlobalTransform();
+				}
+			}
+
+			void SetAbsoluteFrame(const Causality::ArmaturePart & block, _Out_ Causality::BoneHiracheryFrame & frame)
+			{
+				for (auto joint : block.Joints)
+				{
+					auto i = joint->ID;
+					auto& lt = frame[i];
+					lt.LocalTransform() = m_dframe[i].LocalTransform();
+					lt.LocalTransform() *= m_rframe[i].LocalTransform();
+				}
+			}
+
+		public:
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			{
+				GetRelativeFrame(block, frame);
+				return PartFeatureType::Get(block, m_rframe);
+			}
+
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) override
+			{
+				GetRelativeFrame(block, frame);
+				return PartFeatureType::Get(block, m_rframe);
+			}
+
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			{
+				PartFeatureType::Set(block, m_rframe, feature);
+				SetAbsoluteFrame(block, frame);
+			}
+
+		private:
+			BoneHiracheryFrame m_dframe, m_dframeInv, m_rframe, m_rlframe;
+		};
+	}
+
+
+	//inline void IArmaturePartFeature::Get(_In_ const ShrinkedArmature& parts, _Out_ Eigen::RowVectorXf& feature, _In_ const BoneHiracheryFrame& frame)
+	//{
+	//	int stIdx = 0;
+	//	for (int i = 0; i < parts.size(); i++)
+	//	{
+	//		int dim = GetDimension(*parts[i]);
+	//		feature.segment(stIdx, dim) = Get(*parts[i], frame);
+	//		stIdx += dim;
+	//	}
+	//}
+
 }

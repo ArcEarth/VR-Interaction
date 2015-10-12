@@ -93,9 +93,6 @@
     <ClCompile Include="CharacterBehavier.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="AnimationAnalyzer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SkinningModelFromFbx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -121,6 +118,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="StylizedIK.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ClipMetric.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -224,9 +224,6 @@
     <ClInclude Include="Common\CompositeFlag.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="AnimationAnalyzer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="CharacterObject.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -276,6 +273,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="QudraticAssignment.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ClipMetric.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

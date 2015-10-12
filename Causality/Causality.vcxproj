@@ -239,7 +239,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AnimationAnalyzer.cpp">
+    <ClCompile Include="ClipMetric.cpp">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/bigobj %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/bigobj %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
@@ -287,7 +287,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="StylizedIK.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AnimationAnalyzer.h" />
+    <ClInclude Include="ClipMetric.h" />
     <ClInclude Include="Animations.h" />
     <ClInclude Include="ArmatureBlock.h" />
     <ClInclude Include="ArmatureFeature.h" />

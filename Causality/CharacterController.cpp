@@ -2,7 +2,7 @@
 #include <tinyxml2.h>
 #include "CharacterController.h"
 #include "CharacterObject.h"
-#include "AnimationAnalyzer.h"
+#include "ClipMetric.h"
 #include <boost\format.hpp>
 #include "PcaCcaMap.h"
 #include "Settings.h"
@@ -28,6 +28,12 @@ const static Eigen::IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n
 
 #define BEGIN_TO_END(range) range.begin(), range.end()
 
+#ifdef _DEBUG
+#define DEBUGOUT(x) std::cout << #x << " = " << x << std::endl
+#else
+#define DEBUGOUT(x)
+#endif
+
 bool ReadGprParamXML(tinyxml2::XMLElement * blockSetting, Eigen::Vector3d &param);
 void InitGprXML(tinyxml2::XMLElement * settings, const std::string & blockName, gaussian_process_regression& gpr);
 
@@ -48,13 +54,13 @@ public:
 	const ShrinkedArmature * pBlockArmature;
 	std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> * pHandles;
 
-	mutable EndEffector<InputFeature>	inputExtractor;
+	mutable Localize<EndEffector<InputFeature>>	inputExtractor;
 	mutable AllJointRltLclRotLnQuatPcad outputExtractor;
 
 	mutable MatrixXd m_Xs;
 
 	SelfLocalMotionTransform(ShrinkedArmature * pBlocks)
-		: pBlockArmature(pBlocks), inputExtractor(true), pHandles(nullptr)
+		: pBlockArmature(pBlocks), inputExtractor(), pHandles(nullptr)
 	{
 		pSource = &pBlockArmature->Armature();
 		pTarget = &pBlockArmature->Armature();
@@ -273,9 +279,9 @@ const ArmatureTransform & CharacterController::Binding() const { return *m_pBind
 
 ArmatureTransform & CharacterController::Binding() { return *m_pBinding; }
 
-void CharacterController::SetBinding(ArmatureTransform * pBinding)
+void CharacterController::SetBinding(std::unique_ptr<ArmatureTransform> &&pBinding)
 {
-	m_pBinding.reset(pBinding);
+	m_pBinding = move(pBinding);
 }
 
 const CharacterObject & CharacterController::Character() const { return *m_pCharacter; }
@@ -330,6 +336,21 @@ ClipInfo & CharacterController::GetClipInfo(const string & name) {
 		return clip.ClipName == name;
 	});
 	if (itr != m_Clipinfos.end())
+	{
+		return *itr;
+	}
+	else
+	{
+		throw std::out_of_range("given name doesn't exist");
+	}
+}
+
+CharacterClipinfo& CharacterController::GetCharacterClipinfo(const std::string& name)
+{
+	auto itr = std::find_if(BEGIN_TO_END(m_CClipinfos), [&name](const CharacterClipinfo& clip) {
+		return clip.ClipName() == name;
+	});
+	if (itr != m_CClipinfos.end())
 	{
 		return *itr;
 	}
@@ -886,7 +907,7 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 			pBinding->pInputExtractor.reset(new EndEffectorGblPosQuadratized());
 			//pBinding->pInputExtractor.reset(new EndEffector<InputFeature>(true));
-			pBinding->pOutputExtractor.reset(new AllJoints<CharacterFeature>(false));
+			pBinding->pOutputExtractor.reset(new AllJoints<CharacterFeature>());
 
 			//auto pBinding = make_unique<RBFInterpolationTransform>(&m_Clipinfos,&blocks, &blocks);
 
@@ -1015,20 +1036,40 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T> &vec)
 
 extern Matrix3f FindIsometricTransformXY(const Eigen::MatrixXf& X, const Eigen::MatrixXf& Y);
 
-void FindPartToPartTransform(_Inout_ P2PTransform& transform, const InputClipInfo& iclip, const ClipInfo& cclip, size_t phi)
+Eigen::PermutationMatrix<Dynamic> upRotatePermutation(int rows, int rotation)
+{
+	Eigen::PermutationMatrix<Dynamic> perm(rows);
+
+	for (int i = 0; i < rotation; i++)
+	{
+		perm.indices()[i] = rows - rotation + i;
+	}
+
+	for (int i = 0; i < rows - rotation; i++)
+	{
+		perm.indices()[rotation + i] = i;
+	}
+	return perm;
+}
+
+void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& iclip, const ClipFacade& cclip, size_t phi)
 {
 	int ju = transform.SrcIdx;
 	int jc = transform.DstIdx;
 	int T = CLIP_FRAME_COUNT;
-	auto rawX = iclip.GetPartPvSequence(ju, phi, T);
-	auto rawY = cclip.GetPartPvSequence(jc);
+
+	// Up-rotate X to phi
+	auto rotX = upRotatePermutation(T, phi);
+	auto rawX = (rotX * iclip.GetPartSequence(ju)).eval();
+
+	auto rawY = cclip.GetPartSequence(jc);
+
+	assert(rawX.rows() == rawY.rows() && rawY.rows() == T);
 
 	if (g_PartAssignmentTransform == PAT_CCA)
 	{
-		//? Again!!! PvQrs vs Qrs
-
 		PcaCcaMap map;
-		map.CreateFrom(rawX, rawY, iclip.PcaCutoff, cclip.PcaCutoff);
+		map.CreateFrom(rawX, rawY, iclip.PcaCutoff(), cclip.PcaCutoff());
 		transform.HomoMatrix = map.TransformMatrix();
 	}
 	else if (g_PartAssignmentTransform == PAT_OneAxisRotation)
@@ -1078,10 +1119,70 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const InputClipInf
 	}
 }
 
-std::unique_ptr<ArmatureTransform> CreateControlTransform(CharacterController & controller, const InputClipInfo& iclip)
+void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipFacade& iclip, const ClipFacade& cclip)
 {
-	assert(controller.IsReady && iclip.IsReady);
+	C.setZero();
 
+	auto& Juk = iclip.ActiveParts();
+	auto& Jck = cclip.ActiveParts();
+	//const std::vector<int> &Juk, const std::vector<int> &Jck, const Eigen::Array<Eigen::RowVector3f, -1, -1> &XpMean, const Eigen::Array<Eigen::Matrix3f, -1, -1> &XpCov, const Causality::CharacterController & controller);
+
+	for (int i = 0; i < Juk.size(); i++)
+	{
+		for (int j = i + 1; j < Juk.size(); j++)
+		{
+			for (int si = 0; si < Jck.size(); si++)
+			{
+				for (int sj = si + 1; sj < Jck.size(); sj++)
+				{
+					auto xu = iclip.GetPartsDifferenceMean(Juk[i], Juk[j]);
+					auto xc = cclip.GetPartsDifferenceMean(Jck[si], Jck[sj]);
+					auto cu = iclip.GetPartsDifferenceCovarience(Juk[i], Juk[j]);
+					auto cc = cclip.GetPartsDifferenceCovarience(Jck[si], Jck[sj]);
+
+					float val = 0;
+					if (xu.norm() > 0.1f && xc.norm() > 0.1f)
+					{
+
+						//auto edim = (-cu.diagonal() - cc.diagonal()).array().exp().eval();
+						RowVector3f _x = xu.array() * xc.array();
+						_x /= xu.norm() * xc.norm();
+						val = (_x.array() /** edim.transpose()*/).sum();
+						C(i, j, si, sj) = val;
+						C(j, i, sj, si) = val;
+						C(i, j, sj, si) = -val;
+						C(j, i, si, sj) = -val;
+					}
+					else if (xu.norm() + xc.norm() > 0.1f)
+					{
+						val = -1.0f;
+						C(i, j, si, sj) = val;
+						C(j, i, sj, si) = val;
+						C(i, j, sj, si) = val;
+						C(j, i, si, sj) = val;
+					}
+					else
+					{
+						C(i, j, si, sj) = 0;
+						C(j, i, sj, si) = 0;
+						C(i, j, sj, si) = 0;
+						C(j, i, si, sj) = 0;
+					}
+
+				}
+			}
+		}
+	}
+
+	DEBUGOUT(C);
+}
+
+
+void CreateControlTransform(CharacterController & controller, const ClipFacade& iclip)
+{
+	assert(controller.IsReady && iclip.IsReady());
+
+	const size_t pvDim = iclip.GetAllPartDimension();
 	// alias setup
 	auto& character = controller.Character();
 	auto& charaParts = character.Behavier().ArmatureParts();
@@ -1095,37 +1196,44 @@ std::unique_ptr<ArmatureTransform> CreateControlTransform(CharacterController & 
 	auto& anim = *character.CurrentAction();
 
 
-	int T = iclip.Period;
-	const std::vector<int> &Juk = iclip.ActiveParts;
-	int Ti = iclip.TemproalSampleInterval;
+	int T = iclip.ClipFrames(); //? /2 Maybe?
+	const std::vector<int> &Juk = iclip.ActiveParts();
+	int Ti = 1;
 	int Ts = T / Ti;
 
 	RowVectorXf Eub;
-	selectCols(iclip.Eb, Juk, &Eub);
+	selectCols(iclip.GetAllPartsEnergy(), Juk, &Eub);
 
 	// Player Perceptive vector mean normalized
-	MatrixXf Xpvnm;
-	selectCols(iclip.GetAllPartsPvMean(), Juk, &Xpvnm);
+	MatrixXf Xpvnm(pvDim, Juk.size());
+
+	selectCols(reshape(iclip.GetAllPartsMean(), pvDim, -1), Juk, &Xpvnm);
 	Xpvnm.colwise().normalize();
 
-	//for (auto& anim : clips)	//? <= 5 animation per character
+	std::vector<unique_ptr<PartilizedTransform>> clipTransforms(clips.size());
+	Eigen::VectorXf clipTransformScores(clips.size());
+
+	for (auto& anim : clips)	//? <= 5 animation per character
 	{
-		auto& cclip = controller.GetClipInfo(anim.Name);
+		auto& cclip = controller.GetCharacterClipinfo(anim.Name);
+		auto& cpv = cclip.PvFacade;
 
 		// Independent Active blocks only
-		const auto &Jck = cclip.ActiveParts;
+		const auto &Jck = cpv.ActiveParts();
 
 		// Ecb, Energy of Character Active Parts
-		RowVectorXf Ecb;
+		RowVectorXf Ecb(Jck.size());
 		// Ecb3, Directional Energy of Character Active Parts
-		MatrixXf Ecb3;
+		MatrixXf Ecb3(pvDim, Jck.size());
 
-		selectCols(cclip.Eb, Jck, &Ecb);
-		selectCols(cclip.Eb3, Jck, &Ecb3);
+		selectCols(cpv.GetAllPartsEnergy(), Jck, &Ecb);
+		//selectCols(cclip.Eb3, Jck, &Ecb3);
+		for (size_t i = 0; i < Jck.size(); i++)
+			Ecb3.col(i) = cpv.GetPartDimEnergy(Jck[i]);
 
 		// Character Perceptive vector mean normalized
-		MatrixXf Cpvnm;
-		selectCols(cclip.GetAllPartsPvMean(), Jck, &Cpvnm);
+		MatrixXf Cpvnm(pvDim, Jck.size());
+		selectCols(reshape(cpv.GetAllPartsMean(), pvDim, -1), Jck, &Cpvnm);
 		Cpvnm.colwise().normalize();
 
 		// Memery allocation
@@ -1149,7 +1257,7 @@ std::unique_ptr<ArmatureTransform> CreateControlTransform(CharacterController & 
 
 		Tensor<float, 4> C((int)Juk.size(), (int)Juk.size(), (int)Jck.size(), (int)Jck.size());
 
-		CaculateQuadraticDistanceMatrix(C, iclip, cclip);
+		CaculateQuadraticDistanceMatrix(C, iclip, cpv);
 
 		vector<DenseIndex> matching(A.cols());
 
@@ -1203,7 +1311,7 @@ std::unique_ptr<ArmatureTransform> CreateControlTransform(CharacterController & 
 			{
 				if (ju >= 0 && jc >= 0)
 				{
-					cca.computeFromQr(iclip.GetPartPvPcaQrView(ju, phi, T), cclip.GetPartPvPcaQr(jc), false);
+					cca.computeFromQr(iclip.GetPartPcadQrView(ju), cpv.GetPartPcadQrView(jc), false, phi);
 					corrlations(phi/Ti,i) = cca.correlaltions().minCoeff();
 				}
 				else
@@ -1216,9 +1324,9 @@ std::unique_ptr<ArmatureTransform> CreateControlTransform(CharacterController & 
 		float sumCor = corrlations.rowwise().sum().maxCoeff(&maxPhi);
 		maxPhi *= Ti;
 
-		cclip.Score = maxScore;
-		cclip.Matching = matching;
-		cclip.Phi = maxPhi;
+		//cclip.Score = maxScore;
+		//cclip.Matching = matching;
+		//cclip.Phi = maxPhi;
 
 		// Transform pair for active parts
 		std::vector<P2PTransform> partTransforms;
@@ -1233,25 +1341,24 @@ std::unique_ptr<ArmatureTransform> CreateControlTransform(CharacterController & 
 				partTra.DstIdx = jc;
 				partTra.SrcIdx = ju;
 
-				FindPartToPartTransform(partTra, iclip, cclip, maxPhi);
+				FindPartToPartTransform(partTra, iclip, cpv, maxPhi);
 			}
 		}
 
 		auto pBinding = new PartilizedTransform(&userParts, &charaParts);
 		pBinding->ActiveParts = move(partTransforms);
-		cclip.pLocalBinding.reset(pBinding);
+
+		clipTransformScores[clipTransforms.size()] = maxScore;
+		clipTransforms.emplace_back(std::move(pBinding));
 
 	} // Animation clip scope
 
-	auto pBinding = new PartilizedTransform(&userParts,&charaParts);
+	DenseIndex maxClipIdx = 0;
+	clipTransformScores.maxCoeff(&maxClipIdx);
 
-	controller.SetBinding(pBinding);
-
-	auto maxClip = std::max_element(BEGIN_TO_END(clipinfos), [](const ClipInfo& lhs, const ClipInfo &rhs) {
-		return (lhs.Score < rhs.Score);
-	});
-
-	return move(maxClip->pLocalBinding);
+	auto pBinding = clipTransforms[maxClipIdx].get();
+	controller.SetBinding(move(clipTransforms[maxClipIdx]));
+	
 
 	//if (g_EnableDependentControl)
 	//{

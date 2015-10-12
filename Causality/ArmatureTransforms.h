@@ -34,6 +34,7 @@ namespace Causality
 		{
 		public:
 			EndEffectorGblPosQuadratized();
+			int GetDimension(_In_ const ArmaturePart& block) override;
 
 			typedef BoneFeatures::QuadraticGblPosFeature BoneFeatureType;
 			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override;
@@ -94,6 +95,12 @@ namespace Causality
 
 			typedef BoneFeatures::GblPosFeature InputFeatureType;
 			typedef CharacterFeature CharacterFeatureType;
+
+			virtual int GetDimension(_In_ const ArmaturePart& block) override
+			{
+				return QuadraticInput ? 9 : 3;
+			}
+
 			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override;
 
 			// Inherited via IArmaturePartFeature

@@ -35,6 +35,11 @@ EndEffectorGblPosQuadratized::EndEffectorGblPosQuadratized()
 {
 }
 
+int EndEffectorGblPosQuadratized::GetDimension(const ArmaturePart& block)
+{
+	return 9;
+}
+
 Eigen::RowVectorXf EndEffectorGblPosQuadratized::Get(const ArmaturePart & block, const BoneHiracheryFrame & frame)
 {
 	using namespace Eigen;
@@ -297,7 +302,7 @@ RBFInterpolationTransform::RBFInterpolationTransform(gsl::array_view<ClipInfo> c
 	pOF->segma = 30;
 	pOutputExtractor.reset(pOF);
 
-	pDependentBlockFeature.reset(new AllJoints<CharacterFeature>(false));
+	pDependentBlockFeature.reset(new AllJoints<CharacterFeature>());
 }
 
 RBFInterpolationTransform::RBFInterpolationTransform(gsl::array_view<ClipInfo> clips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock)

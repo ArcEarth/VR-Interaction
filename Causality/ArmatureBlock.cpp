@@ -53,6 +53,15 @@ ShrinkedArmature::ShrinkedArmature(const IArmature & armature)
 	SetArmature(armature);
 }
 
+IArmaturePartFeature::~IArmaturePartFeature()
+{
+}
+
+Eigen::RowVectorXf IArmaturePartFeature::Get(const ArmaturePart& block, const BoneHiracheryFrame& frame, const BoneHiracheryFrame& last_frame, float frame_time)
+{
+	return Get(block, frame);
+}
+
 ArmaturePart* Causality::ShrinkChainToBlock(const Joint* pJoint)
 {
 	if (pJoint == nullptr || pJoint->is_null()) return nullptr;

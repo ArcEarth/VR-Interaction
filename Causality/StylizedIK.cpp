@@ -20,7 +20,7 @@ dlib_vector ComposeOptimizeVector(const DenseBase<DerivedX> &x, const DenseBase<
 void DecomposeOptimizeVector(const dlib_vector& v, RowVectorXd &x, RowVectorXd &y);
 
 template<class DerivedX, class DerivedY>
-inline dlib_vector StylizedChainIK::ComposeOptimizeVector(const DenseBase<DerivedX>& x, const DenseBase<DerivedY>& y)
+inline dlib_vector ComposeOptimizeVector(const DenseBase<DerivedX>& x, const DenseBase<DerivedY>& y)
 {
 	dlib_vector v(x.size() + y.size());
 	RowVectorXd::Map(v.begin(), x.size()) = x;

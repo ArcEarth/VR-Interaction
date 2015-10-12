@@ -84,7 +84,7 @@ namespace Causality
 	{
 		using namespace Eigen;
 
-		Eigen::MeanThinQr<Eigen::MatrixXf> qrX(X), qrY(Y);
+		Eigen::QrStore<Eigen::MatrixXf> qrX(X), qrY(Y);
 		Eigen::Cca<float> cca;
 		cca.computeFromQr(qrX, qrY, true);
 

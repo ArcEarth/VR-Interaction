@@ -196,7 +196,7 @@ int main(int argc, wchar_t** argv)
 	//Eigen::VectorXf v(6);
 	//v << 0, 1, 3, 7, 3, 1;
 	//cout << " X = " << v.transpose() << endl;;
-	//laplacian_smooth(v);
+	//laplacianSmooth(v);
 	//cout << " Y = " << v.transpose() << endl;;
 
 	// CSV file
@@ -216,12 +216,12 @@ int main(int argc, wchar_t** argv)
 	read_csv(Y, Yfile);
 
 	// downsample to 30 frame/clip
-	//X.topRows(30) = cublic_bezier_resample(X.topRows(90), 30);
-	//X.middleRows(30, 30) = cublic_bezier_resample(X.middleRows(90, 90), 30);
-	//X.middleRows(60, 30) = cublic_bezier_resample(X.middleRows(180, 90), 30);
-	//Y.topRows(30) = cublic_bezier_resample(Y.topRows(90), 30);
-	//Y.middleRows(30, 30) = cublic_bezier_resample(Y.middleRows(90, 90), 30);
-	//Y.middleRows(60, 30) = cublic_bezier_resample(Y.middleRows(180, 90), 30);
+	//X.topRows(30) = cublicBezierResample(X.topRows(90), 30);
+	//X.middleRows(30, 30) = cublicBezierResample(X.middleRows(90, 90), 30);
+	//X.middleRows(60, 30) = cublicBezierResample(X.middleRows(180, 90), 30);
+	//Y.topRows(30) = cublicBezierResample(Y.topRows(90), 30);
+	//Y.middleRows(30, 30) = cublicBezierResample(Y.middleRows(90, 90), 30);
+	//Y.middleRows(60, 30) = cublicBezierResample(Y.middleRows(180, 90), 30);
 	//X.conservativeResize(90, NoChange);
 	//Y.conservativeResize(90, NoChange);
 
@@ -318,7 +318,7 @@ int main(int argc, wchar_t** argv)
 	system("PAUSE");
 	exit(0);
 
-	Eigen::MeanThinQr<Eigen::MatrixXf> qrX(X), qrY(Y);
+	Eigen::QrStore<Eigen::MatrixXf> qrX(X), qrY(Y);
 	cout << "QR(X) : " << endl;
 	cout << "Qx = \n" << qrX.matrixQ() << endl;
 	cout << "Rx = \n" << qrX.m_R << endl;
