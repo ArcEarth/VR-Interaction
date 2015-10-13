@@ -210,7 +210,7 @@ double StylizedChainIK::objective(const Eigen::RowVectorXd & x, const Eigen::Row
 
 	double markovdis = (y - m_cy).cwiseAbs2().sum() * m_markovWeight;
 
-	double fitlikelihood = (y.array()/* * m_wy.array()*/ - m_ey.array()).cwiseAbs2().sum() * (0.5 * m_styleWeight / m_segmaX);
+	double fitlikelihood = (y.array() * m_wy.array() - m_ey.array()).cwiseAbs2().sum() * (0.5 * m_styleWeight / m_segmaX);
 	//double fitlikelihood = m_gplvm.get_likelihood_xy(x, y) * g_StyleLikelihoodTermWeight;
 
 	return fitlikelihood + ikdis + markovdis;//+iklimdis;
@@ -242,7 +242,7 @@ RowVectorXd StylizedChainIK::objective_derv(const Eigen::RowVectorXd & x, const 
 	RowVectorXd markovderv = 2.0 * m_markovWeight * (y - m_cy);
 	//markovderv.setZero();
 
-	RowVectorXd animLkderv = (y.array()/* * m_wy.array()*/ - m_ey.array()) * (m_styleWeight / m_segmaX ); //m_gplvm.get_likelihood_xy_derivative(x, y) * g_StyleLikelihoodTermWeight;
+	RowVectorXd animLkderv = (y.array() * m_wy.array() - m_ey.array()) * (m_styleWeight / m_segmaX ); //m_gplvm.get_likelihood_xy_derivative(x, y) * g_StyleLikelihoodTermWeight;
 
 
 	derv.segment(x.size(), y.size()) = ikderv + markovderv;// + gplvm.likelihood_xy_derv;
@@ -315,7 +315,7 @@ const Eigen::RowVectorXd & Causality::StylizedChainIK::Apply(const Eigen::Vector
 
 	RowVectorXd hint_y;
 	double lk = m_gplvm.get_expectation_and_likelihood(x, &hint_y);
-	//hint_y.array() /= m_wy.array();
+	hint_y.array() /= m_wy.array();
 	lk = exp(-lk);
 
 	if (!m_cValiad)

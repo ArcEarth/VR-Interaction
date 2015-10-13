@@ -346,6 +346,24 @@ namespace Causality
 			}
 		};
 
+		template <class BoneFeatureType>
+		class Localize<AllJoints<BoneFeatureType>> : public AllJoints<BoneFeatureType>
+		{
+			typedef AllJoints<BoneFeatureType> PartFeatureType;
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			{
+				Eigen::RowVectorXf Y = PartFeatureType::Get(block, frame);
+
+				if (block.parent() != nullptr)
+				{
+					Eigen::RowVectorXf ref(BoneFeatureType::Dimension);
+					BoneFeatureType::Get(ref, frame[block.parent()->Joints.back()->ID]);
+					Y -= ref.replicate(1, block.Joints.size());
+				}
+				return Y;
+			}
+		};
+
 
 		template <class BoneFeatureType>
 		class EndEffector : public IArmaturePartFeature

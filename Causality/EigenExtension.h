@@ -97,7 +97,7 @@ namespace Eigen {
 				BUFF[dst].row(N-1) = alpha * BUFF[src].row(0) + invAlpha * (BUFF[src].row(N - 2) + BUFF[src].row(0));
 			}
 
-			BUFF[dst].middleRows(1, N - 2) = alpha * BUFF[dst].middleRows(1, N - 2) + (invAlpha * (BUFF[src].topRows(N - 2) + BUFF[src].bottomRows(N - 2)));
+			BUFF[dst].middleRows(1, N - 2) = alpha * BUFF[src].middleRows(1, N - 2) + invAlpha * ((BUFF[src].topRows(N - 2) + BUFF[src].bottomRows(N - 2)));
 			dst = !dst;
 			src = !src;
 		}

@@ -41,6 +41,8 @@ gaussian_process_regression::gaussian_process_regression()
 void gaussian_process_regression::initialize(const Eigen::MatrixXf & _X, const Eigen::MatrixXf & _Y)
 {
 	assert(_X.rows() == _Y.rows() && _X.rows() > 0 && "Observations count agree");
+	assert(!_X.hasNaN());
+
 	N = _X.rows();
 	D = _Y.cols();
 
@@ -214,7 +216,7 @@ gaussian_process_regression::ColVectorType gaussian_process_regression::get_expe
 	}
 
 	ColVectorType cov = (Kx.array() * iKkx.array()).colwise().sum().transpose();
-	cov = (0.5 * D) * (varX - cov.array()).log();
+	cov = (0.5 * D) * (varX - cov.array()).abs().log();
 
 
 	return cov;
@@ -316,8 +318,8 @@ double gaussian_process_regression::likelihood(const ParamType & param)
 	update_kernal(param);
 
 	//it's log detK
-	double lndetK = ldltK.vectorD().array().log().sum();
-	double L = 0.5* D *lndetK + param.array().log().sum();
+	double lndetK = ldltK.vectorD().array().abs().log().sum();
+	double L = 0.5* D *lndetK + param.array().abs().log().sum();
 
 	// L += tr(Y' * iK * Y) = tr(iK * Y * Y') = tr(iK * YY') = sum(iK .* YY') = sum (Y .* iKY)
 
@@ -400,6 +402,8 @@ double gaussian_process_regression::optimze_parameters(const ParamType & initial
 double gaussian_process_regression::optimze_parameters()
 {
 	auto varX = sqrt((X.cwiseAbs2().sum() / (N - 1)));
+	assert(!isnan(varX));
+
 	ParamType param;
 
 	std::vector<double> alphas = { 0.1, /*0.5 , 0.8,*/ 1.0, /*1.2,*/ 1.5/*, 10.0*/ };

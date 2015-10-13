@@ -26,7 +26,7 @@ using namespace Concurrency;
 using namespace Eigen;
 
 ClipInfo::ClipInfo()
-:pBlockArmature(nullptr), PcaCutoff(0.01f), IsReady(false), ActiveEnergyThreshold(0.35f)
+:pBlockArmature(nullptr), PcaCutoff(0.01f), IsReady(false), ActiveEnergyThreshold(g_CharacterActiveEnergy) , SubactiveEnergyThreshold(g_CharacterSubactiveEnergy)
 {
 }
 

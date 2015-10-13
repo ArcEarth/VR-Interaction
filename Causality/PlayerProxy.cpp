@@ -148,7 +148,8 @@ void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::
 			vs + block->AccumulatedJointCount * InputFeature::Dimension,
 			block->Joints.size() * InputFeature::Dimension);
 
-		vsi = m_pPlayerFeatureExtrator->Get(*block, frame);
+		auto y = m_pPlayerFeatureExtrator->Get(*block, frame);
+		vsi = y;
 	}
 }
 
@@ -519,7 +520,7 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	static const size_t FilterStregth = 4U; //Applies 4 iterates of Laplicaian filter
 	static const size_t CropMargin = 1 * SAMPLE_RATE; // Ignore most recent 1 sec
 	static const float Cutoff_Correlation = 0.5f;
-	time_seconds InputDuration(8.5333333);
+	time_seconds InputDuration(256.0 / 30.0);
 
 	auto& player = *m_playerSelector;
 	static ofstream flog;
@@ -661,10 +662,10 @@ int PlayerProxy::MapCharacterByLatestMotion()
 
 		auto& pca = PcaXs[i];
 
-		pca.compute(Xk.rightCols<3>(), true);
+		pca.compute(Xk.rightCols(3), true);
 		auto d = pca.reducedRank(g_PlayerPcaCutoff);//pca.reducedRank(PcaCutoff);
 		auto coords = pca.coordinates(d);
-		iclip.Xbs[i] = Xk.rightCols<3>();
+		iclip.Xbs[i] = Xk.rightCols(3);
 
 		for (DenseIndex phi = 0; phi < T; phi += Ti)	//? <= 50 , we should optimze phase shifting search from rough to fine
 		{
@@ -962,9 +963,9 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 
 			vector<DenseIndex> matching(A.cols());
 
-			float score = max_quadratic_assignment(A, C, matching);
+			//float score = max_quadratic_assignment(A, C, matching);
 
-			//float score = max_cols_assignment(A, Scor, matching);
+			float score = max_cols_assignment(A, Scor, matching);
 
 			mScores[phidx] = score;
 			mMatchings[phidx] = matching;
@@ -1046,11 +1047,12 @@ void CreateControlBinding(CharacterController & controller, const InputClipInfo&
 
 			cclip.pLocalBinding.reset(pBinding);
 
-			for (int i = 0; i < Juk.size(); ++i)
-				//for (int j = 0; j < Jck.size(); ++j)
+			//for (int i = 0; i < Juk.size(); ++i)
+			for (int j = 0; j < Jck.size(); ++j)
 			{
-				//DenseIndex Jx = maxMatching[j], Jy = j;
-				DenseIndex Jx = i, Jy = maxMatching[i];
+				DenseIndex Jx = -1, Jy = -1;
+				Jx = maxMatching[j], Jy = j;
+				//Jx = i, Jy = maxMatching[i];
 				if (Jy == -1 || Jy >= Jc || Jx == -1 || Jx >= Jc) continue;
 				Jx = Juk[Jx]; Jy = Jck[Jy];
 

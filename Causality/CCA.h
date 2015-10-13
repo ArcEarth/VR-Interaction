@@ -69,7 +69,7 @@ namespace Eigen {
 		}
 
 		template <class DerivedX>
-		explicit QrStore(const DenseBase<DerivedX> X, bool zeroMean = true, bool thinQR = true)
+		explicit QrStore(const DenseBase<DerivedX>& X, bool zeroMean = true, bool thinQR = true)
 		{
 			compute(X);
 		}
@@ -86,7 +86,7 @@ namespace Eigen {
 			m_cols = X.cols();
 			m_rows = X.rows();
 
-			MatrixXf mX = X;
+			MatrixType mX = X;
 			if (zeroMean)
 			{
 				m_mean = X.colwise().mean().eval();

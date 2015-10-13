@@ -8,7 +8,7 @@
     <RecordLogRootDir>Log</RecordLogRootDir>
 
     <!--When this switch is on, sub-active parts will be animated based on active parts-->
-    <EnableDependentControl>0</EnableDependentControl>
+    <EnableDependentControl>1</EnableDependentControl>
 
     <!--When This switch is on, active body parts beside direct matched will be controlled by a cca of direct matched parts-->
     <EnableActiveDependentControl>1</EnableActiveDependentControl>
@@ -43,7 +43,7 @@
     <CharacterModelParameterFile>CharacterAnalayze\{0}.param.xml</CharacterModelParameterFile>
     <CharacterPcaCutoff>0.004</CharacterPcaCutoff>
     <CharacterActiveEnergy>0.40</CharacterActiveEnergy>
-    <CharacterSubactiveEnergy>0.04</CharacterSubactiveEnergy>
+    <CharacterSubactiveEnergy>0.06</CharacterSubactiveEnergy>
 
     <enviroment>
       <gravity>0,-0.1,0</gravity>
@@ -66,7 +66,7 @@
 
 
     <mesh name="cube_mesh" src="cube.obj"></mesh>
-    <!--<mesh name="pinetree_mesh" src="Pine_tree.fbx" material="{pinetree_mat}"></mesh>
+    <mesh name="pinetree_mesh" src="Pine_tree.fbx" material="{pinetree_mat}"></mesh>
     <mesh name="Rock_01_a" src="Rock_01_a.fbx" material="{environment_solid_mat}"></mesh>
     <mesh name="Rock_01_b" src="Rock_01_b.fbx" material="{environment_solid_mat}"></mesh>
     <mesh name="Bush_01_a" src="Bush_01_a.fbx" material="{environment_cutoff_mat}"></mesh>
@@ -88,7 +88,7 @@
     <mesh name="watchtower_main" src="Watchtower_Main.fbx" material="{watchtower_mat}"></mesh>
     <mesh name="watchtower_entrance" src="Watchtower_Entrance.fbx" material="{watchtower_mat}"></mesh>
     <mesh name="watchtower_flag" src="Watchtower_Flag_Pole.fbx" material="{watchtower_mat}"></mesh>
-    <mesh name="watchtower_window" src="Watchtower_Window.fbx" material="{watchtower_mat}"></mesh>-->
+    <mesh name="watchtower_window" src="Watchtower_Window.fbx" material="{watchtower_mat}"></mesh>
 
     <mesh name="spider_mesh" src="spider.fbx" material="{spider_material}"></mesh>
     <mesh name="horse_mesh" src="Horse.fbx" material="{horse_material}" ></mesh>
@@ -146,11 +146,11 @@
         </creature>
         <action name="idle" src="Horse_Idle.fbx"/>
 
-        <!--<creature name="spider" position="1,0,0" scale="0.00125" action="walk" mesh="{spider_mesh}">
+        <creature name="spider" position="1,0,0" scale="0.00125" action="walk" mesh="{spider_mesh}">
           <creature.behavier>
             <behavier name="spider_behavier" src="spider.fbx"></behavier>
           </creature.behavier>
-        </creature>-->
+        </creature>
 
         <!--<creature name="allosaurus" position="0,0,-1" scale ="0.01" action="idle" mesh="{allosaurus_mesh}">
           <creature.behavier>

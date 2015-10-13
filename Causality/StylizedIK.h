@@ -100,7 +100,6 @@ namespace Causality
 		void SetIKWeight(double weight);
 		void SetMarkovWeight(double weight);
 		void SetBaseRotation(const Quaternion& q);
-		void SetYWeights(const Eigen::RowVectorXd &wy);
 		void SetHint(const Eigen::RowVectorXd &y);
 		template <class Derived>
 		void SetGplvmWeight(const Eigen::DenseBase<Derived>& w) { m_wy = w; }

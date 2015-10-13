@@ -14,6 +14,7 @@
 #pragma warning (disable:4554)
 #include <unsupported\Eigen\CXX11\Tensor>
 #include "QudraticAssignment.h"
+#include <ppl.h>
 
 using namespace Causality;
 using namespace std;
@@ -37,6 +38,30 @@ const static Eigen::IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n
 bool ReadGprParamXML(tinyxml2::XMLElement * blockSetting, Eigen::Vector3d &param);
 void InitGprXML(tinyxml2::XMLElement * settings, const std::string & blockName, gaussian_process_regression& gpr);
 
+std::ostream& operator<<(std::ostream& os, const Joint& joint)
+{
+	os << joint.Name;
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Joint* joint)
+{
+	os << joint->Name;
+	return os;
+}
+
+template <class T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T> &vec)
+{
+	cout << '{';
+	for (auto& t : vec)
+	{
+		cout << t << ", ";
+	}
+	cout << "\b}";
+	return os;
+}
+
 void InitializeExtractor(AllJointRltLclRotLnQuatPcad& ft, const ShrinkedArmature& parts)
 {
 	// Init 
@@ -55,7 +80,7 @@ public:
 	std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> * pHandles;
 
 	mutable Localize<EndEffector<InputFeature>>	inputExtractor;
-	mutable AllJointRltLclRotLnQuatPcad outputExtractor;
+	mutable AllJoints<CharacterFeature> outputExtractor;
 
 	mutable MatrixXd m_Xs;
 
@@ -66,7 +91,7 @@ public:
 		pTarget = &pBlockArmature->Armature();
 		m_Xs.resize(pBlockArmature->size(), g_PvDimension);
 
-		InitializeExtractor(outputExtractor, *pBlockArmature);
+		//InitializeExtractor(outputExtractor, *pBlockArmature);
 	}
 
 	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
@@ -526,6 +551,9 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 			Eb /= globalEnergyMax;
 			clipinfo.ActiveEnergyThreshold = g_CharacterActiveEnergy;
 			cout << Eb << endl;
+
+			clipinfo.ActiveParts.clear();
+			clipinfo.SubactiveParts.clear();
 			for (int i = 0; i < Eb.size(); i++)
 			{
 				if (Eb[i] > clipinfo.ActiveEnergyThreshold)
@@ -547,25 +575,30 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 		vector<ArmaturePart*> activeBlocks;
 		vector<ArmaturePart*> subActiveBlocks;
-		//auto activeBlocks = blocks | adaptors::filtered([](auto pBlock) {return pBlock->ActiveActionCount > 0});
-		//auto subActiveBlocks = blocks | adaptors::filtered([](auto pBlock) {return pBlock->ActiveActionCount == 0});
 
 		// for all inactive blocks, try to sythesis their sutle local motion based on action blocks
 		for (auto pBlock : blocks)
 		{
-			if (pBlock->ActiveActionCount == 0)
+			if (pBlock->ActiveActionCount > 0)
+				activeBlocks.push_back(pBlock);
+			else if (pBlock->SubActiveActionCount > 0)
 				subActiveBlocks.push_back(pBlock);
 			else
-				activeBlocks.push_back(pBlock);
+			{
+				pBlock->PdCca.Jx = pBlock->PdCca.Jy = -1;
+				pBlock->PvDriveScore = -1;
+			}
+
 		}
 
 		Eigen::MatrixXf Xabpv(CLIP_FRAME_COUNT * m_Clipinfos.size(), size(activeBlocks) * 6);
 
-		int bid = 0; // active block index
-					 //concuncy::for_each(activeBlocks.begin(), activeBlocks.end(), [&, this](ArmaturePart* pBlock)
-		for (auto pBlock : activeBlocks)
+		//int bid = 0; // active block index
+		parallel_for(0,(int)activeBlocks.size(),1,[this,&Xabpv, &activeBlocks, settings](int bid)
+		//for (auto pBlock : activeBlocks)
 		{
-			auto& block = *pBlock;
+			//auto& block = *pBlock;
+			auto& block = *activeBlocks[bid];
 
 			auto bj = block.Index;
 			auto maxItr = std::max_element(BEGIN_TO_END(m_Clipinfos), [bj](const auto& lhs, const auto& rhs)
@@ -602,7 +635,6 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 				++cid;
 			}
-			++bid;
 #pragma endregion 
 
 			block.X.resize(block.ActiveActionCount*CLIP_FRAME_COUNT, block.Joints.size() * CharacterFeature::Dimension);
@@ -659,7 +691,8 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 			float corr;
 			if (g_UseStylizedIK)
 			{
-				block.PdGpr.initialize(block.Pd, block.ChainPca.coordinates(block.ChainPcadDim));
+				//block.PdGpr.initialize(block.Pd, block.ChainPca.coordinates(block.ChainPcadDim));
+				block.PdGpr.initialize(block.Pd, block.X * block.Wx.asDiagonal());
 
 				// paramter caching 
 				const auto&	blockName = block.Joints[0]->Name;
@@ -675,11 +708,11 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 				auto &pca = block.ChainPca;
 				auto& wx = block.Wx;
 				auto d = block.ChainPcadDim;
+
 				auto pPcaDecoder = std::make_unique<RelativeLnQuaternionPcaDecoder>();
 				pPcaDecoder->meanY = block.ChainPcaMean.cast<double>();
 				pPcaDecoder->pcaY = block.ChainPcaMatrix.cast<double>();
 				pPcaDecoder->invPcaY = (pca.components(d).transpose() * wx.cwiseInverse().asDiagonal()).cast<double>();
-				//MatrixXf valiad = (pca.components() * pca.components().transpose());
 
 				pPcaDecoder->bases.reserve(block.Joints.size());
 				for (auto joint : block.Joints)
@@ -687,7 +720,8 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 					auto jid = joint->ID;
 					pPcaDecoder->bases.push_back(dframe[jid].LclRotation);
 				}
-				block.PdStyleIk.SetFeatureDecoder(move(pPcaDecoder));
+
+				//block.PdStyleIk.SetFeatureDecoder(move(pPcaDecoder));
 				block.PdStyleIk.Gplvm() = block.PdGpr;
 
 				cout << "Optimal param : " << block.PdGpr.get_parameters().transpose() << endl;
@@ -748,7 +782,8 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 			cout << "\b | [" << corr << ',' << block.PdCca.pcY.cols() << ']';
 			cout << endl;
 
-		}//);
+		}
+		);
 
 		Eigen::MatrixXf Xij(CLIP_FRAME_COUNT, 3);
 		Eigen::RowVectorXf uXij;
@@ -815,18 +850,14 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 		}
 
 		if (g_EnableDependentControl)
-			for (auto pBlock : subActiveBlocks)
+			parallel_for_each(BEGIN_TO_END(subActiveBlocks),[this,&cordsXabpv,settings](ArmaturePart* pBlock)
+			//for (auto pBlock : subActiveBlocks)
 			{
 				auto &block = *pBlock;
 
 				auto subAcitveClipCount = block.SubActiveActionCount;
-				if (subAcitveClipCount == 0)
-				{
-					block.PdCca.Jx = block.PdCca.Jy = -1;
-					block.PvDriveScore = -1;
-					continue;
-				}
-
+				assert(subAcitveClipCount > 0);
+	
 				int cid = 0, cid2 = 0; // Clip index
 				block.X.resize(subAcitveClipCount*CLIP_FRAME_COUNT, block.Joints.size() * CharacterFeature::Dimension);
 				block.Pd.resize(subAcitveClipCount*CLIP_FRAME_COUNT, cordsXabpv.cols());
@@ -854,11 +885,14 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 					block.ChainPcaMatrix = block.ChainPca.components(d);
 				}
 
-				cout << "[Subactive] {";
-				for (auto pJoint : block.Joints)
+				auto bid = block.Index;
+				auto maxItr = std::max_element(m_Clipinfos.begin(), m_Clipinfos.end(), [bid](const auto& lhs, const auto& rhs)
 				{
-					cout << pJoint->Name << ", ";
-				}
+					return lhs.DimX[bid] < rhs.DimX[bid];
+				});
+				auto maxDim = maxItr->DimX[bid];
+
+				cout << "[Subactive] " << block.Joints << " [" << maxDim << "]" << endl;
 
 				float corr = 0.0;
 				if (!g_UseStylizedIK)
@@ -869,7 +903,9 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 				}
 				else
 				{
-					block.PdGpr.initialize(block.Pd, block.ChainPca.coordinates(block.ChainPcadDim));
+					block.PdGpr.initialize(block.Pd, block.X);
+					//block.PdGpr.initialize(block.Pd, block.ChainPca.coordinates(block.ChainPcadDim));
+
 					block.PdCca.uXpca = uXabpv;
 					block.PdCca.pcX = XabpvT;
 					// paramter caching 
@@ -886,18 +922,10 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 					fout.close();
 				}
 
-				auto bid = block.Index;
-				auto maxItr = std::max_element(m_Clipinfos.begin(), m_Clipinfos.end(), [bid](const auto& lhs, const auto& rhs)
-				{
-					return lhs.DimX[bid] < rhs.DimX[bid];
-				});
-				auto maxDim = maxItr->DimX[bid];
-
-				cout << "\b\b} [" << maxDim << "] : " << corr << endl;
-
 				block.PdCca.Jy = block.Index;
 				block.PdCca.Jx = -2;
-			}
+		}
+		);
 
 		cout << "=================================================================" << endl;
 
@@ -1003,36 +1031,6 @@ void InitGprXML(tinyxml2::XMLElement * settings, const std::string & blockName, 
 
 // helper functions
 extern void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipInfo& iclip, const ClipInfo& cclip);
-
-//template <typename IdxType>
-//IdxType experiment_fun(_In_ const gsl::array_view<IdxType>& indices)
-//{
-//	return indices[0];
-//}
-
-std::ostream& operator<<(std::ostream& os, const Joint& joint)
-{
-	os << joint.Name;
-	return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const Joint* joint)
-{
-	os << joint->Name;
-	return os;
-}
-
-template <class T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T> &vec)
-{
-	cout << '{';
-		for (auto& t : vec)
-		{
-			cout << t << ", ";
-		}
-	cout << "\b}";
-	return os;
-}
 
 extern Matrix3f FindIsometricTransformXY(const Eigen::MatrixXf& X, const Eigen::MatrixXf& Y);
 
