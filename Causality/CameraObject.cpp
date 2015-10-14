@@ -328,12 +328,12 @@ Causality::SoftShadowCamera::SoftShadowCamera(ID3D11Device * pDevice, DirectX::R
 	pEffectRender->SetRenderTarget(RenderTarget(pDevice, resolution.x, resolution.y));
 
 	pBlurEffect = std::make_shared<DirectX::GuassianBlurEffect>(pDevice);
-	pEffectRender->SetBackground(Colors::Black.v);
+	pEffectRender->SetBackground(Colors::Transparent.v);
 	pEffectRender->SetPostEffect(pBlurEffect);
 	pBlurEffect->ResizeBufferRespectTo(pDevice, canvas.ColorBuffer());
 	pBlurEffect->SetBlurRadius(2.5f);
 	pBlurEffect->SetMultiplier(0.5f);
-	pBlurEffect->SetOutputMode(BlendWithSource);
+	pBlurEffect->SetOutputMode(AlphaBlendNoDepth);
 	pBlurEffect->SetOutputDepthStencil(canvas.DepthBuffer().DepthStencilView());
 	pEffectRender->SetPostEffect(pBlurEffect);
 	pEffectRender->SetRequestRenderFlags(RenderFlags::BloomEffectSource | RenderFlags::Skinable); // minium requirement

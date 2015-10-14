@@ -262,8 +262,8 @@ namespace
 struct BlurEffectTraits
 {
 	typedef BlurCBufferType ConstantBufferType;
-	static const int PixelShaderCount = 4;
-	static const int PassCount = 5;
+	static const int PixelShaderCount = 5;
+	static const int PassCount = 6;
 };
 
 typedef PostProcessingEffectBase<BlurEffectTraits> BlurEffectBase;
@@ -282,6 +282,7 @@ namespace
 #include "Shaders/Windows/BlurEffect_Blur.inc"
 #include "Shaders/Windows/BlurEffect_Combination.inc"
 #include "Shaders/Windows/BlurEffect_AlphaAsDepthPassBy.inc"
+#include "Shaders/Windows/BlurEffect_PassBy.inc"
 #endif
 }
 
@@ -294,6 +295,7 @@ const ShaderBytecode BlurEffectBase::PixelShaderBytecode[] = {
 	MakeShaderByteCode(BlurEffect_Blur),
 	MakeShaderByteCode(BlurEffect_Combination),
 	MakeShaderByteCode(BlurEffect_AlphaAsDepthPassBy),
+	MakeShaderByteCode(BlurEffect_PassBy),
 };
 
 const int BlurEffectBase::PixelShaderIndices[] = {
@@ -302,8 +304,9 @@ const int BlurEffectBase::PixelShaderIndices[] = {
 	1, // vertical blur
 
 	// Alternate based output mode
-	2, // Combine with original texture
+	2, // Bloom Combine with original texture
 	3, // Alpha as depth pass by
+	4, // Alpha blend output
 };
 
 // Base class for all 'separtable' blur kernal class
@@ -315,7 +318,7 @@ public:
 	PostEffectOutputMode  m_Mode;
 public:
 	BlurEffect(ID3D11Device * pDevice)
-		: BlurEffectBase(pDevice), m_Mode(BlendWithSource), m_DepthStencil(NULL)
+		: BlurEffectBase(pDevice), m_Mode(BloomCombination), m_DepthStencil(NULL)
 	{
 		constants.muiltiplier = 1.0f;
 	}
@@ -396,33 +399,37 @@ public:
 		pContext->PSSetShaderResources(0, 1, pSRVs);
 		RenderPass(pContext, 2);
 
-		// Combination
-		if (m_Mode == BlendWithSource)
+		// Combination to final target
+		m_SwapBuffer.SwapBuffer();
+		pRTVs[0] = target.RenderTargetView();
+		pContext->RSSetViewports(1, &outputviewport);
+		SetupPixelSize(outputviewport.Width, outputviewport.Height);
+		if (m_Mode == BloomCombination)
 		{
-			m_SwapBuffer.SwapBuffer();
 			pSRVs[0] = source.ShaderResourceView();
 			pSRVs[1] = m_SwapBuffer.ShaderResourceView();
 			pRTVs[0] = target.RenderTargetView();
-			pContext->RSSetViewports(1, &outputviewport);
-			SetupPixelSize(outputviewport.Width, outputviewport.Height);
 			pContext->OMSetRenderTargets(1, pRTVs, NULL);
 			pContext->PSSetShaderResources(0, 2, pSRVs);
 			RenderPass(pContext, 3);
-
 			pContext->OMSetDepthStencilState(states.DepthDefault(), -1);
 		}
 		else if (m_Mode == AlphaAsDepth)
 		{
 			pContext->OMSetBlendState(states.AlphaBlend(), g_XMOne.f, -1);
 			pContext->OMSetDepthStencilState(states.DepthDefault(), -1);
-			m_SwapBuffer.SwapBuffer();
 			pSRVs[0] = m_SwapBuffer.ShaderResourceView();
-			pRTVs[0] = target.RenderTargetView();
-			pContext->RSSetViewports(1, &outputviewport);
-			SetupPixelSize(outputviewport.Width, outputviewport.Height);
 			pContext->OMSetRenderTargets(1, pRTVs, m_DepthStencil);
 			pContext->PSSetShaderResources(0, 1, pSRVs);
 			RenderPass(pContext, 4);
+		} else if (m_Mode == AlphaBlendNoDepth)
+		{
+			pContext->OMSetBlendState(states.AlphaBlend(), g_XMOne.f, -1);
+			pContext->OMSetDepthStencilState(states.DepthNone(), -1);
+			pSRVs[0] = m_SwapBuffer.ShaderResourceView();
+			pContext->OMSetRenderTargets(1, pRTVs, NULL);
+			pContext->PSSetShaderResources(0, 1, pSRVs);
+			RenderPass(pContext, 5);
 		}
 
 	}

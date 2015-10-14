@@ -81,6 +81,12 @@ PSOutput AlphaAsDepthPassBy(QuadVertexShaderOutput input)
     return pixel;
 };
 
+float4 PassBy(QuadVertexShaderOutput input) : SV_TARGET
+{
+	float4 color = s0.Sample(linearSampler, input.tex);
+	return color;
+};
+
 float4 Combination(QuadVertexShaderOutput input) : SV_TARGET
 {   
 

@@ -9,8 +9,10 @@ namespace DirectX
 	enum PostEffectOutputMode
 	{
 		Default = 0,
-		BlendWithSource = 1,
+		AlphaBlendNoDepth = 1,
 		AlphaAsDepth = 2,
+		Customized = 3,
+		BloomCombination = 4,
 	};	
 	
 	// Interface for Post processing effct

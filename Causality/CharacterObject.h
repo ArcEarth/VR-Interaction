@@ -57,6 +57,7 @@ namespace Causality
 		BehavierSpace::animation_type*			m_pLastAction;
 		time_seconds							m_CurrentActionTime;
 		bool									m_LoopCurrentAction;
+		LowPassFilter<float>					m_SpeedFilter;
 
 		int										m_FrameMapState;
 		frame_type						        m_CurrentFrame;
@@ -73,6 +74,7 @@ namespace Causality
 		typedef std::vector<DirectX::Color, DirectX::XMAllocator> BoneColorVector;
 		virtual void Render(RenderContext & pContext, DirectX::IEffect* pEffect = nullptr) override;
 
+		virtual RenderFlags GetRenderFlags() const override;
 		const	DirectX::Color& GetBoneColor(int id) const
 		{ return m_BoneColors[id]; }
 		void	SetBoneColor(int id, const DirectX::Color& color)
@@ -87,4 +89,5 @@ namespace Causality
 	};
 
 	void DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color & color, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);
+	void DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color* colors, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);
 }

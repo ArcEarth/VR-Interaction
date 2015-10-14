@@ -115,6 +115,7 @@ call :CompileShaderHLSL%platform% BlurEffect ps UpScale
 call :CompileShaderHLSL%platform% BlurEffect ps Blur
 call :CompileShaderHLSL%platform% BlurEffect ps Combination
 call :CompileShaderHLSL%platform% BlurEffect ps AlphaAsDepthPassBy
+call :CompileShaderHLSL%platform% BlurEffect ps PassBy
 goto finish
 
 :finish

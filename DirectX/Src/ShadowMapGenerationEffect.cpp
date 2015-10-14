@@ -292,6 +292,8 @@ void XM_CALLCONV ShadowMapGenerationEffect::SetShadowColor(FXMVECTOR color)
 
 void ShadowMapGenerationEffect::SetBoneColors(XMVECTOR const * value, size_t count)
 {
+	std::copy_n(reinterpret_cast<const Color*>(value), std::min(count, MaxBones), pImpl->boneColors.BoneColors);
+	pImpl->dirtyFlags |= EffectDirtyFlags::BoneColors;
 }
 
 void ShadowMapGenerationEffect::SetAlphaDiscardThreshold(float clipThreshold)

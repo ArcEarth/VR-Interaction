@@ -283,6 +283,13 @@ void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& contr
 	auto& sparts = g_PlayeerBlocks; //! Not Good!!!
 	auto& colors = HumanBoneColors;
 
+	//auto& carmature = controller.Character().Armature();
+	//for (int i = 0; i <= carmature.size(); i++)
+	//{
+	//	glow->SetBoneColor(i, DirectX::Colors::Orange.v);
+	//}
+	//return;
+
 	if (pCcaTrans)
 	{
 		for (auto& tp : pCcaTrans->Maps)
@@ -1494,6 +1501,11 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 		cout << "Over Shoulder Camera Mode = " << m_EnableOverShoulderCam << endl;
 		cout << "Persudo-Physics Walk = " << g_UsePersudoPhysicsWalk << endl;
 	}
+	else if (e.Key == 'V')
+	{
+		g_UsePersudoPhysicsWalk = !g_UsePersudoPhysicsWalk;
+		cout << "Persudo-Physics Walk = " << g_UsePersudoPhysicsWalk << endl;
+	}
 	else if (e.Key == 'M')
 	{
 		g_MirrowInputX = !g_MirrowInputX;
@@ -1938,7 +1950,7 @@ void PlayerProxy::Render(RenderContext & context, DirectX::IEffect* pEffect)
 		if (IsMapped())
 			color.A(0.3f);
 
-		DrawArmature(*player.BodyArmature, frame, color);
+		DrawArmature(*player.BodyArmature, frame, reinterpret_cast<const Color*>(HumanBoneColors));
 	}
 
 	// IsMapped() && 

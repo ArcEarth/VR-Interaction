@@ -8,9 +8,12 @@ using namespace Causality;
 using namespace DirectX;
 using namespace DirectX::Scene;
 
+double updateFrequency = 60;
+
 void CharacterObject::DisplaceByVelocityFrame()
 {
 	static const float threshold = 0.05f;
+	float frectionFactor = 1 / 0.05f;
 	auto &frame = m_CurrentFrame;
 	auto &vframe = m_VelocityFrame;
 	auto &armature = *m_pArmature;
@@ -23,16 +26,24 @@ void CharacterObject::DisplaceByVelocityFrame()
 	XMVECTOR vsum = XMVectorZero();
 	int count = 0;
 
+	float lowest = std::numeric_limits<float>::max();
 	for (int jid = 0; jid < armature.size(); jid++)
 	{
 		XMVECTOR pos = XMVector3Transform(frame[jid].GblTranslation.LoadA(), world);
+		float y = XMVectorGetY(pos);
 		if (XMVectorGetY(pos) < threshold)
 		{
 			XMVECTOR vec = vframe[jid].LinearVelocity.LoadA();
 			vec = XMVectorSetW(vec, 0.f);
 			vec = XMVector4Transform(vec, world);
 
-			vsum += vec;
+			float presure = sqrt((threshold - y) * frectionFactor);
+			presure = std::min(presure, 2.0f);
+
+			if (y < lowest)
+				lowest = y;
+
+			vsum += (vec * presure);
 			count++;
 		}
 	}
@@ -40,12 +51,30 @@ void CharacterObject::DisplaceByVelocityFrame()
 	if (count != 0)
 		vsum /= count;
 
-	vsum *= -0.1f;
-	XMVECTOR speed = XMVector3Length(vsum);
-	if (XMVectorGetX(speed) > g_MaxCharacterSpeed)
-		vsum = vsum / speed * g_MaxCharacterSpeed;
-
 	vsum = XMVectorAndInt(vsum, g_XMSelect1010);
+
+	vsum *= -0.1f;
+	float speed = XMVectorGetX(XMVector3Length(vsum));
+
+	if (speed > 1e-5f)
+	{
+		vsum /= speed;
+
+		speed = m_SpeedFilter.Apply(speed);
+
+		if (speed > g_MaxCharacterSpeed)
+			speed = g_MaxCharacterSpeed;
+
+		vsum *= speed;
+	} else
+	{
+		m_SpeedFilter.Apply(speed);
+	}
+
+
+	// make sure model is "Grounded"
+	vsum -= lowest * g_XMIdentityR1;
+
 	this->SetPosition((XMVECTOR)GetPosition() + vsum);
 }
 
@@ -216,6 +245,8 @@ void XM_CALLCONV CharacterObject::UpdateViewMatrix(DirectX::FXMMATRIX view, Dire
 CharacterObject::CharacterObject()
 {
 	m_IsAutoDisplacement = false;
+	m_SpeedFilter.SetCutoffFrequency(60);
+	m_SpeedFilter.SetUpdateFrequency(&updateFrequency);
 }
 
 
@@ -226,7 +257,37 @@ CharacterObject::~CharacterObject()
 void CharacterObject::EnabeAutoDisplacement(bool is_enable)
 {
 	m_IsAutoDisplacement = is_enable;
+	m_SpeedFilter.Reset();
 }
+
+void Causality::DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color* colors, const Matrix4x4 & world, float thinkness)
+{
+	using DirectX::Visualizers::g_PrimitiveDrawer;
+
+	// Invaliad frame
+	if (frame.size() < armature.size())
+		return;
+
+	g_PrimitiveDrawer.SetWorld(world);
+	//g_PrimitiveDrawer.Begin();
+	for (auto& joint : armature.joints())
+	{
+		auto& bone = frame[joint.ID];
+		XMVECTOR ep = bone.GblTranslation;
+
+		if (!joint.is_root())
+		{
+			auto& pbone = frame[joint.parent()->ID];
+			XMVECTOR sp = pbone.GblTranslation;
+
+			//g_PrimitiveDrawer.DrawLine(sp, ep, color);
+			g_PrimitiveDrawer.DrawCylinder(sp, ep, thinkness, colors[joint.ID]);
+		}
+		g_PrimitiveDrawer.DrawSphere(ep, thinkness * 1.5f, colors[joint.ID]);
+	}
+	//g_PrimitiveDrawer.End();
+}
+
 
 void Causality::DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness)
 {
@@ -262,7 +323,17 @@ void CharacterGlowParts::Render(RenderContext & pContext, DirectX::IEffect * pEf
 	if (pSGEffect && pSGEffect->GetShadowFillMode() == ShadowMapGenerationEffect::BoneColorFill)
 	{
 		pSGEffect->SetBoneColors(reinterpret_cast<XMVECTOR*>(m_BoneColors.data()), m_BoneColors.size());
+		auto pModel = m_pCharacter->RenderModel();
+		if (pModel)
+		{
+			pModel->Render(pContext, m_pCharacter->GlobalTransformMatrix(), pEffect); // Render parent model with customized effect
+		}
 	}
+}
+
+RenderFlags CharacterGlowParts::GetRenderFlags() const
+{
+	return RenderFlags::BloomEffectSource | RenderFlags::Skinable;
 }
 
 void CharacterGlowParts::OnParentChanged(SceneObject* oldParent)

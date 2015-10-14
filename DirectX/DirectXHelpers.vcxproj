@@ -236,6 +236,10 @@
         $(CompileShaderCmd) BlurEffect $(FxConfig)
       </Command>
       <Outputs>$(ShaderBtyeCodeDir)\BlurEffect_AlphaAsDepthPassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_Blur.inc;$(ShaderBtyeCodeDir)\BlurEffect_Combination.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3Ex.inc;$(ShaderBtyeCodeDir)\BlurEffect_UpScale.inc;</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ShaderBtyeCodeDir)\BlurEffect_AlphaAsDepthPassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_PassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_Blur.inc;$(ShaderBtyeCodeDir)\BlurEffect_Combination.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3Ex.inc;$(ShaderBtyeCodeDir)\BlurEffect_UpScale.inc</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ShaderBtyeCodeDir)\BlurEffect_AlphaAsDepthPassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_PassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_Blur.inc;$(ShaderBtyeCodeDir)\BlurEffect_Combination.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3Ex.inc;$(ShaderBtyeCodeDir)\BlurEffect_UpScale.inc</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(ShaderBtyeCodeDir)\BlurEffect_AlphaAsDepthPassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_PassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_Blur.inc;$(ShaderBtyeCodeDir)\BlurEffect_Combination.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3Ex.inc;$(ShaderBtyeCodeDir)\BlurEffect_UpScale.inc</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ShaderBtyeCodeDir)\BlurEffect_AlphaAsDepthPassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_PassBy.inc;$(ShaderBtyeCodeDir)\BlurEffect_Blur.inc;$(ShaderBtyeCodeDir)\BlurEffect_Combination.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3.inc;$(ShaderBtyeCodeDir)\BlurEffect_DownScale3x3Ex.inc;$(ShaderBtyeCodeDir)\BlurEffect_UpScale.inc</Outputs>
     </CustomBuild>
     <CustomBuild Include="Src\Shaders\QuadVertexShader.hlsl">
       <FileType>Document</FileType>
