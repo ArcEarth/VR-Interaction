@@ -8,19 +8,22 @@
 #include "Settings.h"
 #include "EigenExtension.h"
 #include "ArmatureTransforms.h"
-#include "RegressionModel.h"
 //#pragma warning (disable:4297)
 //#include <dlib\optimization\optimization.h>
 #pragma warning (disable:4554)
 #include <unsupported\Eigen\CXX11\Tensor>
 #include "QudraticAssignment.h"
 #include <ppl.h>
+#include "GaussianProcess.h"
+#include "StylizedIK.h"
+#include "ArmaturePartFeatures.h"
 
 using namespace Causality;
 using namespace std;
 using namespace Eigen;
 using namespace DirectX;
 using namespace ArmaturePartFeatures;
+using namespace BoneFeatures;
 
 //typedef dlib::matrix<double, 0, 1> dlib_vector;
 
@@ -69,27 +72,37 @@ void InitializeExtractor(AllJointRltLclRotLnQuatPcad& ft, const ShrinkedArmature
 	ft.SetDefaultFrame(parts.Armature().default_frame());
 	for (auto part : parts)
 	{
-		ft.SetPca(part->Index, part->ChainPcaMatrix, part->ChainPcaMean);
+		//ft.SetPca(part->Index, part->ChainPcaMatrix, part->ChainPcaMean);
 	}
 }
 
 class SelfLocalMotionTransform : public ArmatureTransform
 {
 public:
-	const ShrinkedArmature * pBlockArmature;
+	const ShrinkedArmature *	pBlockArmature;
+	CharacterController*		pController;
+
 	std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> * pHandles;
 
-	mutable Localize<EndEffector<InputFeature>>	inputExtractor;
-	mutable AllJoints<CharacterFeature> outputExtractor;
+	mutable 
+	Localize<EndEffector<InputFeature>>	
+		inputExtractor;
 
-	mutable MatrixXd m_Xs;
+	mutable
+	RelativeDeformation <AllJoints <LclRotLnQuatFeature >>
+		outputExtractor;
 
-	SelfLocalMotionTransform(ShrinkedArmature * pBlocks)
-		: pBlockArmature(pBlocks), inputExtractor(), pHandles(nullptr)
+	//mutable MatrixXd m_Xs;
+
+	SelfLocalMotionTransform(CharacterController & controller)
+		: pController(&controller), pHandles(nullptr)
 	{
+		pBlockArmature = &controller.Character().Behavier().ArmatureParts();
+		outputExtractor.SetDefaultFrame(controller.Character().Armature().default_frame());
+
 		pSource = &pBlockArmature->Armature();
 		pTarget = &pBlockArmature->Armature();
-		m_Xs.resize(pBlockArmature->size(), g_PvDimension);
+		//m_Xs.resize(pBlockArmature->size(), g_PvDimension);
 
 		//InitializeExtractor(outputExtractor, *pBlockArmature);
 	}
@@ -105,15 +118,17 @@ public:
 			RowVectorXf yf;
 			X = xf.cast<double>();
 
-			if (block->ActiveActionCount > 0)
+			if (block->ActiveActions.size() > 0)
 			{
-				block->PdGpr.get_expectation(X, &Y);
+				auto& sik = pController->GetStylizedIK(block->Index);
+				auto& gpr = sik.Gplvm();
+				gpr.get_expectation(X, &Y);
 				yf = Y.cast<float>();
 				yf *= block->Wx.cwiseInverse().asDiagonal();
 
 				outputExtractor.Set(*block, target_frame, yf);
 			}
-			else if (block->SubActiveActionCount > 0)
+			else if (block->SubActiveActions.size() > 0)
 			{
 
 			}
@@ -131,7 +146,11 @@ public:
 		//}
 
 		const auto& blocks = *pBlockArmature;
-		RowVectorXd X(g_PvDimension), Y;
+
+		int pvDim = inputExtractor.GetDimension(*blocks[0]);
+
+		RowVectorXd X ( g_UseVelocity ? pvDim * 2 : pvDim), Y;
+
 		double semga = 1000;
 		RowVectorXf yf;
 
@@ -140,16 +159,20 @@ public:
 		{
 			//X[0] *= 13;
 
-			if (block->ActiveActionCount > 0)
+			if (block->ActiveActions.size() > 0)
 			{
+				auto& sik = pController->GetStylizedIK(block->Index);
+				auto& gpr = sik.Gplvm();
+
 				RowVectorXf xf = inputExtractor.Get(*block, source_frame);
 				RowVectorXf xfl = inputExtractor.Get(*block, last_frame);
 				yf = outputExtractor.Get(*block, target_frame);
 
-				X.segment<3>(0) = xf.cast<double>();
+				X.segment(0, pvDim) = xf.cast<double>();
 
-				auto Xd = X.segment<3>(0);
-				auto uXd = block->PdGpr.uX.segment<3>(0);
+
+				auto Xd = X.segment(0, pvDim);
+				auto uXd = gpr.uX.segment(0, pvDim);
 
 				//auto uXv = block->PdGpr.uX.segment<3>(3);
 				//Xv = (Xv - uXv).array() * g_NoiseInterpolation.array() + uXv.array();
@@ -164,9 +187,9 @@ public:
 
 				RowVector3d Xld = (xfl.cast<double>() - uXd).array() * g_NoiseInterpolation.array() + uXd.array();
 
-				if (g_UseVelocity && g_PvDimension == 6)
+				if (g_UseVelocity)
 				{
-					auto Xv = X.segment<3>(3);
+					auto Xv = X.segment(pvDim, pvDim);
 					Xv = (Xd - Xld) / (frame_time * g_FrameTimeScaleFactor);
 				}
 
@@ -184,7 +207,7 @@ public:
 					}
 				}
 
-				m_Xs.row(block->Index) = X;
+				//m_Xs.row(block->Index) = X;
 				Xabs.emplace_back(X);
 
 				// Beyesian majarnlize over X
@@ -208,18 +231,18 @@ public:
 				//block->PdGpr.get_expectation_from_observation(X, covObsr, &Y);
 				//block->PdGpr.get_expectation(X, &Y);
 				auto baseRot = target_frame[block->parent()->Joints.back()->ID].GblRotation;
-				block->PdStyleIk.SetBaseRotation(baseRot);
-				block->PdStyleIk.SetChain(block->Joints, target_frame);
-				block->PdStyleIk.SetGplvmWeight(block->Wx.cast<double>());
+				sik.SetBaseRotation(baseRot);
+				sik.SetChain(block->Joints, target_frame);
+				sik.SetGplvmWeight(block->Wx.cast<double>());
 				//auto yc = yf;
 				//yf = Y.cast<float>();
 				//yf.array() *= block->Wx.cwiseInverse().array().transpose();
 
 				//block->PdStyleIk.SetHint();
 				if (!g_UseVelocity)
-					Y = block->PdStyleIk.Apply(X.transpose());
+					Y = sik.Apply(X.transpose());
 				else
-					Y = block->PdStyleIk.Apply(X.leftCols<3>().transpose(), X.segment<3>(3).transpose().eval());
+					Y = sik.Apply(X.segment(0,pvDim).transpose(), Vector3d(X.segment(pvDim, pvDim).transpose()));
 
 				//block->PdStyleIk.SetGoal(X.leftCols<3>());
 
@@ -257,11 +280,14 @@ public:
 
 			for (auto& block : blocks)
 			{
-				if (block->ActiveActionCount == 0 && block->SubActiveActionCount > 0)
+				if (block->ActiveActions.size() == 0 && block->SubActiveActions.size() > 0)
 				{
-					auto _x = (Xabpv.cast<float>() - block->PdCca.uXpca) * block->PdCca.pcX;
+					auto _x = (Xabpv.cast<float>() - pController->uXabpv) * pController->XabpvT;
 
-					auto lk = block->PdGpr.get_expectation_and_likelihood(_x.cast<double>(), &Y);
+					auto& sik = pController->GetStylizedIK(block->Index);
+					auto& gpr = sik.Gplvm();
+
+					auto lk = gpr.get_expectation_and_likelihood(_x.cast<double>(), &Y);
 
 					yf = Y.cast<float>();
 					yf *= block->Wx.cwiseInverse().asDiagonal();
@@ -351,31 +377,23 @@ void CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & frame
 	m_pCharacter->ReleaseCurrentFrameFrorUpdate();
 }
 
+float CreateControlTransform(CharacterController & controller, const ClipFacade& iclip);
+
+float CharacterController::CreateControlBinding(const ClipFacade& inputClip)
+{
+	return CreateControlTransform(*this, inputClip);
+}
+
 const std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& Causality::CharacterController::PvHandles() const
 {
 	return m_PvHandles;
 }
 
-ClipInfo & CharacterController::GetClipInfo(const string & name) {
+CharacterClipinfo & CharacterController::GetClipInfo(const string & name) {
 	auto itr = std::find_if(BEGIN_TO_END(m_Clipinfos), [&name](const auto& clip) {
-		return clip.ClipName == name;
-	});
-	if (itr != m_Clipinfos.end())
-	{
-		return *itr;
-	}
-	else
-	{
-		throw std::out_of_range("given name doesn't exist");
-	}
-}
-
-CharacterClipinfo& CharacterController::GetCharacterClipinfo(const std::string& name)
-{
-	auto itr = std::find_if(BEGIN_TO_END(m_CClipinfos), [&name](const CharacterClipinfo& clip) {
 		return clip.ClipName() == name;
 	});
-	if (itr != m_CClipinfos.end())
+	if (itr != m_Clipinfos.end())
 	{
 		return *itr;
 	}
@@ -409,70 +427,100 @@ void GetVolocity(_In_ const Eigen::DenseBase<DerivedX>& displacement, _Out_ Eige
 	velocity /= (2 * frame_time);
 }
 
-void CharacterController::SetTargetCharacter(CharacterObject & chara) {
-	m_pCharacter = &chara;
-	if (m_pBinding)
-		m_pBinding->SetTargetArmature(chara.Armature());
-	auto & behavier = chara.Behavier();
-	PotientialFrame = chara.Armature().default_frame();
-	m_PvHandles.resize(chara.Armature().size());
-
-	m_pCharacter->Behavier().ArmatureParts().ComputeWeights();
-
-	for (auto& anim : chara.Behavier().Clips())
+void ShiftFrame(_Inout_ BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& ref, float scale)
+{
+	XMVECTOR sv = XMVectorReplicate(scale);
+	for (size_t i = 0; i < frame.size(); i++)
 	{
-		//if (anim.Name == "die")
-		//	anim.IsCyclic = false;
-		//else
-		anim.IsCyclic = true;
+		auto& lt = frame[i].LocalTransform();
+		auto& rt = ref[i].LocalTransform();
+		IsometricTransform::LerpV(lt, rt, lt, sv);
 	}
 
-	// Try to unify rotation pivot direction
-	auto& armature = chara.Armature();
-	typedef vector<Vector4, DirectX::AlignedAllocator<Vector4, alignof(DirectX::XMVECTOR)>> aligned_vector_of_vector4;
-	aligned_vector_of_vector4 gbl_pivots(armature.size());
-	bool gbl_def = true;
-	for (auto& anim : chara.Behavier().Clips())
-	{
-		using namespace DirectX;
-		aligned_vector_of_vector4 pivots(armature.size());
-		for (auto& frame : anim.GetFrameBuffer())
-		{
-			for (size_t i = 0; i < armature.size(); i++)
-			{
-				pivots[i] += frame[i].LclRotation.LoadA();
-			}
-		}
+}
 
-		if (gbl_def)
+vector<BoneHiracheryFrame> CreateReinforcedFrames(const BehavierSpace& behavier)
+{
+	auto& clips = behavier.Clips();
+	auto& parts = behavier.ArmatureParts();
+	auto& armature = behavier.Armature();
+	auto& dframe = armature.default_frame();
+
+	float factors[] = { 0.5f,0.75f,1.0f,1.25f };
+	int k = size(factors);
+	int n = CLIP_FRAME_COUNT;
+
+	vector<BoneHiracheryFrame> frames(n * clips.size() * k);
+
+	int ci = 0;
+	double totalTime = 0;
+
+	//concurrency::parallel_for((int)0, (int)clips.size() * k, [&](int cik) 
+	for (int cik = 0; cik < clips.size() * k; cik++)
+	{
+		int ci = cik / k;
+		int i = cik % k;
+
+		auto animBuffer = clips[ci].GetFrameBuffer();
+		int stidx = cik * n;
+		copy_n(animBuffer.begin(), n, frames.begin() + stidx);
+		if (fabsf(factors[i] - 1.0f) > 1e-5)
 		{
-			for (size_t i = 0; i < armature.size(); i++)
+			for (int j = 0; j < n; j++)
 			{
-				gbl_pivots[i] = DirectX::XMVector3Normalize(pivots[i].LoadA());
+				ShiftFrame(frames[stidx + j], dframe, factors[i]);
+				frames[stidx + j].RebuildGlobal(armature);
 			}
-			gbl_def = false;
 		}
-		else
-		{
-			//for (size_t i = 0; i < armature.size(); i++)
-			//{
-			//	XMVECTOR pivot = DirectX::XMVector3Normalize(pivots[i].LoadA());
-			//	XMVECTOR gbl_pivot = gbl_pivots[i].Load();
-			//	if (XMVector4Less(XMVector3Dot(gbl_pivot, pivot), XMVectorZero()))
-			//	{
-			//		for (auto& frame : anim.GetFrameBuffer())
-			//		{
-			//			frame[i].LclRotation.StoreA(-frame[i].LclRotation.LoadA());
-			//		}
-			//	}
-			//}
-		}
+	}
+	//);
+
+	return frames;
+}
+
+
+void CharacterController::SetTargetCharacter(CharacterObject & chara) {
+
+	m_pCharacter = &chara;
+
+	if (m_pBinding)
+		m_pBinding->SetTargetArmature(chara.Armature());
+
+	auto& behavier = chara.Behavier();
+	auto& armature = chara.Armature();
+	auto& clips = behavier.Clips();
+	auto& parts = behavier.ArmatureParts();
+
+	m_SIKs.resize(parts.size());
+	PotientialFrame = armature.default_frame();
+	m_PvHandles.resize(armature.size());
+
+	parts.ComputeWeights();
+	behavier.UniformQuaternionsBetweenClips();
+
+	for (auto& anim : clips)
+	{
+		anim.IsCyclic = true;
 	}
 
 	using namespace concurrency;
 	vector<task<void>> tasks;
-	m_Clipinfos.reserve(chara.Behavier().Clips().size());
-	for (auto& anim : chara.Behavier().Clips())
+	m_Clipinfos.reserve(clips.size() + 1);
+	{
+		tasks.emplace_back(create_task([this]() {
+			auto& chara = *m_pCharacter;
+			auto& behavier = chara.Behavier();
+			auto& parts = behavier.ArmatureParts();
+
+			auto allFrames = CreateReinforcedFrames(behavier);
+
+			//? To-Do Setup proper feature for m_cpxClipinfo
+			m_cpxClipinfo.Initialize(parts);
+			m_cpxClipinfo.AnalyzeSequence(allFrames, 0);
+		}));
+	}
+
+	for (auto& anim : clips)
 	{
 		if (!anim.Cyclic())
 			continue;
@@ -480,38 +528,32 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 		m_Clipinfos.emplace_back(behavier.ArmatureParts());
 		auto& clipinfo = m_Clipinfos.back();
 
-		clipinfo.ClipName = anim.Name;
-		clipinfo.Phi = -1;
-		//analyzer->Score = -1;
-		clipinfo.PcaCutoff = g_CharacterPcaCutoff;
-		clipinfo.ActiveEnergyThreshold = g_CharacterActiveEnergy;
+		clipinfo.SetClipName(anim.Name);
 
-		auto & frames = anim.GetFrameBuffer();
-		tasks.emplace_back(create_task([&clipinfo, &frames]() {
-			clipinfo.ComputeFromFrames(frames);
+		tasks.emplace_back(create_task([&clipinfo, &anim, &parts]() {
+			clipinfo.Initialize(parts);
+			auto & frames = anim.GetFrameBuffer();
+			clipinfo.AnalyzeSequence(frames, anim.Length().count());
 		}));
 	}
 
 	when_all(tasks.begin(), tasks.end()).then([this]() {
 
-		cout << setprecision(4) << setw(6);
+		auto& chara = *m_pCharacter;
+		auto& behavier = chara.Behavier();
+		auto& clips = behavier.Clips();
+		auto& parts = behavier.ArmatureParts();
 
-		float globalEnergyMax = 0;
+		cout << setprecision(4) << setw(6);
+		auto& allClipinfo = m_cpxClipinfo;
 
 		tinyxml2::XMLDocument paramdoc;
 		tinyxml2::XMLElement* settings = nullptr;
 		string paramFileName = "CharacterAnalayze\\" + m_pCharacter->Name + ".param.xml";
 		string settingName = str(boost::format("clip_rasterize_%1%") % CLIP_FRAME_COUNT);
 
-		for (auto& clipinfo : m_Clipinfos)
-		{
-			auto &clipname = clipinfo.ClipName;
-			assert(clipinfo.IsReady);
-			globalEnergyMax = std::max(clipinfo.Eb.maxCoeff(), globalEnergyMax);
-			cout << "DimX in Clip [" << clipname << "] " << clipinfo.DimX << endl;
-			cout << clipinfo.Eb << endl;
-			settingName += '_' + clipname;
-		}
+		for (auto& cinfo : m_Clipinfos)
+			settingName += '_' + cinfo.ClipName();
 
 		if (g_LoadCharacterModelParameter)
 		{
@@ -520,11 +562,6 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 			if (error == tinyxml2::XML_SUCCESS)
 			{
 				paramStore = paramdoc.RootElement();
-				//if (!strcmp(paramStore->Name(),"param_store"))
-				//{
-				//	paramStore = nullptr;
-				//	paramdoc.Clear();
-				//}
 			}
 
 			if (paramStore == nullptr)
@@ -542,430 +579,187 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 			}
 		}
 
-
-		auto& blocks = m_pCharacter->Behavier().ArmatureParts();
+		float globalEnergyMax = 0;
 		for (auto& clipinfo : m_Clipinfos)
 		{
-			auto& key = clipinfo.ClipName;
-			auto& Eb = clipinfo.Eb;
-			Eb /= globalEnergyMax;
-			clipinfo.ActiveEnergyThreshold = g_CharacterActiveEnergy;
-			cout << Eb << endl;
+			assert(clipinfo.IsReady());
 
-			clipinfo.ActiveParts.clear();
-			clipinfo.SubactiveParts.clear();
+			auto& Eb = clipinfo.RcFacade.GetAllPartsEnergy();
+			globalEnergyMax = std::max(Eb.maxCoeff(), globalEnergyMax);
+
+			DEBUGOUT(Eb);
+		}
+
+		std::set<int> avtiveSet;
+		std::set<int> subactSet;
+		for (auto& clipinfo : m_Clipinfos)
+		{
+			auto& key = clipinfo.ClipName();
+			auto& Eb = clipinfo.RcFacade.GetAllPartsEnergy();
+
 			for (int i = 0; i < Eb.size(); i++)
 			{
-				if (Eb[i] > clipinfo.ActiveEnergyThreshold)
+				if (Eb[i] > g_CharacterActiveEnergy * globalEnergyMax)
 				{
-					clipinfo.ActiveParts.push_back(i);
-					++blocks[i]->ActiveActionCount;
-					blocks[i]->ActiveActions.emplace_back(key);
+					parts[i]->ActiveActions.push_back(key);
+					avtiveSet.insert(i);
 				}
-				else if (Eb[i] > clipinfo.SubactiveEnergyThreshold)
+				else if (Eb[i] > g_CharacterSubactiveEnergy * globalEnergyMax)
 				{
-					clipinfo.SubactiveParts.push_back(i);
-					++blocks[i]->SubActiveActionCount;
-					blocks[i]->SubActiveActions.push_back(key);
+					parts[i]->SubActiveActions.push_back(key);
+					subactSet.insert(i);
 				}
 			}
 		}
 
-		cout << "==========Drive correlation for character \"" << m_pCharacter->Name << "\"=================== " << endl;
+		vector<int> activeParts(BEGIN_TO_END(avtiveSet));
+		vector<int> subactParts(BEGIN_TO_END(subactSet));;
 
-		vector<ArmaturePart*> activeBlocks;
-		vector<ArmaturePart*> subActiveBlocks;
+		// pvDim without
+		int pvDim = m_cpxClipinfo.PvFacade.GetAllPartDimension();
+		assert(pvDim > 0);
 
-		// for all inactive blocks, try to sythesis their sutle local motion based on action blocks
-		for (auto pBlock : blocks)
+		// Active parts Pv s
+		MatrixXf Xabpv(allClipinfo.ClipFrames(), size(activeParts) * pvDim);
+
 		{
-			if (pBlock->ActiveActionCount > 0)
-				activeBlocks.push_back(pBlock);
-			else if (pBlock->SubActiveActionCount > 0)
-				subActiveBlocks.push_back(pBlock);
-			else
-			{
-				pBlock->PdCca.Jx = pBlock->PdCca.Jy = -1;
-				pBlock->PvDriveScore = -1;
-			}
+			MatrixXi apMask = VectorXi::Map(activeParts.data(), activeParts.size()).replicate(1, pvDim).transpose();
+			auto maskVec = VectorXi::Map(apMask.data(), apMask.size());
+			selectCols(allClipinfo.PvFacade.GetAllPartsSequence(), maskVec, &Xabpv);
 
+			Pca<MatrixXf> pcaXabpv(Xabpv);
+			int dXabpv = pcaXabpv.reducedRank(g_CharacterPcaCutoff);
+			Xabpv = pcaXabpv.coordinates(dXabpv);
+			XabpvT = pcaXabpv.components(dXabpv);
+			uXabpv = pcaXabpv.mean();
+
+			if (g_EnableDebugLogging)
+			{
+				ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_Xabpv.pd.csv");
+				fout << Xabpv.format(CSVFormat);
+
+				fout.close();
+			}
 		}
+		int dXabpv = Xabpv.cols();
 
-		Eigen::MatrixXf Xabpv(CLIP_FRAME_COUNT * m_Clipinfos.size(), size(activeBlocks) * 6);
-
-		//int bid = 0; // active block index
-		parallel_for(0,(int)activeBlocks.size(),1,[this,&Xabpv, &activeBlocks, settings](int bid)
-		//for (auto pBlock : activeBlocks)
+		parallel_for(0, (int)activeParts.size(), 1, [&, this](int apid)
 		{
-			//auto& block = *pBlock;
-			auto& block = *activeBlocks[bid];
+			auto& part = *parts[activeParts[apid]];
+			auto pid = part.Index;
+			auto& aactions = part.ActiveActions;
+			auto& joints = part.Joints;
 
-			auto bj = block.Index;
-			auto maxItr = std::max_element(BEGIN_TO_END(m_Clipinfos), [bj](const auto& lhs, const auto& rhs)
-			{
-				return lhs.DimX[bj] < rhs.DimX[bj];
-			});
-			auto maxDim = maxItr->DimX[bj];
+			auto& rcFacade = allClipinfo.RcFacade;
+			auto& pvFacade = allClipinfo.PvFacade;
 
-			cout << "{";
-			for (auto pJoint : block.Joints)
+			auto& X = rcFacade.GetPartSequence(pid);
+			auto& Pv = pvFacade.GetPartSequence(pid);
+
+			//? To-do Select Active Rows from allClipFacade
+
+			if (g_EnableDebugLogging)
 			{
-				cout << pJoint->Name << ", ";
+				ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + part.Joints[0]->Name + ".pd.csv");
+				fout << Pv.format(CSVFormat);
+				fout.close();
+
+				fout.open("CharacterAnalayze\\" + m_pCharacter->Name + "_" + part.Joints[0]->Name + ".x.csv");
+				fout << X.format(CSVFormat);
+				fout.close();
 			}
 
-			cout << "\b\b} [" << maxDim << "] : ";
-
-#pragma region Build Xabpv
-			auto Bft = Xabpv.middleCols(bid * g_PvDimension, g_PvDimension);
-			int cid = 0; // Clip index
-			for (auto& clipinfo : m_Clipinfos)
+			assert(g_UseStylizedIK && "This build is settled on StylizedIK");
 			{
-				auto& anim = m_pCharacter->Behavier()[clipinfo.ClipName];
-
-				auto map = Eigen::Matrix<float, -1, 3, Eigen::RowMajor>::Map(clipinfo.Pvs.col(block.Index).data(), CLIP_FRAME_COUNT, 3);
-				auto displacement = Bft.block(cid*CLIP_FRAME_COUNT, 0, CLIP_FRAME_COUNT, 3);
-				displacement = map;
-				float frametime = (float)(anim.Duration.count() / CLIP_FRAME_COUNT);
-				if (g_UseVelocity && g_PvDimension == 6)
-				{
-					auto velocity = Bft.block(cid*CLIP_FRAME_COUNT, 3, CLIP_FRAME_COUNT, 3);
-					GetVolocity(displacement, velocity, frametime * g_FrameTimeScaleFactor);
-				}
-				//ExpandQuadraticTerm(Bft, 3);
-
-				++cid;
-			}
-#pragma endregion 
-
-			block.X.resize(block.ActiveActionCount*CLIP_FRAME_COUNT, block.Joints.size() * CharacterFeature::Dimension);
-			block.Pd.resize(block.ActiveActionCount*CLIP_FRAME_COUNT, g_PvDimension);
-			for (size_t i = 0; i < block.ActiveActionCount; i++)
-			{
-				auto &clip = GetClipInfo(block.ActiveActions[i]);
-				auto &anim = m_pCharacter->Behavier()[block.ActiveActions[i]];
-				float frametime = (float)(anim.Duration.count() / CLIP_FRAME_COUNT);
-
-				block.X.middleRows(i*CLIP_FRAME_COUNT, CLIP_FRAME_COUNT) = clip.Xbs[block.Index];
-
-				auto map = Eigen::Matrix<float, -1, 3, Eigen::RowMajor>::Map(clip.Pvs.col(block.Index).data(), CLIP_FRAME_COUNT, 3);
-				auto displacement = block.Pd.block(i*CLIP_FRAME_COUNT, 0, CLIP_FRAME_COUNT, 3);
-				displacement = map;
-
-				//ExpandQuadraticTerm(block.Pd, 3);
-
-				//float dNorm = sqrtf(displacement.rowwise().squaredNorm().maxCoeff());
-				//displacement /= dNorm;
-
-				if (g_UseVelocity && g_PvDimension == 6)
-				{
-					auto velocity = block.Pd.block(i*CLIP_FRAME_COUNT, 3, CLIP_FRAME_COUNT, 3);
-					GetVolocity(displacement, velocity, frametime * g_FrameTimeScaleFactor);
-				}
-				////float vNorm = sqrtf(velocity.rowwise().squaredNorm().maxCoeff());
-
-
-
-				auto corr = CreatePcaCcaMap(clip.PerceptiveVectorReconstructor[block.Index], block.Pd.middleRows(i*CLIP_FRAME_COUNT, CLIP_FRAME_COUNT), block.X.middleRows(i*CLIP_FRAME_COUNT, CLIP_FRAME_COUNT),
-					0.01 * g_CharacterPcaCutoff, g_CharacterPcaCutoff);
-
-				cout << '(' << block.ActiveActions[i] << " [" << clip.Eb[block.Index] << "] : " << corr << "),";
-				//// caculate acceleration as center difference of velocity
-				//acceleration.row(0) = 2 * (velocity.row(1) - velocity.row(0));
-				//acceleration.row(CLIP_FRAME_COUNT - 1) = 2 * (velocity.row(CLIP_FRAME_COUNT - 1) - velocity.row(CLIP_FRAME_COUNT - 2));
-				//acceleration.middleRows<CLIP_FRAME_COUNT - 2>(1) = velocity.middleRows<CLIP_FRAME_COUNT - 2>(2) - velocity.middleRows<CLIP_FRAME_COUNT - 2>(0);
-			}
-
-			//Cca<float> cca;
-			//cca.compute(block.Pd, block.X);
-			//auto corr = cca.correlaltions().minCoeff();
-			block.LimitX.resize(2, block.X.cols());
-			block.LimitX.row(0) = block.X.colwise().minCoeff();
-			block.LimitX.row(1) = block.X.colwise().maxCoeff();
-
-			block.ChainPca.compute(block.X * block.Wx.asDiagonal(), true);
-			int d = block.ChainPca.reducedRank(0.01f);
-			block.ChainPcadDim = d;
-			block.ChainPcaMean = block.ChainPca.mean().array() * block.Wx.cwiseInverse().transpose().array();
-			block.ChainPcaMatrix = block.Wx.asDiagonal() * block.ChainPca.components(d);
-
-			float corr;
-			if (g_UseStylizedIK)
-			{
-				//block.PdGpr.initialize(block.Pd, block.ChainPca.coordinates(block.ChainPcadDim));
-				block.PdGpr.initialize(block.Pd, block.X * block.Wx.asDiagonal());
-
 				// paramter caching 
-				const auto&	blockName = block.Joints[0]->Name;
+				const auto&	partName = joints[0]->Name;
 				auto &dframe = Character().Armature().default_frame();
 
-				InitGprXML(settings, blockName, block.PdGpr);
+				auto& sik = m_SIKs[pid];
+				auto& gpr = sik.Gplvm();
+				gpr.initialize(Pv, X);
+
+				InitGprXML(settings, partName, gpr);
 
 				// initialize stylized IK for active chains
-				block.PdStyleIk.SetChain(block.Joints, dframe);
-				block.PdStyleIk.SetGplvmWeight(block.Wx.cast<double>());
-				//block.PdStyleIk.SetYLimit(block.LimitX.cast<double>());
+				sik.SetChain(part.Joints, dframe);
 
-				auto &pca = block.ChainPca;
-				auto& wx = block.Wx;
-				auto d = block.ChainPcadDim;
+				auto &pca = rcFacade.GetPartPca(pid);
+				auto d = pca.reducedRank(rcFacade.PcaCutoff());
 
-				auto pPcaDecoder = std::make_unique<RelativeLnQuaternionPcaDecoder>();
-				pPcaDecoder->meanY = block.ChainPcaMean.cast<double>();
-				pPcaDecoder->pcaY = block.ChainPcaMatrix.cast<double>();
-				pPcaDecoder->invPcaY = (pca.components(d).transpose() * wx.cwiseInverse().asDiagonal()).cast<double>();
+				auto pPcaDecoder = std::make_unique<RelativeLnQuaternionDecoder>();
+				
+				//! PCA Decoder configration
+				//auto pPcaDecoder = std::make_unique<RelativeLnQuaternionPcaDecoder>();
+				//pPcaDecoder->meanY = pca.mean().cast<double>();
+				//pPcaDecoder->pcaY = pca.components(d).cast<double>();
+				//pPcaDecoder->invPcaY = pPcaDecoder->pcaY.transpose();
 
-				pPcaDecoder->bases.reserve(block.Joints.size());
-				for (auto joint : block.Joints)
+				pPcaDecoder->bases.reserve(joints.size());
+				for (auto joint : joints)
 				{
 					auto jid = joint->ID;
 					pPcaDecoder->bases.push_back(dframe[jid].LclRotation);
 				}
 
-				//block.PdStyleIk.SetFeatureDecoder(move(pPcaDecoder));
-				block.PdStyleIk.Gplvm() = block.PdGpr;
+				sik.SetFeatureDecoder(move(pPcaDecoder));
 
-				cout << "Optimal param : " << block.PdGpr.get_parameters().transpose() << endl;
-				corr = 1.0f;
+				cout << "Optimal param : " << gpr.get_parameters().transpose() << endl;
+
 			}
-			else
-			{
-				corr = CreatePcaCcaMap(block.PdCca, block.Pd, block.X, 0.01 * g_CharacterPcaCutoff, g_CharacterPcaCutoff);
-			}
-
-			if (corr < .001f)
-			{
-				block.PdCca.Jx = -1;
-				block.PdCca.Jy = -1;
-			}
-			else
-			{
-				block.PdCca.Jx = block.Index;
-				block.PdCca.Jy = block.Index;
-			}
-			//block.PvCorr.setIdentity(block.ActiveActionCount, block.ActiveActionCount);
-
-			//Cca<float> cca;
-			//for (size_t i = 0; i < block.ActiveActionCount; i++)
-			//{
-			//	auto &clipI = *m_Clipinfos[block.ActiveActions[i]];
-			//	for (int j = i + 1; j < block.ActiveActionCount; j++)
-			//	{
-			//		auto &clipJ = *m_Clipinfos[block.ActiveActions[j]];
-			//		//auto pvX = block.Pd.block<CLIP_FRAME_COUNT, 3>(i*CLIP_FRAME_COUNT, 0);
-			//		//auto pvY = block.Pd.block<CLIP_FRAME_COUNT, 3>(j*CLIP_FRAME_COUNT, 0);
-			//		//cca.compute(pvX, pvY);
-			//		//float corr = cca.correlaltions().minCoeff();
-
-
-			//		PcaCcaMap map;
-			//		float corr = CreatePcaCcaMap(map,clipI.X, clipJ.X);
-			//		block.PvCorr(i, j) = corr;
-			//		block.PvCorr(j, i) = corr;
-			//	}
-			//}
-
-			if (g_EnableDebugLogging)
-			{
-				ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name + ".pd.csv");
-				fout << block.Pd.format(CSVFormat);
-				fout.close();
-
-				fout.open("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name + ".x.csv");
-				fout << block.X.format(CSVFormat);
-				fout.close();
-
-				fout.open("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name + ".pvcorr.csv");
-				fout << block.PvCorr.format(CSVFormat);
-				fout.close();
-			}
-
-			cout << "\b | [" << corr << ',' << block.PdCca.pcY.cols() << ']';
-			cout << endl;
 
 		}
 		);
 
-		Eigen::MatrixXf Xij(CLIP_FRAME_COUNT, 3);
-		Eigen::RowVectorXf uXij;
-		PvDifMean.resize(activeBlocks.size(), activeBlocks.size());
-		PvDifCov.resize(activeBlocks.size(), activeBlocks.size());
-		for (int i = 0; i < activeBlocks.size(); i++)
+		if (g_LoadCharacterModelParameter)
 		{
-			for (int j = i + 1; j < activeBlocks.size(); j++)
-			{
-				PvDifMean(i, j).setZero();
-				PvDifCov(i, j).setZero();
-			}
-		}
-
-		for (auto& clipinfo : m_Clipinfos)
-		{
-			auto& pvs = clipinfo.Pvs;
-			auto cabs = clipinfo.ActiveParts.size();
-			clipinfo.PvDifMean.resize(clipinfo.ActiveParts.size(), clipinfo.ActiveParts.size());
-			clipinfo.PvDifCov.resize(clipinfo.ActiveParts.size(), clipinfo.ActiveParts.size());
-
-			for (int i = 0; i < activeBlocks.size(); i++)
-			{
-				int bi = activeBlocks[i]->Index;
-				int ci = std::find(BEGIN_TO_END(clipinfo.ActiveParts), bi) - clipinfo.ActiveParts.begin();
-
-				for (int j = i + 1; j < activeBlocks.size(); j++)
-				{
-					int bj = activeBlocks[j]->Index;
-					int cj = std::find(BEGIN_TO_END(clipinfo.ActiveParts), bj) - clipinfo.ActiveParts.begin();
-
-					auto pi = Eigen::Matrix<float, -1, 3, Eigen::RowMajor>::Map(pvs.col(bi).data(), CLIP_FRAME_COUNT, 3);
-					auto pj = Eigen::Matrix<float, -1, 3, Eigen::RowMajor>::Map(pvs.col(bj).data(), CLIP_FRAME_COUNT, 3);
-
-					Matrix3f covij = Xij.transpose() * Xij;
-					Xij = pi - pj;
-					uXij = Xij.colwise().mean();
-
-					if (ci >= 0 && ci < cabs && cj >= 0 && cj < cabs)
-					{
-						clipinfo.PvDifMean(i, j) = uXij;
-						clipinfo.PvDifCov(i, j) = covij;
-					}
-
-					PvDifMean(i, j) += uXij;
-					Xij.rowwise() -= uXij;
-					PvDifCov(i, j) += covij;
-				}
-			}
-		}
-
-		Pca<MatrixXf> pcaXabpv(Xabpv);
-		int dXabpv = pcaXabpv.reducedRank(0.01);
-		MatrixXf cordsXabpv = pcaXabpv.coordinates(dXabpv);
-		XabpvT = pcaXabpv.components(dXabpv);
-		uXabpv = pcaXabpv.mean();
-
-		if (g_EnableDebugLogging)
-		{
-			ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_Xabpv.pd.csv");
-			fout << Xabpv.format(CSVFormat);
-
-			fout.close();
+			auto error = paramdoc.SaveFile(paramFileName.c_str());
+			assert(error == tinyxml2::XML_SUCCESS);
 		}
 
 		if (g_EnableDependentControl)
-			parallel_for_each(BEGIN_TO_END(subActiveBlocks),[this,&cordsXabpv,settings](ArmaturePart* pBlock)
-			//for (auto pBlock : subActiveBlocks)
+			parallel_for_each(BEGIN_TO_END(subactParts), [&, this](int sapid)
+		{
+			int pid = subactParts[sapid];
+			auto &block = *parts[pid];
+
+			auto& rcFacade = allClipinfo.RcFacade;
+			auto& pvFacade = allClipinfo.PvFacade;
+
+			auto& X = Xabpv;
+			auto& Pv = pvFacade.GetPartSequence(pid);
+
+			if (g_EnableDebugLogging)
 			{
-				auto &block = *pBlock;
+				ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name + ".x.csv");
+				fout << X.format(CSVFormat);
+				fout.close();
+			}
 
-				auto subAcitveClipCount = block.SubActiveActionCount;
-				assert(subAcitveClipCount > 0);
-	
-				int cid = 0, cid2 = 0; // Clip index
-				block.X.resize(subAcitveClipCount*CLIP_FRAME_COUNT, block.Joints.size() * CharacterFeature::Dimension);
-				block.Pd.resize(subAcitveClipCount*CLIP_FRAME_COUNT, cordsXabpv.cols());
+			if (!g_UseStylizedIK)
+			{
+				assert(!"this code pass is not valiad. as block.Pd is already Pca-ed here");
+			}
+			else
+			{
+				auto& sik = m_SIKs[pid];
+				auto& gpr = sik.Gplvm();
+				gpr.initialize(Pv, X);
 
-				for (auto& clipinfo : m_Clipinfos)
-				{
-					if (clipinfo.Eb[block.Index] > g_CharacterSubactiveEnergy)
-					{
-						block.X.middleRows(cid*CLIP_FRAME_COUNT, CLIP_FRAME_COUNT) = clipinfo.Xbs[block.Index];
-						block.Pd.middleRows(cid*CLIP_FRAME_COUNT, CLIP_FRAME_COUNT) = cordsXabpv.middleRows(cid2*CLIP_FRAME_COUNT, CLIP_FRAME_COUNT);
-						++cid;
-					}
-					++cid2;
-				}
+				// paramter caching 
+				const auto&	partName = block.Joints[0]->Name;
 
-				block.LimitX.resize(2, block.X.cols());
-				block.LimitX.row(0) = block.X.colwise().minCoeff();
-				block.LimitX.row(1) = block.X.colwise().maxCoeff();
-
-				block.ChainPca.compute(block.X * block.Wx.asDiagonal(), true);
-				{
-					int d = block.ChainPca.reducedRank(0.01f);
-					block.ChainPcadDim = d;
-					block.ChainPcaMean = block.ChainPca.mean();
-					block.ChainPcaMatrix = block.ChainPca.components(d);
-				}
-
-				auto bid = block.Index;
-				auto maxItr = std::max_element(m_Clipinfos.begin(), m_Clipinfos.end(), [bid](const auto& lhs, const auto& rhs)
-				{
-					return lhs.DimX[bid] < rhs.DimX[bid];
-				});
-				auto maxDim = maxItr->DimX[bid];
-
-				cout << "[Subactive] " << block.Joints << " [" << maxDim << "]" << endl;
-
-				float corr = 0.0;
-				if (!g_UseStylizedIK)
-				{
-					assert(!"this code pass is not valiad. as block.Pd is already Pca-ed here");
-					corr = block.PdCca.CreateFrom(block.Pd, block.X, 0.01 * g_CharacterPcaCutoff, g_CharacterPcaCutoff);
-					block.PvDriveScore = corr;
-				}
-				else
-				{
-					block.PdGpr.initialize(block.Pd, block.X);
-					//block.PdGpr.initialize(block.Pd, block.ChainPca.coordinates(block.ChainPcadDim));
-
-					block.PdCca.uXpca = uXabpv;
-					block.PdCca.pcX = XabpvT;
-					// paramter caching 
-					const auto&	blockName = block.Joints[0]->Name;
-
-					InitGprXML(settings, blockName, block.PdGpr);
-					corr = exp(-corr);
-				}
-
-				if (g_EnableDebugLogging)
-				{
-					ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name + ".x.csv");
-					fout << block.X.format(CSVFormat);
-					fout.close();
-				}
-
-				block.PdCca.Jy = block.Index;
-				block.PdCca.Jx = -2;
+				InitGprXML(settings, partName, gpr);
+			}
 		}
 		);
 
 		cout << "=================================================================" << endl;
 
-		if (!g_UseStylizedIK)
+		assert(g_UseStylizedIK);
 		{
-			auto pBinding = make_unique<BlockizedCcaArmatureTransform>(&blocks, &blocks);
-
-			pBinding->pInputExtractor.reset(new EndEffectorGblPosQuadratized());
-			//pBinding->pInputExtractor.reset(new EndEffector<InputFeature>(true));
-			pBinding->pOutputExtractor.reset(new AllJoints<CharacterFeature>());
-
-			//auto pBinding = make_unique<RBFInterpolationTransform>(&m_Clipinfos,&blocks, &blocks);
-
-			for (auto& pBlock : blocks)
-			{
-				auto& block = *pBlock;
-				//if (block.Index == 0)
-				//	continue;
-				if (block.ActiveActionCount > 0)
-				{
-					pBinding->Maps.emplace_back(block.PdCca);
-				}
-			}
-			// The dependent block must be specified after independent block
-			for (auto& pBlock : blocks)
-			{
-				auto& block = *pBlock;
-				//if (block.Index == 0)
-				//	continue;
-				if (block.ActiveActionCount == 0 && block.PvDriveScore > 0.5f)
-				{
-					pBinding->Maps.emplace_back(block.PdCca);
-				}
-			}
-
-			m_pSelfBinding = move(pBinding);
-		}
-		else
-		{
-			auto pBinding = make_unique<SelfLocalMotionTransform>(&blocks);
+			//? To-Do, Fix this
+			auto pBinding = make_unique<SelfLocalMotionTransform>(*this);
 			pBinding->pHandles = &m_PvHandles;
 			m_pSelfBinding = move(pBinding);
 		}
@@ -1078,8 +872,8 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& 
 		auto Transf = FindIsometricTransformXY(rawX, rawY);
 		auto rank = rawX.cols();
 
-		transform.HomoMatrix.setIdentity(4,4);
-		transform.HomoMatrix.topLeftCorner(3,3) = Transf;
+		transform.HomoMatrix.setIdentity(4, 4);
+		transform.HomoMatrix.topLeftCorner(3, 3) = Transf;
 	}
 	else if (g_PartAssignmentTransform == PAT_AnisometricScale)
 	{
@@ -1176,7 +970,7 @@ void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipFacad
 }
 
 
-void CreateControlTransform(CharacterController & controller, const ClipFacade& iclip)
+float CreateControlTransform(CharacterController & controller, const ClipFacade& iclip)
 {
 	assert(controller.IsReady && iclip.IsReady());
 
@@ -1213,7 +1007,7 @@ void CreateControlTransform(CharacterController & controller, const ClipFacade& 
 
 	for (auto& anim : clips)	//? <= 5 animation per character
 	{
-		auto& cclip = controller.GetCharacterClipinfo(anim.Name);
+		auto& cclip = controller.GetClipInfo(anim.Name);
 		auto& cpv = cclip.PvFacade;
 
 		// Independent Active blocks only
@@ -1285,7 +1079,7 @@ void CreateControlTransform(CharacterController & controller, const ClipFacade& 
 			const auto& blY = *charaParts[i];
 			cout << "Block " << i << " = " << blY.Joints << endl;
 		}
-		cout << "__________ Parts Assignment __________"<< endl;
+		cout << "__________ Parts Assignment __________" << endl;
 		for (int i = 0; i < matching.size(); i++)
 		{
 			int ju = Juk[i], jc = Jck[matching[i]];
@@ -1310,10 +1104,10 @@ void CreateControlTransform(CharacterController & controller, const ClipFacade& 
 				if (ju >= 0 && jc >= 0)
 				{
 					cca.computeFromQr(iclip.GetPartPcadQrView(ju), cpv.GetPartPcadQrView(jc), false, phi);
-					corrlations(phi/Ti,i) = cca.correlaltions().minCoeff();
+					corrlations(phi / Ti, i) = cca.correlaltions().minCoeff();
 				}
 				else
-					corrlations(phi/Ti,i) = 0;
+					corrlations(phi / Ti, i) = 0;
 			}
 		}
 
@@ -1321,10 +1115,6 @@ void CreateControlTransform(CharacterController & controller, const ClipFacade& 
 		//! We should allowed a window of range for phi matching among different parts
 		float sumCor = corrlations.rowwise().sum().maxCoeff(&maxPhi);
 		maxPhi *= Ti;
-
-		//cclip.Score = maxScore;
-		//cclip.Matching = matching;
-		//cclip.Phi = maxPhi;
 
 		// Transform pair for active parts
 		std::vector<P2PTransform> partTransforms;
@@ -1356,8 +1146,8 @@ void CreateControlTransform(CharacterController & controller, const ClipFacade& 
 
 	auto pBinding = clipTransforms[maxClipIdx].get();
 	controller.SetBinding(move(clipTransforms[maxClipIdx]));
-	
 
+	return clipTransformScores.maxCoeff();
 	//if (g_EnableDependentControl)
 	//{
 	//	for (auto& pBlock : charaParts)
@@ -1372,9 +1162,4 @@ void CreateControlTransform(CharacterController & controller, const ClipFacade& 
 	//	}
 	//}
 
-	//VectorXf JuScore(Juk.size());
-	//JuScore.setZero();
-
-	//cout << endl;
-	//cout << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
 }

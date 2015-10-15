@@ -1800,7 +1800,22 @@ namespace DirectX
 		{
 			return TransformMatrix();
 		}
-	};
+
+		static void Lerp(_Out_ IsometricTransform& out, _In_ const IsometricTransform& t0, _In_ const IsometricTransform& t1, float t)
+		{
+			XMVECTOR tv = XMVectorReplicate(t);
+			out.Scale = XMVectorLerpV(XMLoadA(t0.Scale), XMLoadA(t1.Scale), tv);
+			out.Translation = XMVectorLerpV(XMLoadA(t0.Translation), XMLoadA(t1.Translation), tv);
+			out.Rotation = XMQuaternionSlerpV(XMLoadA(t0.Rotation), XMLoadA(t1.Rotation), tv);
+		}
+
+		static void LerpV(_Out_ IsometricTransform& out, _In_ const IsometricTransform& t0, _In_ const IsometricTransform& t1, FXMVECTOR tv)
+		{
+			out.Scale = XMVectorLerpV(XMLoadA(t0.Scale), XMLoadA(t1.Scale), tv);
+			out.Translation = XMVectorLerpV(XMLoadA(t0.Translation), XMLoadA(t1.Translation), tv);
+			out.Rotation = XMQuaternionSlerpV(XMLoadA(t0.Rotation), XMLoadA(t1.Rotation), tv);
+		}	
+};
 
 	XM_ALIGNATTR
 	struct LinearTransform : public TransformBase<LinearTransform> , public Matrix4x4

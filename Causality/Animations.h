@@ -181,7 +181,7 @@ namespace Causality
 			m_pDefaultFrame = &default_frame;
 		}
 		// Duration of this clip
-		TimeScalarType	Length() const;
+		TimeScalarType	Length() const { return Duration; }
 		// Is this clip a loopable animation : last frame == first frame
 		bool			Cyclic()  const { return IsCyclic; }
 

@@ -1,12 +1,12 @@
 #pragma once
 #include <atomic>
 #include <Eigen\Dense>
-#include "ArmatureBlock.h"
-#include "BoneFeatures.h"
+#include "ArmatureParts.h"
 #include "Animations.h"
 //#include <ppltasks.h>
 #include <mutex>
 #include <gsl.h>
+#include "CCA.h"
 //#include <boost\icl\interval_set.hpp>
 
 namespace std
@@ -30,6 +30,7 @@ namespace Causality
 			ComputePca = 0x4,
 			ComputePcaQr = 0x8 | ComputePca,
 			ComputePairDif = 0x10,
+			ComputeStaticEnergy = 0x20,
 			ComputeAll = ComputePcaQr | ComputeNormalize | ComputePairDif,
 		};
 
@@ -39,6 +40,12 @@ namespace Causality
 			ActivePartPairs = 1,
 			SubactivePartPairs = 2,
 			AllPartPairs = 3,
+		};
+
+		enum EnergyStatisticMethod
+		{
+			VarienceKinetic = 1,
+			NormStatic = 2,
 		};
 
 		// Construction & Meta-data acess
@@ -59,14 +66,14 @@ namespace Causality
 
 		bool							IsReady() const { return m_inited; }
 		// return -1 if variable feature dimension
-		bool							GetAllPartDimension() const { return m_pdFix ? m_dimP : -1; }
+		int								GetAllPartDimension() const { return m_pdFix ? m_dimP : -1; }
 		PairDifLevelEnum				GetPartPairInfoLevel() const { return m_pairInfoLevl; }
 
 		float							PcaCutoff() const { return m_pcaCutoff; }
 		void							SetPcaCutoff(float cutoff) { m_pcaCutoff = cutoff; }
 
-		const IArmaturePartFeature*		GetFeature() const { return m_pFeature.get(); }
-		void							SetFeature(std::unique_ptr<IArmaturePartFeature> && pFeature)
+		shared_ptr<IArmaturePartFeature>GetFeature() const { return m_pFeature; }
+		void							SetFeature(const std::shared_ptr<IArmaturePartFeature> & pFeature)
 		{
 			m_pFeature = std::move(pFeature);
 		}
@@ -74,10 +81,11 @@ namespace Causality
 		template <typename _Ty, class... _Types>
 		void							SetFeature(_Types&&... _Args)
 		{
-			m_pFeature.reset( new _Ty( _STD forward<_Types>(_Args)... ));
+			m_pFeature = std::make_shared<_Ty, _Types...>( _STD forward<_Types>(_Args)... );
 		}
 
 		void							Prepare(const ShrinkedArmature& parts, int clipLength = -1, int flag = ComputeAll);
+		void							SetComputationFlags(int flags);
 
 		void							AnalyzeSequence(gsl::array_view<BoneHiracheryFrame> frames, double sequenceTime);
 
@@ -179,7 +187,7 @@ namespace Causality
 
 		const ShrinkedArmature*	m_pParts;
 
-		std::unique_ptr<IArmaturePartFeature>
+		std::shared_ptr<IArmaturePartFeature>
 								m_pFeature;
 
 		bool					m_pdFix;		// Is Part feature fixed size
@@ -222,269 +230,76 @@ namespace Causality
 		Eigen::MatrixXf			m_difCov;
 	};
 
-	typedef
-		ArmaturePartFeatures::RelativeDeformation <
-		ArmaturePartFeatures::AllJoints <
-		BoneFeatures::LclRotLnQuatFeature > >
-		CharacterJRSFeature;
-
-	typedef
-		//ArmaturePartFeatures::WithVelocity<
-		ArmaturePartFeatures::Localize<
-		ArmaturePartFeatures::EndEffector<
-		BoneFeatures::GblPosFeature>>
-		PVSFeature;
-
 	class CharacterClipinfo
 	{
 	public:
 		ClipFacade RcFacade;
 		ClipFacade PvFacade;
 
-		CharacterClipinfo()
-		{
-			m_isReady = false;
-			m_pParts = nullptr;
-		}
+		CharacterClipinfo();
 
-		void Initialize(const ShrinkedArmature& parts)
-		{
-			m_pParts = &parts;
-			auto pIF = std::make_unique<CharacterJRSFeature>();
-			pIF->SetDefaultFrame(parts.Armature().default_frame());
+		void Initialize(const ShrinkedArmature& parts);
 
-			RcFacade.SetFeature(std::move(pIF));
-			PvFacade.SetFeature<PVSFeature>();
+		void AnalyzeSequence(gsl::array_view<BoneHiracheryFrame> frames, double sequenceTime);
 
-			RcFacade.Prepare(parts, -1, ClipFacade::ComputePcaQr);
-			PvFacade.Prepare(parts, -1, ClipFacade::ComputeAll);
-		}
+		explicit CharacterClipinfo(const ShrinkedArmature& parts);
 
-		void AnalyzeSequence(gsl::array_view<BoneHiracheryFrame> frames, double sequenceTime)
-		{
-			RcFacade.AnalyzeSequence(frames, sequenceTime);
-			PvFacade.AnalyzeSequence(frames, sequenceTime);
-		}
-
-		explicit CharacterClipinfo(const ShrinkedArmature& parts)
-		{
-			Initialize(parts);
-		}
-
+		void							SetArmatureParts(const ShrinkedArmature& parts) { m_pParts = &parts; }
 		const ShrinkedArmature&			ArmatureParts() const { return *m_pParts; }
 		auto&							ActiveParts() const { return	PvFacade.ActiveParts(); }
 		auto&							SubactiveParts() const { return PvFacade.SubactiveParts(); }
 
 		const std::string&				ClipName() const { return m_clipName; }
-		void							SetClipName(const ::std::string& name)
-		{
-			m_clipName = name;
-			PvFacade.SetClipName(name);
-			RcFacade.SetClipName(name);
-		}
+
+		void SetClipName(const ::std::string& name);
 
 		int								ClipFrames() const { return PvFacade.ClipFrames(); }
 		// Clip time length in seconds
 		double							ClipTime() const { return PvFacade.ClipTime(); }
+
+		bool							IsReady() const { return RcFacade.IsReady() && PvFacade.IsReady(); }
+
 	protected:
 		std::string				m_clipName;
 		const ShrinkedArmature*	m_pParts;
 		bool					m_isReady;
 	};
 
-	class ClipInfo
-	{
-	public:
-		typedef CharacterFeature FeatureType;
-
-		ClipInfo();
-		explicit ClipInfo(const ShrinkedArmature& pBArm);
-		ClipInfo(const ClipInfo& rhs) = default;
-		ClipInfo(ClipInfo&& rhs) = default;
-		~ClipInfo();
-
-		bool HasInputFeature() const;
-		bool HasOutputFeature() const;
-
-		void ProcessFrames(gsl::array_view<BoneHiracheryFrame> frames);
-		void ComputeFromFrames(const std::vector<BoneHiracheryFrame> &frames);
-		void ComputeFromBlocklizedMat(const Eigen::MatrixXf& mat);
-		void BlocklizationAndComputeEnergy(const std::vector<BoneHiracheryFrame>& frames);
-		void ComputePcaQr();
-		void ComputeSpatialTraits(const std::vector<BoneHiracheryFrame> &frames);
-
-		std::string						ClipName;
-		bool							IsReady;
-		//std::unique_ptr<std::thread>	pComputingThread;
-
-		const ShrinkedArmature*			pBlockArmature;
-		const ShrinkedArmature&			ArmatureParts() const { return *pBlockArmature; }
-
-		std::vector<int>	ActiveParts; // it's a set
-		std::vector<int>	SubactiveParts;
-
-		Eigen::RowVectorXf	Weithts;
-		Eigen::Array<Eigen::Cca<float>,-1,-1> SlefCorrs;
-
-		float				ActiveEnergyThreshold;
-		float				SubactiveEnergyThreshold;
-
-		float				PcaCutoff;
-		Eigen::MatrixXf		X;  // Fx sum(d_Bi), data matrix, d = Block dimension, F = Frame count, J = Block count
-		Eigen::RowVectorXi	DimX;	//Apprarixed Dimension of X
-		Eigen::RowVectorXf  Ej;	// 1xJ, Jointwise Translation (Varience) Energy
-		Eigen::RowVectorXf	Epj; // 1xJ, Jointwise Potiential Energy
-		Eigen::MatrixXf		Ej3;// 3xJ, Jointwise Translation (Varience) Energy among axis
-		Eigen::RowVectorXf	Eb;	// 1xB, Blockwise Translation Energy
-		Eigen::RowVectorXf	Epb; // 1xB, Blockwise Potiential Energy
-		Eigen::MatrixXf		Eb3;// 3xB, Blockwise Translation Energy among axis
-		Eigen::MatrixXf		Ejrot; // 3xJ, Jointwise Rotation Energy 
-		Eigen::MatrixXf		Ebrot; // 3xB, Blockwise Rotation Energy 
-		Eigen::MatrixXf		Sp;	// 6xB, Spatial traits, B = block count
-		Eigen::MatrixXf		Pvs; // 3FxB, block end-effector displacements, F = frame count, B = block count
-		Eigen::MatrixXf		uPvs;// 3xB, part wise pv mean
-		Eigen::MatrixXf		PvNormals; // Normalized Perceptive vectors
-		std::vector<Eigen::VectorXf>	MaxBs;
-		std::vector<Eigen::VectorXf>	MinBs;
-
-		std::vector<Eigen::QrStore<Eigen::MatrixXf>> Qrs;  // Blockwise Qr Decomposition 
-		std::vector<Eigen::Pca<Eigen::MatrixXf>>		Pcas; // Blockwise Pca
-		std::vector<Eigen::MatrixXf>					Xbs;  // Blockwise Data
-		std::vector<PcaCcaMap>	PerceptiveVectorReconstructor;
-		std::vector<Eigen::QrStore<Eigen::MatrixXf>> PvQrs; // Blockwise Qr Decomposition 
-		std::vector<Eigen::Pca<Eigen::MatrixXf>>		PvPcas;// Blockwise Pca
-
-		Eigen::Array<Eigen::RowVector3f, Eigen::Dynamic, Eigen::Dynamic>	PvDifMean;
-		Eigen::Array<Eigen::Matrix3f, Eigen::Dynamic, Eigen::Dynamic>		PvDifCov;
-
-		float						GetPartEnergy() const;
-		auto						GetActivePartsDifferenceSequence(int pi, int pj) const;
-		const Eigen::RowVector3f&	GetActivePartsDifferenceAverage(int pi, int pj) const;
-		const Eigen::Matrix3f&		GetActivePartsDifferenceCovarience(int pi, int pj) const;
-
-		const Eigen::RowVector3f&	XpvMean(int i, int j) const { return PvDifMean(i, j); }
-		const Eigen::Matrix3f&		XpvCov(int i, int j) const { return PvDifCov(i, j); }
-		Eigen::RowVector3f&			XpvMean(int i, int j) { return PvDifMean(i, j); }
-		Eigen::Matrix3f&			XpvCov(int i, int j) { return PvDifCov(i, j); }
-
-		// Information for current 'map'
-		int												Phi;
-		std::vector<Eigen::DenseIndex>					Matching;
-		float											Score;
-		Eigen::MatrixXf									Ra; // Overall correlation
-		Eigen::MatrixXf									Rk; // Kinetic correlation
-		Eigen::MatrixXf									Rs; // Positional correlation
-
-		std::unique_ptr<ArmatureTransform>				pLocalBinding;
-
-		DirectX::BoundingBox							BoundingBox;
-
-
-		auto							GetPartSequence(int pid) const
-		{
-			return X.middleCols(pid * 3, 3);
-		}
-		const Eigen::RowVectorXf&		GetPartMean(int pid) const
-		{
-			return Pcas[pid].mean();
-		}
-		auto&							GetPartPca(int pid) const
-		{
-			return Pcas[pid];
-		}
-		auto							GetPartPcaedSequence(int pid, int d) const
-		{
-			return Pcas[pid].coordinates(d);
-		}
-
-		auto&							GetAllPartsPvMean() const
-		{
-			return uPvs;
-		}
-		auto							GetPartPvSequence(int pid) const
-		{
-			return Pvs.middleCols(pid * 3, 3);
-		}
-		auto&							GetAllPartsNormalizedPvSequence() const
-		{
-			return Pvs;
-		}
-		auto							GetPartNormalizedPvSequence(int pid) const
-		{
-			return Pvs.middleCols(pid * 3, 3);
-		}
-
-		auto&							GetPartPvPca(int pid) const
-		{
-			return Pcas[pid];
-		}
-		auto&							GetPartPvPcaQr(int pid) const
-		{
-			return Qrs[pid];
-		}
-
-	protected:
-		Eigen::MatrixXf			m_cX; // Centered X
-		Eigen::RowVectorXf		m_uX; // X mean
-		std::vector<Eigen::QrStore<Eigen::MatrixXf>>
-			m_thickQrs;
-	};
-
-	class InputClipInfo : public ClipInfo
-	{
-	public:
-
-		using ClipInfo::ClipInfo;
-
-		int	Period; // T
-		int TemproalSampleInterval; // Ti
-		vector<vector<Eigen::QrStore<Eigen::MatrixXf>>> qrXs;
-
-		const Eigen::QrStore<Eigen::MatrixXf>& QrXs(int tid, int pid) const { return qrXs[tid][pid]; }
-
-		auto RawXs(int tid, int pid) const
-		{
-			return Xbs[pid].middleRows(tid * TemproalSampleInterval, Period);
-		}
-
-		auto	GetPartPvSequence(int pid) const
-		{
-			return X.middleCols(pid * 3, 3);
-		}
-		auto	GetPartPvSequence(int pid, int stFrame, int frames) const
-		{
-			return X.block(stFrame,pid * 3,frames, 3);
-		}
-		auto	GetPartNormalizedPvSequence(int pid, int stFrame, int frames) const
-		{
-			return Pvs.block(stFrame, pid * 3, frames, 3);
-		}
-
-		// New interfaces
-		auto	GetPartPvPcaQrView(int pid, int stFrame, int frames) const
-		{
-			auto& qr = m_thickQrs[pid];
-			return Eigen::QrView<Eigen::MatrixXf>(qr, stFrame, frames);
-		}
-	};
-
 	class CyclicStreamClipinfo : protected ClipFacade
 	{
 	public:
-		typedef PVSFeature PartsFeatureType;
 		typedef IArmatureStreamAnimation::frame_type FrameType;
-
-		void InitializePvFacade(ShrinkedArmature& parts);
 
 		// set interval_frames == 0 to automaticly estimate based on windows size and sample rate
 		CyclicStreamClipinfo(ShrinkedArmature& parts, time_seconds minT, time_seconds maxT, double sampleRateHz, size_t interval_frames = 0);
+		CyclicStreamClipinfo();
 
-		void InitializeStreamView(ShrinkedArmature& parts, time_seconds minT, time_seconds maxT, double sampleRateHz, size_t interval_frames);
+		void Initialize(ShrinkedArmature& parts, time_seconds minT, time_seconds maxT, double sampleRateHz, size_t interval_frames = 0);
 
 		// Important, input frame use this method
-		void StreamFrame(const FrameType& frame);
+		// return true if a new metric of ClipFacade is avaiable
+		bool StreamFrame(const FrameType& frame);
 
-		void AnaylzeRecentStream();
+		void ResetStream();
+
+		ClipFacade& AqucireFacade()
+		{
+			m_facadeMutex.lock();
+			return static_cast<ClipFacade&>(*this);
+		}
+
+		void		ReleaseFacade()
+		{
+			m_facadeMutex.unlock();
+		}
+
+		void EnableCyclicMotionDetection(bool is_enable = true) { m_enableCyclicDtc = is_enable; }
+
+	protected:
+		void InitializePvFacade(ShrinkedArmature& parts);
+		void InitializeStreamView(ShrinkedArmature& parts, time_seconds minT, time_seconds maxT, double sampleRateHz, size_t interval_frames);
+
+		bool AnaylzeRecentStream();
 
 		// Result stored in this->m_Spectrum
 		void CaculateSpecturum(size_t head, size_t windowSize);
@@ -503,22 +318,19 @@ namespace Causality
 
 		FrequencyResolveResult CaculatePeekFrequency(const Eigen::MatrixXcf& spectrum);
 
-		void ComputeClipinfo(size_t cliplength);
-
-		void EnableCyclicMotionDetection(bool is_enable = true) { m_enableCyclicDtc = is_enable; }
-
 	private:
 		double		m_minT, m_maxT;
 		double		m_sampleRate;
 		int			m_cropMargin;
 
-		int			m_minHz, m_maxHz, m_HzWidth;
+		// min Frequency, in Frames unit
+		int			m_minFr, m_maxFr, m_FrWidth;
 		int			m_frameWidth; // logical feature frame width, in floats
 		int			m_windowSize; // expected windows size
 
 		int			m_analyzeInterval; // analyze should invoke for every $m_analyzeInterval$ frames arrived
 
-		std::unique_ptr<IArmaturePartFeature>
+		std::shared_ptr<IArmaturePartFeature>
 					m_pFeature;
 		int			m_featureDim;
 

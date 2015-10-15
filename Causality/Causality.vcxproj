@@ -259,7 +259,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <PrecompiledHeaderOutputFile>$(IntDir)bcl.pch</PrecompiledHeaderOutputFile>
     </ClCompile>
     <ClCompile Include="Animations.cpp" />
-    <ClCompile Include="ArmatureBlock.cpp" />
+    <ClCompile Include="ArmatureParts.cpp" />
     <ClCompile Include="AssetDictionary.cpp" />
     <ClCompile Include="CausalityApplication.cpp" />
     <ClCompile Include="CharacterBehavier.cpp" />
@@ -287,10 +287,10 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="StylizedIK.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ArmaturePartFeatures.h" />
     <ClInclude Include="ClipMetric.h" />
     <ClInclude Include="Animations.h" />
-    <ClInclude Include="ArmatureBlock.h" />
-    <ClInclude Include="ArmatureFeature.h" />
+    <ClInclude Include="ArmatureParts.h" />
     <ClInclude Include="ArmatureTransforms.h" />
     <ClInclude Include="AssetDictionary.h" />
     <ClInclude Include="BasicShapeModel.h" />

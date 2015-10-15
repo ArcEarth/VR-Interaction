@@ -401,7 +401,9 @@ double gaussian_process_regression::optimze_parameters(const ParamType & initial
 
 double gaussian_process_regression::optimze_parameters()
 {
-	auto varX = sqrt((X.cwiseAbs2().sum() / (N - 1)));
+	// Use adjactive difference instead of overall varience
+	auto varX = sqrtf((X.bottomRows(N - 1) - X.topRows(N - 1)).cwiseAbs2().sum() / (N -2));
+	//sqrt((X.cwiseAbs2().sum() / (N - 1)));
 	assert(!isnan(varX));
 
 	ParamType param;

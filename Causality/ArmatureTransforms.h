@@ -5,8 +5,9 @@
 #include <map>
 #include "RegressionModel.h"
 #include "PcaCcaMap.h"
-#include "ArmatureBlock.h"
+#include "ArmatureParts.h"
 #include "BoneFeatures.h"
+#include "ArmaturePartFeatures.h"
 
 namespace Causality
 {
@@ -15,6 +16,8 @@ namespace Causality
 		int Jx, Jy;
 		std::unique_ptr<IRegression> pRegression;
 	};
+
+	class CharacterController;
 
 	class CcaArmatureTransform : virtual public ArmatureTransform
 	{
@@ -78,27 +81,26 @@ namespace Causality
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const;
 	};
 
-	class ClipInfo;
-
 	namespace ArmaturePartFeatures
 	{
 		class PerceptiveVector : public IArmaturePartFeature
 		{
-			gsl::array_view<ClipInfo>		Clipinfos;
-
+		private:
+			CharacterController			*m_pController;
 		public:
-			float						segma;
-			bool						QuadraticInput;
-
-			PerceptiveVector(gsl::array_view<ClipInfo>		clipinfos);
+			float						Segma;
+			bool						Quadratic;
+			bool						Velocity;
 		public:
 
 			typedef BoneFeatures::GblPosFeature InputFeatureType;
 			typedef CharacterFeature CharacterFeatureType;
 
+			PerceptiveVector(CharacterController& controller);
+
 			virtual int GetDimension(_In_ const ArmaturePart& block) override
 			{
-				return QuadraticInput ? 9 : 3;
+				return Quadratic ? 9 : 3;
 			}
 
 			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override;
@@ -108,15 +110,19 @@ namespace Causality
 		};
 	}
 
+	class CharacterClipinfo;
+
 	class RBFInterpolationTransform : public BlockizedCcaArmatureTransform
 	{
+	private:
+		CharacterController			*m_pController;
 
 	public:
-		RBFInterpolationTransform(gsl::array_view<ClipInfo> clips);
+		RBFInterpolationTransform(gsl::array_view<CharacterClipinfo> clips);
 
-		RBFInterpolationTransform(gsl::array_view<ClipInfo> clips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock);
+		RBFInterpolationTransform(gsl::array_view<CharacterClipinfo> clips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock);
 
-		gsl::array_view<ClipInfo>		Clipinfos;
+		gsl::array_view<CharacterClipinfo>		Clipinfos;
 
 		mutable std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> pvs;
 		std::unique_ptr<IArmaturePartFeature> pDependentBlockFeature;
@@ -158,6 +164,8 @@ namespace Causality
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const override;
 
 	private:
+		CharacterController			*m_pController;
+
 		typedef std::pair<DirectX::Vector3, DirectX::Vector3> LineSegment;
 		std::vector<LineSegment> * pHandles;
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "Armature.h"
 #include "Animations.h"
-#include "ArmatureBlock.h"
+#include "ArmatureParts.h"
 
 namespace Causality
 {
@@ -42,6 +42,7 @@ namespace Causality
 		void					SetArmature(IArmature& armature);
 		const frame_type&		RestFrame() const; // RestFrame should be the first fram in Rest Animation
 
+		void					UniformQuaternionsBetweenClips();
 
 
 												   //! Legacy thing ...

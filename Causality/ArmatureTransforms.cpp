@@ -3,6 +3,7 @@
 #include <iostream>
 #include "Settings.h"
 #include <PrimitiveVisualizer.h>
+#include "CharacterController.h"
 
 extern Eigen::RowVector3d	g_NoiseInterpolation;
 namespace Causality
@@ -110,7 +111,7 @@ void BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const f
 			int Xsize = 0;
 			for (auto& pBlock : tblocks)
 			{
-				if (pBlock->ActiveActionCount > 0)
+				if (pBlock->ActiveActions.size() > 0)
 				{
 					Xs.emplace_back(pInputExtractor->Get(*pBlock, source_frame));
 					Xsize += Xs.back().size();
@@ -173,11 +174,10 @@ void BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const f
 	target_frame.RebuildGlobal(*pTarget);
 }
 
-PerceptiveVector::PerceptiveVector(gsl::array_view<ClipInfo>		clipinfos)
-	: Clipinfos(clipinfos)
+Causality::ArmaturePartFeatures::PerceptiveVector::PerceptiveVector(CharacterController & controller)
+	: m_pController(&controller)
 {
-	QuadraticInput = true;
-	segma = 10;
+
 }
 
 Eigen::RowVectorXf PerceptiveVector::Get(const ArmaturePart & block, const BoneHiracheryFrame & frame)
@@ -185,7 +185,7 @@ Eigen::RowVectorXf PerceptiveVector::Get(const ArmaturePart & block, const BoneH
 	using namespace Eigen;
 
 	DenseIndex dim = InputFeatureType::Dimension;
-	if (QuadraticInput)
+	if (Quadratic)
 		dim += dim * (dim + 1) / 2;
 
 	RowVectorXf Y(dim);
@@ -201,7 +201,7 @@ Eigen::RowVectorXf PerceptiveVector::Get(const ArmaturePart & block, const BoneH
 		Y.segment<3>(0) -= reference;
 	}
 
-	if (QuadraticInput)
+	if (Quadratic)
 	{
 		ExpandQuadraticTerm(Y, InputFeatureType::Dimension);
 	}
@@ -245,15 +245,15 @@ void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & fram
 {
 	using namespace DirectX;
 	using namespace Eigen;
-	if (block.ActiveActionCount > 0)
+	if (block.ActiveActions.size() > 0)
 	{
 		RowVectorXf Y(CharacterFeatureType::Dimension * block.Joints.size());
 
-		if (block.PdCca.Jx == -1 || block.PdCca.Jy == -1) return;
+		if (block.ActiveActions.size() + block.SubActiveActions.size() == 0) return;
 
 		if (!g_UseStylizedIK)
 		{
-			block.PdCca.Apply(feature, Y);
+			//block.PdCca.Apply(feature, Y);
 		}
 		else
 		{
@@ -267,7 +267,8 @@ void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & fram
 			if (g_PvDimension == 6 && g_UseVelocity)
 			{
 				auto dX = feature.cast<double>().eval();
-				auto& sik = const_cast<StylizedChainIK&>(block.PdStyleIk);
+				auto& sik = m_pController->GetStylizedIK(block.Index);
+				auto& gpr = sik.Gplvm();
 				sik.SetBaseRotation(frame[block.parent()->Joints.back()->ID].GblRotation);
 				dY = sik.Apply(dX.segment<3>(0).transpose().eval(), dX.segment<3>(3).transpose().eval());
 			}
@@ -291,21 +292,21 @@ void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & fram
 	}
 }
 
-RBFInterpolationTransform::RBFInterpolationTransform(gsl::array_view<ClipInfo> clips)
+RBFInterpolationTransform::RBFInterpolationTransform(gsl::array_view<CharacterClipinfo> clips)
 {
 	Clipinfos = clips;
-	auto pIF = new PerceptiveVector(clips);
-	pIF->QuadraticInput = true;
+	auto pIF = new PerceptiveVector(*m_pController);
+	pIF->Quadratic = true;
 	pInputExtractor.reset(pIF);
 
-	auto pOF = new PerceptiveVector(clips);
-	pOF->segma = 30;
+	auto pOF = new PerceptiveVector(*m_pController);
+	pOF->Segma = 30;
 	pOutputExtractor.reset(pOF);
 
 	pDependentBlockFeature.reset(new AllJoints<CharacterFeature>());
 }
 
-RBFInterpolationTransform::RBFInterpolationTransform(gsl::array_view<ClipInfo> clips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock)
+RBFInterpolationTransform::RBFInterpolationTransform(gsl::array_view<CharacterClipinfo> clips, const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock)
 	: RBFInterpolationTransform(clips)
 {
 	SetFrom(pSourceBlock, pTargetBlock);
@@ -512,12 +513,14 @@ void RBFInterpolationTransform::Transform(frame_type & target_frame, const frame
 			}
 			else
 			{
-				if (pTb->SubActiveActionCount > 0 && map.uXpca.size() == Xabpv.size())
+				if (pTb->SubActiveActions.size() > 0 && map.uXpca.size() == Xabpv.size())
 				{
 					auto _x = (Xabpv - map.uXpca) * map.pcX;
 
 					RowVectorXd Yd;
-					auto lk = pTb->PdGpr.get_expectation_and_likelihood(_x.cast<double>(), &Yd);
+					auto& sik = m_pController->GetStylizedIK(pTb->Index);
+					auto& gpr = sik.Gplvm();
+					auto lk = gpr.get_expectation_and_likelihood(_x.cast<double>(), &Yd);
 
 					Yd.array() /= pTb->Wx.array().cast<double>();
 					Y = Yd.cast<float>();// *pTb->Wx.cwiseInverse().asDiagonal();
@@ -569,7 +572,7 @@ void PartilizedTransform::Transform(frame_type & target_frame, const frame_type 
 	{
 		auto block = const_cast<ArmaturePart*>(blocks[ctrl.DstIdx]);
 
-		if (block->ActiveActionCount > 0)
+		if (block->ActiveActions.size() > 0)
 		{
 			RowVectorXf xf = m_pInputF->Get(*block, source_frame);//,last_frame,frame_time
 			RowVectorXf xlf = m_pInputF->Get(*block, last_frame);
@@ -608,14 +611,18 @@ void PartilizedTransform::Transform(frame_type & target_frame, const frame_type 
 			covObsr.diagonal() = g_NoiseInterpolation.replicate(1, g_PvDimension / 3).transpose();
 
 			auto baseRot = target_frame[block->parent()->Joints.back()->ID].GblRotation;
-			block->PdStyleIk.SetBaseRotation(baseRot);
-			block->PdStyleIk.SetChain(block->Joints, target_frame);
-			block->PdStyleIk.SetGplvmWeight(block->Wx.cast<double>());
+
+			auto& sik = m_pController->GetStylizedIK(block->Index);
+			auto& gpr = sik.Gplvm();
+
+			sik.SetBaseRotation(baseRot);
+			sik.SetChain(block->Joints, target_frame);
+			sik.SetGplvmWeight(block->Wx.cast<double>());
 
 			if (!g_UseVelocity)
-				Y = block->PdStyleIk.Apply(Xd.transpose());
+				Y = sik.Apply(Xd.transpose());
 			else
-				Y = block->PdStyleIk.Apply(Xd.leftCols<3>().transpose(), Xd.segment<3>(3).transpose().eval());
+				Y = sik.Apply(Xd.leftCols<3>().transpose(), Xd.segment<3>(3).transpose().eval());
 
 			m_pActiveF->Set(*block, target_frame, Y.cast<float>());
 			for (int i = 0; i < block->Joints.size(); i++)

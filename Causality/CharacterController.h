@@ -1,7 +1,8 @@
 #pragma once
 #include "Animations.h"
 #include <atomic>
-#include <map>
+#include "ClipMetric.h"
+#include "StylizedIK.h"
 
 namespace Causality
 {
@@ -9,6 +10,7 @@ namespace Causality
 	class CharacterObject;
 	class InputClipInfo;
 	class CharacterClipinfo;
+	class ClipFacade;
 
 	class CharacterController
 	{
@@ -20,30 +22,32 @@ namespace Causality
 		ArmatureTransform& Binding();
 		void SetBinding(std::unique_ptr<ArmatureTransform> &&upBinding);
 
+		const ArmatureTransform& SelfBinding() const { return *m_pSelfBinding; }
+		ArmatureTransform& SelfBinding() { return *m_pSelfBinding; }
+
 		const CharacterObject& Character() const;
 		CharacterObject& Character();
 
 		void UpdateTargetCharacter(const BoneHiracheryFrame& sourceFrame, const BoneHiracheryFrame& lastSourceFrame, double deltaTime_seconds) const;
 
-		void UpdateBindingByInputClip(const InputClipInfo& inputClip);
+		float CreateControlBinding(const ClipFacade& inputClip);
 
 		const std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& PvHandles() const;
 
-		std::atomic_bool		IsReady;
-		int						ID;
-		BoneHiracheryFrame				PotientialFrame;
-		float					CharacterScore;
-		DirectX::Vector3		MapRefPos;
-		DirectX::Vector3		CMapRefPos;
-		mutable DirectX::Vector3 LastPos;
-		DirectX::Quaternion		MapRefRot;
-		DirectX::Quaternion		CMapRefRot;
-		int						CurrentActionIndex;
-		Eigen::MatrixXf			XabpvT; // Pca matrix of Xabpv
-		Eigen::RowVectorXf		uXabpv; // Pca mean of Xabpv
+		std::atomic_bool			IsReady;
+		int							ID;
+		BoneHiracheryFrame			PotientialFrame;
 
-		Eigen::Array<Eigen::RowVector3f, Eigen::Dynamic, Eigen::Dynamic>	PvDifMean;
-		Eigen::Array<Eigen::Matrix3f, Eigen::Dynamic, Eigen::Dynamic>		PvDifCov;
+		float						CharacterScore;
+		DirectX::Vector3			MapRefPos;
+		DirectX::Vector3			CMapRefPos;
+		mutable DirectX::Vector3	LastPos;
+		DirectX::Quaternion			MapRefRot;
+		DirectX::Quaternion			CMapRefRot;
+		int							CurrentActionIndex;
+
+		Eigen::MatrixXf				XabpvT; // Pca matrix of Xabpv
+		Eigen::RowVectorXf			uXabpv; // Pca mean of Xabpv
 
 
 		// Addtional velocity
@@ -51,24 +55,29 @@ namespace Causality
 		std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> m_PvHandles;
 
 		// Principle displacement driver
-		ClipInfo& GetClipInfo(const std::string& name);
+		CharacterClipinfo& GetClipInfo(const std::string& name);
 
-		std::vector<ClipInfo>& GetClipInfos() { return m_Clipinfos; }
+		std::vector<CharacterClipinfo>& GetClipInfos() { return m_Clipinfos; }
 
-		CharacterClipinfo& GetCharacterClipinfo(const std::string& name);
+		StylizedChainIK& GetStylizedIK(int pid) { return m_SIKs[pid]; }
+		const StylizedChainIK& GetStylizedIK(int pid) const { return m_SIKs[pid]; }
 
-	public:
+	protected:
 		CharacterObject*										m_pCharacter;
-		std::vector<ClipInfo>									m_Clipinfos;
-		std::vector<CharacterClipinfo>							m_CClipinfos;
+		std::vector<CharacterClipinfo>							m_Clipinfos;
+
+		// A Clipinfo which encapture all frames from clips
+		CharacterClipinfo										m_cpxClipinfo;
+		std::vector<StylizedChainIK>							m_SIKs;
+
 		std::unique_ptr<ArmatureTransform>						m_pBinding;
 		std::unique_ptr<ArmatureTransform>						m_pSelfBinding;
-		//std::unique_ptr<IArmaturePartFeature>					m_pFeatureExtrator;
 
-
+	protected:
 		void SetSourceArmature(const IArmature& armature);
-
 		void SetTargetCharacter(CharacterObject& object);
+
+
 	};
 
 }

@@ -84,9 +84,6 @@
     <ClCompile Include="SelectorScene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ArmatureBlock.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Animations.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -121,6 +118,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ClipMetric.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ArmatureParts.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -209,9 +209,6 @@
     <ClInclude Include="FbxParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ArmatureBlock.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Animations.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -254,9 +251,6 @@
     <ClInclude Include="PcaCcaMap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ArmatureFeature.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GSL\array_view.h">
       <Filter>Header Files\gsl</Filter>
     </ClInclude>
@@ -276,6 +270,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ClipMetric.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ArmaturePartFeatures.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ArmatureParts.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

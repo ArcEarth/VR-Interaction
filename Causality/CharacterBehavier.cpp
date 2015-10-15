@@ -94,6 +94,53 @@ void BehavierSpace::SetArmature(IArmature & armature) {
 
 const BehavierSpace::frame_type & BehavierSpace::RestFrame() const { return Armature().default_frame(); }
 
+void BehavierSpace::UniformQuaternionsBetweenClips()
+{
+	auto& armature = *m_pArmature;
+	auto& clips = m_AnimClips;
+
+	// Try to unify rotation pivot direction
+	typedef vector<Vector4, DirectX::AlignedAllocator<Vector4, alignof(DirectX::XMVECTOR)>> aligned_vector_of_vector4;
+	aligned_vector_of_vector4 gbl_pivots(armature.size());
+	bool gbl_def = true;
+	for (auto& anim : clips)
+	{
+		using namespace DirectX;
+		aligned_vector_of_vector4 pivots(armature.size());
+		for (auto& frame : anim.GetFrameBuffer())
+		{
+			for (size_t i = 0; i < armature.size(); i++)
+			{
+				pivots[i] += frame[i].LclRotation.LoadA();
+			}
+		}
+
+		if (gbl_def)
+		{
+			for (size_t i = 0; i < armature.size(); i++)
+			{
+				gbl_pivots[i] = DirectX::XMVector3Normalize(pivots[i].LoadA());
+			}
+			gbl_def = false;
+		}
+		else
+		{
+			//for (size_t i = 0; i < armature.size(); i++)
+			//{
+			//	XMVECTOR pivot = DirectX::XMVector3Normalize(pivots[i].LoadA());
+			//	XMVECTOR gbl_pivot = gbl_pivots[i].Load();
+			//	if (XMVector4Less(XMVector3Dot(gbl_pivot, pivot), XMVectorZero()))
+			//	{
+			//		for (auto& frame : anim.GetFrameBuffer())
+			//		{
+			//			frame[i].LclRotation.StoreA(-frame[i].LclRotation.LoadA());
+			//		}
+			//	}
+			//}
+		}
+	}
+}
+
 Eigen::VectorXf BehavierSpace::FrameFeatureVectorEndPointNormalized(const frame_type & frame) const
 {
 	int N = frame.size();

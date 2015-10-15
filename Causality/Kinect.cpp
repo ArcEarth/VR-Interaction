@@ -6,7 +6,7 @@
 #include <iostream>
 #include <chrono>
 #include <wrl\event.h>
-#include "ArmatureBlock.h"
+#include "ArmatureParts.h"
 
 using namespace Causality;
 using namespace Causality::Devices;
