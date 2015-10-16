@@ -48,7 +48,7 @@ void Causality::StylizedChainIK::SetChain(const std::vector<const Joint*>& joint
 {
 	m_chain.resize(joints.size());
 	m_chainRot.resize(joints.size());
-	m_iy.setZero(joints.size() * 3);
+	//m_iy.setZero(joints.size() * 3);
 	m_chainLength = 0;
 	for (int i = 0; i < joints.size(); i++)
 	{
@@ -62,6 +62,7 @@ void Causality::StylizedChainIK::SetChain(const std::vector<const Joint*>& joint
 		 //m_iy.segment<3>(i * 3) = lq.cast<double>();
 	}
 
+	m_iy = m_gplvm.uY;
 }
 
 void Causality::StylizedChainIK::SetGoal(const Eigen::Vector3d & goal)
@@ -208,12 +209,12 @@ double StylizedChainIK::objective(const Eigen::RowVectorXd & x, const Eigen::Row
 
 	//double iklimdis = ((m_limy.row(0) - y).cwiseMax(y - m_limy.row(1))).cwiseMax(0).cwiseAbs2().sum() * m_ikLimitWeight;
 
-	//double markovdis = (y - m_cy).cwiseAbs2().sum() * m_markovWeight;
+	double markovdis = (y - m_cy).cwiseAbs2().sum() * m_markovWeight;
 
-	//double fitlikelihood = (y.array() /** m_wy.array()*/ - m_ey.array()).cwiseAbs2().sum() * (0.5 * m_styleWeight / m_segmaX);
+	double fitlikelihood = (y.array() /** m_wy.array()*/ - m_ey.array()).cwiseAbs2().sum() * (0.5 * m_styleWeight / m_segmaX);
 	//double fitlikelihood = m_gplvm.get_likelihood_xy(x, y) * g_StyleLikelihoodTermWeight;
 
-	return ikdis;// +fitlikelihood + markovdis;//+iklimdis;
+	return ikdis + fitlikelihood + markovdis;//+iklimdis;
 }
 
 RowVectorXd StylizedChainIK::objective_derv(const Eigen::RowVectorXd & x, const Eigen::RowVectorXd & y)
@@ -239,15 +240,15 @@ RowVectorXd StylizedChainIK::objective_derv(const Eigen::RowVectorXd & x, const 
 	//RowVectorXd iklimderv = 2.0 * m_ikLimitWeight * ((y - m_limy.row(0)).cwiseMin(0) + (y - m_limy.row(1)).cwiseMax(0));
 
 	// Markov progation derv
-	//RowVectorXd markovderv = 2.0 * m_markovWeight * (y - m_cy);
+	RowVectorXd markovderv = 2.0 * m_markovWeight * (y - m_cy);
 	//markovderv.setZero();
 
-	//RowVectorXd animLkderv = (y.array()/* * m_wy.array()*/ - m_ey.array()) * (m_styleWeight / m_segmaX ); //m_gplvm.get_likelihood_xy_derivative(x, y) * g_StyleLikelihoodTermWeight;
+	RowVectorXd animLkderv = (y.array()/* * m_wy.array()*/ - m_ey.array()) * (m_styleWeight / m_segmaX ); //m_gplvm.get_likelihood_xy_derivative(x, y) * g_StyleLikelihoodTermWeight;
 
 
-	derv.segment(x.size(), y.size()) = ikderv;//+ markovderv;// + gplvm.likelihood_xy_derv;
+	derv.segment(x.size(), y.size()) = ikderv + markovderv;// + gplvm.likelihood_xy_derv;
 	derv.segment(0, x.size()).setZero();
-	//derv.segment(x.size(), y.size()) += animLkderv;
+	derv.segment(x.size(), y.size()) += animLkderv;
 	//derv.segment(x.size(), y.size()) += iklimderv;
 
 	return derv;//derv
@@ -296,6 +297,12 @@ const RowVectorXd & StylizedChainIK::Apply(const Vector3d & goal)
 	RowVectorXd hint_y;
 	double lk = m_gplvm.get_expectation_and_likelihood(m_goal, &hint_y);
 	lk = exp(-lk);
+
+	m_meanLk = (m_meanLk * m_counter + lk) / (m_counter + 1);
+	++m_counter;
+	if (lk < 0.001 * m_meanLk) // low possibility prediction, use previous frame's data instead
+		hint_y = m_cy;
+	//hint_y = m_iy;
 
 	m_cx = m_goal;
 	return Apply(m_goal, hint_y.transpose().eval());
@@ -375,8 +382,8 @@ const Eigen::RowVectorXd & Causality::StylizedChainIK::Apply(const Eigen::Vector
 		dlib::lbfgs_search_strategy(v.size()),
 		dlib::objective_delta_stop_strategy(),//.be_verbose(),
 		f,
-		//df,
-		dlib::derivative(f),
+		df,
+		//dlib::derivative(f),
 		v,
 		0//vmin,vmax//,0
 		);

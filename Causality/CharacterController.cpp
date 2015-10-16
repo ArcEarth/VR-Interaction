@@ -84,12 +84,15 @@ public:
 
 	std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> * pHandles;
 
-	mutable 
-	Localize<EndEffector<InputFeature>>	
+	mutable
+		Localize<EndEffector<InputFeature>>
 		inputExtractor;
 
 	mutable
-	RelativeDeformation <AllJoints <LclRotLnQuatFeature >>
+		Pcad <
+		Weighted <
+		RelativeDeformation <
+		AllJoints < LclRotLnQuatFeature > > > >
 		outputExtractor;
 
 	//mutable MatrixXd m_Xs;
@@ -98,13 +101,38 @@ public:
 		: pController(&controller), pHandles(nullptr)
 	{
 		pBlockArmature = &controller.Character().Behavier().ArmatureParts();
-		outputExtractor.SetDefaultFrame(controller.Character().Armature().default_frame());
-
 		pSource = &pBlockArmature->Armature();
 		pTarget = &pBlockArmature->Armature();
-		//m_Xs.resize(pBlockArmature->size(), g_PvDimension);
 
-		//InitializeExtractor(outputExtractor, *pBlockArmature);
+		InitializeOutputFeature();
+	}
+
+	void InitializeOutputFeature()
+	{
+		auto& parts = *pBlockArmature;
+		auto& ucinfo = pController->GetUnitedClipinfo();
+
+		outputExtractor.InitPcas(parts.size());
+		outputExtractor.SetDefaultFrame(pBlockArmature->Armature().default_frame());
+		outputExtractor.InitializeWeights(parts);
+
+		auto& facade = ucinfo.RcFacade;
+		auto cutoff = facade.PcaCutoff();
+		for (auto part : parts)
+		{
+			int pid = part->Index;
+			if (part->ActiveActions.size() > 0)
+			{
+				auto &pca = facade.GetPartPca(pid);
+				auto d = facade.GetPartPcaDim(pid);
+				outputExtractor.SetPca(pid, pca.components(d), pca.mean());
+			}
+			else
+			{
+				int odim = facade.GetPartDimension(pid);
+				outputExtractor.SetPca(pid, MatrixXf::Identity(odim, odim), facade.GetPartMean(pid));
+			}
+		}
 	}
 
 	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
@@ -149,7 +177,7 @@ public:
 
 		int pvDim = inputExtractor.GetDimension(*blocks[0]);
 
-		RowVectorXd X ( g_UseVelocity ? pvDim * 2 : pvDim), Y;
+		RowVectorXd X(g_UseVelocity ? pvDim * 2 : pvDim), Y;
 
 		double semga = 1000;
 		RowVectorXf yf;
@@ -163,10 +191,31 @@ public:
 			{
 				auto& sik = pController->GetStylizedIK(block->Index);
 				auto& gpr = sik.Gplvm();
+				auto& joints = block->Joints;
 
 				RowVectorXf xf = inputExtractor.Get(*block, source_frame);
 				RowVectorXf xfl = inputExtractor.Get(*block, last_frame);
+
 				yf = outputExtractor.Get(*block, target_frame);
+				auto pDecoder = sik.GetDecoder();
+				auto baseRot = target_frame[block->parent()->Joints.back()->ID].GblRotation;
+				sik.SetBaseRotation(baseRot);
+				sik.SetChain(block->Joints, target_frame);
+
+				//sik.SetGplvmWeight(block->Wx.cast<double>());
+
+				//std::vector<DirectX::Quaternion, XMAllocator> corrrots(joints.size());
+				//std::vector<DirectX::Quaternion, XMAllocator> rots(joints.size());
+
+				//for (int i = 0; i < joints.size(); i++)
+				//{
+				//	corrrots[i] = target_frame[joints[i]->ID].LclRotation;
+				//}
+
+				//(*pDecoder)(rots.data(), yf.cast<double>());
+				////outputExtractor.Set(*block, target_frame, yf);
+				//auto ep = sik.EndPosition(reinterpret_cast<XMFLOAT4A*>(rots.data()));
+
 
 				X.segment(0, pvDim) = xf.cast<double>();
 
@@ -230,10 +279,6 @@ public:
 
 				//block->PdGpr.get_expectation_from_observation(X, covObsr, &Y);
 				//block->PdGpr.get_expectation(X, &Y);
-				auto baseRot = target_frame[block->parent()->Joints.back()->ID].GblRotation;
-				sik.SetBaseRotation(baseRot);
-				sik.SetChain(block->Joints, target_frame);
-				sik.SetGplvmWeight(block->Wx.cast<double>());
 				//auto yc = yf;
 				//yf = Y.cast<float>();
 				//yf.array() *= block->Wx.cwiseInverse().array().transpose();
@@ -242,15 +287,16 @@ public:
 				if (!g_UseVelocity)
 					Y = sik.Apply(X.transpose());
 				else
-					Y = sik.Apply(X.segment(0,pvDim).transpose(), Vector3d(X.segment(pvDim, pvDim).transpose()));
+					Y = sik.Apply(X.segment(0, pvDim).transpose(), Vector3d(X.segment(pvDim, pvDim).transpose()));
 
 				//block->PdStyleIk.SetGoal(X.leftCols<3>());
 
 				//auto scoref = block->PdStyleIk.objective(X, yf.cast<double>());
 				//auto scorec = block->PdStyleIk.objective(X, yc.cast<double>());
 				//std::cout << "Gpr score : " << scoref << " ; Cannonical score : " << scorec << endl;
-				//auto ep = block->PdStyleIk.EndPosition(yf.cast<double>());
+				//auto ep = sik.EndPosition(yf.cast<double>());
 
+				//Y = yf.cast<double>();
 				outputExtractor.Set(*block, target_frame, Y.cast<float>());
 				for (int i = 0; i < block->Joints.size(); i++)
 				{
@@ -496,6 +542,15 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 	m_PvHandles.resize(armature.size());
 
 	parts.ComputeWeights();
+	if (!g_UseJointLengthWeight)
+	{
+		for (auto& part : parts)
+		{
+			part->Wx.setOnes();
+			part->Wxj.setOnes();
+		}
+	}
+
 	behavier.UniformQuaternionsBetweenClips();
 
 	for (auto& anim : clips)
@@ -550,7 +605,7 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 		tinyxml2::XMLDocument paramdoc;
 		tinyxml2::XMLElement* settings = nullptr;
 		string paramFileName = "CharacterAnalayze\\" + m_pCharacter->Name + ".param.xml";
-		string settingName = str(boost::format("clip_rasterize_%1%") % CLIP_FRAME_COUNT);
+		string settingName = str(boost::format("cr_%1%_vel%2%_wj%3%") % CLIP_FRAME_COUNT % g_UseVelocity % g_UseJointLengthWeight);
 
 		for (auto& cinfo : m_Clipinfos)
 			settingName += '_' + cinfo.ClipName();
@@ -615,99 +670,13 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 		vector<int> activeParts(BEGIN_TO_END(avtiveSet));
 		vector<int> subactParts(BEGIN_TO_END(subactSet));;
 
-		// pvDim without
-		int pvDim = m_cpxClipinfo.PvFacade.GetAllPartDimension();
-		assert(pvDim > 0);
-
 		// Active parts Pv s
-		MatrixXf Xabpv(allClipinfo.ClipFrames(), size(activeParts) * pvDim);
-
-		{
-			MatrixXi apMask = VectorXi::Map(activeParts.data(), activeParts.size()).replicate(1, pvDim).transpose();
-			auto maskVec = VectorXi::Map(apMask.data(), apMask.size());
-			selectCols(allClipinfo.PvFacade.GetAllPartsSequence(), maskVec, &Xabpv);
-
-			Pca<MatrixXf> pcaXabpv(Xabpv);
-			int dXabpv = pcaXabpv.reducedRank(g_CharacterPcaCutoff);
-			Xabpv = pcaXabpv.coordinates(dXabpv);
-			XabpvT = pcaXabpv.components(dXabpv);
-			uXabpv = pcaXabpv.mean();
-
-			if (g_EnableDebugLogging)
-			{
-				ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_Xabpv.pd.csv");
-				fout << Xabpv.format(CSVFormat);
-
-				fout.close();
-			}
-		}
+		MatrixXf Xabpv = GenerateXapv(activeParts);
 		int dXabpv = Xabpv.cols();
 
 		parallel_for(0, (int)activeParts.size(), 1, [&, this](int apid)
 		{
-			auto& part = *parts[activeParts[apid]];
-			auto pid = part.Index;
-			auto& aactions = part.ActiveActions;
-			auto& joints = part.Joints;
-
-			auto& rcFacade = allClipinfo.RcFacade;
-			auto& pvFacade = allClipinfo.PvFacade;
-
-			auto& X = rcFacade.GetPartSequence(pid);
-			auto& Pv = pvFacade.GetPartSequence(pid);
-
-			//? To-do Select Active Rows from allClipFacade
-
-			if (g_EnableDebugLogging)
-			{
-				ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + part.Joints[0]->Name + ".pd.csv");
-				fout << Pv.format(CSVFormat);
-				fout.close();
-
-				fout.open("CharacterAnalayze\\" + m_pCharacter->Name + "_" + part.Joints[0]->Name + ".x.csv");
-				fout << X.format(CSVFormat);
-				fout.close();
-			}
-
-			assert(g_UseStylizedIK && "This build is settled on StylizedIK");
-			{
-				// paramter caching 
-				const auto&	partName = joints[0]->Name;
-				auto &dframe = Character().Armature().default_frame();
-
-				auto& sik = m_SIKs[pid];
-				auto& gpr = sik.Gplvm();
-				gpr.initialize(Pv, X);
-
-				InitGprXML(settings, partName, gpr);
-
-				// initialize stylized IK for active chains
-				sik.SetChain(part.Joints, dframe);
-
-				auto &pca = rcFacade.GetPartPca(pid);
-				auto d = pca.reducedRank(rcFacade.PcaCutoff());
-
-				auto pPcaDecoder = std::make_unique<RelativeLnQuaternionDecoder>();
-				
-				//! PCA Decoder configration
-				//auto pPcaDecoder = std::make_unique<RelativeLnQuaternionPcaDecoder>();
-				//pPcaDecoder->meanY = pca.mean().cast<double>();
-				//pPcaDecoder->pcaY = pca.components(d).cast<double>();
-				//pPcaDecoder->invPcaY = pPcaDecoder->pcaY.transpose();
-
-				pPcaDecoder->bases.reserve(joints.size());
-				for (auto joint : joints)
-				{
-					auto jid = joint->ID;
-					pPcaDecoder->bases.push_back(dframe[jid].LclRotation);
-				}
-
-				sik.SetFeatureDecoder(move(pPcaDecoder));
-
-				cout << "Optimal param : " << gpr.get_parameters().transpose() << endl;
-
-			}
-
+			InitializeAcvtivePart(*parts[activeParts[apid]], settings);
 		}
 		);
 
@@ -720,37 +689,7 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 		if (g_EnableDependentControl)
 			parallel_for_each(BEGIN_TO_END(subactParts), [&, this](int sapid)
 		{
-			int pid = subactParts[sapid];
-			auto &block = *parts[pid];
-
-			auto& rcFacade = allClipinfo.RcFacade;
-			auto& pvFacade = allClipinfo.PvFacade;
-
-			auto& X = Xabpv;
-			auto& Pv = pvFacade.GetPartSequence(pid);
-
-			if (g_EnableDebugLogging)
-			{
-				ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + block.Joints[0]->Name + ".x.csv");
-				fout << X.format(CSVFormat);
-				fout.close();
-			}
-
-			if (!g_UseStylizedIK)
-			{
-				assert(!"this code pass is not valiad. as block.Pd is already Pca-ed here");
-			}
-			else
-			{
-				auto& sik = m_SIKs[pid];
-				auto& gpr = sik.Gplvm();
-				gpr.initialize(Pv, X);
-
-				// paramter caching 
-				const auto&	partName = block.Joints[0]->Name;
-
-				InitGprXML(settings, partName, gpr);
-			}
+			InitializeSubacvtivePart(*parts[sapid], Xabpv, settings);
 		}
 		);
 
@@ -772,6 +711,141 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 		IsReady = true;
 	});
+}
+
+MatrixXf CharacterController::GenerateXapv(const std::vector<int> &activeParts)
+{
+	// pvDim without
+	int pvDim = m_cpxClipinfo.PvFacade.GetAllPartDimension();
+	assert(pvDim > 0);
+
+	auto& allClipinfo = m_cpxClipinfo;
+
+	MatrixXf Xabpv(allClipinfo.ClipFrames(), size(activeParts) * pvDim);
+
+	MatrixXi apMask = VectorXi::Map(activeParts.data(), activeParts.size()).replicate(1, pvDim).transpose();
+	auto maskVec = VectorXi::Map(apMask.data(), apMask.size());
+	selectCols(allClipinfo.PvFacade.GetAllPartsSequence(), maskVec, &Xabpv);
+
+	Pca<MatrixXf> pcaXabpv(Xabpv);
+	int dXabpv = pcaXabpv.reducedRank(g_CharacterPcaCutoff);
+	Xabpv = pcaXabpv.coordinates(dXabpv);
+	XabpvT = pcaXabpv.components(dXabpv);
+	uXabpv = pcaXabpv.mean();
+
+	if (g_EnableDebugLogging)
+	{
+		ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_Xabpv.pd.csv");
+		fout << Xabpv.format(CSVFormat);
+
+		fout.close();
+	}
+
+
+	return Xabpv;
+}
+
+void CharacterController::InitializeAcvtivePart(ArmaturePart & part, tinyxml2::XMLElement * settings)
+{
+	auto pid = part.Index;
+	auto& aactions = part.ActiveActions;
+	auto& joints = part.Joints;
+	auto& allClipinfo = m_cpxClipinfo;
+
+	auto& rcFacade = allClipinfo.RcFacade;
+	auto& pvFacade = allClipinfo.PvFacade;
+
+	auto& X = rcFacade.GetPartPcadSequence(pid);
+	auto& Pv = pvFacade.GetPartSequence(pid);
+
+	//? To-do Select Active Rows from allClipFacade
+
+	if (g_EnableDebugLogging)
+	{
+		ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + part.Joints[0]->Name + ".pd.csv");
+		fout << Pv.format(CSVFormat);
+		fout.close();
+
+		fout.open("CharacterAnalayze\\" + m_pCharacter->Name + "_" + part.Joints[0]->Name + ".x.csv");
+		fout << X.format(CSVFormat);
+		fout.close();
+	}
+
+	assert(g_UseStylizedIK && "This build is settled on StylizedIK");
+	{
+		// paramter caching 
+		const auto&	partName = joints[0]->Name;
+		auto &dframe = Character().Armature().default_frame();
+
+		auto& sik = m_SIKs[pid];
+		auto& gpr = sik.Gplvm();
+
+		gpr.initialize(Pv, X);
+		InitGprXML(settings, partName, gpr);
+
+		auto &pca = rcFacade.GetPartPca(pid);
+		auto d = rcFacade.GetPartPcaDim(pid);
+
+		//auto pDecoder = std::make_unique<RelativeLnQuaternionDecoder>();
+		//! PCA Decoder configration
+		auto Wjx = part.Wx.cast<double>().eval();
+
+		auto pDecoder = std::make_unique<RelativeLnQuaternionPcaDecoder>();
+		pDecoder->meanY = pca.mean().cast<double>() * Wjx.cwiseInverse().asDiagonal();
+		pDecoder->pcaY = pca.components(d).cast<double>();
+		pDecoder->invPcaY = pDecoder->pcaY.transpose();
+		pDecoder->pcaY = Wjx.asDiagonal() * pDecoder->pcaY;
+		pDecoder->invPcaY *= Wjx.cwiseInverse().asDiagonal();
+
+		pDecoder->bases.reserve(joints.size());
+		for (auto joint : joints)
+		{
+			auto jid = joint->ID;
+			pDecoder->bases.push_back(dframe[jid].LclRotation);
+		}
+
+		sik.SetFeatureDecoder(move(pDecoder));
+		// initialize stylized IK for active chains
+		sik.SetChain(part.Joints, dframe);
+
+		cout << "Optimal param : " << gpr.get_parameters().transpose() << endl;
+
+	}
+}
+
+void CharacterController::InitializeSubacvtivePart(ArmaturePart & part, const Eigen::MatrixXf& Xabpv, tinyxml2::XMLElement * settings)
+{
+	int pid = part.Index;
+	auto& allClipinfo = m_cpxClipinfo;
+
+	auto& rcFacade = allClipinfo.RcFacade;
+	auto& pvFacade = allClipinfo.PvFacade;
+
+	auto& X = Xabpv;
+	auto& Pv = pvFacade.GetPartSequence(pid);
+
+	if (g_EnableDebugLogging)
+	{
+		ofstream fout("CharacterAnalayze\\" + m_pCharacter->Name + "_" + part.Joints[0]->Name + ".x.csv");
+		fout << X.format(CSVFormat);
+		fout.close();
+	}
+
+	if (!g_UseStylizedIK)
+	{
+		assert(!"this code pass is not valiad. as part.Pd is already Pca-ed here");
+	}
+	else
+	{
+		auto& sik = m_SIKs[pid];
+		auto& gpr = sik.Gplvm();
+		gpr.initialize(Pv, X);
+
+		// paramter caching 
+		const auto&	partName = part.Joints[0]->Name;
+
+		InitGprXML(settings, partName, gpr);
+	}
 }
 
 

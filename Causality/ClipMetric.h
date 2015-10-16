@@ -150,6 +150,7 @@ namespace Causality
 		}
 
 		// Only Active and Subactive part have Pca / Qr
+		int								GetPartPcaDim(int pid) const { return m_PcaDims[pid]; }
 		auto&							GetPartPca(int pid) const
 		{
 			return m_Pcas[pid];

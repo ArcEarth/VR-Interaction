@@ -65,4 +65,6 @@ namespace Causality
 	extern float		g_DebugArmatureThinkness;
 
 	extern bool			g_DebugView;
+
+	extern bool			g_UseJointLengthWeight;
 }

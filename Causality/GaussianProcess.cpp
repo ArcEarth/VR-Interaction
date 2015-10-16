@@ -408,9 +408,9 @@ double gaussian_process_regression::optimze_parameters()
 
 	ParamType param;
 
-	std::vector<double> alphas = { 0.1, /*0.5 , 0.8,*/ 1.0, /*1.2,*/ 1.5/*, 10.0*/ };
+	std::vector<double> alphas = { 0.1, 0.5 , 0.8, 1.0, 1.2, 1.5, 10.0 };
 	std::vector<double> betas = {0.1 * varX, varX, 10.0 * varX};
-	std::vector<double> gemmas = { /*0.01 / varX,*/ 0.05 / varX /*,0.1 / varX ,0.5 / varX*/ ,1.0 / varX /*,5 / varX*/ ,10 / varX };
+	std::vector<double> gemmas = { 0.01 / varX, 0.05 / varX ,0.1 / varX ,0.5 / varX ,1.0 / varX ,5 / varX ,10 / varX };
 
 	ParamType bestParam;
 	double bestLikelihood = std::numeric_limits<double>::max();

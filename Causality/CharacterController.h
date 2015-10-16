@@ -4,6 +4,11 @@
 #include "ClipMetric.h"
 #include "StylizedIK.h"
 
+namespace tinyxml2
+{
+	class XMLElement;
+}
+
 namespace Causality
 {
 	class ClipInfo;
@@ -62,6 +67,8 @@ namespace Causality
 		StylizedChainIK& GetStylizedIK(int pid) { return m_SIKs[pid]; }
 		const StylizedChainIK& GetStylizedIK(int pid) const { return m_SIKs[pid]; }
 
+		CharacterClipinfo& GetUnitedClipinfo() { return m_cpxClipinfo; }
+		const CharacterClipinfo& GetUnitedClipinfo() const { return m_cpxClipinfo; }
 	protected:
 		CharacterObject*										m_pCharacter;
 		std::vector<CharacterClipinfo>							m_Clipinfos;
@@ -77,7 +84,10 @@ namespace Causality
 		void SetSourceArmature(const IArmature& armature);
 		void SetTargetCharacter(CharacterObject& object);
 
+		Eigen::MatrixXf GenerateXapv(const std::vector<int> &activeParts);
 
+		void InitializeAcvtivePart(ArmaturePart & part, tinyxml2::XMLElement * settings);
+		void InitializeSubacvtivePart(ArmaturePart & part, const Eigen::MatrixXf& Xabpv, tinyxml2::XMLElement * settings);
 	};
 
 }

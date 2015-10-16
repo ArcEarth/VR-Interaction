@@ -94,6 +94,8 @@ namespace Causality
 		// by default, Decoder is set to "Absolute Ln Quaternion of joint local orientation" 
 		// you can use RelativeLnQuaternionDecoder and 
 		void SetFeatureDecoder(std::unique_ptr<IFeatureDecoder>&& decoder);
+		const IFeatureDecoder* GetDecoder() const { return m_fpDecoder.get(); }
+		IFeatureDecoder* GetDecoder() { return m_fpDecoder.get(); }
 
 		void SetChain(const std::vector<const Joint*> &joints, const BoneHiracheryFrame& defaultframe);
 		void SetGoal(const Eigen::Vector3d& goal);

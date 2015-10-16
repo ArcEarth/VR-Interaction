@@ -280,16 +280,15 @@ namespace DirectX{
 
 	void PrimitveDrawer::Begin()
 	{
+		m_pEffect->SetVertexColorEnabled(true);
+		m_pEffect->Apply(m_pContext.Get());
+		m_pEffect->SetDiffuseColor(Colors::White.v);
+		m_pContext->IASetInputLayout(m_pInputLayout.Get());
 		m_pDirectXBatch->Begin();
 	}
 
 	void PrimitveDrawer::End()
 	{
-		m_pEffect->SetVertexColorEnabled(true);
-		m_pEffect->Apply(m_pContext.Get());
-		m_pEffect->SetDiffuseColor(Colors::White.v);
-		m_pContext->IASetInputLayout(m_pInputLayout.Get());
-
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState> pRSState;
 		m_pContext->RSGetState(&pRSState);
 		m_pContext->RSSetState(m_pStates->CullClockwise());

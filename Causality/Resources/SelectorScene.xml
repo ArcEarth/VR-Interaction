@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <scene>
   <scene.settings>
-    <ClipRasterizeFrame>45</ClipRasterizeFrame>
+    <ClipRasterizeFrame>75</ClipRasterizeFrame>
     
     <EnableDebugLogging>1</EnableDebugLogging>
     <EnableRecordLogging>0</EnableRecordLogging>
@@ -24,7 +24,8 @@
     <PlayerPcaCutoff>0.04</PlayerPcaCutoff>
     <PlayerEnergyCutoff>0.3</PlayerEnergyCutoff>
     <DefaultAnimationSet>walk</DefaultAnimationSet>
-    
+
+    <UseJointLengthWeight>0</UseJointLengthWeight>
     <UseStylizedIK>1</UseStylizedIK>
     <UseVelocity>0</UseVelocity>
     <FrameTimeScaleFactor>20</FrameTimeScaleFactor>
@@ -36,12 +37,12 @@
 
     <IKTermWeight>1.0</IKTermWeight>
     <IKLimitWeight>0</IKLimitWeight>
-    <MarkovTermWeight>0</MarkovTermWeight>
-    <StyleLikelihoodTermWeight>0</StyleLikelihoodTermWeight>
+    <MarkovTermWeight>>0.01</MarkovTermWeight>
+    <StyleLikelihoodTermWeight>0.3</StyleLikelihoodTermWeight>
 
     <LoadCharacterModelParameter>1</LoadCharacterModelParameter>
     <CharacterModelParameterFile>CharacterAnalayze\{0}.param.xml</CharacterModelParameterFile>
-    <CharacterPcaCutoff>0.004</CharacterPcaCutoff>
+    <CharacterPcaCutoff>0.00001</CharacterPcaCutoff>
     <CharacterActiveEnergy>0.40</CharacterActiveEnergy>
     <CharacterSubactiveEnergy>0.06</CharacterSubactiveEnergy>
 
@@ -139,7 +140,7 @@
             <behavier name="horse_behavier" armature="Horse_Idle.fbx">
               <behavier.actions>
                 <action name="walk" src="Horse_Walk.fbx"/>
-                <!--<action name="run" src="Horse_Run.fbx"/>-->
+                <action name="run" src="Horse_Run.fbx"/>
               </behavier.actions>
             </behavier>
           </creature.behavier>

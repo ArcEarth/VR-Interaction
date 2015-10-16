@@ -6,10 +6,11 @@ namespace Causality
 {
 	namespace ArmaturePartFeatures
 	{
-		template <class BoneFeatureType>
+		template <class _BoneFeatureType>
 		class AllJoints : public IArmaturePartFeature
 		{
 		public:
+			typedef _BoneFeatureType BoneFeatureType;
 
 			AllJoints() = default;
 
@@ -167,10 +168,11 @@ namespace Causality
 		};
 
 
-		template <class BoneFeatureType>
+		template <class _BoneFeatureType>
 		class EndEffector : public IArmaturePartFeature
 		{
 		public:
+			typedef _BoneFeatureType BoneFeatureType;
 			EndEffector() = default;
 
 			int GetDimension(_In_ const ArmaturePart& block)
@@ -198,10 +200,11 @@ namespace Causality
 		{
 		public:
 			static_assert(std::is_base_of<IArmaturePartFeature, PartFeatureType>::value, "PartFeatureType must be derived type of IArmaturePartFeature");
+			using PartFeatureType::BoneFeatureType;
 
 			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
 			{
-				Eigen::RowVectorXf Y = PartFeatureType::Get(block, frame[block.Joints.back()->ID]);
+				Eigen::RowVectorXf Y = PartFeatureType::Get(block, frame);
 				Y.array() *= m_Weights.segment(m_Idices[block.Index], Y.size()).array();
 				return Y;
 			}
@@ -214,15 +217,27 @@ namespace Causality
 				PartFeatureType::Set(block, frame, Y);
 			}
 
-			void InitializeWeights(const ShrinkedArmature& parts, const Eigen::RowVectorXf& weights)
+			void InitializeWeights(const ShrinkedArmature& parts)
 			{
 				m_Idices.resize(parts.size());
 				m_Idices[0] = 0;
-				for (int i = 0; i < parts.size(); i++)
+				for (int i = 0; i < parts.size() - 1; i++)
 				{
-					m_Idices[i + 1] = m_Idices[i] + PartFeatureType::GetDim(*parts[i]);
+					m_Idices[i + 1] = m_Idices[i] + PartFeatureType::GetDimension(*parts[i]);
 				}
-				m_Weights = weights;
+
+				const auto bDim = BoneFeatureType::Dimension;
+				//! Only works for ALLJoint
+				m_Weights.resize(parts.Armature().size() * bDim);
+
+				for (int jid = 0, i = 0; i < parts.size(); i++)
+				{
+					for (int j = 0; j < parts[i]->Joints.size(); j++)
+					{
+						m_Weights.segment(jid * bDim, bDim).setConstant(parts[i]->Wxj[j]);
+						++jid;
+					}
+				}
 			}
 
 		private:
@@ -270,7 +285,7 @@ namespace Causality
 					auto i = joint->ID;
 					auto& lt = frame[i];
 					lt.LocalTransform() = m_dframe[i].LocalTransform();
-					lt.LocalTransform() *= m_rframe[i].LocalTransform();
+					lt.LclRotation *= m_rframe[i].LclRotation;
 				}
 			}
 

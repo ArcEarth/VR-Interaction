@@ -205,7 +205,8 @@ void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect
 	if (g_ShowCharacterMesh)
 		VisualObject::Render(pContext, pEffect);
 
-	if (g_DebugView)
+	auto pLS = dynamic_cast<IEffectLightsShadow*>(pEffect);
+	if (g_DebugView && pLS != nullptr)
 	{
 		using namespace DirectX;
 		using Visualizers::g_PrimitiveDrawer;

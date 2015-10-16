@@ -212,6 +212,7 @@ void ParseSceneSettings(tinyxml2::XMLElement * nScene)
 	PARSE_BOOL_SETTING(nSettings, UsePersudoPhysicsWalk, 1);
 	PARSE_FLOAT_SETTING(nSettings, MaxCharacterSpeed, 0.5f);
 
+	PARSE_BOOL_SETTING(nSettings, UseJointLengthWeight, 0);
 	PARSE_BOOL_SETTING(nSettings, UseStylizedIK, 1);
 	PARSE_BOOL_SETTING(nSettings, UseVelocity, 1);
 	PARSE_BOOL_SETTING(nSettings, LoadCharacterModelParameter, 1);

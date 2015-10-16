@@ -26,18 +26,20 @@ using namespace std;
 using namespace Concurrency;
 using namespace Eigen;
 using namespace ArmaturePartFeatures;
+using namespace BoneFeatures;
 
 typedef
+	Weighted<
 	RelativeDeformation <
 	AllJoints <
-		BoneFeatures::LclRotLnQuatFeature > >
+		LclRotLnQuatFeature > > >
 	CharacterJRSFeature;
 
 typedef
 //ArmaturePartFeatures::WithVelocity<
 	Localize<
 	EndEffector<
-		BoneFeatures::GblPosFeature >>
+		GblPosFeature >>
 	PVSFeature;
 
 
@@ -58,11 +60,15 @@ CharacterClipinfo::CharacterClipinfo()
 void CharacterClipinfo::Initialize(const ShrinkedArmature& parts)
 {
 	m_pParts = &parts;
-	auto pIF = std::make_shared<CharacterJRSFeature>();
-	pIF->SetDefaultFrame(parts.Armature().default_frame());
 
-	RcFacade.SetFeature(pIF);
-	PvFacade.SetFeature<PVSFeature>();
+	auto pRcF = std::make_shared<CharacterJRSFeature>();
+	pRcF->SetDefaultFrame(parts.Armature().default_frame());
+	pRcF->InitializeWeights(parts);
+
+	RcFacade.SetFeature(pRcF);
+
+	auto pPvF = std::make_shared<PVSFeature>();
+	PvFacade.SetFeature(pPvF);
 
 	RcFacade.Prepare(parts, -1, ClipFacade::ComputePca | ClipFacade::ComputeStaticEnergy);
 	PvFacade.Prepare(parts, -1, ClipFacade::ComputeAll);

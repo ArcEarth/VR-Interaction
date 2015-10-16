@@ -54,4 +54,6 @@ namespace Causality
 	bool				g_ShowCharacterMesh = true;
 
 	bool				g_MirrowInputX = false;
+
+	bool				g_UseJointLengthWeight = false;
 }

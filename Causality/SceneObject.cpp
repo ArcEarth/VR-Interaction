@@ -427,6 +427,7 @@ void CoordinateAxis::Render(RenderContext & context, DirectX::IEffect* pEffect)
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 	using namespace DirectX;
 	//g_PrimitiveDrawer.DrawSphere({ .0f,.0f,.0f,0.02f }, Colors::Cyan);
+	g_PrimitiveDrawer.SetWorld(GlobalTransformMatrix());
 
 	float Ar = 0.03f, Al = ub, Almr = Al - Ar, Alpr = Al + Ar;
 	g_PrimitiveDrawer.Begin();
@@ -446,11 +447,9 @@ void CoordinateAxis::Render(RenderContext & context, DirectX::IEffect* pEffect)
 	g_PrimitiveDrawer.DrawLine({ -Al,.0f,.0f }, { Al,.0f,.0f }, Colors::Red);
 	g_PrimitiveDrawer.DrawLine({ .0f,-Al,.0f }, { .0f,Al,.0f }, Colors::Lime);
 	g_PrimitiveDrawer.DrawLine({ .0f,.0f,-Al }, { .0f,.0f,Al }, Colors::Blue);
-
 	g_PrimitiveDrawer.End();
 
 	g_PrimitiveDrawer.Begin();
-
 	g_PrimitiveDrawer.DrawTriangle({ Alpr,.0f,.0f }, { Almr,Ar,.0f }, { Almr,-Ar,.0f }, Colors::Red);
 	g_PrimitiveDrawer.DrawTriangle({ Alpr,.0f,.0f }, { Almr,-Ar,.0f }, { Almr,Ar,.0f }, Colors::Red);
 	g_PrimitiveDrawer.DrawTriangle({ Alpr,.0f,.0f }, { Almr,.0f,Ar }, { Almr,.0f,-Ar }, Colors::Red);
@@ -473,7 +472,6 @@ void XM_CALLCONV CoordinateAxis::UpdateViewMatrix(DirectX::FXMMATRIX view, Direc
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 	g_PrimitiveDrawer.SetView(view);
 	g_PrimitiveDrawer.SetProjection(projection);
-	g_PrimitiveDrawer.SetWorld(GlobalTransformMatrix());
 }
 
 RenderFlags CoordinateAxis::GetRenderFlags() const
