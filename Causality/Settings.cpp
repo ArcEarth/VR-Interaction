@@ -3,6 +3,7 @@
 namespace Causality
 {
 	int					g_PartAssignmentTransform = PAT_RST;
+	int					g_PhaseMatchingInterval = 1;
 
 	bool				g_UsePersudoPhysicsWalk = false;
 	float				g_MaxCharacterSpeed = 0.5f;

@@ -121,7 +121,7 @@ public:
 		for (auto part : parts)
 		{
 			int pid = part->Index;
-			if (part->ActiveActions.size() > 0)
+			if (part->ActiveActions.size() > 0 || part->SubActiveActions.size() > 0)
 			{
 				auto &pca = facade.GetPartPca(pid);
 				auto d = facade.GetPartPcaDim(pid);
@@ -314,29 +314,30 @@ public:
 		if (g_EnableDependentControl)
 		{
 			RowVectorXd Xabpv;
-			Xabpv.resize(Xabs.size() * g_PvDimension);
+			Xabpv.resize(pController->uXabpv.size());
 			int i = 0;
 			for (const auto& xab : Xabs)
 			{
-				auto Yi = Xabpv.segment(i * g_PvDimension, g_PvDimension);
+				auto Yi = Xabpv.segment(i, xab.size());
 				Yi = xab;
-				++i;
+				i += xab.size();
 			}
 
+			auto _x = (Xabpv.cast<float>() - pController->uXabpv) * pController->XabpvT;
+			auto _xd = _x.cast<double>();
 
 			for (auto& block : blocks)
 			{
 				if (block->ActiveActions.size() == 0 && block->SubActiveActions.size() > 0)
 				{
-					auto _x = (Xabpv.cast<float>() - pController->uXabpv) * pController->XabpvT;
 
 					auto& sik = pController->GetStylizedIK(block->Index);
 					auto& gpr = sik.Gplvm();
 
-					auto lk = gpr.get_expectation_and_likelihood(_x.cast<double>(), &Y);
+					auto lk = gpr.get_expectation_and_likelihood(_xd, &Y);
 
 					yf = Y.cast<float>();
-					yf *= block->Wx.cwiseInverse().asDiagonal();
+					//yf *= block->Wx.cwiseInverse().asDiagonal();
 
 					outputExtractor.Set(*block, target_frame, yf);
 				}
@@ -367,6 +368,7 @@ CharacterController::~CharacterController()
 void CharacterController::Initialize(const IArmature & player, CharacterObject & character)
 {
 	IsReady = false;
+	CharacterScore = 0;
 	CurrentActionIndex = 0;
 	SetSourceArmature(player);
 	SetTargetCharacter(character);
@@ -378,6 +380,7 @@ ArmatureTransform & CharacterController::Binding() { return *m_pBinding; }
 
 void CharacterController::SetBinding(std::unique_ptr<ArmatureTransform> &&pBinding)
 {
+	lock_guard<mutex> guard(m_bindMutex);
 	m_pBinding = move(pBinding);
 }
 
@@ -385,10 +388,35 @@ const CharacterObject & CharacterController::Character() const { return *m_pChar
 
 CharacterObject & CharacterController::Character() { return *m_pCharacter; }
 
+const IArmature & Causality::CharacterController::Armature() const
+{
+	return Character().Behavier().Armature();
+}
+
+IArmature & Causality::CharacterController::Armature()
+{
+	return Character().Behavier().Armature();
+}
+
+const ShrinkedArmature & Causality::CharacterController::ArmatureParts() const
+{
+	return Character().Behavier().ArmatureParts();
+}
+
+ShrinkedArmature & Causality::CharacterController::ArmatureParts()
+{
+	return Character().Behavier().ArmatureParts();
+}
+
 void CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & frame, const BoneHiracheryFrame & lastframe, double deltaTime) const
 {
-	auto& cframe = m_pCharacter->MapCurrentFrameForUpdate();
-	m_pBinding->Transform(cframe, frame, lastframe, deltaTime);
+	if (m_pBinding == nullptr)
+		return;
+	{
+		std::lock_guard<mutex> guard(m_bindMutex);
+		auto& cframe = m_pCharacter->MapCurrentFrameForUpdate();
+		m_pBinding->Transform(cframe, frame, lastframe, deltaTime);
+	}
 
 	float l = 100;
 	for (auto& bone : frame)
@@ -434,6 +462,9 @@ const std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& Causality::Cha
 {
 	return m_PvHandles;
 }
+
+std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& CharacterController::PvHandles() 
+{ return m_PvHandles; }
 
 CharacterClipinfo & CharacterController::GetClipInfo(const string & name) {
 	auto itr = std::find_if(BEGIN_TO_END(m_Clipinfos), [&name](const auto& clip) {
@@ -667,8 +698,18 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 			}
 		}
 
-		vector<int> activeParts(BEGIN_TO_END(avtiveSet));
-		vector<int> subactParts(BEGIN_TO_END(subactSet));;
+		m_ActiveParts.assign(BEGIN_TO_END(avtiveSet));
+		m_SubactiveParts.assign(BEGIN_TO_END(subactSet));
+		vector<int>& activeParts = m_ActiveParts;
+		vector<int>& subactParts = m_SubactiveParts;
+
+		cout << "== Active parts ==" << endl;
+		for (auto& ap : activeParts)
+			cout << parts[ap]->Joints << endl;
+		cout << "== Subactive parts ==" << endl;
+		for (auto& ap : subactParts)
+			cout << parts[ap]->Joints << endl;
+		cout << "== End Parts =" << endl;
 
 		// Active parts Pv s
 		MatrixXf Xabpv = GenerateXapv(activeParts);
@@ -688,10 +729,10 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 		if (g_EnableDependentControl)
 			parallel_for_each(BEGIN_TO_END(subactParts), [&, this](int sapid)
-		{
-			InitializeSubacvtivePart(*parts[sapid], Xabpv, settings);
-		}
-		);
+			{
+				InitializeSubacvtivePart(*parts[sapid], Xabpv, settings);
+			}
+			);
 
 		cout << "=================================================================" << endl;
 
@@ -819,10 +860,11 @@ void CharacterController::InitializeSubacvtivePart(ArmaturePart & part, const Ei
 	auto& allClipinfo = m_cpxClipinfo;
 
 	auto& rcFacade = allClipinfo.RcFacade;
-	auto& pvFacade = allClipinfo.PvFacade;
+	//auto& pvFacade = allClipinfo.PvFacade;
 
-	auto& X = Xabpv;
-	auto& Pv = pvFacade.GetPartSequence(pid);
+	auto& Pv = Xabpv;
+	auto d = rcFacade.GetPartPcaDim(pid);
+	auto X = rcFacade.GetPartPcadSequence(pid);
 
 	if (g_EnableDebugLogging)
 	{
@@ -1064,10 +1106,10 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 	int T = iclip.ClipFrames(); //? /2 Maybe?
 	const std::vector<int> &Juk = iclip.ActiveParts();
-	int Ti = 1;
-	int Ts = T / Ti;
+	int Ti = g_PhaseMatchingInterval;
+	int Ts = T / Ti + 1;
 
-	RowVectorXf Eub;
+	RowVectorXf Eub(Juk.size());
 	selectCols(iclip.GetAllPartsEnergy(), Juk, &Eub);
 
 	// Player Perceptive vector mean normalized
@@ -1076,7 +1118,8 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 	selectCols(reshape(iclip.GetAllPartsMean(), pvDim, -1), Juk, &Xpvnm);
 	Xpvnm.colwise().normalize();
 
-	std::vector<unique_ptr<PartilizedTransform>> clipTransforms(clips.size());
+	std::vector<unique_ptr<PartilizedTransform>> clipTransforms;
+	clipTransforms.reserve(clips.size());
 	Eigen::VectorXf clipTransformScores(clips.size());
 
 	for (auto& anim : clips)	//? <= 5 animation per character
@@ -1096,6 +1139,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 		//selectCols(cclip.Eb3, Jck, &Ecb3);
 		for (size_t i = 0; i < Jck.size(); i++)
 			Ecb3.col(i) = cpv.GetPartDimEnergy(Jck[i]);
+		Ecb3.colwise().normalize();
 
 		// Character Perceptive vector mean normalized
 		MatrixXf Cpvnm(pvDim, Jck.size());
@@ -1113,12 +1157,12 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 		{
 			for (int j = 0; j < Jck.size(); j++)
 			{
-				A(i, j) = ((Xpvnm.col(i) - Cpvnm.col(j)).array() * Ecb3.col(j).array()).cwiseAbs2().sum();
+				A(i, j) = sqrtf(((Xpvnm.col(i) - Cpvnm.col(j)).array() * Ecb3.col(j).array()).cwiseAbs2().sum());
 			}
 		}
 
 		// Anisometric Gaussian kernal here
-		A.array() = (A.array() / (DirectX::XM_PI / 6)).cwiseAbs2().exp();
+		A.array() = (-(A.array() / (DirectX::XM_PI / 6)).cwiseAbs2()).exp();
 		//A.noalias() = Xsp.transpose() * Csp;
 
 		Tensor<float, 4> C((int)Juk.size(), (int)Juk.size(), (int)Jck.size(), (int)Jck.size());
@@ -1129,8 +1173,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 		float score = max_quadratic_assignment(A, C, matching);
 
-		float maxScore = numeric_limits<float>::min();
-		DenseIndex maxPhi = -1;
+		float maxScore = score;
 
 #pragma region Display Debug Armature Parts Info
 		cout << "=============================================" << endl;
@@ -1142,7 +1185,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 		for (auto i : Juk)
 		{
 			const auto& blX = *userParts[i];
-			cout << "Block " << i << " = " << blX.Joints << endl;
+			cout << "Part[" << i << "]= " << blX.Joints << endl;
 		}
 
 		cout << "*********************************************" << endl;
@@ -1151,18 +1194,15 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 		for (auto& i : Jck)
 		{
 			const auto& blY = *charaParts[i];
-			cout << "Block " << i << " = " << blY.Joints << endl;
+			cout << "Part[" << i << "] = " << blY.Joints << endl;
 		}
 		cout << "__________ Parts Assignment __________" << endl;
 		for (int i = 0; i < matching.size(); i++)
 		{
 			int ju = Juk[i], jc = Jck[matching[i]];
-			for (int phi = 0; phi < T; phi += Ti)
+			if (ju >= 0 && jc >= 0)
 			{
-				if (ju >= 0 && jc >= 0)
-				{
-					cout << userParts[ju]->Joints << " ==> " << charaParts[jc]->Joints << endl;
-				}
+				cout << userParts[ju]->Joints << " ==> " << charaParts[jc]->Joints << endl;
 			}
 		}
 		cout << "__________ Fin __________" << endl;
@@ -1170,6 +1210,8 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 		Cca<float> cca;
 		MatrixXf corrlations(Ts, matching.size());
+		corrlations.setZero();
+
 		for (int i = 0; i < matching.size(); i++)
 		{
 			int ju = Juk[i], jc = Jck[matching[i]];
@@ -1185,10 +1227,40 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 			}
 		}
 
+		VectorXi maxPhi(matching.size());
+
+		//float sumCor = corrlations.rowwise().sum().maxCoeff(&maxPhi);
+
+		int misAlign = Ts / 5;
 		//? maybe other reduce function like min?
 		//! We should allowed a window of range for phi matching among different parts
-		float sumCor = corrlations.rowwise().sum().maxCoeff(&maxPhi);
-		maxPhi *= Ti;
+		corrlations.conservativeResize(Ts + misAlign, corrlations.cols());
+		corrlations.bottomRows(misAlign) = corrlations.topRows(misAlign);
+		{
+			int mPhis = 0;
+			float mScore = numeric_limits<float>::min();;
+			for (int i = 0; i < Ts; i++)
+			{
+				float score = corrlations.middleRows(i, misAlign).colwise().maxCoeff().sum();
+				if (score > mScore)
+				{
+					mPhis = i;
+					mScore = score;
+				}
+			}
+
+			for (int i = 0; i < corrlations.cols(); i++)
+			{
+				corrlations.middleRows(mPhis, misAlign).col(i).maxCoeff(&maxPhi[i]);
+				maxPhi[i] += mPhis;
+				if (maxPhi[i] >= Ts) maxPhi[i] -= Ts;
+				maxPhi[i] *= Ti;
+			}
+
+			// Combine the score from qudratic assignment with phase matching
+			maxScore = maxScore * mScore;
+		}
+
 
 		// Transform pair for active parts
 		std::vector<P2PTransform> partTransforms;
@@ -1203,11 +1275,11 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 				partTra.DstIdx = jc;
 				partTra.SrcIdx = ju;
 
-				FindPartToPartTransform(partTra, iclip, cpv, maxPhi);
+				FindPartToPartTransform(partTra, iclip, cpv, maxPhi[i]);
 			}
 		}
 
-		auto pBinding = new PartilizedTransform(&userParts, &charaParts);
+		auto pBinding = new PartilizedTransform(userParts, controller);
 		pBinding->ActiveParts = move(partTransforms);
 
 		clipTransformScores[clipTransforms.size()] = maxScore;
@@ -1216,12 +1288,18 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 	} // Animation clip scope
 
 	DenseIndex maxClipIdx = 0;
-	clipTransformScores.maxCoeff(&maxClipIdx);
+	float maxScore = clipTransformScores.maxCoeff(&maxClipIdx);
+	if (maxScore > controller.CharacterScore)
+	{
 
-	auto pBinding = clipTransforms[maxClipIdx].get();
-	controller.SetBinding(move(clipTransforms[maxClipIdx]));
+		auto pBinding = move(clipTransforms[maxClipIdx]);
 
-	return clipTransformScores.maxCoeff();
+		controller.SetBinding(move(pBinding));
+		controller.CharacterScore = maxScore;
+	}
+
+	return maxScore;
+
 	//if (g_EnableDependentControl)
 	//{
 	//	for (auto& pBlock : charaParts)

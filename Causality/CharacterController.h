@@ -33,11 +33,23 @@ namespace Causality
 		const CharacterObject& Character() const;
 		CharacterObject& Character();
 
+		const IArmature& Armature() const;
+		IArmature& Armature();
+
+		const ShrinkedArmature& ArmatureParts() const;
+		ShrinkedArmature& ArmatureParts();
+
+		auto&	ActiveParts() const { return m_ActiveParts; }
+		auto&	SubactiveParts() const { return m_SubactiveParts; }
+
+
 		void UpdateTargetCharacter(const BoneHiracheryFrame& sourceFrame, const BoneHiracheryFrame& lastSourceFrame, double deltaTime_seconds) const;
 
 		float CreateControlBinding(const ClipFacade& inputClip);
 
 		const std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& PvHandles() const;
+		std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& PvHandles();
+
 
 		std::atomic_bool			IsReady;
 		int							ID;
@@ -77,9 +89,14 @@ namespace Causality
 		CharacterClipinfo										m_cpxClipinfo;
 		std::vector<StylizedChainIK>							m_SIKs;
 
+		mutable
+		std::mutex												m_bindMutex;
+
 		std::unique_ptr<ArmatureTransform>						m_pBinding;
 		std::unique_ptr<ArmatureTransform>						m_pSelfBinding;
 
+		std::vector<int>										m_ActiveParts;  // it's a set
+		std::vector<int>										m_SubactiveParts;
 	protected:
 		void SetSourceArmature(const IArmature& armature);
 		void SetTargetCharacter(CharacterObject& object);

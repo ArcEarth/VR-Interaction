@@ -165,6 +165,7 @@ PlayerProxy::PlayerProxy()
 	}
 
 	m_CyclicInfo.Initialize(*m_pParts, time_seconds(0.5), time_seconds(3), 30, 0);
+	m_CyclicInfo.EnableCyclicMotionDetection(true);
 
 	auto fReset = std::bind(&PlayerProxy::ResetPlayer, this, placeholders::_1, placeholders::_2);
 	m_playerSelector.SetPlayerChangeCallback(fReset);
@@ -173,7 +174,6 @@ PlayerProxy::PlayerProxy()
 	m_playerSelector.SetFrameCallback(fFrame);
 
 	m_playerSelector.Initialize(m_pKinect.get(), TrackedBodySelector::SelectionMode::Closest);
-
 	Register();
 	m_IsInitialized = true;
 }
@@ -640,6 +640,10 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 		cout << "Kinect Input Mirrowing = " << g_MirrowInputX << endl;
 		m_pKinect->EnableMirrowing(g_MirrowInputX);
 	}
+	else if (e.Key == VK_BACK)
+	{
+		m_CyclicInfo.ResetStream();
+	}
 	else if (e.Key == VK_NUMPAD1)
 	{
 		g_NoiseInterpolation[0] -= 0.1f;
@@ -952,18 +956,7 @@ void PlayerProxy::Render(RenderContext & context, DirectX::IEffect* pEffect)
 				continue;
 
 			auto& chara = controller.Character();
-
-			//DirectX::Visualizers::g_PrimitiveDrawer.SetView(chara.GlobalTransformMatrix());
-			auto pBinding = dynamic_cast<RBFInterpolationTransform*>(&controller.Binding());
-			//if (pBinding)
-			{
-				auto world = chara.GlobalTransformMatrix();
-				charaFrame = chara.GetCurrentFrame();
-
-				//DrawGuidingVectors(chara.Behavier().Blocks(), charaFrame, DirectX::Colors::Crimson.v, world);
-
-				pBinding->Render(DirectX::Colors::Crimson.v, world);
-			}
+			DrawControllerHandle(controller);
 		}
 
 	}

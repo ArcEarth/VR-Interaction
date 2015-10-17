@@ -149,6 +149,8 @@ namespace Causality
 		Eigen::MatrixXf HomoMatrix; // homogenians transfrom matrix
 	};
 
+	class CharacterController;
+
 	class PartilizedTransform : public BlockizedArmatureTransform
 	{
 	public:
@@ -156,12 +158,16 @@ namespace Causality
 		std::vector<P2PTransform> DrivenParts;	// These parts will be drive by active parts on Cca base than stylized IK
 		std::vector<P2PTransform> AccesseryParts; // These parts will be animated based on active parts (and driven parts?)
 
-		PartilizedTransform();
+		PartilizedTransform(const ShrinkedArmature& sParts, CharacterController & controller);
 		using BlockizedArmatureTransform::BlockizedArmatureTransform;
 
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override;
 
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const override;
+
+		void TransformCtrlHandel(Eigen::RowVectorXf &xf, const Causality::P2PTransform & ctrl) const;
+
+		void GenerateDrivenAccesseryControl();
 
 	private:
 		CharacterController			*m_pController;
@@ -171,11 +177,15 @@ namespace Causality
 
 		const Eigen::RowVectorXf& GetInputVector(int SrcIdx);
 
-		typedef std::unique_ptr<IArmaturePartFeature> FeaturePtr;
+		typedef std::shared_ptr<IArmaturePartFeature> FeaturePtr;
 
+		mutable
 		FeaturePtr	m_pInputF;
+		mutable
 		FeaturePtr	m_pActiveF;
+		mutable
 		FeaturePtr	m_pDrivenF;
+		mutable
 		FeaturePtr	m_pAccesseryF;
 	};
 }

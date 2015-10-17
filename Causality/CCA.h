@@ -138,7 +138,7 @@ namespace Eigen {
 		typedef Matrix<Scalar, 1, ColsAtCompileTime, RowMajor, 1, MaxColsAtCompileTime> MeanVectorType;
 
 		QrView(const QrType& qr, DenseIndex startRow = 0, DenseIndex rows = -1)
-			: m_Qr(qr), m_sRow(startRow), m_rows(rows), m_rank(m_Qr.rank())
+			: m_Qr(qr), m_sRow(startRow), m_rows(rows), m_rank(qr.rank())
 		{
 			if (m_rows == -1)
 				m_rows = m_Qr.rows();

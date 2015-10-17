@@ -4,6 +4,7 @@
 #include "Settings.h"
 #include <PrimitiveVisualizer.h>
 #include "CharacterController.h"
+#include "EigenExtension.h"
 
 extern Eigen::RowVector3d	g_NoiseInterpolation;
 namespace Causality
@@ -14,6 +15,18 @@ namespace Causality
 using namespace Causality;
 using namespace ArmaturePartFeatures;
 using namespace Eigen;
+
+typedef
+Localize<EndEffector<InputFeature>>
+InputExtractorType;
+
+typedef
+Pcad <
+	Weighted <
+	RelativeDeformation <
+	AllJoints < CharacterFeature > > > >
+	OutputExtractorType;
+
 
 template <class Derived>
 void ExpandQuadraticTerm(_Inout_ Eigen::DenseBase<Derived> &v, _In_ Eigen::DenseIndex dim)
@@ -253,11 +266,11 @@ void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & fram
 
 		if (!g_UseStylizedIK)
 		{
-			//block.PdCca.Apply(feature, Y);
+			//cpart.PdCca.Apply(feature, Y);
 		}
 		else
 		{
-			RowVectorXd dY;//(CharacterFeatureType::Dimension * block.Joints.size());
+			RowVectorXd dY;//(CharacterFeatureType::Dimension * cpart.Joints.size());
 						   // since the feature is expanded to quadritic form, we remove the extra term
 			double varZ = 10;
 
@@ -274,10 +287,10 @@ void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & fram
 			}
 			double likilyhood = 1.0;
 
-			//auto likilyhood = block.PdGpr.get_expectation_from_observation(feature.cast<double>(), covObsr, &dY);
-			//auto likilyhood = block.PdGpr.get_expectation_and_likelihood(feature.cast<double>(), &dY);
+			//auto likilyhood = cpart.PdGpr.get_expectation_from_observation(feature.cast<double>(), covObsr, &dY);
+			//auto likilyhood = cpart.PdGpr.get_expectation_and_likelihood(feature.cast<double>(), &dY);
 			Y = dY.cast<float>();
-			//Y *= block.Wx.cwiseInverse().asDiagonal(); // Inverse scale feature
+			//Y *= cpart.Wx.cwiseInverse().asDiagonal(); // Inverse scale feature
 
 			if (g_StepFrame)
 				std::cout << block.Joints[0]->Name << " : " << likilyhood << std::endl;
@@ -395,7 +408,7 @@ void RBFInterpolationTransform::Transform(frame_type & target_frame, const frame
 		abcount++;
 	}
 
-	// Dependent blocks
+	// Dependent cparts
 	for (const auto& map : Maps)
 	{
 		if (map.Jx == -2 && map.Jy >= 0)
@@ -495,7 +508,7 @@ void RBFInterpolationTransform::Transform(frame_type & target_frame, const frame
 		abcount++;
 	}
 
-	// Dependent blocks
+	// Dependent cparts
 	for (const auto& map : Maps)
 	{
 		if (map.Jx == -2 && map.Jy >= 0)
@@ -545,12 +558,47 @@ void RBFInterpolationTransform::Transform(frame_type & target_frame, const frame
 
 }
 
-PartilizedTransform::PartilizedTransform()
+PartilizedTransform::PartilizedTransform(const ShrinkedArmature& sParts, CharacterController & controller)
+	: pHandles(nullptr), m_pController(nullptr)
 {
-	m_pInputF.reset(new EndEffector<InputFeature>());
-	m_pActiveF.reset(new AllJointRltLclRotLnQuatPcad());
-	m_pDrivenF.reset(new AllJointRltLclRotLnQuatPcad());
-	m_pAccesseryF.reset(new AllJointRltLclRotLnQuatPcad());
+	m_pController = &controller;
+	pHandles = &controller.PvHandles();
+	auto& parts = controller.ArmatureParts();
+	auto& armature = controller.Armature();
+	pSource = &sParts.Armature();
+	pTarget = &armature;
+	pTblocks = &parts;
+	pSblocks = &sParts;
+
+	auto pIF = std::make_shared<InputExtractorType>();
+	auto pOF = std::make_shared<OutputExtractorType>();
+
+	auto& ucinfo = controller.GetUnitedClipinfo();
+
+	pOF->InitPcas(parts.size());
+	pOF->SetDefaultFrame(armature.default_frame());
+	pOF->InitializeWeights(parts);
+
+	auto& facade = ucinfo.RcFacade;
+	auto cutoff = facade.PcaCutoff();
+	for (auto part : parts)
+	{
+		int pid = part->Index;
+		if (part->ActiveActions.size() > 0 || part->SubActiveActions.size() > 0)
+		{
+			auto &pca = facade.GetPartPca(pid);
+			auto d = facade.GetPartPcaDim(pid);
+			pOF->SetPca(pid, pca.components(d), pca.mean());
+		}
+		else
+		{
+			int odim = facade.GetPartDimension(pid);
+			pOF->SetPca(pid, MatrixXf::Identity(odim, odim), facade.GetPartMean(pid));
+		}
+	}
+
+	m_pActiveF = pOF;
+	m_pInputF = pIF;
 }
 
 void Causality::PartilizedTransform::Transform(frame_type & target_frame, const frame_type & source_frame) const
@@ -560,117 +608,133 @@ void Causality::PartilizedTransform::Transform(frame_type & target_frame, const 
 
 void PartilizedTransform::Transform(frame_type & target_frame, const frame_type & source_frame, const BoneHiracheryFrame & last_frame, float frame_time) const
 {
-	const auto& blocks = *pTblocks;
-	RowVectorXd Xd(g_PvDimension),Xld, Y;
+	const auto& cparts = *pTblocks;
+	const auto& sparts = *pSblocks;
+
+	auto pvDim = m_pInputF->GetDimension(*sparts[0]);
+
+	RowVectorXd Xd(g_UseVelocity ? pvDim * 2 : pvDim), Xld(g_UseVelocity ? pvDim * 2 : pvDim), Y;
 	double semga = 1000;
 	RowVectorXf yf;
 
-	RowVectorXf AvtiveVector;
-	RowVectorXf DrivenActiveVector;
+	RowVectorXd AvtiveVector(m_pController->uXabpv.size());
+	RowVectorXd DrivenActiveVector;
 
-	for (auto& ctrl : this->AccesseryParts)
+	int xstdim = 0;
+	for (auto& ctrl : this->ActiveParts)
 	{
-		auto block = const_cast<ArmaturePart*>(blocks[ctrl.DstIdx]);
+		assert(ctrl.DstIdx >= 0 && ctrl.SrcIdx >= 0);
+		auto& cpart = const_cast<ArmaturePart&>(*cparts[ctrl.DstIdx]);
+		auto& spart = *sparts[ctrl.SrcIdx];
 
-		if (block->ActiveActions.size() > 0)
+		auto& sik = m_pController->GetStylizedIK(cpart.Index);
+		auto& gpr = sik.Gplvm();
+		auto& joints = cpart.Joints;
+
+		auto baseRot = target_frame[cpart.parent()->Joints.back()->ID].GblRotation;
+
+		sik.SetBaseRotation(baseRot);
+		sik.SetChain(cpart.Joints, target_frame);
+
+		RowVectorXf xf = m_pInputF->Get(spart, source_frame);//,last_frame,frame_time
+		RowVectorXf xlf = m_pInputF->Get(spart, last_frame);
+
+		TransformCtrlHandel(xf, ctrl);
+		TransformCtrlHandel(xlf, ctrl);
+
+		yf = m_pActiveF->Get(cpart, target_frame);
+
+		Xd.segment(0, pvDim) = xf.cast<double>();
+
+		if (g_UseVelocity)
 		{
-			RowVectorXf xf = m_pInputF->Get(*block, source_frame);//,last_frame,frame_time
-			RowVectorXf xlf = m_pInputF->Get(*block, last_frame);
-			yf = m_pAccesseryF->Get(*block, target_frame);
+			auto Xv = Xd.segment(pvDim, pvDim);
+			Xv = (xf - xlf).cast<double>() / (frame_time * g_FrameTimeScaleFactor);
+		}
 
-			Xd.segment<3>(0) = xf.cast<double>();
-			Xld.segment<3>(0) = xlf.cast<double>();
-
+		if (pHandles)
+		{
+			pHandles->at(cpart.Index).first = Vector3(xf.data());
 			if (g_UseVelocity && g_PvDimension == 6)
 			{
-				auto Xv = Xd.segment<3>(3);
-				Xv = (Xd - Xld) / (frame_time * g_FrameTimeScaleFactor);
+				pHandles->at(cpart.Index).second = Vector3(xf.data() + 3);
 			}
-
-			xf = Xd.cast<float>();
-
-			if (pHandles)
-			{
-				pHandles->at(block->Index).first = Vector3(xf.data());
-				if (g_UseVelocity && g_PvDimension == 6)
-				{
-					pHandles->at(block->Index).second = Vector3(xf.data() + 3);
-				}
-				else
-				{
-					pHandles->at(block->Index).second = Vector3::Zero;
-				}
-			}
-
-			//m_Xs.row(block->Index) = Xd;
-			//Xabs.emplace_back(Xd);
-
-			MatrixXd covObsr(g_PvDimension, g_PvDimension);
-			covObsr.setZero();
-			//! This is not correct!!!
-			covObsr.diagonal() = g_NoiseInterpolation.replicate(1, g_PvDimension / 3).transpose();
-
-			auto baseRot = target_frame[block->parent()->Joints.back()->ID].GblRotation;
-
-			auto& sik = m_pController->GetStylizedIK(block->Index);
-			auto& gpr = sik.Gplvm();
-
-			sik.SetBaseRotation(baseRot);
-			sik.SetChain(block->Joints, target_frame);
-			sik.SetGplvmWeight(block->Wx.cast<double>());
-
-			if (!g_UseVelocity)
-				Y = sik.Apply(Xd.transpose());
 			else
-				Y = sik.Apply(Xd.leftCols<3>().transpose(), Xd.segment<3>(3).transpose().eval());
-
-			m_pActiveF->Set(*block, target_frame, Y.cast<float>());
-			for (int i = 0; i < block->Joints.size(); i++)
 			{
-				target_frame[block->Joints[i]->ID].UpdateGlobalData(target_frame[block->Joints[i]->parent()->ID]);
+				pHandles->at(cpart.Index).second = Vector3::Zero;
 			}
-
-			auto ep2 = target_frame[block->Joints.back()->ID].GblTranslation -
-				target_frame[block->Joints[0]->parent()->ID].GblTranslation;
-
-			//break;
 		}
+
+		AvtiveVector.segment(xstdim, Xd.size()) = Xd;
+		xstdim += Xd.size();
+
+		if (!g_UseVelocity)
+			Y = sik.Apply(Xd.transpose());
+		else
+			Y = sik.Apply(Xd.segment(0, pvDim).transpose(), Vector3d(Xd.segment(pvDim, pvDim).transpose()));
+
+		m_pActiveF->Set(cpart, target_frame, Y.cast<float>());
+
+		for (int i = 0; i < joints.size(); i++)
+		{
+			target_frame[joints[i]->ID].UpdateGlobalData(target_frame[joints[i]->parent()->ID]);
+		}
+
+		auto ep2 = target_frame[joints.back()->ID].GblTranslation -
+			target_frame[joints[0]->parent()->ID].GblTranslation;
+
+		//break;
+
 	}
 
 	// Fill Xabpv
-	//if (g_EnableDependentControl)
-	//{
-	//	RowVectorXd Xabpv;
-	//	Xabpv.resize(Xabs.size() * g_PvDimension);
-	//	int i = 0;
-	//	for (const auto& xab : Xabs)
-	//	{
-	//		auto Yi = Xabpv.segment(i * g_PvDimension, g_PvDimension);
-	//		Yi = xab;
-	//		++i;
-	//	}
+	if (g_EnableDependentControl)
+	{
+		auto _x = (AvtiveVector.cast<float>() - m_pController->uXabpv) * m_pController->XabpvT;
+		auto _xd = _x.cast<double>();
 
+		for (auto ctrl : DrivenParts)
+		{
+			auto& cpart = const_cast<ArmaturePart&>(*cparts[ctrl.DstIdx]);
 
-	//	for (auto& ctrl : this->AccesseryParts)
-	//	{
-	//		auto block = blocks[ctrl.DstIdx];
-	//		if (block->ActiveActionCount == 0 && block->SubActiveActionCount > 0)
-	//		{
-	//			auto _x = (Xabpv.cast<float>() - block->PdCca.uXpca) * block->PdCca.pcX;
+			auto& sik = m_pController->GetStylizedIK(cpart.Index);
+			auto& gpr = sik.Gplvm();
 
-	//			auto lk = block->PdGpr.get_expectation_and_likelihood(_x.cast<double>(), &Y);
+			auto lk = gpr.get_expectation_and_likelihood(_xd, &Y);
 
-	//			yf = Y.cast<float>();
-	//			yf *= block->Wx.cwiseInverse().asDiagonal();
+			yf = Y.cast<float>();
 
-	//			m_pAccesseryF->Set(*block, target_frame, yf);
-	//		}
+			m_pDrivenF->Set(cpart, target_frame, yf);
 
-	//	}
-	//}
+		}
+	}
 
 	target_frame[0].LclTranslation = source_frame[0].LclTranslation;
 	target_frame[0].GblTranslation = source_frame[0].GblTranslation;
 	target_frame.RebuildGlobal(*pTarget);
+
+}
+
+void Causality::PartilizedTransform::TransformCtrlHandel(Eigen::RowVectorXf &xf, const Causality::P2PTransform & ctrl) const
+{
+	auto& homo = ctrl.HomoMatrix;
+	xf *= homo.topLeftCorner(homo.rows() - 1, homo.cols() - 1);
+	xf += homo.block(homo.rows() - 1, 0, 1, homo.cols() - 1);
+}
+
+void Causality::PartilizedTransform::GenerateDrivenAccesseryControl()
+{
+	auto& allclip = m_pController->GetUnitedClipinfo();
+	auto& controller = *m_pController;
+
+	int pvDim = allclip.PvFacade.GetAllPartDimension();
+	VectorXi aparts(this->ActiveParts.size());
+
+	MatrixXf Xapvs(allclip.ClipFrames(), pvDim * aparts.size());
+	for (int i = 0; i < this->ActiveParts.size(); i++)
+		aparts[i] = this->ActiveParts[i].DstIdx;
+	
+	MatrixXi cache = aparts.replicate(1, 3).transpose();
+	selectCols(allclip.PvFacade.GetAllPartsSequence(), VectorXi::Map(cache.data(), cache.size()), &Xapvs);
 
 }

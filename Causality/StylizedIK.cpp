@@ -335,7 +335,7 @@ const Eigen::RowVectorXd & Causality::StylizedChainIK::Apply(const Eigen::Vector
 	m_meanLk = (m_meanLk * m_counter + lk) / (m_counter + 1);
 	++m_counter;
 
-	if (lk < 0.001 * m_meanLk) // low possibility prediction, use previous frame's data instead
+	//if (lk < 0.001 * m_meanLk) // low possibility prediction, use previous frame's data instead
 		hint_y = m_cy;
 
 	m_cx = x;

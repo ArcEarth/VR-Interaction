@@ -94,11 +94,17 @@ void CharacterClipinfo::SetClipName(const ::std::string& name)
 
 CyclicStreamClipinfo::CyclicStreamClipinfo(ShrinkedArmature& parts, time_seconds minT, time_seconds maxT, double sampleRateHz, size_t interval_frames)
 {
+	m_enableCyclicDtc = false;
+	m_pParts = nullptr;
+	m_fftplan = nullptr;
+	m_minFr = m_maxFr = m_FrWidth = 0;
+	m_windowSize = 0;
 	Initialize(parts, minT, maxT, sampleRateHz, interval_frames);
 }
 
 CyclicStreamClipinfo::CyclicStreamClipinfo()
 {
+	m_enableCyclicDtc = false;
 	m_pParts = nullptr;
 	m_fftplan = nullptr;
 	m_minFr = m_maxFr = m_FrWidth = 0;
@@ -500,6 +506,8 @@ void ClipFacade::CaculatePartsMetric()
 
 	float maxEnergy = m_Eb.maxCoeff();
 
+	m_ActiveParts.clear();
+	m_SubactiveParts.clear();
 	for (int i = 0; i < parts.size(); i++)
 	{
 		if (m_Eb[i] > m_ActiveEnergyThreshold * maxEnergy)

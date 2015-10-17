@@ -207,7 +207,8 @@ void ParseSceneSettings(tinyxml2::XMLElement * nScene)
 	PARSE_BOOL_SETTING(nSettings, EnableDependentControl, 0);
 	PARSE_BOOL_SETTING(nSettings, IngnoreInputRootRotation, 1);
 
-	PARSE_INT_SETTING (nSettings, PartAssignmentTransform, 0);
+	PARSE_INT_SETTING(nSettings, PartAssignmentTransform, 0);
+	PARSE_INT_SETTING(nSettings, PhaseMatchingInterval, 1);
 
 	PARSE_BOOL_SETTING(nSettings, UsePersudoPhysicsWalk, 1);
 	PARSE_FLOAT_SETTING(nSettings, MaxCharacterSpeed, 0.5f);
@@ -461,14 +462,14 @@ void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node)
 
 void ParseSkydomeObjectAttributes(SkyDome* pSkyDome, XMLElement* node)
 {
-	ParseSceneObjectAttributes(pSkyDome,node);
+	ParseSceneObjectAttributes(pSkyDome, node);
 	auto bg = node->Attribute("background");
 	auto& assets = pSkyDome->Scene->Assets();
 	auto pEffect = assets.GetEffect("default_environment");
 
 	pSkyDome->CreateDeviceResource(assets.GetRenderDevice().Get(), dynamic_cast<DirectX::EnvironmentMapEffect*>(pEffect));
 
-	
+
 	if (bg[0] == '{')
 	{
 		string key(bg + 1, strlen(bg) - 2);
@@ -564,7 +565,7 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 		auto pControl = CreateSceneObject<KinectVisualizer>(&scene);
 		pObj.reset(pControl);
 		ParseSceneObjectAttributes(pObj.get(), node);
-	} 
+	}
 	else
 	{
 		pObj.reset(CreateSceneObject<SceneObject>(&scene));

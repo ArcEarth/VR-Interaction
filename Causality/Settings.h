@@ -67,4 +67,6 @@ namespace Causality
 	extern bool			g_DebugView;
 
 	extern bool			g_UseJointLengthWeight;
+
+	extern int			g_PhaseMatchingInterval;
 }
