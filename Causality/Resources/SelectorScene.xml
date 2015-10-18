@@ -47,6 +47,9 @@
     <CharacterActiveEnergy>0.40</CharacterActiveEnergy>
     <CharacterSubactiveEnergy>0.06</CharacterSubactiveEnergy>
 
+    <RevampLikilyhoodThreshold>0.01</RevampLikilyhoodThreshold>
+    <RevampLikilyhoodTimeThreshold>1.0</RevampLikilyhoodTimeThreshold>
+    
     <enviroment>
       <gravity>0,-0.1,0</gravity>
     </enviroment>

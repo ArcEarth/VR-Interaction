@@ -114,6 +114,8 @@ float BoneRadius[JointType_Count] = {
 #define BEGIN_TO_END(range) range.begin(), range.end()
 
 
+void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& controller);
+
 // Player Proxy methods
 void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::FrameType& frame)
 {
@@ -135,6 +137,7 @@ void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::
 		m_mapTask = concurrency::create_task([this]() {
 			auto idx = MapCharacterByLatestMotion();
 			m_mapTaskOnGoing = false;
+			
 		});
 	}
 
@@ -143,6 +146,7 @@ void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::
 void PlayerProxy::ResetPlayer(TrackedBody * pOld, TrackedBody * pNew)
 {
 	m_CyclicInfo.ResetStream();
+	m_CyclicInfo.EnableCyclicMotionDetection(true);
 	SetActiveController(-1);
 }
 
@@ -232,6 +236,10 @@ void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& contr
 	//	glow->SetBoneColor(i, DirectX::Colors::Orange.v);
 	//}
 	//return;
+
+	using namespace DirectX;
+
+	glow->ResetBoneColor(Colors::Transparent.v);
 
 	if (pCcaTrans)
 	{
@@ -342,6 +350,21 @@ void PlayerProxy::SetActiveController(int idx)
 			controller.CMapRefRot = chara.GetOrientation();
 
 			chara.EnabeAutoDisplacement(g_UsePersudoPhysicsWalk);
+		}
+	}
+	else
+	{
+		if (m_CurrentIdx == -1)
+			return;
+
+		auto& controller = GetController(m_CurrentIdx);
+		auto& chara = controller.Character();
+
+		auto glow = chara.FirstChildOfType<CharacterGlowParts>();
+		if (glow)
+		{
+			SetGlowBoneColor(glow, controller);
+			glow->SetEnabled(!g_DebugView);
 		}
 	}
 }
@@ -480,6 +503,9 @@ int PlayerProxy::MapCharacterByLatestMotion()
 		if (!pControl || controller.CharacterScore > pControl->CharacterScore)
 			pControl = &controller;
 	}
+
+	// Disable re-matching when the controller has not request
+	m_CyclicInfo.EnableCyclicMotionDetection(false);
 	m_CyclicInfo.ReleaseFacade();
 
 	if (!pControl) return -1;
@@ -779,7 +805,23 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 	if (IsMapped())
 	{
 		auto& controller = CurrentController();
-		controller.UpdateTargetCharacter(frame, m_LastPlayerFrame, time_delta.count());
+		float lik = controller.UpdateTargetCharacter(frame, m_LastPlayerFrame, time_delta.count());
+
+		// Check if we need to "Revamp" Control Binding
+		if (lik < g_RevampLikilyhoodThreshold)
+		{
+			m_LowLikilyTime += time_delta.count();
+			if (m_LowLikilyTime > g_RevampLikilyhoodTimeThreshold)
+			{
+				m_CyclicInfo.EnableCyclicMotionDetection();
+			}
+		}
+		else
+		{
+			m_CyclicInfo.EnableCyclicMotionDetection(false);
+			m_LowLikilyTime = 0;
+		}
+
 		if (m_EnableOverShoulderCam)
 			UpdatePrimaryCameraForTrack();
 		return;

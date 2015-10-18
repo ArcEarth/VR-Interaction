@@ -336,6 +336,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="SceneParser.h" />
     <ClInclude Include="SelectorScene.h" />
     <ClInclude Include="Settings.h" />
+    <ClInclude Include="SettingsRegisteration.h" />
     <ClInclude Include="StylizedIK.h" />
     <ClInclude Include="WorldTreeBranch.h" />
   </ItemGroup>

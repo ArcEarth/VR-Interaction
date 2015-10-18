@@ -79,6 +79,8 @@ namespace Causality
 		{ return m_BoneColors[id]; }
 		void	SetBoneColor(int id, const DirectX::Color& color)
 		{ m_BoneColors[id] = color; }
+		// reset all bone color to Transparent
+		void	ResetBoneColor(const DirectX::Color& color);
 
 		virtual void OnParentChanged(SceneObject *oldParent) override;
 	private:

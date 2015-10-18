@@ -77,9 +77,11 @@ namespace Causality
 
 		Devices::KinectSensor::Refptr		m_pKinect;
 		TrackedBodySelector					m_playerSelector;
+
 		BoneHiracheryFrame					m_CurrentPlayerFrame;
 		BoneHiracheryFrame					m_LastPlayerFrame;
 
+		double								m_LowLikilyTime;
 		CyclicStreamClipinfo				m_CyclicInfo;
 
 		int									m_CurrentIdx;

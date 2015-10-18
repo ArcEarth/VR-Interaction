@@ -408,10 +408,10 @@ ShrinkedArmature & Causality::CharacterController::ArmatureParts()
 	return Character().Behavier().ArmatureParts();
 }
 
-void CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & frame, const BoneHiracheryFrame & lastframe, double deltaTime) const
+float CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & frame, const BoneHiracheryFrame & lastframe, double deltaTime) const
 {
 	if (m_pBinding == nullptr)
-		return;
+		return 0 ;
 	{
 		std::lock_guard<mutex> guard(m_bindMutex);
 		auto& cframe = m_pCharacter->MapCurrentFrameForUpdate();
@@ -427,15 +427,25 @@ void CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & frame
 
 	using namespace DirectX;
 
+	auto& bone = frame[0];
 	//auto pos = frame[0].GblTranslation - MapRefPos + CMapRefPos;
-	auto pos = Character().GetPosition() + frame[0].GblTranslation - LastPos;
+	SychronizeRootDisplacement(bone);
 
-	LastPos = frame[0].GblTranslation;
+	m_pCharacter->ReleaseCurrentFrameFrorUpdate();
+
+	return 1.0;
+}
+
+void Causality::CharacterController::SychronizeRootDisplacement(const Causality::Bone & bone) const
+{
+	auto pos = Character().GetPosition() + bone.GblTranslation - LastPos;
+
+	LastPos = bone.GblTranslation;
 
 	// CrefRot * Yaw(HrefRot^-1 * HRot)
 	auto rot = XMQuaternionMultiply(
 		XMQuaternionConjugate(XMLoad(MapRefRot)),
-		XMLoadA(frame[0].GblRotation));
+		XMLoadA(bone.GblRotation));
 
 	// extract Yaw rotation only, it's a bad hack here
 	rot = XMQuaternionLn(rot);
@@ -447,8 +457,6 @@ void CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & frame
 
 	m_pCharacter->SetPosition(pos);
 	m_pCharacter->SetOrientation(rot);
-
-	m_pCharacter->ReleaseCurrentFrameFrorUpdate();
 }
 
 float CreateControlTransform(CharacterController & controller, const ClipFacade& iclip);
@@ -1289,7 +1297,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 	DenseIndex maxClipIdx = 0;
 	float maxScore = clipTransformScores.maxCoeff(&maxClipIdx);
-	if (maxScore > controller.CharacterScore)
+	if (maxScore > controller.CharacterScore * 2.0)
 	{
 
 		auto pBinding = move(clipTransforms[maxClipIdx]);

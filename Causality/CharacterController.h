@@ -43,7 +43,11 @@ namespace Causality
 		auto&	SubactiveParts() const { return m_SubactiveParts; }
 
 
-		void UpdateTargetCharacter(const BoneHiracheryFrame& sourceFrame, const BoneHiracheryFrame& lastSourceFrame, double deltaTime_seconds) const;
+		float UpdateTargetCharacter(const BoneHiracheryFrame& sourceFrame, const BoneHiracheryFrame& lastSourceFrame, double deltaTime_seconds) const;
+
+		float GetLastUpdateLikilyhood() const;
+
+		void SychronizeRootDisplacement(const Causality::Bone & bone) const;
 
 		float CreateControlBinding(const ClipFacade& inputClip);
 

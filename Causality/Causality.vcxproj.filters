@@ -278,6 +278,9 @@
     <ClInclude Include="ArmatureParts.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SettingsRegisteration.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\OculusDisortionPixelShader.hlsl">

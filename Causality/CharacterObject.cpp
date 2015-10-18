@@ -337,6 +337,11 @@ RenderFlags CharacterGlowParts::GetRenderFlags() const
 	return RenderFlags::BloomEffectSource | RenderFlags::Skinable;
 }
 
+void CharacterGlowParts::ResetBoneColor(const DirectX::Color & color)
+{
+	std::fill(m_BoneColors.begin(), m_BoneColors.end(), color);
+}
+
 void CharacterGlowParts::OnParentChanged(SceneObject* oldParent)
 {
 	Initialize();

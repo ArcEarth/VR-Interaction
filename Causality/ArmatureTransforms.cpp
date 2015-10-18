@@ -5,6 +5,7 @@
 #include <PrimitiveVisualizer.h>
 #include "CharacterController.h"
 #include "EigenExtension.h"
+#include <set>
 
 extern Eigen::RowVector3d	g_NoiseInterpolation;
 namespace Causality
@@ -27,6 +28,14 @@ Pcad <
 	AllJoints < CharacterFeature > > > >
 	OutputExtractorType;
 
+
+#define BEGIN_TO_END(range) range.begin(), range.end()
+
+#ifdef _DEBUG
+#define DEBUGOUT(x) std::cout << #x << " = " << x << std::endl
+#else
+#define DEBUGOUT(x)
+#endif
 
 template <class Derived>
 void ExpandQuadraticTerm(_Inout_ Eigen::DenseBase<Derived> &v, _In_ Eigen::DenseIndex dim)
@@ -722,19 +731,68 @@ void Causality::PartilizedTransform::TransformCtrlHandel(Eigen::RowVectorXf &xf,
 	xf += homo.block(homo.rows() - 1, 0, 1, homo.cols() - 1);
 }
 
+using namespace std;
+
 void Causality::PartilizedTransform::GenerateDrivenAccesseryControl()
 {
 	auto& allclip = m_pController->GetUnitedClipinfo();
 	auto& controller = *m_pController;
 
 	int pvDim = allclip.PvFacade.GetAllPartDimension();
-	VectorXi aparts(this->ActiveParts.size());
 
-	MatrixXf Xapvs(allclip.ClipFrames(), pvDim * aparts.size());
+	// Build aparts, dparts
+	VectorXi aparts(this->ActiveParts.size());
+	set<int> drivSet(BEGIN_TO_END(allclip.ActiveParts()));
 	for (int i = 0; i < this->ActiveParts.size(); i++)
+	{
 		aparts[i] = this->ActiveParts[i].DstIdx;
-	
+		drivSet.erase(aparts[i]);
+	}
+	VectorXi dparts(drivSet.size());
+	int i = 0;
+	for (auto& pid : drivSet)
+		dparts[i++] = pid;
+
+	// Select Xapvs & dpavs
+	MatrixXf Xapvs(allclip.ClipFrames(), pvDim * aparts.size());
 	MatrixXi cache = aparts.replicate(1, 3).transpose();
 	selectCols(allclip.PvFacade.GetAllPartsSequence(), VectorXi::Map(cache.data(), cache.size()), &Xapvs);
 
+	//MatrixXf Xdpvs(allclip.ClipFrames(), pvDim * dparts.size());
+	//cache = dparts.replicate(1, 3).transpose();
+	//selectCols(allclip.PvFacade.GetAllPartsSequence(), VectorXi::Map(cache.data(), cache.size()), &Xdpvs);
+
+	Pca<MatrixXf> pcaXapvs(Xapvs);
+	int dXapv = pcaXapvs.reducedRank(g_CharacterPcaCutoff);
+	QrStore<MatrixXf> qrXabpvs(pcaXapvs.coordinates(dXapv));
+	Cca<float> cca;
+
+	PcaCcaMap map;
+	DrivenParts.clear();
+	for (int i = 0; i < dparts.size(); i++)
+	{
+		auto pid = dparts[i];
+		DrivenParts.emplace_back();
+		auto &ctrl = DrivenParts.back();
+		ctrl.DstIdx = pid;
+		ctrl.SrcIdx = PvInputTypeEnum::ActiveParts;
+
+		int d = allclip.PvFacade.GetPartPcaDim(pid);
+		auto& pca = allclip.PvFacade.GetPartPca(pid);
+		auto qr = allclip.PvFacade.GetPartPcadQrView(pid);
+
+		cca.computeFromQr(qrXabpvs, qr, true, 0);
+		float corr = cca.correlaltions().minCoeff();
+
+		map.A = cca.matrixA();
+		map.B = cca.matrixB();
+		map.uX = qrXabpvs.mean();
+		map.uY = qr.mean();
+		map.pcX = pcaXapvs.components(dXapv);
+		map.uXpca = pcaXapvs.mean();
+		map.pcY = pca.components(d);
+		map.uYpca = pca.mean();
+
+		ctrl.HomoMatrix = map.TransformMatrix();
+	}
 }

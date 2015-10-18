@@ -172,6 +172,31 @@ void Scene::LoadFromXML(const string & xml_file)
 	is_loaded = true;
 }
 
+
+void ParseNameText(tinyxml2::XMLElement * setting, const char* name, float& val, float defval)
+{
+	val = defval;
+	setting->FirstChildElement(name)->QueryFloatText(&val);
+}
+
+void ParseNameText(tinyxml2::XMLElement * setting, const char* name, int& val, int defval)
+{
+	val = defval;
+	setting->FirstChildElement(name)->QueryIntText(&val);
+}
+
+void ParseNameText(tinyxml2::XMLElement * setting, const char* name, bool& val, bool defval)
+{
+	val = defval;
+	int intval = val;
+	auto error = setting->FirstChildElement(name)->QueryBoolText(&val);
+	if (error != tinyxml2::XMLError::XML_SUCCESS)
+	{
+		error = setting->FirstChildElement(name)->QueryIntText(&intval);
+		val = (intval != 0);
+	}
+}
+
 void ParseSceneSettings(tinyxml2::XMLElement * nScene)
 {
 	auto nSettings = nScene->FirstChildElement("scene.settings");
@@ -180,53 +205,9 @@ void ParseSceneSettings(tinyxml2::XMLElement * nScene)
 	nSettings->FirstChildElement("ClipRasterizeFrame")->QueryUnsignedText(&clipframe);
 	CLIP_FRAME_COUNT = clipframe;
 
-#define PARSE_BOOL_SETTING(node,name,def) \
-{ \
-	int val = def;\
-	node->FirstChildElement(#name)->QueryIntText(&val); \
-	g_##name = (bool)val; \
-}
-
-#define PARSE_FLOAT_SETTING(node,name,def) \
-{ \
-	float val = def;\
-	node->FirstChildElement(#name)->QueryFloatText(&val); \
-	g_##name = val; \
-}
-
-#define PARSE_INT_SETTING(node,name,def) \
-{ \
-	int val = def;\
-	node->FirstChildElement(#name)->QueryIntText(&val); \
-	g_##name = val; \
-}
-
-	PARSE_BOOL_SETTING(nSettings, EnableDebugLogging, 0);
-	PARSE_BOOL_SETTING(nSettings, EnableRecordLogging, 0);
-
-	PARSE_BOOL_SETTING(nSettings, EnableDependentControl, 0);
-	PARSE_BOOL_SETTING(nSettings, IngnoreInputRootRotation, 1);
-
-	PARSE_INT_SETTING(nSettings, PartAssignmentTransform, 0);
-	PARSE_INT_SETTING(nSettings, PhaseMatchingInterval, 1);
-
-	PARSE_BOOL_SETTING(nSettings, UsePersudoPhysicsWalk, 1);
-	PARSE_FLOAT_SETTING(nSettings, MaxCharacterSpeed, 0.5f);
-
-	PARSE_BOOL_SETTING(nSettings, UseJointLengthWeight, 0);
-	PARSE_BOOL_SETTING(nSettings, UseStylizedIK, 1);
-	PARSE_BOOL_SETTING(nSettings, UseVelocity, 1);
-	PARSE_BOOL_SETTING(nSettings, LoadCharacterModelParameter, 1);
-
-	PARSE_FLOAT_SETTING(nSettings, MatchAccepetanceThreshold, 0.2f);
-	PARSE_FLOAT_SETTING(nSettings, PlayerPcaCutoff, .004f);
-	PARSE_FLOAT_SETTING(nSettings, PlayerEnergyCutoff, 0.3f);
-	PARSE_FLOAT_SETTING(nSettings, CharacterPcaCutoff, .004f);
-	PARSE_FLOAT_SETTING(nSettings, CharacterActiveEnergy, 0.40f);
-	PARSE_FLOAT_SETTING(nSettings, CharacterSubactiveEnergy, 0.02f);
-	PARSE_FLOAT_SETTING(nSettings, IKTermWeight, 1.0f);
-	PARSE_FLOAT_SETTING(nSettings, MarkovTermWeight, 1.0f);
-	PARSE_FLOAT_SETTING(nSettings, StyleLikelihoodTermWeight, 1.0f);
+#define SETTING_REGISTERATION(type, name, val) ParseNameText(nSettings,#name,g_##name,val);
+#include "SettingsRegisteration.h"
+#undef SETTING_REGISTERATION
 }
 
 void ParseSceneAssets(AssetDictionary& assets, XMLElement* node)
