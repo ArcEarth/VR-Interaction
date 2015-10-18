@@ -137,7 +137,7 @@ void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::
 		m_mapTask = concurrency::create_task([this]() {
 			auto idx = MapCharacterByLatestMotion();
 			m_mapTaskOnGoing = false;
-			
+
 		});
 	}
 
@@ -157,7 +157,8 @@ PlayerProxy::PlayerProxy()
 	m_CurrentIdx(-1),
 	current_time(0),
 	m_mapTaskOnGoing(false),
-	m_EnableOverShoulderCam(false)
+	m_EnableOverShoulderCam(false),
+	m_DefaultCameraFlag(true)
 {
 	m_pParts = &g_PlayerParts;
 
@@ -218,7 +219,7 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 	}
 }
 
-void SetGlowBoneColorPartPair(Causality::CharacterGlowParts * glow, int Jx, int Jy,const DirectX::XMVECTORF32 *colors, const Causality::ShrinkedArmature & sparts, const Causality::ShrinkedArmature & cparts);
+void SetGlowBoneColorPartPair(Causality::CharacterGlowParts * glow, int Jx, int Jy, const DirectX::XMVECTORF32 *colors, const Causality::ShrinkedArmature & sparts, const Causality::ShrinkedArmature & cparts);
 
 void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& controller)
 {
@@ -251,7 +252,7 @@ void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& contr
 	}
 	else if (pPartTrans)
 	{
-		for (auto& tp : pPartTrans->ActiveParts )
+		for (auto& tp : pPartTrans->ActiveParts)
 		{
 			auto Jx = tp.SrcIdx, Jy = tp.DstIdx;
 			SetGlowBoneColorPartPair(glow, Jx, Jy, colors, sparts, cparts);
@@ -270,7 +271,7 @@ void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& contr
 
 }
 
-void SetGlowBoneColorPartPair(Causality::CharacterGlowParts * glow, int Jx, int Jy,const DirectX::XMVECTORF32 *colors, const Causality::ShrinkedArmature & sparts, const Causality::ShrinkedArmature & cparts)
+void SetGlowBoneColorPartPair(Causality::CharacterGlowParts * glow, int Jx, int Jy, const DirectX::XMVECTORF32 *colors, const Causality::ShrinkedArmature & sparts, const Causality::ShrinkedArmature & cparts)
 {
 	using namespace DirectX;
 	XMVECTOR color;
@@ -296,6 +297,9 @@ void PlayerProxy::SetActiveController(int idx)
 
 	if (idx >= 0)
 		idx = idx % m_Controllers.size();
+
+	if (idx == -1)
+		ResetPrimaryCameraPoseToDefault();
 
 	for (auto& c : m_Controllers)
 	{
@@ -340,7 +344,7 @@ void PlayerProxy::SetActiveController(int idx)
 			chara.SetOpticity(1.0f);
 			auto glow = chara.FirstChildOfType<CharacterGlowParts>();
 			SetGlowBoneColor(glow, controller);
-			glow->SetEnabled(!g_DebugView);
+			glow->SetEnabled(true);
 
 			controller.MapRefPos = m_playerSelector->PeekFrame()[0].GblTranslation;
 			controller.LastPos = controller.MapRefPos;
@@ -653,12 +657,16 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 		m_EnableOverShoulderCam = !m_EnableOverShoulderCam;
 		//g_UsePersudoPhysicsWalk = m_EnableOverShoulderCam;
 		cout << "Over Shoulder Camera Mode = " << m_EnableOverShoulderCam << endl;
-		cout << "Persudo-Physics Walk = " << g_UsePersudoPhysicsWalk << endl;
+		//cout << "Persudo-Physics Walk = " << g_UsePersudoPhysicsWalk << endl;
 	}
 	else if (e.Key == 'V')
 	{
 		g_UsePersudoPhysicsWalk = !g_UsePersudoPhysicsWalk;
 		cout << "Persudo-Physics Walk = " << g_UsePersudoPhysicsWalk << endl;
+		for (auto& controller : m_Controllers)
+		{
+			controller.Character().EnabeAutoDisplacement(g_UsePersudoPhysicsWalk);
+		}
 	}
 	else if (e.Key == 'M')
 	{
@@ -669,6 +677,7 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 	else if (e.Key == VK_BACK)
 	{
 		m_CyclicInfo.ResetStream();
+		m_DefaultCameraFlag = true;
 	}
 	else if (e.Key == VK_NUMPAD1)
 	{
@@ -830,6 +839,7 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 
 void PlayerProxy::UpdatePrimaryCameraForTrack()
 {
+
 	auto& camera = *this->Scene->PrimaryCamera();
 	auto& cameraPos = dynamic_cast<SceneObject&>(camera);
 	auto& contrl = this->CurrentController();
@@ -838,8 +848,30 @@ void PlayerProxy::UpdatePrimaryCameraForTrack()
 	XMVECTOR ext = XMLoad(chara.RenderModel()->GetBoundingBox().Extents);
 	ext = XMVector3LengthEst(ext);
 	ext *= chara.GetGlobalTransform().Scale;
+
+	if (m_DefaultCameraFlag)
+	{
+		m_DefaultCameraFlag = false;
+		m_DefaultCameraPose.Translation = cameraPos.GetPosition();
+		m_DefaultCameraPose.Rotation = cameraPos.GetOrientation();
+	}
+
 	cameraPos.SetPosition((XMVECTOR)chara.GetPosition() + XMVector3Rotate(XMVectorMultiplyAdd(ext, XMVectorSet(-2.0f, 2.0f, -2.0f, 0.0f), XMVectorSet(-0.5f, 0.5, -0.5, 0)), chara.GetOrientation()));
 	camera.GetView()->FocusAt((XMVECTOR)chara.GetPosition() + XMVector3Rotate(XMVectorMultiplyAdd(ext, XMVectorSet(-2.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(-0.5f, 0.5, -0.5, 0)), chara.GetOrientation()), g_XMIdentityR1.v);
+}
+
+void Causality::PlayerProxy::ResetPrimaryCameraPoseToDefault()
+{
+	// Camera pose not changed by Over Shoulder view
+	if (m_DefaultCameraFlag)
+		return;
+
+	auto& camera = *this->Scene->PrimaryCamera();
+	auto& cameraPos = dynamic_cast<SceneObject&>(camera);
+
+	m_DefaultCameraFlag = true;
+	cameraPos.SetPosition(m_DefaultCameraPose.Translation);
+	cameraPos.SetOrientation(m_DefaultCameraPose.Rotation);
 }
 
 bool PlayerProxy::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const

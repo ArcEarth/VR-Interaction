@@ -50,6 +50,7 @@ namespace Causality
 		const ShrinkedArmature&		Parts() const { return *m_pParts; }
 	protected:
 		void	UpdatePrimaryCameraForTrack();
+		void	ResetPrimaryCameraPoseToDefault();
 
 		// Helper methods
 		bool	UpdateByFrame(const BoneHiracheryFrame& frame);
@@ -86,6 +87,9 @@ namespace Causality
 
 		int									m_CurrentIdx;
 		std::list<CharacterController>		m_Controllers;
+
+		bool								m_DefaultCameraFlag;
+		DirectX::RigidTransform				m_DefaultCameraPose;
 
 		time_seconds						current_time;
 

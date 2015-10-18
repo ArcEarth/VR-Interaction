@@ -374,6 +374,8 @@ ClipFacade::~ClipFacade()
 
 }
 
+void Causality::ClipFacade::SetActiveEnergy(float active, float subActive) { m_ActiveEnergyThreshold = active; m_SubactiveEnergyThreshold = subActive; }
+
 void ClipFacade::Prepare(const ShrinkedArmature & parts, int clipLength, int flag)
 {
 	assert(m_pFeature != nullptr && "Set Feature Before Call Prepare");
@@ -392,7 +394,7 @@ void ClipFacade::Prepare(const ShrinkedArmature & parts, int clipLength, int fla
 	if (m_flag & ComputePca)
 	{
 		m_Pcas.resize(parts.size());
-		m_PcaDims.resize(parts.size());
+		m_PcaDims.setConstant(parts.size(),-1);
 
 		if (m_flag & ComputePcaQr)
 			m_thickQrs.resize(parts.size());
@@ -508,6 +510,8 @@ void ClipFacade::CaculatePartsMetric()
 
 	m_ActiveParts.clear();
 	m_SubactiveParts.clear();
+	m_PcaDims.setConstant(-1);
+
 	for (int i = 0; i < parts.size(); i++)
 	{
 		if (m_Eb[i] > m_ActiveEnergyThreshold * maxEnergy)
@@ -523,15 +527,7 @@ void ClipFacade::CaculatePartsMetric()
 		// inactive parts
 		if ((m_flag & ComputePca) && (m_Eb[i] > m_SubactiveEnergyThreshold * maxEnergy))
 		{
-			auto& pca = m_Pcas[i];
-			pca.computeCentered(m_cX.middleCols(m_partSt[i], m_partDim[i]), true);
-			pca.setMean(m_uX.segment(m_partSt[i], m_partDim[i]));
-			auto d = pca.reducedRank(m_pcaCutoff);
-			m_PcaDims[i] = d;
-
-			//! Potiential unnessary matrix copy here!!!
-			if (m_flag & ComputePcaQr)
-				m_thickQrs[i].compute(m_Pcas[i].coordinates(d), false, true);
+			CaculatePartPcaQr(i);
 		}
 	}
 
@@ -539,6 +535,20 @@ void ClipFacade::CaculatePartsMetric()
 		CaculatePartsPairMetric();
 
 	m_inited = true;
+}
+
+void Causality::ClipFacade::CaculatePartPcaQr(int i)
+{
+	auto& pca = m_Pcas[i];
+
+	pca.computeCentered(m_cX.middleCols(m_partSt[i], m_partDim[i]), true);
+	pca.setMean(m_uX.segment(m_partSt[i], m_partDim[i]));
+	auto d = pca.reducedRank(m_pcaCutoff);
+	m_PcaDims[i] = d;
+
+	//! Potiential unnessary matrix copy here!!!
+	if (m_flag & ComputePcaQr)
+		m_thickQrs[i].compute(m_Pcas[i].coordinates(d), false, true);
 }
 
 void ClipFacade::CaculatePartsPairMetric(PairDifLevelEnum level)

@@ -54,8 +54,10 @@ namespace Causality
 		~ClipFacade();
 
 		const ShrinkedArmature&			ArmatureParts() const { return *m_pParts; }
+
 		auto&							ActiveParts() const { return m_ActiveParts; }
 		auto&							SubactiveParts() const { return m_SubactiveParts; }
+		void							SetActiveEnergy(float active, float subActive);
 
 		const auto&						ClipName() const { return m_clipName; }
 		void							SetClipName(const std::string& name) { m_clipName = name; }
@@ -96,6 +98,8 @@ namespace Causality
 
 		// Caculate energy and Pca and Qr for parts
 		void							CaculatePartsMetric();
+
+		void							CaculatePartPcaQr(int pid);
 
 	protected:
 		void							CaculatePartsPairMetric(PairDifLevelEnum level = ActivePartPairs);

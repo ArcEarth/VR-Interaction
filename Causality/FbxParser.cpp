@@ -736,6 +736,7 @@ namespace Causality
 		{
 			auto numBones = m_Armature->size();
 			auto& buffer = anim.GetFrameBuffer();
+			auto& dframe = m_Armature->default_frame();
 
 			auto frameCount = CLIP_FRAME_COUNT;
 
@@ -749,6 +750,17 @@ namespace Causality
 
 			std::vector<float> prev_angs(numBones);
 			std::vector<DirectX::Vector3> prev_axiss(numBones);
+			for (int bidx = 0; bidx < numBones; bidx++)
+			{
+				DirectX::XMVECTOR q = dframe[bidx].LclRotation;
+				DirectX::XMVECTOR axis;
+				float angle;
+				DirectX::XMQuaternionToAxisAngle(&axis, &angle, q);
+				prev_angs[bidx] = angle;
+				prev_axiss[bidx] = axis;
+			}
+
+
 			fbx::FbxTime time = pAnimStack->GetLocalTimeSpan().GetStart();
 			for (int i = 0; i < frameCount; i++)
 			{
@@ -823,10 +835,10 @@ namespace Causality
 						XMQuaternionToAxisAngle(&axis, &ang, q);
 
 						XMVECTOR dis = XMVectorZero();
-						if (i > 0)
-							dis = XMVector4Length(buffer[i - 1][nodeIdx].LclRotation.LoadA() - q);
+						//if (i > 0)
+						//	dis = XMVector4Length(buffer[i - 1][nodeIdx].LclRotation.LoadA() - q);
 
-						if (i > 0
+						if (i >= 0
 							&& XMVector4Less(XMVector3Dot(prev_axis, axis), XMVectorZero())
 							//&& abs(ang - prev_ang) > 0.05f
 

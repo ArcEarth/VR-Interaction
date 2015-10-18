@@ -187,7 +187,7 @@ public:
 		{
 			//X[0] *= 13;
 
-			if (block->ActiveActions.size() > 0)
+			if (block->Index >0 && block->ActiveActions.size() > 0)
 			{
 				auto& sik = pController->GetStylizedIK(block->Index);
 				auto& gpr = sik.Gplvm();
@@ -411,7 +411,7 @@ ShrinkedArmature & Causality::CharacterController::ArmatureParts()
 float CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & frame, const BoneHiracheryFrame & lastframe, double deltaTime) const
 {
 	if (m_pBinding == nullptr)
-		return 0 ;
+		return 0;
 	{
 		std::lock_guard<mutex> guard(m_bindMutex);
 		auto& cframe = m_pCharacter->MapCurrentFrameForUpdate();
@@ -471,8 +471,10 @@ const std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& Causality::Cha
 	return m_PvHandles;
 }
 
-std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& CharacterController::PvHandles() 
-{ return m_PvHandles; }
+std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& CharacterController::PvHandles()
+{
+	return m_PvHandles;
+}
 
 CharacterClipinfo & CharacterController::GetClipInfo(const string & name) {
 	auto itr = std::find_if(BEGIN_TO_END(m_Clipinfos), [&name](const auto& clip) {
@@ -531,22 +533,30 @@ vector<BoneHiracheryFrame> CreateReinforcedFrames(const BehavierSpace& behavier)
 	auto& armature = behavier.Armature();
 	auto& dframe = armature.default_frame();
 
-	float factors[] = { 0.5f,0.75f,1.0f,1.25f };
+	float factors[] = { /*0.5f,0.75f,*/1.0f/*,1.25f */ };
 	int k = size(factors);
 	int n = CLIP_FRAME_COUNT;
 
-	vector<BoneHiracheryFrame> frames(n * clips.size() * k);
+	std::vector<int> cyclips;
+	cyclips.reserve(clips.size());
+	for (int i = 0; i < clips.size(); i++)
+	{
+		if (clips[i].Cyclic())
+			cyclips.push_back(i);
+	}
+
+	vector<BoneHiracheryFrame> frames(n * cyclips.size() * k);
 
 	int ci = 0;
 	double totalTime = 0;
 
 	//concurrency::parallel_for((int)0, (int)clips.size() * k, [&](int cik) 
-	for (int cik = 0; cik < clips.size() * k; cik++)
+	for (int cik = 0; cik < cyclips.size() * k; cik++)
 	{
 		int ci = cik / k;
 		int i = cik % k;
 
-		auto animBuffer = clips[ci].GetFrameBuffer();
+		auto animBuffer = clips[cyclips[ci]].GetFrameBuffer();
 		int stidx = cik * n;
 		copy_n(animBuffer.begin(), n, frames.begin() + stidx);
 		if (fabsf(factors[i] - 1.0f) > 1e-5)
@@ -594,8 +604,12 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 	for (auto& anim : clips)
 	{
+		if (anim.Name == "idle" || anim.Name == "die")
+			anim.IsCyclic = false;
 		anim.IsCyclic = true;
 	}
+
+	//clips.erase(std::remove_if(BEGIN_TO_END(clips), [](const auto& anim) ->bool {return !anim.IsCyclic;}), clips.end());
 
 	using namespace concurrency;
 	vector<task<void>> tasks;
@@ -610,6 +624,9 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 			//? To-Do Setup proper feature for m_cpxClipinfo
 			m_cpxClipinfo.Initialize(parts);
+			// set subactive energy to almost zero that make sure all part's pca is caculated
+			//m_cpxClipinfo.RcFacade.SetActiveEnergy(g_CharacterActiveEnergy, g_CharacterSubactiveEnergy * 0.01f);
+			//m_cpxClipinfo.PvFacade.SetActiveEnergy(g_CharacterActiveEnergy, g_CharacterSubactiveEnergy * 0.01f);
 			m_cpxClipinfo.AnalyzeSequence(allFrames, 0);
 		}));
 	}
@@ -678,7 +695,7 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 		{
 			assert(clipinfo.IsReady());
 
-			auto& Eb = clipinfo.RcFacade.GetAllPartsEnergy();
+			auto& Eb = clipinfo.PvFacade.GetAllPartsEnergy();
 			globalEnergyMax = std::max(Eb.maxCoeff(), globalEnergyMax);
 
 			DEBUGOUT(Eb);
@@ -689,7 +706,7 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 		for (auto& clipinfo : m_Clipinfos)
 		{
 			auto& key = clipinfo.ClipName();
-			auto& Eb = clipinfo.RcFacade.GetAllPartsEnergy();
+			auto& Eb = clipinfo.PvFacade.GetAllPartsEnergy();
 
 			for (int i = 0; i < Eb.size(); i++)
 			{
@@ -697,14 +714,25 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 				{
 					parts[i]->ActiveActions.push_back(key);
 					avtiveSet.insert(i);
+
+					// if a part is alreay marked as subactive, promote it
+					auto itr = subactSet.find(i);
+					if (itr != subactSet.end())
+						subactSet.erase(itr);
 				}
-				else if (Eb[i] > g_CharacterSubactiveEnergy * globalEnergyMax)
+				else if (avtiveSet.find(i) == avtiveSet.end() && Eb[i] > g_CharacterSubactiveEnergy * globalEnergyMax)
 				{
 					parts[i]->SubActiveActions.push_back(key);
 					subactSet.insert(i);
 				}
 			}
 		}
+
+		// Remove Root from caculation
+		avtiveSet.erase(0);
+		subactSet.erase(0);
+		parts[0]->ActiveActions.clear();
+		parts[0]->SubActiveActions.clear();
 
 		m_ActiveParts.assign(BEGIN_TO_END(avtiveSet));
 		m_SubactiveParts.assign(BEGIN_TO_END(subactSet));
@@ -737,10 +765,10 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 		if (g_EnableDependentControl)
 			parallel_for_each(BEGIN_TO_END(subactParts), [&, this](int sapid)
-			{
-				InitializeSubacvtivePart(*parts[sapid], Xabpv, settings);
-			}
-			);
+		{
+			InitializeSubacvtivePart(*parts[sapid], Xabpv, settings);
+		}
+		);
 
 		cout << "=================================================================" << endl;
 
@@ -804,6 +832,9 @@ void CharacterController::InitializeAcvtivePart(ArmaturePart & part, tinyxml2::X
 	auto& rcFacade = allClipinfo.RcFacade;
 	auto& pvFacade = allClipinfo.PvFacade;
 
+	if (rcFacade.GetPartPcaDim(pid) == -1)
+		rcFacade.CaculatePartPcaQr(pid);
+
 	auto& X = rcFacade.GetPartPcadSequence(pid);
 	auto& Pv = pvFacade.GetPartSequence(pid);
 
@@ -816,7 +847,7 @@ void CharacterController::InitializeAcvtivePart(ArmaturePart & part, tinyxml2::X
 		fout.close();
 
 		fout.open("CharacterAnalayze\\" + m_pCharacter->Name + "_" + part.Joints[0]->Name + ".x.csv");
-		fout << X.format(CSVFormat);
+		fout << rcFacade.GetPartSequence(pid).format(CSVFormat);
 		fout.close();
 	}
 
@@ -871,6 +902,10 @@ void CharacterController::InitializeSubacvtivePart(ArmaturePart & part, const Ei
 	//auto& pvFacade = allClipinfo.PvFacade;
 
 	auto& Pv = Xabpv;
+
+	if (rcFacade.GetPartPcaDim(pid) == -1)
+		rcFacade.CaculatePartPcaQr(pid);
+
 	auto d = rcFacade.GetPartPcaDim(pid);
 	auto X = rcFacade.GetPartPcadSequence(pid);
 
@@ -1109,8 +1144,11 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 	controller.CharacterScore = numeric_limits<float>::min();
 	//auto& anim = character.Behavier()[DefaultAnimationSet];
-	auto& anim = *character.CurrentAction();
 
+	if (character.CurrentAction() == nullptr)
+		return 0.0f;
+
+	auto& anim = *character.CurrentAction();
 
 	int T = iclip.ClipFrames(); //? /2 Maybe?
 	const std::vector<int> &Juk = iclip.ActiveParts();
@@ -1130,7 +1168,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 	clipTransforms.reserve(clips.size());
 	Eigen::VectorXf clipTransformScores(clips.size());
 
-	for (auto& anim : clips)	//? <= 5 animation per character
+	//for (auto& cclip : controller.GetClipInfos())	//? <= 5 animation per character
 	{
 		auto& cclip = controller.GetClipInfo(anim.Name);
 		auto& cpv = cclip.PvFacade;

@@ -176,20 +176,26 @@ void Scene::LoadFromXML(const string & xml_file)
 void ParseNameText(tinyxml2::XMLElement * setting, const char* name, float& val, float defval)
 {
 	val = defval;
-	setting->FirstChildElement(name)->QueryFloatText(&val);
+	auto node = setting->FirstChildElement(name);
+	if (node == nullptr) return;
+	node->QueryFloatText(&val);
 }
 
 void ParseNameText(tinyxml2::XMLElement * setting, const char* name, int& val, int defval)
 {
 	val = defval;
-	setting->FirstChildElement(name)->QueryIntText(&val);
+	auto node = setting->FirstChildElement(name);
+	if (node == nullptr) return;
+	node->QueryIntText(&val);
 }
 
 void ParseNameText(tinyxml2::XMLElement * setting, const char* name, bool& val, bool defval)
 {
 	val = defval;
 	int intval = val;
-	auto error = setting->FirstChildElement(name)->QueryBoolText(&val);
+	auto node = setting->FirstChildElement(name);
+	if (node == nullptr) return;
+	auto error = node->QueryBoolText(&val);
 	if (error != tinyxml2::XMLError::XML_SUCCESS)
 	{
 		error = setting->FirstChildElement(name)->QueryIntText(&intval);

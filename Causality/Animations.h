@@ -146,7 +146,7 @@ namespace Causality
 		bool								IsCyclic;
 		// A function map : (BeginTime,EndTime) -> (BeginTime,EndTime),  that handels the easing effect between frames
 		// Restriction : TimeWarp(KeyFrameTime(i)) must equals to it self
-		std::function<TimeScalarType(TimeScalarType)> TimeWarpFunction;
+		/*std::function<TimeScalarType(TimeScalarType)> TimeWarpFunction;*/
 	protected:
 		const FrameType * m_pDefaultFrame; // Use to generate
 	public:
