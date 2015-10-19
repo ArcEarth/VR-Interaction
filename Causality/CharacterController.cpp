@@ -606,7 +606,8 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 	{
 		if (anim.Name == "idle" || anim.Name == "die")
 			anim.IsCyclic = false;
-		anim.IsCyclic = true;
+		else
+			anim.IsCyclic = true;
 	}
 
 	//clips.erase(std::remove_if(BEGIN_TO_END(clips), [](const auto& anim) ->bool {return !anim.IsCyclic;}), clips.end());
@@ -1070,6 +1071,13 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& 
 	}
 }
 
+bool is_symetric(const ArmaturePart& lhs, const ArmaturePart& rhs)
+{
+	return
+		(lhs.SymetricPair != nullptr && lhs.SymetricPair->Index == rhs.Index)
+		|| (rhs.SymetricPair != nullptr && rhs.SymetricPair->Index == lhs.Index);
+}
+
 void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipFacade& iclip, const ClipFacade& cclip)
 {
 	C.setZero();
@@ -1077,6 +1085,9 @@ void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipFacad
 	auto& Juk = iclip.ActiveParts();
 	auto& Jck = cclip.ActiveParts();
 	//const std::vector<int> &Juk, const std::vector<int> &Jck, const Eigen::Array<Eigen::RowVector3f, -1, -1> &XpMean, const Eigen::Array<Eigen::Matrix3f, -1, -1> &XpCov, const Causality::CharacterController & controller);
+
+	auto& cparts = cclip.ArmatureParts();
+	auto& sparts = iclip.ArmatureParts();
 
 	for (int i = 0; i < Juk.size(); i++)
 	{
@@ -1091,6 +1102,11 @@ void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipFacad
 					auto cu = iclip.GetPartsDifferenceCovarience(Juk[i], Juk[j]);
 					auto cc = cclip.GetPartsDifferenceCovarience(Jck[si], Jck[sj]);
 
+					auto& sparti = *sparts[i];
+					auto& spartj = *sparts[j];
+					auto& cparti = *cparts[si];
+					auto& cpartj = *cparts[sj];
+
 					float val = 0;
 					if (xu.norm() > 0.1f && xc.norm() > 0.1f)
 					{
@@ -1103,6 +1119,13 @@ void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipFacad
 						C(j, i, sj, si) = val;
 						C(i, j, sj, si) = -val;
 						C(j, i, si, sj) = -val;
+
+						// structrual bounus
+						if (is_symetric(cparti,cpartj))
+						{
+							if (is_symetric(sparti, spartj))
+								val += 0.3f;
+						}
 					}
 					else if (xu.norm() + xc.norm() > 0.1f)
 					{

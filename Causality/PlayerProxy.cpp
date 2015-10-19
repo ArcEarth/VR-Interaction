@@ -342,9 +342,13 @@ void PlayerProxy::SetActiveController(int idx)
 			}
 
 			chara.SetOpticity(1.0f);
+
 			auto glow = chara.FirstChildOfType<CharacterGlowParts>();
-			SetGlowBoneColor(glow, controller);
-			glow->SetEnabled(true);
+			if (glow)
+			{
+				glow->SetEnabled(true);
+				SetGlowBoneColor(glow, controller);
+			}
 
 			controller.MapRefPos = m_playerSelector->PeekFrame()[0].GblTranslation;
 			controller.LastPos = controller.MapRefPos;

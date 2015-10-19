@@ -48,6 +48,7 @@ typedef PVSFeature PartsFeatureType;
 void CyclicStreamClipinfo::InitializePvFacade(ShrinkedArmature& parts)
 {
 	ClipFacade::SetFeature(m_pFeature);
+	ClipFacade::SetActiveEnergy(g_PlayerActiveEnergy, g_PlayerSubactiveEnergy);
 	ClipFacade::Prepare(parts, CLIP_FRAME_COUNT * 2, ComputePcaQr | ComputeNormalize | ComputePairDif);
 }
 

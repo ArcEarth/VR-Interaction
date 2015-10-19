@@ -22,8 +22,6 @@
 
     <EnableInputFeatureLocalization>1</EnableInputFeatureLocalization>
     <MatchAccepetanceThreshold>0.2</MatchAccepetanceThreshold>
-    <PlayerPcaCutoff>0.04</PlayerPcaCutoff>
-    <PlayerEnergyCutoff>0.3</PlayerEnergyCutoff>
     <DefaultAnimationSet>walk</DefaultAnimationSet>
 
     <UseJointLengthWeight>0</UseJointLengthWeight>
@@ -43,9 +41,14 @@
 
     <LoadCharacterModelParameter>1</LoadCharacterModelParameter>
     <CharacterModelParameterFile>CharacterAnalayze\{0}.param.xml</CharacterModelParameterFile>
+
     <CharacterPcaCutoff>0.00001</CharacterPcaCutoff>
     <CharacterActiveEnergy>0.40</CharacterActiveEnergy>
     <CharacterSubactiveEnergy>0.06</CharacterSubactiveEnergy>
+
+    <PlayerPcaCutoff>0.04</PlayerPcaCutoff>
+    <PlayerActiveEnergy>0.3</PlayerActiveEnergy>
+    <PlayerSubactiveEnergy>0.03</PlayerSubactiveEnergy>
 
     <RevampLikilyhoodThreshold>0.01</RevampLikilyhoodThreshold>
     <RevampLikilyhoodTimeThreshold>1.0</RevampLikilyhoodTimeThreshold>

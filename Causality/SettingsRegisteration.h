@@ -18,7 +18,9 @@ SETTING_REGISTERATION(float, FrameTimeScaleFactor, 20)
 
 SETTING_REGISTERATION(float, PlayerPcaCutoff, 0.04f) // 0.2^2
 //static const float	EnergyCutoff = 0.3f;
-SETTING_REGISTERATION(float, PlayerEnergyCutoff, 0.3f)
+
+SETTING_REGISTERATION(float, PlayerActiveEnergy, 0.3f)
+SETTING_REGISTERATION(float, PlayerSubactiveEnergy, 0.03f)
 
 SETTING_REGISTERATION(float, BlendWeight, 0.8f)
 
