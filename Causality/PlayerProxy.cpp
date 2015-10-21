@@ -815,6 +815,10 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 	m_LastPlayerFrame = m_CurrentPlayerFrame;
 	m_CurrentPlayerFrame = frame;
 
+	g_RevampLikilyhoodThreshold = 0.5;
+	g_RevampLikilyhoodTimeThreshold = 1.0;
+	m_CyclicInfo.EnableCyclicMotionDetection();
+
 	if (IsMapped())
 	{
 		auto& controller = CurrentController();

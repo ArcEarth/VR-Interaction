@@ -1056,12 +1056,12 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& 
 
 		float err = (_Y - _X * alpha.asDiagonal()).cwiseAbs2().sum();
 
-		alpha[2] = -alpha[2];
-		float flipErr = (_Y - _X * alpha.asDiagonal()).cwiseAbs2().sum();
-		if (err < flipErr)
-		{
-			alpha[2] = -alpha[2];
-		}
+		//alpha[2] = -alpha[2];
+		//float flipErr = (_Y - _X * alpha.asDiagonal()).cwiseAbs2().sum();
+		//if (err < flipErr)
+		//{
+		//	alpha[2] = -alpha[2];
+		//}
 
 		auto rank = rawX.cols();
 
@@ -1166,12 +1166,12 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 	auto& clipinfos = controller.GetClipInfos();
 
 	controller.CharacterScore = numeric_limits<float>::min();
-	//auto& anim = character.Behavier()[DefaultAnimationSet];
+	auto& anim = character.Behavier()["walk"];
 
-	if (character.CurrentAction() == nullptr)
-		return 0.0f;
+	//if (character.CurrentAction() == nullptr)
+	//	return 0.0f;
 
-	auto& anim = *character.CurrentAction();
+	//auto& anim = *character.CurrentAction();
 
 	int T = iclip.ClipFrames(); //? /2 Maybe?
 	const std::vector<int> &Juk = iclip.ActiveParts();
@@ -1358,7 +1358,9 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 	DenseIndex maxClipIdx = 0;
 	float maxScore = clipTransformScores.maxCoeff(&maxClipIdx);
-	if (maxScore > controller.CharacterScore * 2.0)
+
+	cout << maxScore << endl;
+	if (maxScore > controller.CharacterScore * 1.2)
 	{
 
 		auto pBinding = move(clipTransforms[maxClipIdx]);

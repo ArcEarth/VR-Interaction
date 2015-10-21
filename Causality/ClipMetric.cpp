@@ -503,6 +503,9 @@ void ClipFacade::CaculatePartsMetric()
 		if (m_flag & ComputeStaticEnergy)
 			m_Eb[i] += m_uX.segment(m_partSt[i], m_partDim[i]).cwiseAbs2().sum();
 
+		m_Eb[i] = sqrtf(m_Eb[i]);
+		m_Edim[i] = m_Edim[i].array().sqrt();
+
 		if (m_flag & ComputeNormalize)
 			m_Xnor.middleCols(m_partSt[i], m_partDim[i]).rowwise().normalize();
 	}
