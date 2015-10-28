@@ -5,13 +5,18 @@
 #include <PrimitiveVisualizer.h>
 #include <ShadowMapGenerationEffect.h>
 
+namespace Causality
+{
+	extern bool g_DebugView;
+}
+
 using namespace DirectX;
 using namespace Causality;
 
 std::weak_ptr<ShadowMapGenerationEffect> g_wpSMGEffect;
 
 
-Light::Light(RenderDevice & device, const UINT& shadowResolution)
+Light::Light(IRenderDevice * device, const UINT& shadowResolution)
 {
 	EnableDropShadow(device, shadowResolution);
 }
@@ -20,7 +25,7 @@ Light::Light()
 {
 }
 
-void Light::Begin(RenderContext& context)
+void Light::Begin(IRenderContext* context)
 {
 	m_RenderTarget.Clear(context,m_Background);
 	auto pEffect = static_cast<ShadowMapGenerationEffect*>(m_pShadowMapGenerator.get());
@@ -58,21 +63,23 @@ void Light::DisableDropShadow()
 	m_RenderTarget.Reset();
 }
 
-void Light::EnableDropShadow(RenderDevice & device, const UINT & resolution)
+void Light::EnableDropShadow(IRenderDevice * device, const UINT & resolution)
 {
+	if (!device)
+		return;
 	if (!g_wpSMGEffect.expired())
 		m_pShadowMapGenerator = g_wpSMGEffect.lock();
 	else
 	{
-		auto pEffect = std::make_shared<ShadowMapGenerationEffect>(device.Get());
+		auto pEffect = std::make_shared<ShadowMapGenerationEffect>(device);
 		g_wpSMGEffect = pEffect;
 		m_pShadowMapGenerator = pEffect;
 	}
 
 	CD3D11_VIEWPORT viewport(.0f, .0f, resolution, resolution);
 	m_RenderTarget = RenderTarget(
-		RenderableTexture2D(device.Get(), resolution, resolution, DXGI_FORMAT_R16_UNORM),
-		DepthStencilBuffer(device.Get(), resolution, resolution, DXGI_FORMAT_D16_UNORM),
+		RenderableTexture2D(device, resolution, resolution, DXGI_FORMAT_R16_UNORM),
+		DepthStencilBuffer(device, resolution, resolution, DXGI_FORMAT_D16_UNORM),
 		viewport);
 }
 
@@ -91,7 +98,7 @@ ID3D11ShaderResourceView * Causality::Light::GetColorMap() const {
 }
 
 
-// Inherited via IRenderable
+// Inherited via IVisual
 
 RenderFlags Light::GetRenderFlags() const { return RenderFlags::Lights; }
 
@@ -100,7 +107,7 @@ bool Light::IsVisible(const BoundingGeometry & viewFrustum) const
 	return viewFrustum.Contains(this->GetViewFrustum()) != ContainmentType::DISJOINT;
 }
 
-void Light::Render(RenderContext & context, DirectX::IEffect* pEffect)
+void Light::Render(IRenderContext * context, DirectX::IEffect* pEffect)
 {
 	if (g_DebugView)
 	{

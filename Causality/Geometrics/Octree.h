@@ -1,5 +1,6 @@
 #pragma once
 #include "DirectXMathExtend.h"
+
 namespace Geometrics {
 
 	XM_ALIGNATTR
@@ -14,5 +15,7 @@ namespace Geometrics {
 	{
 		size_t		_depth;
 		Octree*[8]	_children;
+
+		int GetIntersectedObjects();
 	};
 }

@@ -13,6 +13,8 @@
 #include "MeshData.h"
 #include <algorithm>
 #include <unordered_map>
+#include <DirectXPackedVector.h>
+#include <unordered_set>
 
 //using namespace Causality;
 using namespace DirectX;
@@ -590,14 +592,125 @@ void DefaultSkinningModel::ResetRanges()
 		sizeof(VertexType), m_VertexCount);
 }
 
-size_t DefaultSkinningModel::GetBonesCount() const
+XMUINT4 UnpackBlendIndices(uint32_t val)
 {
-	return BoneTransforms.size();
+	XMUINT4 v;
+	v.x = (val & 0xff);
+	v.y = (val & 0xff00) >> 8;
+	v.z = (val & 0xff0000) >> 16;
+	v.w = (val & 0xff000000) >> 24;
+	return v;
 }
 
-DirectX::XMMATRIX * DefaultSkinningModel::GetBoneTransforms()
+void DefaultSkinningModel::CaculateBoneBoxes(_In_reads_(m_BonesCount) const Matrix4x4* defaultBoneTransforms)
 {
-	return reinterpret_cast<XMMATRIX*>(BoneTransforms.data());
+	assert(!Positions.empty() && !BlendWeights.empty());
+	std::vector<XMFLOAT4A,XMAllocator> points;
+	points.reserve(m_IndexCount);
+	m_BoneBoxes.resize(m_BonesCount);
+	BoundingBox box;
+	PackedVector::XMUBYTEN4 packed;
+	std::unordered_set<uint16_t> pointset(m_IndexCount);
+
+	for (int bone = 0; bone < m_BonesCount; bone++)
+	{
+		points.clear();
+		pointset.clear();
+		for (int idx = 0; idx < m_IndexCount / 3; idx++)
+		{
+			int x, y, z;
+			x = BlendIndices[m_Indices[idx * 3 + 0]] & 0xff;
+			y = BlendIndices[m_Indices[idx * 3 + 1]] & 0xff;
+			z = BlendIndices[m_Indices[idx * 3 + 2]] & 0xff;
+
+			if (x == bone || y == bone || z == bone)
+			{
+				x = m_Indices[idx * 3 + 0];
+				y = m_Indices[idx * 3 + 1];
+				z = m_Indices[idx * 3 + 2];
+				if (pointset.count(x) == 0)
+				{
+					pointset.insert(x);
+					points.emplace_back(&Positions[x].x);
+					points.back().w = 1.0f;
+				}
+				if (pointset.count(y) == 0)
+				{
+					pointset.insert(y);
+					points.emplace_back(&Positions[y].x);
+					points.back().w = 1.0f;
+				}
+				if (pointset.count(z) == 0)
+				{
+					pointset.insert(z);
+					points.emplace_back(&Positions[x].x);
+					points.back().w = 1.0f;
+				}
+			}
+			//packed.v = BlendWeights[0];
+
+			//Vector4 vweights = PackedVector::XMLoadUByteN4(&packed);
+			//XMUINT4 vindices = UnpackBlendIndices(BlendIndices[idx]);
+
+			//auto indices = &vindices.x;
+			//auto weights = &vweights.x;
+
+			//for (int j = 0; j < 4; j++)
+			//{
+			//	if (indices[j] == bone && weights[j] > 0.5f)
+			//	{
+			//		points.emplace_back(&Positions[idx].x);
+			//		points.back().w = 1.0f;
+			//		break;
+			//	}
+			//}
+		}
+
+		if (!points.empty())
+		{
+			if (defaultBoneTransforms != nullptr)
+			{
+				XMMATRIX trans = XMLoad(defaultBoneTransforms[bone]);
+				XMVECTOR determinate;
+				XMMATRIX invTrans = XMMatrixInverse(&determinate, trans);
+
+				XMVector4TransformStream(points.data(), sizeof(XMFLOAT4A),
+					points.data(), sizeof(XMFLOAT4A),
+					points.size(), invTrans);
+
+				//BoundingBox::CreateFromPoints(box, points.size(), reinterpret_cast<XMFLOAT3A*>(points.data()), sizeof(XMFLOAT4A));
+				CreateBoundingBoxesFromPoints(box, m_BoneBoxes[bone], points.size(),
+					reinterpret_cast<XMFLOAT3A*>(points.data()), sizeof(XMFLOAT4A));
+
+				//m_BoneBoxes[bone].Center = box.Center;
+				//m_BoneBoxes[bone].Extents = box.Extents;
+				//m_BoneBoxes[bone].Extents.y = 0.1f;
+				m_BoneBoxes[bone].Transform(m_BoneBoxes[bone], trans);
+			}
+			else
+			{
+				CreateBoundingBoxesFromPoints(box, m_BoneBoxes[bone], points.size(),
+					reinterpret_cast<XMFLOAT3A*>(points.data()), sizeof(XMFLOAT4A));
+			}
+		}
+		else
+			m_BoneBoxes[bone].Extents = {0,0,0};
+	}
+}
+
+size_t DefaultSkinningModel::GetBonesCount() const
+{
+	return m_BonesCount;
+}
+
+//XMMATRIX * DefaultSkinningModel::GetBoneTransforms()
+//{
+//	return reinterpret_cast<XMMATRIX*>(BoneTransforms.data());
+//}
+
+const BoundingOrientedBox * DirectX::Scene::DefaultSkinningModel::GetBoneBoundingBoxes() const
+{
+	return m_BoneBoxes.data();
 }
 
 IDynamicAsset::~IDynamicAsset()
@@ -719,13 +832,14 @@ bool DefaultSkinningModel::Reload()
 
 void DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4 & transform, IEffect * pEffect)
 {
-	if (pEffect == nullptr) pEffect = this->Parts[0].pEffect.get();
+	if (pEffect == nullptr) 
+		pEffect = this->Parts[0].pEffect.get();
 	auto pSkinning = dynamic_cast<IEffectSkinning*>(pEffect);
 	if (pSkinning && m_BonesCount > 0)
 	{
 		pSkinning->SetWeightsPerVertex(4U);
 		//pSkinning->ResetBoneTransforms();
-		pSkinning->SetBoneTransforms(reinterpret_cast<const XMMATRIX*>(BoneTransforms.data()), BoneTransforms.size());
+		//pSkinning->SetBoneTransforms(reinterpret_cast<const XMMATRIX*>(BoneTransforms.data()), BoneTransforms.size());
 	}
 	else
 	{
@@ -733,6 +847,17 @@ void DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x
 		//throw std::exception("Effect don't support skinning interface.");
 	}
 	CompositionModel::Render(pContext, transform, pEffect);
+}
+
+void DefaultSkinningModel::Render(ID3D11DeviceContext * pContext, const Matrix4x4 & transform, const XMMATRIX * boneTransforms, IEffect * pEffect)
+{
+	if (pEffect == nullptr) 
+		pEffect = this->Parts[0].pEffect.get();
+	auto pSkinning = dynamic_cast<IEffectSkinning*>(pEffect);
+	if (pSkinning && m_BonesCount > 0 && boneTransforms != nullptr)
+		pSkinning->SetBoneTransforms(boneTransforms,m_BonesCount);
+	if (boneTransforms == nullptr)
+		pSkinning->ResetBoneTransforms();
 }
 
 
@@ -750,6 +875,7 @@ void DirectX::Scene::DefaultSkinningModel::SetFromSkinMeshData(std::list<SkinMes
 
 	auto pVertices = meshes.front().Vertices;
 	auto pIndices = meshes.front().Indices;
+	auto pBoneTrans = meshes.front().DefaultBoneTransforms;
 
 	if (meshes.size() > 1)
 	{
@@ -790,11 +916,13 @@ void DirectX::Scene::DefaultSkinningModel::SetFromSkinMeshData(std::list<SkinMes
 	m_BonesCount = meshes.front().BonesCount;
 	m_Vertices.reset(pVertices);
 	m_Indices.reset(pIndices);
+	m_DefaultBoneTransforms.reset(static_cast<Matrix4x4*>(pBoneTrans));
 
-	BoneTransforms.resize(m_BonesCount);
+	//BoneTransforms.resize(m_BonesCount);
 	DirectX::CreateBoundingBoxesFromPoints(BoundBox, BoundOrientedBox,
 		m_VertexCount, &m_Vertices[0].position, sizeof(SkinMeshData::VertexType));
 	ResetRanges();
+	CaculateBoneBoxes(m_DefaultBoneTransforms.get());
 }
 
 void DefaultSkinningModel::SetFromSkinMeshData(SkinMeshData* pData, const std::wstring& textureDir)
@@ -804,6 +932,8 @@ void DefaultSkinningModel::SetFromSkinMeshData(SkinMeshData* pData, const std::w
 	m_BonesCount = pData->BonesCount;
 	m_Vertices.reset(pData->Vertices);
 	m_Indices.reset(pData->Indices);
+	m_DefaultBoneTransforms.reset(static_cast<Matrix4x4*>(pData->DefaultBoneTransforms));
+
 
 	Parts.emplace_back();
 	Parts[0].Name = pData->Name;
@@ -814,10 +944,11 @@ void DefaultSkinningModel::SetFromSkinMeshData(SkinMeshData* pData, const std::w
 
 	Parts[0].pMaterial = PhongMaterial::CreateFromMaterialData(pData->Material, textureDir);
 
-	BoneTransforms.resize(m_BonesCount);
+	//BoneTransforms.resize(m_BonesCount);
 	DirectX::CreateBoundingBoxesFromPoints(BoundBox, BoundOrientedBox,
 		m_VertexCount, &m_Vertices[0].position, sizeof(SkinMeshData::VertexType));
 	ResetRanges();
+	CaculateBoneBoxes(m_DefaultBoneTransforms.get());
 }
 
 DefaultSkinningModel* DefaultSkinningModel::CreateFromAmxFile(const std::string& file, ID3D11Device* pDevice)
@@ -1041,5 +1172,36 @@ namespace DirectX {
 			}
 
 		}
-	}
+		void DynamicMeshBuffer::UpdateVertexBuffer(ID3D11DeviceContext * pContext, void * pVertics, size_t verticesCount, size_t vertexSize)
+		{
+			D3D11_MAPPED_SUBRESOURCE mappedResource;
+
+			if (verticesCount > VertexBufferCapacity)
+				throw out_of_range("Input vertices data out of buffer capacity");
+			
+			auto hr = pContext->Map(pVertexBuffer.Get(), 0, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			ThrowIfFailed(hr);
+
+			memcpy_s(mappedResource.pData, VertexBufferCapacity, pVertics, verticesCount * vertexSize);
+
+			pContext->Unmap(pVertexBuffer.Get(), 0);
+			VertexCount = verticesCount;
+		}
+
+		void DynamicMeshBuffer::UpdateIndexBuffer(ID3D11DeviceContext * pContext, void * pIndices, size_t indicesCount, size_t indexSize)
+		{
+			D3D11_MAPPED_SUBRESOURCE mappedResource;
+
+			if (indexSize > IndexBufferCapacity)
+				throw out_of_range("Input indices data out of buffer capacity");
+
+			auto hr = pContext->Map(pIndexBuffer.Get(), 0, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+			ThrowIfFailed(hr);
+
+			memcpy_s(mappedResource.pData, IndexBufferCapacity, pIndices, indicesCount * indexSize);
+
+			pContext->Unmap(pIndexBuffer.Get(), 0);
+			IndexCount = indicesCount;
+		}
+}
 }

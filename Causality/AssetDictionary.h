@@ -2,10 +2,10 @@
 #include "BCL.h"
 #include "Textures.h"
 #include "Models.h"
-#include <boost\filesystem.hpp>
+#include <boost\filesystem\path.hpp>
 #include "Armature.h"
 #include "CharacterBehavier.h"
-#include "RenderContext.h"
+#include "RenderSystemDecl.h"
 #include <Effects.h>
 #include <ppltasks.h>
 #include <typeinfo>
@@ -194,14 +194,14 @@ namespace Causality
 	class asset_dictionary
 	{
 	public:
-		using mesh_type = DirectX::Scene::IModelNode;
-		using texture_type = DirectX::Texture;
+		using mesh_type = IModelNode;
+		using texture_type = Texture;
 		using audio_clip_type = int;
 		using animation_clip_type = ArmatureFrameAnimation;
 		using behavier_type = BehavierSpace;
 		using armature_type = StaticArmature;
-		using effect_type = DirectX::IEffect;
-		using material_type = DirectX::Scene::IMaterial;
+		using effect_type = IEffect;
+		using material_type = IMaterial;
 
 		typedef std::function<bool(void*, const char*)> creation_function_type;
 		map<std::type_index, creation_function_type> creators;
@@ -260,14 +260,14 @@ namespace Causality
 	{
 	public:
 		using path = boost::filesystem::path;
-		using mesh_type = DirectX::Scene::IModelNode;
-		using texture_type = DirectX::Texture;
+		using mesh_type = IModelNode;
+		using texture_type = Texture;
 		using audio_clip_type = int;
 		using animation_clip_type = ArmatureFrameAnimation;
 		using behavier_type = BehavierSpace;
 		using armature_type = StaticArmature;
-		using effect_type = DirectX::IEffect;
-		using material_type = DirectX::Scene::IMaterial;
+		using effect_type = IEffect;
+		using material_type = IMaterial;
 
 		AssetDictionary();
 		~AssetDictionary();
@@ -334,9 +334,9 @@ namespace Causality
 		}
 
 		template<typename VertexType>
-		const cptr<ID3D11InputLayout>& GetInputLayout(DirectX::IEffect* pEffct = nullptr);
+		const cptr<ID3D11InputLayout>& GetInputLayout(IEffect* pEffct = nullptr);
 
-		DirectX::EffectFactory&		EffctFactory() { return *effect_factory; }
+		IEffectFactory&		EffctFactory() { return *effect_factory; }
 
 		template<typename TAsset>
 		TAsset&						AddAsset(const string&key, TAsset* pAsset)
@@ -361,9 +361,9 @@ namespace Causality
 		{
 		}
 
-		RenderDevice& GetRenderDevice() { return render_device; }
-		const RenderDevice& GetRenderDevice() const { return render_device; }
-		void SetRenderDevice(RenderDevice& device);
+		IRenderDevice* GetRenderDevice() { return render_device.Get(); }
+		const IRenderDevice* GetRenderDevice() const { return render_device.Get(); }
+		void SetRenderDevice(IRenderDevice* device);
 		void SetParentDictionary(AssetDictionary* dict);
 		void SetTextureDirectory(const path& dir);
 		const path& GetTextureDirectory() const { return texture_directory; }
@@ -371,7 +371,7 @@ namespace Causality
 		void SetAssetDirectory(const path& dir);
 
 	private:
-		RenderDevice						render_device;
+		cptr<IRenderDevice>					render_device;
 
 		AssetDictionary*					parent_dictionary;
 
@@ -391,11 +391,11 @@ namespace Causality
 		map<string, behavier_type*>			behaviers;
 		mutable map<string, sptr<material_type>>	materials;
 
-		sptr<DirectX::IEffect>				default_effect;
-		sptr<DirectX::IEffect>				default_skinned_effect;
-		sptr<DirectX::IEffect>				default_envirument_effect;
-		sptr<DirectX::Scene::PhongMaterial>	default_material;
-		uptr<DirectX::EffectFactory>		effect_factory;
+		sptr<IEffect>				default_effect;
+		sptr<IEffect>				default_skinned_effect;
+		sptr<IEffect>				default_envirument_effect;
+		sptr<PhongMaterial>			default_material;
+		uptr<IEffectFactory>		effect_factory;
 
 		map<std::type_index, cptr<ID3D11InputLayout>> layouts;
 
@@ -411,7 +411,7 @@ namespace Causality
 	};
 
 	template <typename VertexType>
-	inline const cptr<ID3D11InputLayout>& AssetDictionary::GetInputLayout(DirectX::IEffect * pEffct)
+	inline const cptr<ID3D11InputLayout>& AssetDictionary::GetInputLayout(IEffect * pEffct)
 	{
 		std::type_index type = typeid(VertexType);
 		auto& pLayout = layouts[type];
@@ -420,7 +420,7 @@ namespace Causality
 			void const* shaderByteCode;
 			size_t byteCodeLength;
 			pEffct->GetVertexShaderBytecode(&shaderByteCode, &byteCodeLength);
-			pLayout = DirectX::CreateInputLayout<VertexType>(render_device.Get(), shaderByteCode, byteCodeLength);
+			pLayout = CreateInputLayout<VertexType>(render_device.Get(), shaderByteCode, byteCodeLength);
 		}
 		return pLayout;
 	}

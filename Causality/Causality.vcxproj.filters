@@ -1,285 +1,320 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Platform">
-      <UniqueIdentifier>{b64aebbb-698d-4d0a-9fd0-86c726d4be67}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\SkyBox">
       <UniqueIdentifier>{2a691754-e34e-4273-8bc7-b5354528fb65}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="StdX">
-      <UniqueIdentifier>{dc52f287-d8be-4f4f-abbf-c96965a4a763}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Platform\Platform.Devices">
-      <UniqueIdentifier>{6ffe4126-f094-4295-adf6-79684fe63ecb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Platform\Platform.Fundation">
-      <UniqueIdentifier>{8c285820-7e0b-4424-8e37-813bda8f91e4}</UniqueIdentifier>
     </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{44012883-1899-4613-af3f-9e2f51e4d141}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Causality">
-      <UniqueIdentifier>{897e627e-a0e0-4504-8de2-12624d21ab1b}</UniqueIdentifier>
+    <Filter Include="Algorithms">
+      <UniqueIdentifier>{44536f00-dc05-4878-85a0-187d635fc8c3}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\gsl">
+    <Filter Include="Unused">
+      <UniqueIdentifier>{44cf7045-08f6-4c40-8695-5d9a12271530}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Character Control Logic">
+      <UniqueIdentifier>{f95b53a4-2172-4a5b-81e3-6d04b7dbe5d9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Armature Animation">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Input Parsers Settings">
+      <UniqueIdentifier>{ef18e4a1-36f9-4d50-b941-dc6ccc628b98}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utility Foundation">
+      <UniqueIdentifier>{88b13495-8580-4d4d-b7b9-d542ac7088be}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utility Foundation\gsl">
       <UniqueIdentifier>{f7bc6025-df95-4e14-887e-2c5386be59f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Devices">
+      <UniqueIdentifier>{6ffe4126-f094-4295-adf6-79684fe63ecb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scene Objects">
+      <UniqueIdentifier>{adda2fad-ab3e-4ac0-ac7d-6c09c3042549}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Platform Application Logic">
+      <UniqueIdentifier>{b64aebbb-698d-4d0a-9fd0-86c726d4be67}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="NativeWindow.cpp">
-      <Filter>Platform</Filter>
+      <Filter>Platform Application Logic</Filter>
     </ClCompile>
     <ClCompile Include="OculusRift.cpp">
-      <Filter>Platform\Platform.Devices</Filter>
+      <Filter>Devices</Filter>
     </ClCompile>
     <ClCompile Include="LeapMotion.cpp">
-      <Filter>Platform\Platform.Devices</Filter>
+      <Filter>Devices</Filter>
     </ClCompile>
     <ClCompile Include="Kinect.cpp">
-      <Filter>Platform\Platform.Devices</Filter>
-    </ClCompile>
-    <ClCompile Include="AssetDictionary.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CausalityApplication.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="FbxParser.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="pch_bcl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="PlayerProxy.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Scene.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Armature.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SceneObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SceneParser.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SelectorScene.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Devices</Filter>
     </ClCompile>
     <ClCompile Include="Animations.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Armature Animation</Filter>
     </ClCompile>
-    <ClCompile Include="CharacterBehavier.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SkinningModelFromFbx.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CharacterObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="LightObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CameraObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GaussianProcess.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="CharacterController.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Settings.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ArmatureTransforms.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="StylizedIK.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ClipMetric.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Armature.cpp">
+      <Filter>Armature Animation</Filter>
     </ClCompile>
     <ClCompile Include="ArmatureParts.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Character Control Logic</Filter>
+    </ClCompile>
+    <ClCompile Include="ArmatureTransforms.cpp">
+      <Filter>Character Control Logic</Filter>
+    </ClCompile>
+    <ClCompile Include="CameraObject.cpp">
+      <Filter>Scene Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="AssetDictionary.cpp">
+      <Filter>Scene Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="CharacterBehavier.cpp">
+      <Filter>Character Control Logic</Filter>
+    </ClCompile>
+    <ClCompile Include="CharacterController.cpp">
+      <Filter>Character Control Logic</Filter>
+    </ClCompile>
+    <ClCompile Include="CharacterObject.cpp">
+      <Filter>Scene Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneParser.cpp">
+      <Filter>Input Parsers Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="FbxParser.cpp">
+      <Filter>Input Parsers Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="Settings.cpp">
+      <Filter>Input Parsers Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="SkinningModelFromFbx.cpp">
+      <Filter>Input Parsers Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Scene Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneObject.cpp">
+      <Filter>Scene Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="LightObject.cpp">
+      <Filter>Scene Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="VisualObject.cpp">
+      <Filter>Scene Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="SkyDome.cpp">
+      <Filter>Scene Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerProxy.cpp">
+      <Filter>Character Control Logic</Filter>
+    </ClCompile>
+    <ClCompile Include="StylizedIK.cpp">
+      <Filter>Character Control Logic</Filter>
+    </ClCompile>
+    <ClCompile Include="ClipMetric.cpp">
+      <Filter>Character Control Logic</Filter>
+    </ClCompile>
+    <ClCompile Include="GaussianProcess.cpp">
+      <Filter>Algorithms</Filter>
+    </ClCompile>
+    <ClCompile Include="pch_bcl.cpp">
+      <Filter>Utility Foundation</Filter>
+    </ClCompile>
+    <ClCompile Include="SelectorScene.cpp">
+      <Filter>Unused</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Platform Application Logic</Filter>
+    </ClCompile>
+    <ClCompile Include="BasicKeyboardMouseControlLogic.cpp">
+      <Filter>Platform Application Logic</Filter>
+    </ClCompile>
+    <ClCompile Include="CausalityApplication.cpp">
+      <Filter>Platform Application Logic</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NativeWindow.h">
-      <Filter>Platform</Filter>
+      <Filter>Platform Application Logic</Filter>
     </ClInclude>
     <ClInclude Include="OculusRift.h">
-      <Filter>Platform\Platform.Devices</Filter>
+      <Filter>Devices</Filter>
     </ClInclude>
     <ClInclude Include="Content\OculusDisortionRenderer.h">
-      <Filter>Platform\Platform.Devices</Filter>
-    </ClInclude>
-    <ClInclude Include="Interactive.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CausalityApplication.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Scene.h">
-      <Filter>Header Files</Filter>
+      <Filter>Devices</Filter>
     </ClInclude>
     <ClInclude Include="LeapMotion.h">
-      <Filter>Platform\Platform.Devices</Filter>
-    </ClInclude>
-    <ClInclude Include="WorldTreeBranch.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SceneObject.h">
-      <Filter>Header Files</Filter>
+      <Filter>Devices</Filter>
     </ClInclude>
     <ClInclude Include="Kinect.h">
-      <Filter>Platform\Platform.Devices</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\tree.h">
-      <Filter>StdX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\stride_range.h">
-      <Filter>StdX</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\BCL.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="AssetDictionary.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SelectorScene.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="RenderContext.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ProbalisticModel.h">
-      <Filter>Header Files</Filter>
+      <Filter>Devices</Filter>
     </ClInclude>
     <ClInclude Include="Armature.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Object.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="pch_bcl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="BasicShapeModel.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="PlayerProxy.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SceneParser.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\Filter.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CCA.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="EigenExtension.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FbxParser.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Animations.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CharacterBehavier.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="BoneFeatures.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Common\CompositeFlag.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CharacterObject.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CameraObject.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="LightObject.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GaussianProcess.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="RegressionModel.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="StylizedIK.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CharacterController.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Settings.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ArmatureTransforms.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="PcaCcaMap.h">
-      <Filter>Header Files</Filter>
+      <Filter>Armature Animation</Filter>
     </ClInclude>
     <ClInclude Include="GSL\array_view.h">
-      <Filter>Header Files\gsl</Filter>
+      <Filter>Utility Foundation\gsl</Filter>
     </ClInclude>
     <ClInclude Include="GSL\fail_fast.h">
-      <Filter>Header Files\gsl</Filter>
+      <Filter>Utility Foundation\gsl</Filter>
     </ClInclude>
     <ClInclude Include="GSL\gsl.h">
-      <Filter>Header Files\gsl</Filter>
+      <Filter>Utility Foundation\gsl</Filter>
     </ClInclude>
     <ClInclude Include="GSL\string_view.h">
-      <Filter>Header Files\gsl</Filter>
+      <Filter>Utility Foundation\gsl</Filter>
+    </ClInclude>
+    <ClInclude Include="BCL.h">
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="pch_bcl.h">
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="String.h">
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Math3D.h">
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="SmartPointers.h">
+      <Filter>Utility Foundation</Filter>
     </ClInclude>
     <ClInclude Include="Events.h">
-      <Filter>Header Files</Filter>
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="CCA.h">
+      <Filter>Algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="EigenExtension.h">
+      <Filter>Algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="GaussianProcess.h">
+      <Filter>Algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="RenderSystemDecl.h">
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\Filter.h">
+      <Filter>Algorithms</Filter>
+    </ClInclude>
+    <ClInclude Include="PcaCcaMap.h">
+      <Filter>Algorithms</Filter>
     </ClInclude>
     <ClInclude Include="QudraticAssignment.h">
-      <Filter>Header Files</Filter>
+      <Filter>Algorithms</Filter>
     </ClInclude>
-    <ClInclude Include="ClipMetric.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="RenderFlags.h">
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\CompositeFlag.h">
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimationObject.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraObject.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="CharacterObject.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="VisualObject.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneObject.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="LightObject.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="SkyDome.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="BasicShapeModel.h">
+      <Filter>Unused</Filter>
+    </ClInclude>
+    <ClInclude Include="SelectorScene.h">
+      <Filter>Unused</Filter>
+    </ClInclude>
+    <ClInclude Include="WorldTreeBranch.h">
+      <Filter>Unused</Filter>
+    </ClInclude>
+    <ClInclude Include="RegressionModel.h">
+      <Filter>Unused</Filter>
+    </ClInclude>
+    <ClInclude Include="ProbalisticModel.h">
+      <Filter>Unused</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\stride_range.h">
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="Common\tree.h">
+      <Filter>Utility Foundation</Filter>
+    </ClInclude>
+    <ClInclude Include="StylizedIK.h">
+      <Filter>Character Control Logic</Filter>
     </ClInclude>
     <ClInclude Include="ArmaturePartFeatures.h">
-      <Filter>Header Files</Filter>
+      <Filter>Character Control Logic</Filter>
     </ClInclude>
     <ClInclude Include="ArmatureParts.h">
-      <Filter>Header Files</Filter>
+      <Filter>Character Control Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="ArmatureTransforms.h">
+      <Filter>Character Control Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="BoneFeatures.h">
+      <Filter>Character Control Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="CharacterBehavier.h">
+      <Filter>Character Control Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="CharacterController.h">
+      <Filter>Character Control Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerProxy.h">
+      <Filter>Character Control Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="ClipMetric.h">
+      <Filter>Character Control Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="AssetDictionary.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="Animations.h">
+      <Filter>Armature Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="FbxParser.h">
+      <Filter>Input Parsers Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneParser.h">
+      <Filter>Input Parsers Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="Settings.h">
+      <Filter>Input Parsers Settings</Filter>
     </ClInclude>
     <ClInclude Include="SettingsRegisteration.h">
-      <Filter>Header Files</Filter>
+      <Filter>Input Parsers Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Platform Application Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="BasicKeyboardMouseControlLogic.h">
+      <Filter>Platform Application Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="CausalityApplication.h">
+      <Filter>Platform Application Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="Interactive.h">
+      <Filter>Platform Application Logic</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -327,12 +362,14 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="manifest.xml" />
     <Xml Include="Resources\Foregrounds.xml">
       <Filter>Resource Files</Filter>
     </Xml>
     <Xml Include="Resources\SelectorScene.xml">
       <Filter>Resource Files</Filter>
+    </Xml>
+    <Xml Include="manifest.xml">
+      <Filter>Platform Application Logic</Filter>
     </Xml>
   </ItemGroup>
 </Project>

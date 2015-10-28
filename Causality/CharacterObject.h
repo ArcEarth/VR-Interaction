@@ -1,7 +1,8 @@
 #pragma once
-#include "SceneObject.h"
+#include "VisualObject.h"
 #include "Armature.h"
 #include "CharacterBehavier.h"
+#include "Common\Filter.h"
 
 namespace Causality
 {
@@ -31,6 +32,7 @@ namespace Causality
 		string							CurrentActionName() const;
 		bool							StartAction(const string& key, time_seconds begin_time = time_seconds(0), bool loop = false, time_seconds transition_time = time_seconds(0));
 		bool							StopAction(time_seconds transition_time = time_seconds(0));
+		const XMMATRIX*					GetBoneTransforms() const;
 
 		bool							IsFreezed() const;
 		void							SetFreeze(bool freeze);
@@ -39,10 +41,10 @@ namespace Causality
 
 		virtual void					Update(time_seconds const& time_delta) override;
 
-		// Inherited via IRenderable
+		// Inherited via IVisual
 		virtual RenderFlags GetRenderFlags() const override;
 		virtual bool IsVisible(const BoundingGeometry& viewFrustum) const override;
-		virtual void Render(RenderContext & pContext, DirectX::IEffect* pEffect = nullptr) override;
+		virtual void Render(IRenderContext * pContext, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 	protected:
@@ -51,6 +53,13 @@ namespace Causality
 		void							ComputeVelocityFrame(time_seconds time_delta);
 
 	private:
+		ISkinningModel*							m_pSkinModel;
+
+		std::vector<Matrix4x4,
+			AlignedAllocator<Matrix4x4, alignof(XMVECTOR) >>
+												m_BoneTransforms;
+
+
 		BehavierSpace*					        m_pBehavier;
 		IArmature*								m_pArmature;
 		BehavierSpace::animation_type*			m_pCurrentAction;
@@ -72,7 +81,7 @@ namespace Causality
 	{
 	public:
 		typedef std::vector<DirectX::Color, DirectX::XMAllocator> BoneColorVector;
-		virtual void Render(RenderContext & pContext, DirectX::IEffect* pEffect = nullptr) override;
+		virtual void Render(IRenderContext * pContext, DirectX::IEffect* pEffect = nullptr) override;
 
 		virtual RenderFlags GetRenderFlags() const override;
 		const	DirectX::Color& GetBoneColor(int id) const

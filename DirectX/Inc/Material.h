@@ -156,7 +156,7 @@ namespace DirectX
 			}
 		};
 
-		struct PhongMaterial : public IMaterial, public PhongMaterialData
+		class PhongMaterial : public IMaterial, public PhongMaterialData
 		{
 		public:
 			using SRVComPtr = Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>;

@@ -38,6 +38,8 @@ namespace DirectX
 			uint32_t			BonesCount;
 			VertexType*			Vertices;
 			IndexType*			Indices;
+			// This should not be applied to model at render time !!!
+			XMFLOAT4X4*			DefaultBoneTransforms;
 			PhongMaterialData	Material;
 
 			SkinMeshData();

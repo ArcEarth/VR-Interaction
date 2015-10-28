@@ -1,9 +1,13 @@
 #pragma once
 #include "Interactive.h"
-#include "bcl.h"
+#include "Events.h"
+#include <string>
+#define NOMINMAX
+#include <minwindef.h>
 
 namespace Causality
 {
+	using DirectX::Vector2;
 
 	struct Rect
 	{
@@ -34,36 +38,11 @@ namespace Causality
 		}
 
 	public:
-		Application()
-		{
-			hInstance = GetModuleHandle(NULL);
-		}
+		Application();
 
+		virtual ~Application();
 
-
-		virtual ~Application()
-		{
-		}
-
-		int Run(const std::vector<std::string>& args)
-		{
-			OnStartup(args);
-			while (!exitProposal)
-			{
-				MSG msg;
-				if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-				{
-					TranslateMessage(&msg);
-					DispatchMessage(&msg);
-				}
-				else
-				{
-					OnIdle();
-				}
-			}
-			OnExit();
-			return S_OK;
-		}
+		int Run(const std::vector<std::string>& args);
 
 		void Exit();
 
@@ -223,7 +202,7 @@ namespace Causality
 		}
 
 	private:
-		std::wstring			m_Title;
+		std::wstring		m_Title;
 		HWND				m_hWnd;
 		HINSTANCE			m_hInstance;
 		bool				m_FullScreen;

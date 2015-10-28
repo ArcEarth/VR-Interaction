@@ -1,6 +1,10 @@
 #include "pch_bcl.h"
 #include "Scene.h"
 #include <ShaderEffect.h>
+#include "AssetDictionary.h"
+#include "CameraObject.h"
+#include "LightObject.h"
+#include "VisualObject.h"
 
 using namespace Causality;
 using namespace std;
@@ -11,6 +15,7 @@ Scene::Scene()
 	is_paused = false;
 	is_loaded = false;
 	primary_cameral = nullptr;
+	assets = make_unique<AssetDictionary>();
 }
 
 Scene::~Scene()
@@ -39,9 +44,9 @@ bool Scene::SetAsPrimaryCamera(ICamera * camera)
 	return true;
 }
 
-void Scene::SetRenderDeviceAndContext(RenderDevice & device, RenderContext & context)
+void Scene::SetRenderDeviceAndContext(IRenderDevice * device, IRenderContext * context)
 {
-	assets.SetRenderDevice(device);
+	assets->SetRenderDevice(device);
 	render_device = device;
 	render_context = context;
 }
@@ -60,7 +65,7 @@ void Scene::UpdateRenderViewCache()
 	lights.clear();
 	effects.clear();
 
-	auto& aseffects = assets.GetEffects();
+	auto& aseffects = assets->GetEffects();
 	for (auto pe : aseffects)
 		effects.push_back(pe);
 
@@ -88,7 +93,7 @@ void Scene::UpdateRenderViewCache()
 		if (pLight != nullptr)
 			lights.push_back(pLight);
 
-		auto pRenderable = obj.As<IRenderable>();
+		auto pRenderable = obj.As<IVisual>();
 		if (pRenderable != nullptr)
 			renderables.push_back(pRenderable);
 	}
@@ -117,14 +122,14 @@ void Scene::SignalCameraCache() { camera_dirty = true; }
 
 std::mutex & Scene::ContentMutex() { return content_mutex; }
 
-void Scene::Render(RenderContext & context)
+void Scene::Render(IRenderContext * context)
 {
 	// if (!is_loaded) return;
 	lock_guard<mutex> guard(content_mutex);
 
 	SetupEffectsLights(nullptr);
 
-	std::vector<IRenderable*> visibles;
+	std::vector<IVisual*> visibles;
 	visibles.reserve(renderables.size());
 
 

@@ -20,42 +20,25 @@
 //#include <boost\signals2.hpp>
 //#include <boost\any.hpp>
 #include <boost\range.hpp>
-#include <boost\operators.hpp>
+//#include <boost\operators.hpp>
 #include <boost\format.hpp>
 //#include <boost\filesystem.hpp>
 
 #include "Common\stride_range.h"
 #include "Common\tree.h"
 
-// Math libraries
-#include <DirectXMath.h>
-#if defined(__SSE3__)
-#include <DirectXMathSSE3.h>
-#endif
-#if defined(__SSE4__)
-#include <DirectXMathSSE4.h>
-#endif
-#if defined(__AVX__)
-#include <DirectXMathAVX.h>
-#endif
-
-#include <DirectXCollision.h>
-
-#include <SimpleMath.h>
-
-#include "DirectXMathExtend.h"
+#include "Math3D.h"
+#include "SmartPointers.h"
+#include "String.h"
 
 #if defined __AVX__
 #undef __AVX__ //#error Eigen have problem with AVX now
 #endif
-
 #define EIGEN_HAS_CXX11_MATH 1
 #define EIGEN_HAS_STD_RESULT_OF 1
 #define EIGEN_HAS_VARIADIC_TEMPLATES 1
 #include <Eigen\Dense>
 
-// For ComPtr 
-#include <wrl/client.h>
 
 namespace Causality
 {
@@ -90,38 +73,4 @@ namespace Causality
 	using std::shared_ptr;
 	using std::list;
 	using std::weak_ptr;
-
-	using DirectX::Vector2;
-	using DirectX::Vector3;
-	using DirectX::Vector4;
-	using DirectX::Quaternion;
-	using DirectX::Plane;
-	using DirectX::Ray;
-	using DirectX::Color;
-	using DirectX::Matrix4x4;
-
-	using DirectX::BoundingBox;
-	using DirectX::BoundingOrientedBox;
-	using DirectX::BoundingFrustum;
-	using DirectX::BoundingSphere;
-	using DirectX::BoundingGeometry;
-
-	using Microsoft::WRL::ComPtr;
-
-	template <class T>
-	using sptr = std::shared_ptr<T>;
-	template <class T>
-	using uptr = std::unique_ptr<T>;
-	template <class T>
-	using cptr = Microsoft::WRL::ComPtr<T>;
-
-	// Binary operators
-	using DirectX::operator +;
-	using DirectX::operator -;
-	using DirectX::operator /;
-	using DirectX::operator *;
-	using DirectX::operator *=;
-	using DirectX::operator -=;
-	using DirectX::operator +=;
-	using DirectX::operator /=;
 }

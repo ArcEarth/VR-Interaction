@@ -568,10 +568,10 @@ void RBFInterpolationTransform::Transform(frame_type & target_frame, const frame
 }
 
 PartilizedTransform::PartilizedTransform(const ShrinkedArmature& sParts, CharacterController & controller)
-	: pHandles(nullptr), m_pController(nullptr)
+	: m_pHandles(nullptr), m_pController(nullptr)
 {
 	m_pController = &controller;
-	pHandles = &controller.PvHandles();
+	m_pHandles = &controller.PvHandles();
 	auto& parts = controller.ArmatureParts();
 	auto& armature = controller.Armature();
 	pSource = &sParts.Armature();
@@ -661,16 +661,16 @@ void PartilizedTransform::Transform(frame_type & target_frame, const frame_type 
 			Xv = (xf - xlf).cast<double>() / (frame_time * g_FrameTimeScaleFactor);
 		}
 
-		if (pHandles)
+		if (m_pHandles)
 		{
-			pHandles->at(cpart.Index).first = Vector3(xf.data());
+			m_pHandles->at(cpart.Index).first = Vector3(xf.data());
 			if (g_UseVelocity && g_PvDimension == 6)
 			{
-				pHandles->at(cpart.Index).second = Vector3(xf.data() + 3);
+				m_pHandles->at(cpart.Index).second = Vector3(xf.data() + 3);
 			}
 			else
 			{
-				pHandles->at(cpart.Index).second = Vector3::Zero;
+				m_pHandles->at(cpart.Index).second = Vector3::Zero;
 			}
 		}
 

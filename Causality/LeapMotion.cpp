@@ -2,6 +2,12 @@
 #include "LeapMotion.h"
 #include <iostream>
 
+#ifdef _DEBUG
+#pragma comment(lib,"Leapd.lib")
+#else
+#pragma comment(lib,"Leap.lib")
+#endif
+
 using namespace Causality::Devices;
 
 class LeapMotion::Listener : public Leap::Listener

@@ -4,25 +4,24 @@
 #include <algorithm>
 #include <ppl.h>
 #include <boost\filesystem.hpp>
-#include <random>
-#include <unsupported\Eigen\fft>
-#pragma warning (disable:4554)
-#include <unsupported\Eigen\CXX11\Tensor>
+//#include <random>
+//#include <unsupported\Eigen\fft>
+//#pragma warning (disable:4554)
+//#include <unsupported\Eigen\CXX11\Tensor>
 #include "CCA.h"
 #include "EigenExtension.h"
 #include "GaussianProcess.h"
-#include "QudraticAssignment.h"
+//#include "QudraticAssignment.h"
 
 #include "ArmatureParts.h"
 #include "ClipMetric.h"
 
 #include "PlayerProxy.h"
 #include "Scene.h"
-#include <tinyxml2.h>
-#include <boost\format.hpp>
 #include "ArmatureTransforms.h"
 #include "Settings.h"
-
+#include "CameraObject.h"
+#include <Models.h>
 
 //					When this flag set to true, a CCA will be use to find the general linear transform between Player 'Limb' and Character 'Limb'
 
@@ -238,9 +237,7 @@ void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& contr
 	//}
 	//return;
 
-	using namespace DirectX;
-
-	glow->ResetBoneColor(Colors::Transparent.v);
+	glow->ResetBoneColor( Math::Colors::Transparent.v);
 
 	if (pCcaTrans)
 	{
@@ -273,7 +270,7 @@ void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& contr
 
 void SetGlowBoneColorPartPair(Causality::CharacterGlowParts * glow, int Jx, int Jy, const DirectX::XMVECTORF32 *colors, const Causality::ShrinkedArmature & sparts, const Causality::ShrinkedArmature & cparts)
 {
-	using namespace DirectX;
+	using namespace Math;
 	XMVECTOR color;
 	if (Jx == NoInputParts)
 		color = Colors::Transparent;
@@ -284,6 +281,7 @@ void SetGlowBoneColorPartPair(Causality::CharacterGlowParts * glow, int Jx, int 
 	else if (Jx >= 0)
 		color = colors[sparts[Jx]->Joints.front()->ID];
 
+	using namespace DirectX;
 	color = XMVectorSetW(color, 0.5f);
 	for (auto joint : cparts[Jy]->Joints)
 	{
@@ -741,8 +739,8 @@ RenderFlags Causality::PlayerProxy::GetRenderFlags() const
 
 void AddNoise(BoneHiracheryFrame& frame, float sigma)
 {
-	static std::random_device rd;
-	static std::mt19937 gen(rd());
+	//static std::random_device rd;
+	//static std::mt19937 gen(rd());
 
 	//std::normal_distribution<float> nd(1.0f, sigma);
 
@@ -958,15 +956,17 @@ void DrawGuidingVectors(const ShrinkedArmature & barmature, const BoneHiracheryF
 void DrawControllerHandle(const CharacterController& controller)
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
-	using namespace DirectX;
+	using namespace Math;
+
+	XMVECTOR color = Colors::Pink;
+	XMVECTOR vel_color = Colors::Navy;
+
 
 	g_PrimitiveDrawer.SetWorld(XMMatrixIdentity());
 	XMMATRIX world = controller.Character().GlobalTransformMatrix();
 
 	auto& barmature = controller.Character().Behavier().ArmatureParts();
 	auto& frame = controller.Character().GetCurrentFrame();
-	XMVECTOR color = Colors::Pink;
-	XMVECTOR vel_color = Colors::Navy;
 
 	for (auto& block : barmature)
 	{
@@ -994,7 +994,7 @@ void DrawControllerHandle(const CharacterController& controller)
 	}
 }
 
-void PlayerProxy::Render(RenderContext & context, DirectX::IEffect* pEffect)
+void PlayerProxy::Render(IRenderContext * context, DirectX::IEffect* pEffect)
 {
 	BoneHiracheryFrame charaFrame;
 
@@ -1061,7 +1061,7 @@ bool KinectVisualizer::IsVisible(const DirectX::BoundingGeometry & viewFrustum) 
 	return true;
 }
 
-void KinectVisualizer::Render(RenderContext & context, DirectX::IEffect* pEffect)
+void KinectVisualizer::Render(IRenderContext * context, DirectX::IEffect* pEffect)
 {
 	auto &players = pKinect->GetTrackedBodies();
 	using DirectX::Visualizers::g_PrimitiveDrawer;

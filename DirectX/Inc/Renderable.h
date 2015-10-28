@@ -1,9 +1,8 @@
 #pragma once
-#include "DeviceResources.h"
-#include "StepTimer.h"
 #include "DirectXMathExtend.h"
-#include "Locatable.h"
-#include <DirectXCollision.h>
+#include "StepTimer.h"
+
+struct ID3D11DeviceContext;
 
 namespace DirectX{
 	namespace Scene

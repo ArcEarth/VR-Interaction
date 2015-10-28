@@ -1,7 +1,7 @@
 #pragma once
 #include "DirectXMathExtend.h"
 #include <string>
-#include <ios>
+//#include <ios>
 
 namespace DirectX
 {

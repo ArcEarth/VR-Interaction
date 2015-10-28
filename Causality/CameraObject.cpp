@@ -3,6 +3,8 @@
 #include <DirectXColors.h>
 #include <ShadowMapGenerationEffect.h>
 #include <ShadowMapEffect.h>
+#include <PostProcessingEffect.h>
+#include "OculusRift.h"
 
 using namespace DirectX;
 using namespace Causality;
@@ -166,7 +168,7 @@ EffectRenderControl::EffectRenderControl()
 {
 }
 
- void EffectRenderControl::Begin(RenderContext & context)
+ void EffectRenderControl::Begin(IRenderContext * context)
 {
 	m_pRenderContext = context;
 	m_HaveItemRendered = false;
@@ -181,9 +183,9 @@ EffectRenderControl::EffectRenderControl()
 	// if no item is rendered, no need to call post processing effect
 	if (m_pPostEffect && m_HaveItemRendered)
 		if (m_PostEffectOutput == nullptr)
-			m_pPostEffect->Apply(m_pRenderContext, m_RenderTarget.ColorBuffer());
+			m_pPostEffect->Apply(m_pRenderContext.Get(), m_RenderTarget.ColorBuffer());
 		else
-			m_pPostEffect->Apply(m_pRenderContext, m_PostEffectOutput, m_RenderTarget.ColorBuffer(), m_RenderTarget.ViewPort(), m_RenderTarget.ViewPort());
+			m_pPostEffect->Apply(m_pRenderContext.Get(), m_PostEffectOutput, m_RenderTarget.ColorBuffer(), m_RenderTarget.ViewPort(), m_RenderTarget.ViewPort());
 	m_pRenderContext = nullptr;
 }
 
@@ -239,7 +241,9 @@ EffectRenderControl::EffectRenderControl()
 		 return m_PostEffectOutput;
  }
 
- void EffectRenderControl::SetRenderTarget(DirectX::RenderTarget & renderTarget) { m_RenderTarget = renderTarget; }
+ void EffectRenderControl::SetRenderTarget(DirectX::RenderTarget & renderTarget) {
+	 m_RenderTarget = renderTarget; 
+ }
 
  void Causality::EffectRenderControl::SetPostEffectOutput(DirectX::RenderableTexture2D & output)
  {
@@ -268,8 +272,12 @@ EffectRenderControl::EffectRenderControl()
  Camera::Camera()
  {
  }
+
+ size_t Causality::Camera::ViewRendererCount(int view) const { return 1; }
+
+ IRenderControl * Causality::Camera::GetViewRenderer(int view, int renderer) { return this; }
  
- void Causality::Camera::SetRenderTarget(DirectX::RenderTarget & renderTarget)
+ void Camera::SetRenderTarget(DirectX::RenderTarget & renderTarget)
  {
 	 float rtvAspect = renderTarget.ViewPort().Width / renderTarget.ViewPort().Height;
 	 if (abs(GetAspectRatio() - rtvAspect) > 0.01f)
@@ -277,14 +285,26 @@ EffectRenderControl::EffectRenderControl()
 	 EffectRenderControl::SetRenderTarget(renderTarget);
  }
 
-void SingleViewCamera::FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir)
+ size_t Causality::SingleViewCamera::ViewCount() const { return 1; }
+
+ IViewControl * Causality::SingleViewCamera::GetView(int view) { return this; }
+
+ void SingleViewCamera::FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir)
 {
 	XMVECTOR origin = GetPosition();
 	XMVECTOR q = GetOrientationFromFocus(origin, focusPoint, upDir);
 	SetOrientation(q);
 }
 
-Causality::SoftShadowCamera::SoftShadowCamera(ID3D11Device * pDevice, DirectX::RenderTarget& canvas)
+ void SingleViewCamera::BeginFrame()
+ {
+ }
+
+ void SingleViewCamera::EndFrame()
+ {
+ }
+
+SoftShadowCamera::SoftShadowCamera(IRenderDevice * pDevice, DirectX::RenderTarget& canvas)
 {
 	using namespace DirectX;
 	auto resolution = canvas.Bounds();
@@ -340,4 +360,123 @@ Causality::SoftShadowCamera::SoftShadowCamera(ID3D11Device * pDevice, DirectX::R
 	pEffectRender->SetPostEffectOutput(canvas.ColorBuffer());
 	m_pRenderers.push_back(pEffectRender);
 
+}
+
+PercentCloserShadowCamera::PercentCloserShadowCamera(IRenderDevice * pDevice, RenderTarget & canvas)
+{
+	using namespace DirectX;
+	auto resolution = canvas.Bounds();
+	// pass 0 : render binary shadow to screen space (from light-view-proj space)
+	auto pEffectRender = std::make_shared<EffectRenderControl>();
+	pEffectRender->SetRenderTarget(RenderTarget(pDevice, resolution.x, resolution.y));
+	pEffectRender->SetBackground(g_XMOne.v);
+
+	auto& shadowBuffer = pEffectRender->GetRenderTarget().ColorBuffer();
+	auto pShadowEffect = std::make_shared<ShadowMapEffect>(pDevice);
+	pShadowEffect->SetEffectMode(ShadowMapEffect::LightSpaceShadowRender);
+	pEffectRender->SetRenderTargetClearence(true);
+	pEffectRender->SetRenderTarget(canvas);
+	pEffectRender->SetRenderEffect(pShadowEffect);
+	pEffectRender->SetRequestRenderFlags(RenderFlags::Visible);
+	m_pRenderers.push_back(pEffectRender);
+
+	// pass 2 : render highlights (blooming) effect
+	pEffectRender = std::make_shared<EffectRenderControl>();
+	auto pShadowGenEffect = std::make_shared<ShadowMapGenerationEffect>(pDevice);
+	pShadowGenEffect->SetShadowFillMode(ShadowMapGenerationEffect::BoneColorFill);
+	pShadowGenEffect->SetShadowColor(Colors::LimeGreen);
+	pEffectRender->SetRenderEffect(pShadowGenEffect);
+	pEffectRender->SetRenderTarget(RenderTarget(pDevice, resolution.x, resolution.y));
+
+	auto pBlurEffect = std::make_shared<DirectX::GuassianBlurEffect>(pDevice);
+	pEffectRender->SetBackground(Colors::Transparent.v);
+	pEffectRender->SetPostEffect(pBlurEffect);
+	pBlurEffect->ResizeBufferRespectTo(pDevice, canvas.ColorBuffer());
+	pBlurEffect->SetBlurRadius(2.5f);
+	pBlurEffect->SetMultiplier(0.5f);
+	pBlurEffect->SetOutputMode(AlphaBlendNoDepth);
+	pBlurEffect->SetOutputDepthStencil(canvas.DepthBuffer().DepthStencilView());
+	pEffectRender->SetPostEffect(pBlurEffect);
+	pEffectRender->SetRequestRenderFlags(RenderFlags::BloomEffectSource | RenderFlags::Skinable); // minium requirement
+	pEffectRender->SetPostEffectOutput(canvas.ColorBuffer());
+	m_pRenderers.push_back(pEffectRender);
+}
+
+size_t MultipassCamera::ViewRendererCount(int view) const { return m_pRenderers.size(); }
+
+IRenderControl * MultipassCamera::GetViewRenderer(int view, int renderer) { return m_pRenderers[renderer].get(); }
+
+void MultipassCamera::AddEffectRenderControl(const shared_ptr<EffectRenderControl>& pRenderer) { m_pRenderers.push_back(pRenderer); }
+
+size_t MuiltiviewCamera::ViewCount() const { return m_Views.size(); }
+
+IViewControl * MuiltiviewCamera::GetView(int view) { return m_Views[view].get(); }
+
+size_t MuiltiviewCamera::ViewRendererCount(int view) const { return m_ViewportRenderers[view].size(); }
+
+IRenderControl * MuiltiviewCamera::GetViewRenderer(int view, int renderer) {
+	auto pRenderer = m_pRenderers[m_ViewportRenderers[view][renderer]].get();
+	pRenderer->SetRenderTarget(m_RenderTargets[view]);
+	return pRenderer;
+}
+
+void Causality::MuiltiviewCamera::BeginFrame()
+{
+}
+
+void Causality::MuiltiviewCamera::EndFrame()
+{
+}
+
+HMDCamera::HMDCamera(IRenderDevice *pDevice, RenderTarget & canvas)
+{
+	using namespace DirectX;
+	auto resolution = canvas.Bounds();
+	// pass 0 : render binary shadow to screen space (from light-view-proj space)
+	auto pEffectRender = std::make_shared<EffectRenderControl>();
+	pEffectRender->SetRenderTarget(RenderTarget(pDevice, resolution.x, resolution.y));
+	pEffectRender->SetBackground(g_XMOne.v);
+
+	auto& shadowBuffer = pEffectRender->GetRenderTarget().ColorBuffer();
+	auto pShadowEffect = std::make_shared<ShadowMapEffect>(pDevice);
+	pShadowEffect->SetEffectMode(ShadowMapEffect::LightSpaceShadowRender);
+	pEffectRender->SetRenderTargetClearence(true);
+	pEffectRender->SetRenderTarget(canvas);
+	pEffectRender->SetRenderEffect(pShadowEffect);
+	pEffectRender->SetRenderTargetClearence(false);
+	pEffectRender->SetRequestRenderFlags(RenderFlags::Visible);
+	m_pRenderers.push_back(pEffectRender);
+
+	m_ViewportRenderers.resize(2);
+	m_ViewportRenderers[0] = { 0 };
+	m_ViewportRenderers[1] = { 0 };
+
+	m_Views.emplace_back(new CameraViewControl());
+	m_Views.emplace_back(new CameraViewControl());
+
+	m_Views[0]->SetAttachedRigid(this);
+	m_Views[1]->SetAttachedRigid(this);
+
+	auto viewport = canvas.ViewPort();
+	viewport.Width /= 2;
+	m_RenderTargets.resize(2);
+	m_RenderTargets[0] = canvas.Subview(viewport);
+	viewport.TopLeftX += viewport.Width;
+	m_RenderTargets[1] = canvas.Subview(viewport);
+
+	pDevice->GetImmediateContext(&m_pContext);
+}
+
+void HMDCamera::BeginFrame()
+{
+	if (!m_pRift)
+		m_RenderTargets[0].Clear(m_pContext.Get(), g_XMZero.v);
+	//else
+
+}
+
+void HMDCamera::EndFrame()
+{
+	//if (m_pRift)
+		//m_pRift->EndFrame();
 }

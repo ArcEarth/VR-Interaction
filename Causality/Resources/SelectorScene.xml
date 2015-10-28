@@ -9,7 +9,7 @@
     <RecordLogRootDir>Log</RecordLogRootDir>
 
     <!--When this switch is on, sub-active parts will be animated based on active parts-->
-    <EnableDependentControl>0</EnableDependentControl>
+    <EnableDependentControl>1</EnableDependentControl>
 
     <!--When This switch is on, active body parts beside direct matched will be controlled by a cca of direct matched parts-->
     <EnableActiveDependentControl>1</EnableActiveDependentControl>

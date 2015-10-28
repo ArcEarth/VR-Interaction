@@ -1,17 +1,25 @@
 #pragma once
-#include "Renderable.h"
-#include "Interactive.h"
 #include "SceneObject.h"
-#include "CameraObject.h"
-#include "LightObject.h"
 #include "StepTimer.h"
-#include "RenderContext.h"
-#include "AssetDictionary.h"
+#include "RenderSystemDecl.h"
+#include <Textures.h>
 #include <mutex>
+#include <vector>
+
+namespace DirectX
+{
+	class StepTimer;
+}
 
 namespace Causality
 {
 	class Frame;
+	class ICamera;
+	class IVisual;
+	class ILight;
+	class AssetDictionary;
+
+	using DirectX::StepTimer;
 
 	interface IScene abstract
 	{
@@ -19,7 +27,7 @@ namespace Causality
 		virtual ~IScene() {};
 
 		virtual void Update() = 0;
-		virtual void Render(RenderContext& context) = 0;
+		virtual void Render(IRenderContext* context) = 0;
 		virtual void Load() = 0;
 		virtual void Release() = 0;
 
@@ -40,6 +48,7 @@ namespace Causality
 		FixedTimeInterval,	  // The time of scene is binded to frame count, every two adjacant frame have same time delta
 	};
 
+	using std::vector;
 	// A Scene is a collection of it's contents, interactive logic, 
 	class Scene : public IScene
 	{
@@ -47,7 +56,7 @@ namespace Causality
 		Scene();
 		~Scene();
 
-		static std::unique_ptr<Scene> LoadSceneFromXML(const string& xml_file);
+		static uptr<Scene> LoadSceneFromXML(const string& xml_file);
 
 		void LoadFromXML(const string& xml_file);
 
@@ -55,7 +64,7 @@ namespace Causality
 
 		// Inherit from IScene
 		virtual void Update() override;
-		virtual void Render(RenderContext& context) override;
+		virtual void Render(IRenderContext* context) override;
 		virtual void Load() override;
 		virtual void Release() override;
 
@@ -84,19 +93,19 @@ namespace Causality
 		SceneObject*	Content() override;
 		SceneObject*	SetContent(SceneObject* sceneRoot);
 
-		AssetDictionary& Assets() { return assets; }
-		const AssetDictionary& Assets() const { return assets; }
+		AssetDictionary& Assets() { return *assets; }
+		const AssetDictionary& Assets() const { return *assets; }
 
 		ICamera *PrimaryCamera();
 
 		bool SetAsPrimaryCamera(ICamera* camera);
 
-		RenderDevice&			GetRenderDevice() { return render_device; }
-		const RenderDevice&		GetRenderDevice() const { return render_device; }
-		RenderContext&			GetRenderContext() { return render_context; }
-		const RenderContext&	GetRenderContext() const { return render_context; }
+		IRenderDevice*			GetRenderDevice() { return render_device.Get(); }
+		const IRenderDevice*		GetRenderDevice() const { return render_device.Get(); }
+		IRenderContext*			GetRenderContext() { return render_context.Get(); }
+		const IRenderContext*	GetRenderContext() const { return render_context.Get(); }
 
-		void SetRenderDeviceAndContext(RenderDevice& device, RenderContext& context);
+		void SetRenderDeviceAndContext(IRenderDevice* device, IRenderContext* context);
 
 		DirectX::RenderTarget&			Canvas() { return scene_canvas; }
 		const DirectX::RenderTarget&	Canvas() const { return scene_canvas; }
@@ -108,8 +117,8 @@ namespace Causality
 		const vector<const ILight*>&	GetLights() const { return reinterpret_cast<const vector<const ILight*>&>(lights); }
 		vector<DirectX::IEffect*>&		GetEffects();
 
-		void SetupEffectsViewProject(DirectX::IEffect* pEffect, const DirectX::XMMATRIX &v, const DirectX::XMMATRIX &p);
-		void SetupEffectsLights(DirectX::IEffect* pEffect);
+		void SetupEffectsViewProject(IEffect* pEffect, const DirectX::XMMATRIX &v, const DirectX::XMMATRIX &p);
+		void SetupEffectsLights(IEffect* pEffect);
 
 		void UpdateRenderViewCache();
 
@@ -120,19 +129,21 @@ namespace Causality
 	private:
 		SceneTimeLineType			timeline_type;
 		double						time_scale;
-		DirectX::StepTimer			step_timer;
-		RenderDevice				render_device;
-		RenderContext				render_context;
-		AssetDictionary				assets;
+		StepTimer					step_timer;
+		cptr<IRenderDevice>			render_device;
+		cptr<IRenderContext>		render_context;
+		uptr<AssetDictionary>
+									assets;
+
 		uptr<SceneObject>			content;
-		DirectX::RenderTarget		scene_canvas;
-		DirectX::RenderableTexture2D back_buffer;
+		RenderTarget				scene_canvas;
+		RenderableTexture2D			back_buffer;
 		ICamera						*primary_cameral;
 
 		vector<ICamera*>			cameras;
 		vector<ILight*>				lights;
-		vector<IRenderable*>		renderables;
-		vector<DirectX::IEffect*>	effects;
+		vector<IVisual*>		renderables;
+		vector<IEffect*>			effects;
 
 		std::mutex					content_mutex;
 

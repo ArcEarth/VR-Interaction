@@ -127,7 +127,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;ole32.lib;Kinect20.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;libfbxsdk.lib;leapd.lib;libfbxsdk.lib;libovrd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;dwrite.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" "$(OutDir)"
@@ -157,7 +157,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;ole32.lib;Kinect20.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;libfbxsdk.lib;leapd.lib;libfbxsdk.lib;libovr64d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;dwrite.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" "$(OutDir)"
@@ -191,7 +191,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leapd.dll "$(OutDir)"</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;ole32.lib;Kinect20.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;libfbxsdk.lib;leap.lib;libovr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;dwrite.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" "$(OutDir)"
@@ -226,7 +226,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;ole32.lib;Kinect20.lib;windowscodecs.lib;dwrite.lib;WINMM.LIB;Ws2_32.lib;libfbxsdk.lib;leap.lib;libovr64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxgi.lib;d3d11.lib;d2d1.lib;dwrite.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(FBX_SDK_ROOT)\lib\vs2013\$(PlatformTarget)\$(Configuration)\libfbxsdk.dll" "$(OutDir)"
@@ -239,6 +239,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="BasicKeyboardMouseControlLogic.cpp" />
     <ClCompile Include="ClipMetric.cpp">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/bigobj %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/bigobj %(AdditionalOptions)</AdditionalOptions>
@@ -267,7 +268,12 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="Kinect.cpp" />
     <ClCompile Include="LeapMotion.cpp" />
     <ClCompile Include="NativeWindow.cpp" />
-    <ClCompile Include="OculusRift.cpp" />
+    <ClCompile Include="OculusRift.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PlayerProxy.cpp">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
@@ -284,10 +290,15 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SkinningModelFromFbx.cpp" />
+    <ClCompile Include="SkyDome.cpp" />
     <ClCompile Include="StylizedIK.cpp" />
+    <ClCompile Include="VisualObject.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AnimationObject.h" />
     <ClInclude Include="ArmaturePartFeatures.h" />
+    <ClInclude Include="BasicKeyboardMouseControlLogic.h" />
+    <ClInclude Include="BCL.h" />
     <ClInclude Include="ClipMetric.h" />
     <ClInclude Include="Animations.h" />
     <ClInclude Include="ArmatureParts.h" />
@@ -300,7 +311,6 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="CharacterBehavier.h" />
     <ClInclude Include="CharacterController.h" />
     <ClInclude Include="CharacterObject.h" />
-    <ClInclude Include="Common\BCL.h" />
     <ClInclude Include="Common\CompositeFlag.h" />
     <ClInclude Include="Common\Filter.h" />
     <ClInclude Include="Common\stride_range.h" />
@@ -318,7 +328,11 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="LeapMotion.h" />
     <ClInclude Include="LightObject.h" />
     <ClInclude Include="NativeWindow.h" />
-    <ClInclude Include="Object.h" />
+    <ClInclude Include="SkyDome.h" />
+    <ClInclude Include="Math3D.h" />
+    <ClInclude Include="SmartPointers.h" />
+    <ClInclude Include="String.h" />
+    <ClInclude Include="VisualObject.h" />
     <ClInclude Include="OculusRift.h" />
     <ClInclude Include="PcaCcaMap.h" />
     <ClInclude Include="pch_bcl.h" />
@@ -327,8 +341,9 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="ProbalisticModel.h" />
     <ClInclude Include="QudraticAssignment.h" />
     <ClInclude Include="RegressionModel.h" />
-    <ClInclude Include="RenderContext.h" />
+    <ClInclude Include="RenderSystemDecl.h" />
     <ClInclude Include="EigenExtension.h" />
+    <ClInclude Include="RenderFlags.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneObject.h" />

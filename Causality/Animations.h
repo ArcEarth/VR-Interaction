@@ -1,6 +1,5 @@
 #pragma once
 #include "Armature.h"
-#include <gsl.h>
 
 namespace Causality
 {
@@ -341,6 +340,13 @@ namespace Causality
 	};
 
 
+// Stupid windows header
+#if defined(CetCurrentTime)
+#pragma push_macro("GetCurrentTime")
+#undef CetCurrentTime
+#define PUSHED_GET_CURRENT_TIME 1
+#endif
+
 	class StoryBoard
 	{
 	public:
@@ -376,4 +382,10 @@ namespace Causality
 	protected:
 		AnimationPlayState CurrentState;
 	};
+
+#if defined(PUSHED_GET_CURRENT_TIME)
+#pragma pop_macro("GetCurrentTime")
+#undef PUSHED_GET_CURRENT_TIME
+#endif
+
 }

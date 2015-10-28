@@ -261,6 +261,8 @@ public:
 	ID3D11ShaderResourceView*		pScreenSpaceShadowMap;
 	ID3D11ShaderResourceView*		pScreenSpaceShadowMapSharp;
 	ID3D11ShaderResourceView*		pShadowMaps[MAX_LIGHTS];
+
+	// Linear shadow map sampler
 	ComPtr<ID3D11SamplerState>		pShadowMapSampler;
 
 	Impl(ID3D11Device* device)
@@ -288,8 +290,15 @@ public:
 		}
 
 		CD3D11_DEFAULT def;
-		CD3D11_SAMPLER_DESC samplerDesc(def);
-		device->CreateSamplerState(&samplerDesc, &pShadowMapSampler);
+		CD3D11_SAMPLER_DESC samplerDesc (def);
+		samplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS;
+		samplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
+		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+
+		ThrowIfFailed(
+			device->CreateSamplerState(&samplerDesc, &pShadowMapSampler)
+			);
 	}
 
 	int GetCurrentShaderPermutation() const
@@ -392,7 +401,7 @@ public:
 			pContext->OMSetBlendState(commonStates.Opaque(), Colors::Black.f, -1);
 		}
 
-		ID3D11SamplerState* pSamplers[] = { commonStates.AnisotropicWrap(), commonStates.AnisotropicClamp(), commonStates.AnisotropicClamp()};
+		ID3D11SamplerState* pSamplers[] = { commonStates.AnisotropicWrap(), commonStates.AnisotropicWrap(), commonStates.AnisotropicClamp(), pShadowMapSampler.Get()};
 		pContext->PSSetSamplers(0, std::size(pSamplers), pSamplers);
 
 		if (constants.MaterialDiffuse.w < 0.85)

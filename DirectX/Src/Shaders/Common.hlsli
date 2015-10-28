@@ -49,7 +49,7 @@ float4 GetLightUV(float4 posWorld, float4x4 viewProjection)
 	vout.uv = vin.TexCoord;
 
 #define SetLightUVOne \
-	vout.lightUv0 = GetLightUV(posWorld, LightViewProjection[0]);
+	vout.lightUv[0] = GetLightUV(posWorld, LightViewProjection[0]);
 
 //#define SetLightUVTwo \ 
 //	vout.lightUv0 = GetLightUV(posWorld, LightViewProjection[0]); \

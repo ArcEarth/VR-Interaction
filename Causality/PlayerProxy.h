@@ -1,17 +1,18 @@
 #pragma once
 #include "CharacterObject.h"
 #include "Kinect.h"
-#include <boost\circular_buffer.hpp>
+//#include <boost\circular_buffer.hpp>
 #include "Animations.h"
 #include "CharacterController.h"
+#include "Interactive.h"
 #include <atomic>
 
 namespace Causality
 {
-	using boost::circular_buffer;
+	//using boost::circular_buffer;
 
 	// Player : public Character
-	class PlayerProxy : public SceneObject, public IRenderable, public IAppComponent, public IKeybordInteractive
+	class PlayerProxy : public SceneObject, public IVisual, public IAppComponent, public IKeybordInteractive
 	{
 	public:
 #pragma region Constants
@@ -38,9 +39,9 @@ namespace Causality
 		// Render / UI Thread 
 		void	Update(time_seconds const& time_delta) override;
 
-		// Inherited via IRenderable
+		// Inherited via IVisual
 		virtual bool IsVisible(const DirectX::BoundingGeometry & viewFrustum) const override;
-		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
+		virtual void Render(IRenderContext * context, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 		// PlayerSelector Interface
@@ -76,7 +77,7 @@ namespace Causality
 		ShrinkedArmature*					m_pParts;
 		int									m_Id;
 
-		Devices::KinectSensor::Refptr		m_pKinect;
+		sptr<Devices::KinectSensor>			m_pKinect;
 		TrackedBodySelector					m_playerSelector;
 
 		BoneHiracheryFrame					m_CurrentPlayerFrame;
@@ -89,7 +90,7 @@ namespace Causality
 		std::list<CharacterController>		m_Controllers;
 
 		bool								m_DefaultCameraFlag;
-		DirectX::RigidTransform				m_DefaultCameraPose;
+		RigidTransform						m_DefaultCameraPose;
 
 		time_seconds						current_time;
 
@@ -101,19 +102,19 @@ namespace Causality
 
 		std::pair<float, float> ExtractUserMotionPeriod();
 
-		// Inherited via IRenderable
+		// Inherited via IVisual
 		virtual RenderFlags GetRenderFlags() const override;
 		//void PrintFrameBuffer(int No);
 	};
 
-	class KinectVisualizer : public SceneObject, public IRenderable
+	class KinectVisualizer : public SceneObject, public IVisual
 	{
 	public:
 		KinectVisualizer();
-		// Inherited via IRenderable
+		// Inherited via IVisual
 		virtual RenderFlags GetRenderFlags() const override;
 		virtual bool IsVisible(const DirectX::BoundingGeometry & viewFrustum) const override;
-		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
+		virtual void Render(IRenderContext * context, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 
 	protected:

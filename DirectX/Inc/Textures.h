@@ -560,7 +560,7 @@ namespace DirectX {
 		// use depthFormat == DXGI_FORMAT_UNKNOWN to disable depth buffer auto creation
 		RenderTarget(ID3D11Device* pDevice, size_t width, size_t height, _In_opt_ DXGI_FORMAT colorFormat = DXGI_FORMAT_R8G8B8A8_UNORM, _In_opt_ DXGI_FORMAT depthFormat = DXGI_FORMAT_D24_UNORM_S8_UINT);
 
-		RenderTarget Subview(const D3D11_VIEWPORT *pViewport);
+		RenderTarget Subview(const D3D11_VIEWPORT &viewport);
 		/// <summary>
 		/// return a Const reference to the ViewPort binding this render target texture for RS stage.
 		/// </summary>

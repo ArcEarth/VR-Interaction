@@ -1,5 +1,9 @@
 #pragma once
 #include <vector>
+#include <algorithm>
+#include <numeric>
+#include <limits>
+
 #include <Eigen\Core>
 
 // spamming std namespace
@@ -55,21 +59,23 @@ namespace Eigen
 {
 	// C(i,j,ass(i),ass(j)) must exist
 	template <class QuadraticFuncType>
-	float quadratic_assignment_cost(const Eigen::MatrixXf& A, const QuadraticFuncType &C, _In_reads_(A.rows()) Eigen::DenseIndex* ass)
+	float quadratic_assignment_cost(const Eigen::MatrixXf& A, const QuadraticFuncType &C, _In_reads_(A.rows()) Eigen::DenseIndex* ass, bool transposed)
 	{
 		using namespace std;
 		using namespace Eigen;
 
-		int n = A.rows();
+		int n = min(A.rows(),A.cols());
 		float score = 0;
+
 		for (int i = 0; i < n; i++)
 		{
-			score += A(i, ass[i]);
+			score += transposed ? A(ass[i],i) : A(i, ass[i]);
 			for (int j = i + 1; j < n; j++)
 			{
-				score += C(i, j, ass[i], ass[j]);
+				score += transposed ? C(ass[i], ass[j], i, j) : C(i, j, ass[i], ass[j]);
 			}
 		}
+
 		return score;
 	}
 
@@ -80,20 +86,24 @@ namespace Eigen
 	{
 		using namespace std;
 		using namespace Eigen;
+
+		// in this case, we do a transposed question
+		bool transposed = A.rows() > A.cols();
+
 		auto nx = A.rows(), ny = A.cols();
-		assert(ny >= nx);
+		if (transposed)
+			swap(nx, ny);
+
 		vector<DenseIndex> s(std::max(nx, ny));
-		for (int i = 0; i < s.size(); i++)
-		{
-			s[i] = i;
-		}
+		iota(s.begin(), s.end(), 0);
 
 		vector<DenseIndex>  optAss(nx);
+		std::fill(optAss.begin(), optAss.end(), -1);
 		float optScore = std::numeric_limits<float>::min();
 
 		do {
 			do {
-				float score = quadratic_assignment_cost(A, C, s.data());
+				float score = quadratic_assignment_cost(A, C, s.data(), transposed);
 				if (score > optScore)
 				{
 					optAss.assign(s.begin(), s.begin() + nx);
@@ -107,7 +117,17 @@ namespace Eigen
 			} while (std::next_permutation(s.begin(), s.begin() + nx));
 		} while (next_combination(s.begin(), s.begin() + nx, s.end()));
 
-		assignment = optAss;
+		if (!transposed)
+			assignment = optAss;
+		else
+		{
+			assignment.resize(A.rows());
+			fill(assignment.begin(), assignment.end(), -1);
+
+			for (int i = 0; i < optAss.size(); i++)
+				assignment[optAss[i]] = i;
+		}
+
 		return optScore;
 	}
 

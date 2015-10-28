@@ -725,9 +725,9 @@ DirectX::RenderableTexture2D::RenderableTexture2D(IDXGISwapChain * pSwapChain)
 		);
 }
 
-RenderTarget DirectX::RenderTarget::Subview(const D3D11_VIEWPORT * pViewport)
+RenderTarget DirectX::RenderTarget::Subview(const D3D11_VIEWPORT & viewport)
 {
-	RenderTarget target(m_ColorBuffer, m_DepthStencilBuffer, *pViewport);
+	RenderTarget target(m_ColorBuffer, m_DepthStencilBuffer, viewport);
 	return target;
 }
 

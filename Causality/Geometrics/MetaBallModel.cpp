@@ -56,17 +56,17 @@ static void CreateBoundingBoxFromSpheres( BoundingBox& Out, size_t Count, const 
 
 
 Metaball::Metaball(const DirectX::Vector3 &_Position,float _Radius,unsigned int _BindingIndex)
-	: Position(_Position) , Radius(_Radius) , BindingIndex(_BindingIndex)// , Coefficient(Cof)
+	: Position(_Position) , Radius(_Radius) //, BindingIndex(_BindingIndex)// , Coefficient(Cof)
 	//, Color((const float*)Colors::Azure)
 {}
 
 Metaball::Metaball(DirectX::FXMVECTOR _Position,float _Radius,unsigned int _BindingIndex)
-	: Position(_Position) , Radius(_Radius) , BindingIndex(_BindingIndex)// , Coefficient(Cof)
+	: Position(_Position) , Radius(_Radius) //, BindingIndex(_BindingIndex)// , Coefficient(Cof)
 	//, Color((const float*)Colors::Azure)
 {}
 
 Metaball::Metaball( const DirectX::Vector4 & Sphere,unsigned int _BindingIndex /*= 0*/ )
-	: Position(Sphere.x,Sphere.y,Sphere.z) , Radius(Sphere.w) , BindingIndex(_BindingIndex)
+	: Position(Sphere.x,Sphere.y,Sphere.z) , Radius(Sphere.w) //, BindingIndex(_BindingIndex)
 	//, Color((const float*)Colors::Azure)
 {}
 //// r is the distance , where R is the radius of the metaball
@@ -191,7 +191,7 @@ float Metaball::EffectiveRadiusRatio(float ISO , float precise/* = 1e-6*/)
 
 inline float Metaball::eval(DirectX::FXMVECTOR pos) const
 {
-	float r2 = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(pos - (XMVECTOR)Position));
+	float r2 = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(pos - XMLoadA(Position)));
 	float R2 = Radius*Radius;
 	if (r2>=R2) return 0.0f;
 	float t = r2 / R2;
@@ -200,7 +200,7 @@ inline float Metaball::eval(DirectX::FXMVECTOR pos) const
 
 inline DirectX::XMVECTOR Metaball::grad(DirectX::FXMVECTOR pos) const
 {
-	XMVECTOR vtr = pos - (XMVECTOR)Position;
+	XMVECTOR vtr = pos - XMLoadA(Position);
 	float r2 = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(vtr));
 	float R2 = Radius*Radius;
 	if (r2 <= R2){
@@ -229,7 +229,7 @@ MetaBallModel::MetaBallModel(void)
 	ISO = MODELING_ISO;
 }
 
-MetaBallModel::MetaBallModel(const std::vector<Metaball> &primitives)
+MetaBallModel::MetaBallModel(const PrimitveVectorType &primitives)
 {
 	//m_Polygonizer = nullptr;
 	Primitives = primitives;
@@ -237,7 +237,7 @@ MetaBallModel::MetaBallModel(const std::vector<Metaball> &primitives)
 	Update();
 }
 
-MetaBallModel::MetaBallModel(std::vector<Metaball> &&primitives)
+MetaBallModel::MetaBallModel(PrimitveVectorType &&primitives)
 {
 	//m_Polygonizer = nullptr;
 	ISO = MODELING_ISO;
@@ -850,26 +850,28 @@ void MetaBallModel::Update()
 	//boost::edges(Connections);
 }
 
-void MetaBallModel::CreateConnectionGraph(_Out_ ConnectionGraph& Graph) const
-{
-	ConnectionGraph g(Primitives.size());
-	for (size_t i = 0; i < Primitives.size(); i++)
-	{
-		for (size_t j = i+1; j < Primitives.size(); j++)
-		{
-			if (IsTwoMetaballIntersect(Primitives[i],Primitives[j]))
-			{
-				float w = Metaball::ConnectionStrength(Primitives[i],Primitives[j],m_ISO);
-				boost::add_edge(i,j,w,g);
-			}
-		}
-	}
-	Graph = g;
-}
+
 
 
 namespace Geometrics
 {
+#ifdef LAPLACIAN_INTERFACE
+	void CreateConnectionGraph(const MetaBallModel& volume, _Out_ ConnectionGraph& Graph) const
+	{
+		ConnectionGraph g(Primitives.size());
+		for (size_t i = 0; i < Primitives.size(); i++)
+		{
+			for (size_t j = i + 1; j < Primitives.size(); j++)
+			{
+				if (IsTwoMetaballIntersect(Primitives[i], Primitives[j]))
+				{
+					float w = Metaball::ConnectionStrength(Primitives[i], Primitives[j], m_ISO);
+					boost::add_edge(i, j, w, g);
+				}
+			}
+		}
+		Graph = g;
+	}
 
 	Eigen::SparseMatrix<float> CreateLaplacianMatrix(const MetaBallModel &Volume,const std::vector<float> &OuterWeights)
 	{
@@ -910,4 +912,6 @@ namespace Geometrics
 		Laplace.setFromTriplets(triplets.begin(),triplets.end());
 		return Laplace;
 	}
+#endif
+
 }

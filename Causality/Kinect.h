@@ -14,9 +14,9 @@
 #include "Common\Filter.h"
 #include "BoneFeatures.h"
 
-#define BOOST_CB_DISABLE_DEBUG
-#include <boost\circular_buffer.hpp>
-#undef BOOST_CB_DISABLE_DEBUG
+//#define BOOST_CB_DISABLE_DEBUG
+//#include <boost\circular_buffer.hpp>
+//#undef BOOST_CB_DISABLE_DEBUG
 #include "Events.h"
 
 namespace Causality

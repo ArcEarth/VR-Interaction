@@ -8,6 +8,8 @@
 #include <wrl\event.h>
 #include "ArmatureParts.h"
 
+#pragma comment(lib,"Kinect20.lib")
+
 using namespace Causality;
 using namespace Causality::Devices;
 using namespace Microsoft::WRL;

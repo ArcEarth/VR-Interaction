@@ -1,9 +1,10 @@
 #pragma once
 #include <unordered_map>
-#include <memory>
-#include <DirectXMathExtend.h>
+//#include <memory>
+#include "Math3D.h"
 #include "Common\tree.h"
-#include <gsl.h>
+#include "String.h"
+#include <istream>
 
 namespace Causality
 {
@@ -17,46 +18,46 @@ namespace Causality
 	// Each bone is a affine transform (Scale-Rotate-Translate) 
 	// the bone will store this transform in Local frame and global frame
 	XM_ALIGNATTR
-	struct Bone : public DirectX::AlignedNew<DirectX::XMVECTOR>
+	struct Bone : public AlignedNew<XMVECTOR>
 	{
 	public:
 		// Local Data
 		XM_ALIGNATTR
-		DirectX::Quaternion LclRotation;
+		Quaternion LclRotation;
 		// Local Translation, represent the offset vector (Pe - Po) in current frame 
 		// Typical value should always be (0,l,0), where l = length of the bone
 		// Should be constant among time!!!
 		XM_ALIGNATTR
-		DirectX::Vector3	LclTranslation;
+		Vector3	LclTranslation;
 		float				LclTw; // Padding, w-coff of local translation
 
 		XM_ALIGNATTR
-		DirectX::Vector3	LclScaling; // Local Scaling , adjust this transform to adjust bone length
+		Vector3	LclScaling; // Local Scaling , adjust this transform to adjust bone length
 		float				LclLength;  // offset should = 16 + 3x4 = 28, the Length before any Scaling
 
 		// Global Data (dulplicate with Local)
 		// Global Rotation
 		XM_ALIGNATTR
-		DirectX::Quaternion GblRotation;
+		Quaternion GblRotation;
 		// Global Position for the ending joint of this bone
 		// Aka : End-Position
 		XM_ALIGNATTR
-		DirectX::Vector3	GblTranslation;
+		Vector3	GblTranslation;
 		float				GblTw; // Padding
 		XM_ALIGNATTR
-		DirectX::Vector3	GblScaling;
+		Vector3	GblScaling;
 		float				GblLength;		// Length of this bone, after scaling
 
 
 		//XM_ALIGNATTR
-		//DirectX::Vector3	OriginPosition;	// Reference point of a bone
+		//Vector3	OriginPosition;	// Reference point of a bone
 
-		//DirectX::XMVECTOR EndJointPosition() const;
+		//XMVECTOR EndJointPosition() const;
 		//bool DirtyFlag;
 
 		Bone();
 
-		void GetBoundingBox(DirectX::BoundingBox& out) const;
+		void GetBoundingBox(BoundingBox& out) const;
 		// Update from Hirachy or Global
 		// FK Caculation
 		// Need this.LclRotation, this.LclScaling, and all Data for reference
@@ -66,18 +67,18 @@ namespace Causality
 		// Assuming Global position & orientation is known
 		void UpdateLocalData(const Bone& reference);
 
-		inline const DirectX::IsometricTransform& LocalTransform() const { return reinterpret_cast<const DirectX::IsometricTransform&>(*this); }
-		inline DirectX::IsometricTransform& LocalTransform() { return reinterpret_cast<DirectX::IsometricTransform&>(*this); }
-		inline const DirectX::IsometricTransform& GlobalTransform() const { return reinterpret_cast<const DirectX::IsometricTransform&>(this->GblRotation); }
-		inline DirectX::IsometricTransform& GlobalTransform() { return reinterpret_cast<DirectX::IsometricTransform&>(this->GblRotation); }
+		inline const IsometricTransform& LocalTransform() const { return reinterpret_cast<const IsometricTransform&>(*this); }
+		inline IsometricTransform& LocalTransform() { return reinterpret_cast<IsometricTransform&>(*this); }
+		inline const IsometricTransform& GlobalTransform() const { return reinterpret_cast<const IsometricTransform&>(this->GblRotation); }
+		inline IsometricTransform& GlobalTransform() { return reinterpret_cast<IsometricTransform&>(this->GblRotation); }
 	public:
 		// Static helper methods for caculate transform matrix
 		// Caculate the Transform Matrix from "FromState" to "ToState"
-		static DirectX::XMMATRIX TransformMatrix(const Bone& from, const Bone& to);
+		static XMMATRIX TransformMatrix(const Bone& from, const Bone& to);
 		// Ingnore the LclScaling transform, have better performence than TransformMatrix
-		static DirectX::XMMATRIX RigidTransformMatrix(const Bone& from, const Bone& to);
+		static XMMATRIX RigidTransformMatrix(const Bone& from, const Bone& to);
 		// Ingnore the LclScaling transform, may be useful in skinning with Dual-Quaternion
-		static DirectX::XMDUALVECTOR RigidTransformDualQuaternion(const Bone& from, const Bone& to);
+		static XMDUALVECTOR RigidTransformDualQuaternion(const Bone& from, const Bone& to);
 
 	public:
 		// number of float elements per bone
@@ -108,15 +109,15 @@ namespace Causality
 		float		_padding;
 	};
 
-	static_assert(offsetof(Bone, GblRotation) == sizeof(DirectX::IsometricTransform),"Compilier not supported.");
+	static_assert(offsetof(Bone, GblRotation) == sizeof(IsometricTransform),"Compilier not supported.");
 
 	XM_ALIGNATTR
 	struct BoneVelocity
 	{
 		XM_ALIGNATTR
-		DirectX::Vector3 LinearVelocity;
+		Vector3 LinearVelocity;
 		XM_ALIGNATTR
-		DirectX::Vector3 AngelarVelocity;
+		Vector3 AngelarVelocity;
 	};
 
 	XM_ALIGNATTR
@@ -126,8 +127,8 @@ namespace Causality
 
 	struct RotationConstriant
 	{
-		DirectX::Vector3 UpperBound;
-		DirectX::Vector3 LowerBound;
+		Vector3 UpperBound;
+		Vector3 LowerBound;
 	};
 
 	enum JointSemantic
@@ -159,7 +160,7 @@ namespace Causality
 		int							ID;
 		// Should be -1 for Root
 		int							ParentID;
-		std::string					Name;
+		string						Name;
 	};
 
 	struct ColorHistogram
@@ -207,7 +208,7 @@ namespace Causality
 
 		void SetID(int idx) { JointBasicData::ID = idx; }
 
-		void SetName(const std::string& name) { JointBasicData::Name = name; }
+		void SetName(const string& name) { JointBasicData::Name = name; }
 		void SetParentID(int id) { JointBasicData::ParentID = id; }
 
 		const JointSemanticProperty& AssignSemanticsBasedOnName();
@@ -298,7 +299,7 @@ namespace Causality
 
 	public:
 
-		StaticArmature(gsl::array_view<JointBasicData> data);
+		StaticArmature(array_view<JointBasicData> data);
 
 		// deserialization
 		StaticArmature(std::istream& file);
@@ -310,7 +311,7 @@ namespace Causality
 		self_type& operator=(const self_type& rhs) = delete;
 		self_type& operator=(self_type&& rhs);
 
-		//void GetBlendMatrices(_Out_ DirectX::XMFLOAT4X4* pOut);
+		//void GetBlendMatrices(_Out_ XMFLOAT4X4* pOut);
 		virtual joint_type* at(int index) override;
 		virtual joint_type* root() override;
 		virtual size_t size() const override;

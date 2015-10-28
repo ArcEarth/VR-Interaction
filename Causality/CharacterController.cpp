@@ -324,7 +324,7 @@ public:
 			}
 
 			auto _x = (Xabpv.cast<float>() - pController->uXabpv) * pController->XabpvT;
-			auto _xd = _x.cast<double>();
+			auto _xd = _x.cast<double>().eval();
 
 			for (auto& block : blocks)
 			{
@@ -794,16 +794,24 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 MatrixXf CharacterController::GenerateXapv(const std::vector<int> &activeParts)
 {
 	// pvDim without
-	int pvDim = m_cpxClipinfo.PvFacade.GetAllPartDimension();
+	auto& allClipinfo = m_cpxClipinfo;
+	auto& pvFacade = allClipinfo.PvFacade;
+	int pvDim = pvFacade.GetAllPartDimension();
 	assert(pvDim > 0);
 
-	auto& allClipinfo = m_cpxClipinfo;
 
 	MatrixXf Xabpv(allClipinfo.ClipFrames(), size(activeParts) * pvDim);
 
+	ArrayXi incX(pvDim);
+	incX.setLinSpaced(0, pvDim - 1);
+
 	MatrixXi apMask = VectorXi::Map(activeParts.data(), activeParts.size()).replicate(1, pvDim).transpose();
+
+
+	apMask.array() = apMask.array() * pvDim + incX.replicate(1,apMask.cols());
+
 	auto maskVec = VectorXi::Map(apMask.data(), apMask.size());
-	selectCols(allClipinfo.PvFacade.GetAllPartsSequence(), maskVec, &Xabpv);
+	selectCols(pvFacade.GetAllPartsSequence(), maskVec, &Xabpv);
 
 	Pca<MatrixXf> pcaXabpv(Xabpv);
 	int dXabpv = pcaXabpv.reducedRank(g_CharacterPcaCutoff);

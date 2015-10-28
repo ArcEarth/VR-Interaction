@@ -1,10 +1,11 @@
 #pragma once
 
-#include "BCL.h"
-#include <Leap.h>
+#include "Math3D.h"
 #include <memory>
 #include "Interactive.h"
-//#include "Common\Locatable.h"
+#include "Events.h"
+
+#include <Leap.h>
 
 namespace Causality
 {
@@ -27,9 +28,9 @@ namespace Causality
 
 			//void SetMotionProvider(DirectX::ILocatable* pHeadLoc, DirectX::IOriented *pHeadOrient);
 			// Assign Leap motion's coordinate in world space
-			void SetDeviceWorldCoord(const DirectX::Matrix4x4 &m);
+			void SetDeviceWorldCoord(const Matrix4x4 &m);
 			// The transform matrix convert Leap Coordinate to World coordinate
-			DirectX::XMMATRIX ToWorldTransform() const;
+			XMMATRIX ToWorldTransform() const;
 
 			Event<const Leap::Controller &>		FrameArrived;
 			Event<const Leap::Controller &>		DeviceConnected;
@@ -41,7 +42,7 @@ namespace Causality
 		private:
 			class Listener;
 			std::unique_ptr<Listener>	pListener;
-			DirectX::Matrix4x4			Coordinate;
+			Matrix4x4					Coordinate;
 			//DirectX::ILocatable			*pHeadLocation;
 			//DirectX::IOriented			*pHeadOrientation;
 			bool						PrevConnectionStates;

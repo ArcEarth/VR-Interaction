@@ -3,6 +3,7 @@
 #include <DirectXHelper.h>
 #include "FbxParser.h"
 #include <ShadowMapEffect.h>
+#include <boost\filesystem.hpp>
 
 using namespace Causality;
 using namespace boost::filesystem;
@@ -18,8 +19,26 @@ AssetDictionary::AssetDictionary()
 	animation_directory = asset_directory / "Animations";
 }
 
+template <typename T>
+inline static void internal_delete(T* &pData) {
+	if (pData) {
+		delete pData;
+		pData = nullptr;
+	}
+}
+
 AssetDictionary::~AssetDictionary()
 {
+	for (auto& pair : behaviers)
+		internal_delete(pair.second);
+	for (auto& pair : meshes)
+		internal_delete(pair.second);
+	//for (auto& pair : materials)
+	//	internal_delete(pair.second);
+	for (auto& pair : textures)
+		internal_delete(pair.second);
+	//for (auto& pair : effects)
+	//	internal_delete(pair.second);
 }
 
 inline std::wstring towstring(const string& str)
@@ -30,7 +49,7 @@ inline std::wstring towstring(const string& str)
 AssetDictionary::mesh_type * AssetDictionary::LoadObjMesh(const string & key, const string & fileName)
 {
 	typedef DefaultStaticModel mesh_type;
-	auto *pObjModel = DefaultStaticModel::CreateFromObjFile((mesh_directory / fileName).wstring(), render_device, texture_directory.wstring());
+	auto *pObjModel = DefaultStaticModel::CreateFromObjFile((mesh_directory / fileName).wstring(), render_device.Get(), texture_directory.wstring());
 	if (!pObjModel)
 		return nullptr;
 	meshes[key] = pObjModel;
@@ -62,7 +81,7 @@ AssetDictionary::mesh_type * AssetDictionary::LoadFbxMesh(const string & key, co
 	// Force clear Diffuse Map
 	mesh.Material.DiffuseMapName = "";
 
-	auto pModel = model_type::CreateFromData(&mesh, texture_directory.wstring(), render_device);
+	auto pModel = model_type::CreateFromData(&mesh, texture_directory.wstring(), render_device.Get());
 	//auto pModel = model_type::CreateCube(render_device,1.0f);
 
 	pModel->SetName(fileName);
@@ -138,7 +157,7 @@ AssetDictionary::mesh_type * Causality::AssetDictionary::LoadFbxMesh(const strin
 
 AssetDictionary::texture_type & AssetDictionary::LoadTexture(const string & key, const string & fileName)
 {
-	textures[key] = DirectX::Texture::CreateFromDDSFile(render_device, (texture_directory / fileName).c_str());
+	textures[key] = DirectX::Texture::CreateFromDDSFile(render_device.Get(), (texture_directory / fileName).c_str());
 	return *textures[key];
 }
 
@@ -215,13 +234,14 @@ AssetDictionary::audio_clip_type & AssetDictionary::GetAudio(const string & key)
 	return GetAsset<audio_clip_type>(key);
 }
 
-void AssetDictionary::SetRenderDevice(RenderDevice & device)
+void AssetDictionary::SetRenderDevice(IRenderDevice * device)
 {
 	render_device = device;
 	if (!effect_factory)
 	{
-		effect_factory = std::make_unique<DirectX::EffectFactory>(device.Get());
-		effect_factory->SetDirectory(texture_directory.c_str());
+		auto up_factory = std::make_unique<DirectX::EffectFactory>(device);
+		up_factory->SetDirectory(texture_directory.c_str());
+		effect_factory = move(up_factory);
 
 		//auto pBEffect = std::make_shared<DirectX::BasicEffect>(device.Get());
 		//pBEffect->SetVertexColorEnabled(false);
@@ -229,7 +249,7 @@ void AssetDictionary::SetRenderDevice(RenderDevice & device)
 		//pBEffect->EnableDefaultLighting();
 		//default_effect = pBEffect;
 
-		auto pMainEffect = std::make_shared<DirectX::ShadowMapEffect>(device.Get());
+		auto pMainEffect = std::make_shared<DirectX::ShadowMapEffect>(device);
 		pMainEffect->SetWeightsPerVertex(0); // Disable Skinning
 		pMainEffect->SetLightEnabled(0, true);
 		pMainEffect->SetLightView(0,XMMatrixLookToRH(XMVectorSet(0, 5, 0, 1), XMVectorSet(0, -1, 0, 0), XMVectorSet(0, 0, -1,0)));
@@ -238,7 +258,7 @@ void AssetDictionary::SetRenderDevice(RenderDevice & device)
 
 		default_skinned_effect = default_effect;
 
-		default_envirument_effect = std::make_shared<DirectX::EnvironmentMapEffect>(device.Get());
+		default_envirument_effect = std::make_shared<DirectX::EnvironmentMapEffect>(device);
 
 		//auto pSEffect = std::make_shared<DirectX::DGSLEffect>(device.Get(),nullptr,true);
 		////auto pSEffect = std::make_shared<DirectX::SkinnedEffect>(device.Get());

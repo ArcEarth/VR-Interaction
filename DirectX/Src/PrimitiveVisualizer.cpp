@@ -283,6 +283,7 @@ namespace DirectX{
 		m_pEffect->SetVertexColorEnabled(true);
 		m_pEffect->Apply(m_pContext.Get());
 		m_pEffect->SetDiffuseColor(Colors::White.v);
+		m_pEffect->SetAlpha(1.0f);
 		m_pContext->IASetInputLayout(m_pInputLayout.Get());
 		m_pDirectXBatch->Begin();
 	}

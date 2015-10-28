@@ -3,6 +3,8 @@
 #include <PrimitiveVisualizer.h>
 #include <ShadowMapGenerationEffect.h>
 #include "Settings.h"
+#include <Models.h>
+#include <ShaderEffect.h>
 
 using namespace Causality;
 using namespace DirectX;
@@ -149,6 +151,11 @@ bool CharacterObject::StopAction(time_seconds transition_time)
 	return true;
 }
 
+const XMMATRIX * Causality::CharacterObject::GetBoneTransforms() const
+{
+	return reinterpret_cast<const XMMATRIX*>(m_BoneTransforms.data());
+}
+
 void CharacterObject::SetFreeze(bool freeze)
 {
 }
@@ -156,6 +163,11 @@ void CharacterObject::SetFreeze(bool freeze)
 void CharacterObject::SetRenderModel(DirectX::Scene::IModelNode * pMesh, int LoD)
 {
 	m_pSkinModel = dynamic_cast<ISkinningModel*>(pMesh);
+	m_BoneTransforms.resize(m_pSkinModel->GetBonesCount());
+	//XMMATRIX identity = XMMatrixIdentity();
+	//for (auto& t : m_BoneTransforms)
+	//	XMStoreA(t, identity);
+
 	if (m_pSkinModel == nullptr && pMesh != nullptr)
 	{
 		throw std::exception("Render model doesn't support Skinning interface.");
@@ -183,7 +195,7 @@ void CharacterObject::Update(time_seconds const & time_delta)
 
 	if (m_pSkinModel)
 	{
-		auto pBones = reinterpret_cast<XMFLOAT4X4*>(m_pSkinModel->GetBoneTransforms());
+		auto pBones = m_BoneTransforms.data();
 		BoneHiracheryFrame::TransformMatrix(pBones, Armature().default_frame(), m_CurrentFrame, m_pSkinModel->GetBonesCount());
 	}
 }
@@ -200,10 +212,17 @@ bool CharacterObject::IsVisible(const BoundingGeometry & viewFrustum) const
 	return VisualObject::IsVisible(viewFrustum);
 }
 
-void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect)
+void CharacterObject::Render(IRenderContext * pContext, DirectX::IEffect* pEffect)
 {
 	if (g_ShowCharacterMesh)
+	{
+		auto pSkinEffect = dynamic_cast<IEffectSkinning*>(pEffect);
+	
+		if (pSkinEffect)
+			pSkinEffect->SetBoneTransforms(GetBoneTransforms(), m_BoneTransforms.size());
+
 		VisualObject::Render(pContext, pEffect);
+	}
 
 	auto pLS = dynamic_cast<IEffectLightsShadow*>(pEffect);
 	if (g_DebugView && pLS != nullptr)
@@ -225,8 +244,21 @@ void CharacterObject::Render(RenderContext & pContext, DirectX::IEffect* pEffect
 		DrawArmature(this->Armature(), frame, color, trans, g_DebugArmatureThinkness / this->GetGlobalTransform().Scale.x);
 		pContext->OMSetDepthStencilState(pDSS, StencilRef);
 
-		//color = Colors::LimeGreen.v;
-		//DrawArmature(this->Armature(), this->Armature().default_frame(), color, trans);
+		// Draw bone bounding boxes
+		auto& drawer = g_PrimitiveDrawer;
+		drawer.SetWorld(trans);
+		drawer.Begin();
+		if (g_ShowCharacterMesh && m_pSkinModel)
+		{
+			auto boxes = m_pSkinModel->GetBoneBoundingBoxes();
+			for (int i = 0; i < m_pArmature->size(); i++)
+			{
+				BoundingGeometry geo(boxes[i]);
+				geo.Transform(geo, XMLoadA(m_BoneTransforms[i]));
+				DrawGeometryOutline(geo, Colors::Orange);
+			}
+		}
+		drawer.End();
 	}
 }
 
@@ -318,12 +350,13 @@ void Causality::DrawArmature(const IArmature & armature, const BoneHiracheryFram
 	//g_PrimitiveDrawer.End();
 }
 
-void CharacterGlowParts::Render(RenderContext & pContext, DirectX::IEffect * pEffect)
+void CharacterGlowParts::Render(IRenderContext * pContext, DirectX::IEffect * pEffect)
 {
 	auto pSGEffect = dynamic_cast<ShadowMapGenerationEffect*> (pEffect);
 	if (pSGEffect && pSGEffect->GetShadowFillMode() == ShadowMapGenerationEffect::BoneColorFill)
 	{
 		pSGEffect->SetBoneColors(reinterpret_cast<XMVECTOR*>(m_BoneColors.data()), m_BoneColors.size());
+		pSGEffect->SetBoneTransforms(m_pCharacter->GetBoneTransforms(),m_BoneColors.size());
 		auto pModel = m_pCharacter->RenderModel();
 		if (pModel)
 		{

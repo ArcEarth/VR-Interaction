@@ -1,9 +1,12 @@
 #include "pch_bcl.h"
 #include "OculusRift.h"
-#include <OVR.h>
 #define OVR_D3D_VERSION 11
-#include <../Src/OVR_CAPI_D3D.h> // God dame this to put a important header inside here!
+#include <OVR_CAPI.h>
+#include <OVR_CAPI_D3D.h> // God dame this to put a important header inside here!
 #include <SpriteBatch.h>
+
+#pragma comment(lib,"LibOVR.lib")
+
 using namespace Causality;
 using namespace Causality::Devices;
 using namespace std;
@@ -13,10 +16,12 @@ class OculusRift::Impl
 public:
 	static int InstanceCount;
 	int				   HMDIndex;
-	ovrHmd             HMD;
 	ID3D11DeviceContext			   *pDeviceContext;
 	DirectX::RenderTarget			EyeTextures[2];
 	//DirectX::DepthStencilBuffer	   DepthStencilBuffer;
+
+	ovrHmd             HMD;
+	ovrGraphicsLuid	   luid;
 	ovrTrackingState   OvrTrackingState;
 	ovrD3D11Texture	   OvrEyeTextures[2];
 	ovrPosef		   OvrEyePose[2];
@@ -33,7 +38,9 @@ public:
 				return;
 		}
 
-		HMD = ovrHmd_Create(HMDIndex);
+		ovrResult result = ovr_Create(&HMD, &luid);
+		if (!OVR_SUCCESS(result))
+			throw runtime_error("Oculus Rift creation failed.");
 
 		if (HMD)
 			InstanceCount++;
@@ -44,7 +51,7 @@ public:
 	~Impl()
 	{
 		if (HMD)
-			ovrHmd_Destroy(HMD);
+			ovr_Destroy(HMD);
 		InstanceCount--;
 		if (InstanceCount == 0)
 		{
@@ -61,18 +68,15 @@ public:
 			//MessageBoxA(NULL, "Oculus Rift not detected.", "", MB_OK);
 			return(E_FAIL);
 		}
-		if (HMD->ProductName[0] == '\0')
-		{
-			//MessageBoxA(NULL, "Rift detected, display not enabled.", "", MB_OK);
-			return(E_FAIL);
-		}
 		//Setup Window and Graphics - use window frame if relying on Oculus driver
 		const int backBufferMultisample = pDeviceResource->GetMultiSampleCount();
 
+		auto desc = ovr_GetHmdDesc(HMD);
+		
 		//Configure Stereo settings.
-		auto recommenedTex0Size = ovrHmd_GetFovTextureSize(HMD, ovrEye_Left, HMD->DefaultEyeFov[0], 1.0f);
-		auto recommenedTex1Size = ovrHmd_GetFovTextureSize(HMD, ovrEye_Right, HMD->DefaultEyeFov[1], 1.0f);
-		OVR::Sizei RenderTargetSize;
+		auto recommenedTex0Size = ovr_GetFovTextureSize(HMD, ovrEye_Left, desc.DefaultEyeFov[0], 1.0f);
+		auto recommenedTex1Size = ovr_GetFovTextureSize(HMD, ovrEye_Right, desc.DefaultEyeFov[1], 1.0f);
+		ovrSizei RenderTargetSize;
 		RenderTargetSize.w = recommenedTex0Size.w + recommenedTex1Size.w;
 		RenderTargetSize.h = max(recommenedTex0Size.h, recommenedTex1Size.h);
 
@@ -89,9 +93,9 @@ public:
 			viewport.Width = (float)w / 2;
 			viewport.Height = (float)h;
 
-			EyeTextures[0] = target.Subview(&viewport);
+			EyeTextures[0] = target.Subview(viewport);
 			viewport.TopLeftX = (float)w / 2;
-			EyeTextures[1] = target.Subview(&viewport);
+			EyeTextures[1] = target.Subview(viewport);
 
 			// Query D3D texture data.
 			OvrEyeTextures[0].D3D11.Header.API = ovrRenderAPI_D3D11;
@@ -108,20 +112,21 @@ public:
 
 		// Initialize eye rendering information.
 		// The viewport sizes are re-computed in case RenderTargetSize changed due to HW limitations.
-		ovrFovPort eyeFov[2] = { HMD->DefaultEyeFov[0], HMD->DefaultEyeFov[1] };
+		ovrFovPort eyeFov[2] = { desc.DefaultEyeFov[0],desc.DefaultEyeFov[1] };
 
 		auto outputsize = pDeviceResource->GetOutputSize();
 
 		// Configure d3d11.
 		ovrD3D11Config d3d11cfg;
 		d3d11cfg.D3D11.Header.API = ovrRenderAPI_D3D11;
-		d3d11cfg.D3D11.Header.BackBufferSize = OVR::Sizei(outputsize.Width, outputsize.Height);
+		d3d11cfg.D3D11.Header.BackBufferSize = ovrSizei{ (int)outputsize.Width, (int)outputsize.Height };
 		d3d11cfg.D3D11.Header.Multisample = backBufferMultisample;
 		d3d11cfg.D3D11.pDevice = pDeviceResource->GetD3DDevice();
 		d3d11cfg.D3D11.pDeviceContext = pDeviceResource->GetD3DDeviceContext();
 		d3d11cfg.D3D11.pBackBufferRT = pDeviceResource->GetBackBufferRenderTargetView();
 		d3d11cfg.D3D11.pSwapChain = pDeviceResource->GetSwapChain();
 
+		OVR_D3D_VERSION
 		Result = ovrHmd_ConfigureRendering(HMD, &d3d11cfg.Config,
 			ovrDistortionCap_Chromatic | ovrDistortionCap_HqDistortion,
 			eyeFov, EyeRenderDesc);

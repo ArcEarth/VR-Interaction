@@ -155,8 +155,6 @@ namespace Causality
 	{
 	public:
 		std::vector<P2PTransform> ActiveParts;	// Direct controlled by input armature, with stylized IK
-		std::vector<P2PTransform> DrivenParts;	// These parts will be drive by active parts on Cca base than stylized IK
-		std::vector<P2PTransform> AccesseryParts; // These parts will be animated based on active parts (and driven parts?)
 
 		PartilizedTransform(const ShrinkedArmature& sParts, CharacterController & controller);
 		using BlockizedArmatureTransform::BlockizedArmatureTransform;
@@ -169,11 +167,14 @@ namespace Causality
 
 		void GenerateDrivenAccesseryControl();
 
+	public:
+		std::vector<P2PTransform> DrivenParts;	// These parts will be drive by active parts on Cca base than stylized IK
+		std::vector<P2PTransform> AccesseryParts; // These parts will be animated based on active parts (and driven parts?)
 	private:
-		CharacterController			*m_pController;
-
 		typedef std::pair<DirectX::Vector3, DirectX::Vector3> LineSegment;
-		std::vector<LineSegment> * pHandles;
+
+		CharacterController			*m_pController;
+		std::vector<LineSegment>	*m_pHandles;
 
 		const Eigen::RowVectorXf& GetInputVector(int SrcIdx);
 

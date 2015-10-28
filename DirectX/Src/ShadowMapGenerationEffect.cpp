@@ -137,6 +137,7 @@ public:
 
 		ApplyShaders(deviceContext, GetCurrentShaderPermutation());
 		auto pSampler = commonStates.PointWrap();
+		deviceContext->OMSetDepthStencilState(commonStates.DepthDefault(), -1);
 		deviceContext->OMSetBlendState(commonStates.Opaque(), g_XMOne.f, -1);
 		deviceContext->PSSetSamplers(0, 1, &pSampler);
 	}

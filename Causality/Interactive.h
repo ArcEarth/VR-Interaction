@@ -1,10 +1,15 @@
 #pragma once
-#include <DirectXMathExtend.h>
-#include <Leap.h>
-#include "Kinect.h"
+#include "Math3D.h"
+
+namespace Leap
+{
+	class Controller;
+};
 
 namespace Causality
 {
+	struct TrackedBody;
+
 	enum CursorButtonEnum
 	{
 		LButton,
@@ -50,17 +55,17 @@ namespace Causality
 	struct CursorMoveEventArgs
 	{
 		// Relative position to window's top left corner
-		DirectX::Vector2 Position;
-		DirectX::Vector2 PositionDelta;
+		Vector2 Position;
+		Vector2 PositionDelta;
 		float WheelDelta;
 	};
 
 	class ICursorController abstract
 	{
-		virtual DirectX::Vector2 CurrentPosition() const = 0;
-		virtual DirectX::Vector2 DeltaPosition() const = 0;
+		virtual Vector2 CurrentPosition() const = 0;
+		virtual Vector2 DeltaPosition() const = 0;
 		virtual bool IsButtonDown(CursorButtonEnum button) const = 0;
-		virtual void SetCursorPosition(const DirectX::Vector2& pos) = 0;
+		virtual void SetCursorPosition(const Vector2& pos) = 0;
 	};
 
 	struct CursorButtonEvent
@@ -109,7 +114,7 @@ namespace Causality
 	struct UserHandsEventArgs
 	{
 		const Leap::Controller& sender;
-		DirectX::Matrix4x4 toWorldTransform;
+		Matrix4x4 toWorldTransform;
 	};
 
 	class IUserHandsInteractive abstract

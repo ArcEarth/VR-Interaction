@@ -7,7 +7,9 @@
 //#include <SkyDome.h>
 #include "PlayerProxy.h"
 #include "CharacterObject.h"
+#include "BasicKeyboardMouseControlLogic.h"
 #include "LightObject.h"
+#include "SkyDome.h"
 #include "Settings.h"
 
 using namespace tinyxml2;
@@ -18,6 +20,7 @@ using namespace std;
 void ParseSceneSettings(tinyxml2::XMLElement * nScene);
 void ParseLightObjectAttributes(Light *pLight, tinyxml2::XMLElement * node);
 void ParseCameraObjectAttributes(SingleViewCamera *pCamera, tinyxml2::XMLElement * node);
+void ParseHmdCameraObjectAttributes(HMDCamera *pCamera, tinyxml2::XMLElement * node);
 //void ParseShadowCameraObjectAttributes(SoftShadowCamera *pCamera, tinyxml2::XMLElement * node);
 void ParseVisualObjectAttributes(VisualObject* pObj, tinyxml2::XMLElement * node);
 void ParseChaacterObjectAttributes(CharacterObject *pCreature, tinyxml2::XMLElement * node);
@@ -280,7 +283,7 @@ sptr<AssetDictionary::material_type> ParseMaterialAsset(AssetDictionary & assets
 	data.EmissiveColor = color;
 	GetAttribute(node, "reflection_color", color);
 	data.RelfectionColor = color;
-	auto pPhong = std::make_shared<DirectX::Scene::PhongMaterial>(data, assets.GetTextureDirectory().wstring(), assets.GetRenderDevice().Get());
+	auto pPhong = std::make_shared<DirectX::Scene::PhongMaterial>(data, assets.GetTextureDirectory().wstring(), assets.GetRenderDevice());
 	assets.AddMaterial(node->Attribute("name"), pPhong);
 	return pPhong;
 }
@@ -454,7 +457,7 @@ void ParseSkydomeObjectAttributes(SkyDome* pSkyDome, XMLElement* node)
 	auto& assets = pSkyDome->Scene->Assets();
 	auto pEffect = assets.GetEffect("default_environment");
 
-	pSkyDome->CreateDeviceResource(assets.GetRenderDevice().Get(), dynamic_cast<DirectX::EnvironmentMapEffect*>(pEffect));
+	pSkyDome->CreateDeviceResource(assets.GetRenderDevice(), dynamic_cast<DirectX::EnvironmentMapEffect*>(pEffect));
 
 
 	if (bg[0] == '{')
@@ -481,7 +484,7 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	using namespace DirectX;
 
 	auto& assets = scene.Assets();
-	RenderDevice device;
+	IRenderDevice *device = scene.GetRenderDevice();
 	uptr<SceneObject> pObj;
 
 	// parent property
@@ -502,9 +505,16 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	}
 	else if (!strcmp(node->Name(), "shadow_camera"))
 	{
-		auto pCamera = new SoftShadowCamera(scene.GetRenderDevice().Get(), scene.Canvas());
+		auto pCamera = new PercentCloserShadowCamera(scene.GetRenderDevice(), scene.Canvas());
 		pCamera->Scene = &scene;
 		ParseCameraObjectAttributes(pCamera, node);
+		pObj.reset(pCamera);
+	}
+	else if (!strcmp(node->Name(), "hmd_camera"))
+	{
+		auto pCamera = new HMDCamera(scene.GetRenderDevice(), scene.Canvas());
+		pCamera->Scene = &scene;
+		ParseHmdCameraObjectAttributes(pCamera, node);
 		pObj.reset(pCamera);
 	}
 	else if (!strcmp(node->Name(), "light"))
@@ -689,10 +699,85 @@ void ParseCameraObjectAttributes(SingleViewCamera *pCamera, tinyxml2::XMLElement
 		rtnode = rtnode->FirstChildElement("render_target");
 		GetAttribute(rtnode, "width", width);
 		GetAttribute(rtnode, "height", height);
-		auto& device = pScene->Assets().GetRenderDevice();
+		auto device = pScene->GetRenderDevice();
 		pEffectRender->SetRenderTarget(RenderTarget(device, width, height));
 	}
 }
+
+void ParseHmdCameraObjectAttributes(HMDCamera *pCamera, tinyxml2::XMLElement * node)
+{
+	using namespace DirectX;
+	ParseSceneObjectAttributes(pCamera, node);
+	auto rtnode = node->FirstChildElement("camera.render_target");
+	bool enable_stereo;
+	node->QueryBoolAttribute("enable_stereo", &enable_stereo);
+	float fov = 70, aspect = 1, hfov, wfov;
+	float _near = 0.1f, _far = 20.0f;
+	bool is_primary = false;
+	Vector3 focus = (XMVECTOR)pCamera->GetPosition() + XMVector3Rotate(Camera::Foward, pCamera->GetOrientation());
+	Vector3 up = g_XMIdentityR1.v;
+	Color color = Colors::White.v;
+	bool perspective = true;
+	GetAttribute(node, "background", color);
+	GetAttribute(node, "fov", fov);
+	GetAttribute(node, "near", _near);
+	GetAttribute(node, "far", _far);
+	GetAttribute(node, "focus", focus);
+	GetAttribute(node, "up", up);
+	GetAttribute(node, "aspect", aspect);
+	GetAttribute(node, "primary", is_primary);
+	GetAttribute(node, "perspective", perspective);
+
+	auto pRenderControl = pCamera->GetViewRenderer(0, pCamera->ViewRendererCount() - 1);
+	auto pEffectRender = dynamic_cast<EffectRenderControl*>(pRenderControl);
+	//pEffectRender->SetBackground(color);
+
+	for (int i = 0; i < pCamera->ViewCount(); i++)
+	{
+		auto pView = dynamic_cast<CameraViewControl*>(pCamera->GetView(i));
+		pView->FocusAt(focus, up);
+
+		if (perspective)
+		{
+			pView->SetPerspective(XMConvertToRadians(fov), aspect, _near, _far);
+		}
+		else
+		{
+			GetAttribute(node, "hfov", hfov);
+			GetAttribute(node, "wfov", wfov);
+			pView->SetOrthographic(wfov, hfov, _near, _far);
+		}
+
+		auto pScene = pCamera->Scene;
+		if (is_primary)
+		{
+			pScene->SetAsPrimaryCamera(pCamera);
+			auto& canvas = pScene->Canvas();
+			pView->SetAspectRatio((float)canvas.ColorBuffer().Width() / (float)canvas.ColorBuffer().Height());
+			// last renderer of the view
+			for (size_t i = 0; i < pCamera->ViewRendererCount(); i++)
+			{
+				auto pRenderControl = pCamera->GetViewRenderer(0, i);
+				auto pEffectRender = dynamic_cast<EffectRenderControl*>(pRenderControl);
+				if (pEffectRender->GetRenderTarget().ColorBuffer() == nullptr)
+				{
+					pEffectRender->SetRenderTarget(canvas);
+				}
+			}
+		}
+
+		if (rtnode)
+		{
+			int width, height;
+			rtnode = rtnode->FirstChildElement("render_target");
+			GetAttribute(rtnode, "width", width);
+			GetAttribute(rtnode, "height", height);
+			auto device = pScene->GetRenderDevice();
+			pEffectRender->SetRenderTarget(RenderTarget(device, width, height));
+		}
+	}
+}
+
 
 void ParseLightObjectAttributes(Light* pLight, tinyxml2::XMLElement * node)
 {

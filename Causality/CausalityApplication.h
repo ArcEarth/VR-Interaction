@@ -1,30 +1,28 @@
 #pragma once
-#include <wrl/client.h>
-#include <d3d11_2.h>
-#include <d2d1_2.h>
-#include <d2d1effects_1.h>
-#include <dwrite_2.h>
-#include <wincodec.h>
-#include <DirectXColors.h>
-#include <DirectXMath.h>
-#include <memory>
-
 #include "NativeWindow.h"
-#include <iostream>
-#include "DeviceResources.h"
 #include "Renderable.h"
-#include "NativeWindow.h"
-#include "OculusRift.h"
-#include "CameraObject.h"
-#include "LeapMotion.h"
-#include "Kinect.h"
-#include <boost\filesystem.hpp>
 #include "Scene.h"
+#include <boost\filesystem\path.hpp>
+#include "Events.h"
+#include "SmartPointers.h"
+#include <StepTimer.h>
+#include <DeviceResources.h>
+
+namespace DirectX
+{
+
+}
 
 //extern std::unique_ptr<Causality::DXAppMain> m_main;
 
 namespace Causality
 {
+	namespace Devices
+	{
+		class OculusRift;
+		class LeapMotion;
+		class KinectSensor;
+	}
 
 	class App : public Application, public DirectX::IDeviceNotify
 	{
@@ -61,17 +59,17 @@ namespace Causality
 		boost::filesystem::path							ResourceDirectory;
 
 		// System resources
-		std::shared_ptr<DebugConsole>					pConsole;
-		std::shared_ptr<NativeWindow>					pWindow;
-		std::shared_ptr<DirectX::DeviceResources>		pDeviceResources;
+		sptr<DebugConsole>								pConsole;
+		sptr<NativeWindow>								pWindow;
+		sptr<DirectX::DeviceResources>					pDeviceResources;
 
-		RenderDevice									pDevice;
-		RenderContext									pContext;
+		cptr<IRenderDevice>								pDevice;
+		cptr<IRenderContext>							pContext;
 
 		// Extern Devices
-		std::shared_ptr<Devices::OculusRift>			pRift;
-		std::shared_ptr<Devices::KinectSensor>			pKinect;
-		std::shared_ptr<Devices::LeapMotion>			pLeap;
+		sptr<Devices::OculusRift>						pRift;
+		sptr<Devices::KinectSensor>						pKinect;
+		sptr<Devices::LeapMotion>						pLeap;
 
 		// Application Logic object
 		std::vector<std::unique_ptr<IAppComponent>>		Components;
@@ -79,10 +77,10 @@ namespace Causality
 
 
 		// Rendering loop timer.
-		DirectX::StepTimer m_timer;
+		DirectX::StepTimer								m_timer;
 
 		// Should be the first thing to destroy
-		std::vector<std::unique_ptr<Scene>>				Scenes;
+		std::vector<uptr<Scene>>						Scenes;
 
 	};
 

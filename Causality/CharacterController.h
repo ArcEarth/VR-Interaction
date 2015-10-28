@@ -51,8 +51,8 @@ namespace Causality
 
 		float CreateControlBinding(const ClipFacade& inputClip);
 
-		const std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& PvHandles() const;
-		std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>>& PvHandles();
+		const std::vector<std::pair<Vector3, Vector3>>& PvHandles() const;
+		std::vector<std::pair<Vector3, Vector3>>& PvHandles();
 
 
 		std::atomic_bool			IsReady;
@@ -60,11 +60,11 @@ namespace Causality
 		BoneHiracheryFrame			PotientialFrame;
 
 		float						CharacterScore;
-		DirectX::Vector3			MapRefPos;
-		DirectX::Vector3			CMapRefPos;
-		mutable DirectX::Vector3	LastPos;
-		DirectX::Quaternion			MapRefRot;
-		DirectX::Quaternion			CMapRefRot;
+		Vector3						MapRefPos;
+		Vector3						CMapRefPos;
+		mutable Vector3				LastPos;
+		Quaternion					MapRefRot;
+		Quaternion					CMapRefRot;
 		int							CurrentActionIndex;
 
 		Eigen::MatrixXf				XabpvT; // Pca matrix of Xabpv
@@ -72,8 +72,8 @@ namespace Causality
 
 
 		// Addtional velocity
-		DirectX::Vector3					Vaff;
-		std::vector<std::pair<DirectX::Vector3, DirectX::Vector3>> m_PvHandles;
+		Vector3					Vaff;
+		std::vector<std::pair<Vector3, Vector3>> m_PvHandles;
 
 		// Principle displacement driver
 		CharacterClipinfo& GetClipInfo(const std::string& name);

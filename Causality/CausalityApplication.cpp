@@ -4,6 +4,12 @@
 //#include "Content\SampleFpsTextRenderer.h"
 #include <CommonStates.h>
 #include <PrimitiveVisualizer.h>
+#include <boost\filesystem.hpp>
+#include <ppltasks.h>
+
+#include "Kinect.h"
+#include "OculusRift.h"
+#include "LeapMotion.h"
 
 using namespace Causality;
 using namespace std;
@@ -44,6 +50,35 @@ App::~App()
 	}
 }
 
+Causality::Application::Application()
+{
+	hInstance = GetModuleHandle(NULL);
+}
+
+Causality::Application::~Application()
+{
+}
+
+int Causality::Application::Run(const std::vector<std::string>& args)
+{
+	OnStartup(args);
+	while (!exitProposal)
+	{
+		MSG msg;
+		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		else
+		{
+			OnIdle();
+		}
+	}
+	OnExit();
+	return S_OK;
+}
+
 void Application::Exit()
 {
 	for (auto& p : WindowsLookup)
@@ -62,7 +97,7 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 	// Initialize Windows
 	pConsole = make_shared<DebugConsole>();
 	pConsole->Initialize(std::string("Ghost Trick Consle"), 1200, 800, false);
-	MoveWindow(pConsole->Handle(), 1920, 20, 1200, 800, false);
+	MoveWindow(pConsole->Handle(), 2000, 100, 1200, 800, false);
 
 	//pRift = Devices::OculusRift::GetForCurrentView();
 
@@ -71,7 +106,8 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 		pWindow->Initialize(std::string("Ghost Trick"), 1920, 1080, false);
 	else
 	{
-		auto res = pRift->Resoulution();
+		//auto res = pRift->Resoulution();
+		Vector2 res = { 1920, 1080 };
 		pWindow->Initialize(std::string("Ghost Trick"),(unsigned) res.x, (unsigned) res.y, false);
 	}
 	//bool useOvr = Devices::OculusRift::Initialize();
@@ -89,7 +125,7 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 	pDevice.Attach(pDeviceResources->GetD3DDevice());
 	pContext.Attach(pDeviceResources->GetD3DDeviceContext());
 
-	Visualizers::g_PrimitiveDrawer.Initialize(pContext);
+	Visualizers::g_PrimitiveDrawer.Initialize(pContext.Get());
 
 	// Oculus Rift
 	//if (pRift)
@@ -107,9 +143,9 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 	
 	Scenes.emplace_back(new Scene);
 	auto& selector = Scenes.back();
-	selector->SetRenderDeviceAndContext(pDevice, pContext);
+	selector->SetRenderDeviceAndContext(pDevice.Get(), pContext.Get());
 	selector->SetCanvas(pDeviceResources->GetBackBufferRenderTarget());
-	task<void> loadScene([&]() {
+	concurrency::task<void> loadScene([&]() {
 		cout << "[Scene] Loading ...";
 		CoInitializeEx(NULL, COINIT::COINIT_APARTMENTTHREADED);
 		
@@ -208,7 +244,7 @@ void Causality::App::OnIdle()
 	pDeviceResources->GetBackBufferRenderTarget().Clear(pContext.Get());
 	for (auto& pScene : Scenes)
 	{
-		pScene->Render(pContext);
+		pScene->Render(pContext.Get());
 	}
 
 	pDeviceResources->Present();
@@ -234,20 +270,19 @@ void Causality::App::SetResourcesDirectory(const std::wstring & dir)
 
 void XM_CALLCONV Causality::App::RenderToView(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection)
 {
-	auto pContext = pDeviceResources->GetD3DDeviceContext();
-	RenderContext context(pContext);
-	for (auto& pScene : Components)
-	{
-		auto pViewable = dynamic_cast<IViewable*>(pScene.get());
-		if (pViewable)
-		{
-			pViewable->UpdateViewMatrix(view,projection);
-			//pViewable->UpdateProjectionMatrix(projection);
-		}
-		auto pRenderable = pScene->As<IRenderable>();
-		if (pRenderable)
-			pRenderable->Render(context);
-	}
+	//auto pContext = pDeviceResources->GetD3DDeviceContext();
+	//for (auto& pScene : Components)
+	//{
+	//	auto pViewable = dynamic_cast<IViewable*>(pScene.get());
+	//	if (pViewable)
+	//	{
+	//		pViewable->UpdateViewMatrix(view,projection);
+	//		//pViewable->UpdateProjectionMatrix(projection);
+	//	}
+	//	//auto pRenderable = pScene->As<IRenderable>();
+	//	//if (pRenderable)
+	//	//	pRenderable->Render(pContext);
+	//}
 }
 
 //inline void SampleListener::onConnect(const Leap::Controller & controller) {

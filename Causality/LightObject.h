@@ -1,5 +1,6 @@
 #pragma once
 #include "CameraObject.h"
+#include "VisualObject.h"
 #include <Textures.h>
 
 namespace Causality
@@ -27,11 +28,11 @@ namespace Causality
 
 	};
 	// class to introduce a parallel or point (perspective) light
-	class Light : public Camera, public ILight, public IRenderable
+	class Light : public Camera, public ILight, public IVisual
 	{
 	public:
 		Light();
-		Light(RenderDevice& deivce, const UINT& shadowResolution = 1024U);
+		Light(IRenderDevice* deivce, const UINT& shadowResolution = 1024U);
 
 		// using Camera to implement IViewControl interface
 		using Camera::ViewCount;
@@ -41,7 +42,7 @@ namespace Causality
 		using Camera::GetViewFrustum;
 
 		// IRenderControl
-		virtual void				Begin(RenderContext& context) override;
+		virtual void				Begin(IRenderContext* context) override;
 		virtual void				End() override;
 		virtual DirectX::IEffect*	GetRenderEffect() override;
 		virtual bool				AcceptRenderFlags(RenderFlags flags) override;
@@ -53,17 +54,17 @@ namespace Causality
 		void	SetBrightness(float bright) { m_Color.w = bright; }
 
 		void	DisableDropShadow();
-		void	EnableDropShadow(RenderDevice& deivce, const UINT& shadowResolution = 1024U);
+		void	EnableDropShadow(IRenderDevice* deivce, const UINT& shadowResolution = 1024U);
 		void	SetShadowMapBuffer(const DirectX::DepthStencilBuffer& depthBuffer);
 		virtual ID3D11ShaderResourceView* GetShadowMap() const override;
 
 		void	SetColorMap(ID3D11ShaderResourceView* lightMap) { m_pColorMap = lightMap; }
 		virtual ID3D11ShaderResourceView* GetColorMap() const override;
 
-		// Inherited via IRenderable, for Light source Visualization
+		// Inherited via IVisual, for Light source Visualization
 		virtual RenderFlags GetRenderFlags() const;
 		virtual bool IsVisible(const BoundingGeometry & viewFrustum) const override;
-		virtual void Render(RenderContext & context, DirectX::IEffect* pEffect = nullptr) override;
+		virtual void Render(IRenderContext * context, DirectX::IEffect* pEffect = nullptr) override;
 		virtual void XM_CALLCONV UpdateViewMatrix(DirectX::FXMMATRIX view, DirectX::CXMMATRIX projection) override;
 	private:
 		DirectX::Color						m_Color;

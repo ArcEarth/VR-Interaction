@@ -5,6 +5,9 @@
 #include "BoneFeatures.h"
 #include <iostream>
 #include <DirectXMathSSE4.h>
+
+#pragma comment(lib,"libfbxsdk.lib")
+
 namespace fbx = fbxsdk_2015_1;
 
 //using namespace fbx;
@@ -181,11 +184,11 @@ namespace Causality
 
 				if (filled[i] > ReducedBlendSize)
 				{
-					for (size_t j = 0; j < 4; j++)
+					for (size_t j = 0; j < std::min(4, filled[i]); j++)
 					{
 						for (size_t k = j + 1; k < filled[i]; k++)
 						{
-							if (blendWeights[i][k] > blendWeights[i][j])
+							if (blendWeights[i][j] < blendWeights[i][k])
 							{
 								std::swap(blendWeights[i][j], blendWeights[i][k]);
 								std::swap(blendIndices[i][j], blendIndices[i][k]);
@@ -196,11 +199,11 @@ namespace Causality
 
 					// if not, it will be significant artificts
 					assert(total > 0.65f);
-					blendWeights[i][0] += 1 - total;
-
-					//auto v = DirectX::XMLoadFloat4(&blendWeights[i][0]);
-					//v /= total;
-					//DirectX::XMStoreFloat4(&blendWeights[i][0], v);
+					//blendWeights[i][0] += 1 - total;
+					using DirectX::operator/=;
+					auto v = DirectX::XMLoadFloat4(&blendWeights[i][0]);
+					v /= total;
+					DirectX::XMStoreFloat4(&blendWeights[i][0], v);
 
 				}
 
@@ -408,6 +411,21 @@ namespace Causality
 			mesh.VertexCount = numPositions;
 			mesh.Vertices = new SkinMeshData::VertexType[numPositions];
 			mesh.Indices = new SkinMeshData::IndexType[mesh.IndexCount];
+			mesh.DefaultBoneTransforms = nullptr;
+
+			if (numBones > 1)
+			{
+				if (m_Armature == nullptr)
+					m_Armature = BuildArmatureFromBoneNodes();
+
+				mesh.DefaultBoneTransforms = new DirectX::XMFLOAT4X4[numBones];
+				for (int i = 0; i < numBones; i++)
+				{
+					DirectX::XMMATRIX boneTran = m_Armature->default_bone(i).GlobalTransform().TransformMatrix();
+					DirectX::XMStore(mesh.DefaultBoneTransforms[i], boneTran);
+				}
+			}
+
 			if (m_Rewind)
 			{
 				for (int i = 0; i < numPolygons; i++)

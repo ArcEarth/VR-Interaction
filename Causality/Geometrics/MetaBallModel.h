@@ -1,7 +1,9 @@
 #pragma once
-#ifndef _DEBUG
-#define PARALLEL_UPDATE
-#endif
+//#ifndef _DEBUG
+//#define PARALLEL_UPDATE
+//#endif
+
+
 #include "DirectXMathExtend.h"
 #include "Polygonizer.h"
 #include <DirectXCollision.h>
@@ -9,9 +11,13 @@
 #include <array>
 #include <SimpleMath.h>
 #include "BezierClip.h"
+
+#ifdef LAPLACIAN_INTERFACE
 #include <Eigen\Dense>
 #include <Eigen\Sparse>
 #include <boost\graph\adjacency_list.hpp>
+#endif
+
 #ifdef PARALLEL_UPDATE
 #include <ppl.h>
 #endif
@@ -48,7 +54,8 @@ namespace Geometrics{
 		static SegmentFunctionType SegementFunction(float a);
 	};
 
-	struct Metaball
+	XM_ALIGNATTR
+	struct Metaball : public DirectX::AlignedNew<DirectX::XMVECTOR>
 	{
 	public:
 		typedef Bezier::BezierClipping<float,6> ClipType;
@@ -72,7 +79,7 @@ namespace Geometrics{
 
 		// A Newton method to evalate the ratio (single sphere's iso surface radius)/(Effictive ratio)
 		static float EffectiveRadiusRatio(float ISO , float precise = 1e-6);
-		static bool Connected(const Metaball& lhs, const Metaball& rhs , float ISO);
+		static bool  Connected(const Metaball& lhs, const Metaball& rhs , float ISO);
 		static float ConnectionStrength(const Metaball& lhs, const Metaball& rhs , float ISO);
 	public:
 		float eval(DirectX::FXMVECTOR pos) const;
@@ -90,7 +97,6 @@ namespace Geometrics{
 			return Clipping;
 		}
 
-		
 		/// <summary>
 		/// Return the Ray intersection times to the bounding sphere of this metaball the specified origin.
 		/// If return 0 , means there is no interesection point at all , d1 and d2 == 0.0f
@@ -105,10 +111,12 @@ namespace Geometrics{
 		unsigned int Intersects(_In_ DirectX::FXMVECTOR Origin,_In_ DirectX::FXMVECTOR Direction,_Out_ float* const d1 = nullptr,_Out_ float* const d2 = nullptr) const;
 		//unsigned int ISOIntersects(_In_ float ISO ,_In_ DirectX::FXMVECTOR Origin,_In_ DirectX::FXMVECTOR Direction,_Out_ float* const d1 = nullptr,_Out_ float* const d2 = nullptr) const;
 	public:
+		XM_ALIGNATTR
 		DirectX::Vector3 Position;
 		float Radius;
+
 		// that's a optional data for extend the capability of our model
-		unsigned int BindingIndex;
+		//unsigned int BindingIndex;
 		//DirectX::SimpleMath::Color Color;
 		//std::vector<float>	BlendWeights;
 		//DirectX::XMUINT4 BlendIndex;
@@ -116,15 +124,15 @@ namespace Geometrics{
 		//float Coefficient;
 	};
 
-	typedef boost::adjacency_list<boost::vecS,boost::vecS,boost::undirectedS,boost::no_property,boost::property<boost::edge_weight_t, float>> ConnectionGraph;
-
 	class MetaBallModel 
 		: public Polygonizer::ImplicitFunction 
 	{
 	public:
+
+		typedef std::vector<Metaball, DirectX::XMAllocator> PrimitveVectorType;
 		MetaBallModel(void);
-		explicit MetaBallModel(const std::vector<Metaball> &primitives);
-		explicit MetaBallModel(std::vector<Metaball> &&primitives);
+		explicit MetaBallModel(const PrimitveVectorType &primitives);
+		explicit MetaBallModel(PrimitveVectorType &&primitives);
 		MetaBallModel& operator=(const MetaBallModel& rhs);
 		MetaBallModel& operator=(MetaBallModel&& rhs);
 		virtual ~MetaBallModel(void);
@@ -150,7 +158,7 @@ namespace Geometrics{
 		// Using this method to tessellates the implicit function defined surface into a mesh
 		// To use this , your vertex must have the member "float3 position" & "float3 normal"
 		template <typename _Tvertex, typename _TIndex>
-		void Tessellate(std::vector<_Tvertex> &Vertices,std::vector<_TIndex> &Indices,float precise);
+		void Triangulize(std::vector<_Tvertex> &Vertices,std::vector<_TIndex> &Indices,float precise);
 
 		// Travel form the main index to delete all not connected metaballs
 		// Optimize the structure of metaballs
@@ -158,6 +166,7 @@ namespace Geometrics{
 		size_t remove_if(const std::vector<bool>& deleted_flags);
 		std::vector<bool> flood_fill(size_t origin,const std::vector<bool>& deleted_flags);
 
+#pragma region Vector Interface
 	public:
 		inline Metaball& operator[](unsigned int index) { return Primitives[index]; }
 		inline const Metaball& operator[](unsigned int index) const { return Primitives[index]; }
@@ -172,6 +181,8 @@ namespace Geometrics{
 		inline std::vector<Metaball>::const_iterator cbegin() const { return Primitives.cbegin(); }
 		inline std::vector<Metaball>::const_iterator cend() const { return Primitives.cend(); }
 		inline Metaball& back() {return Primitives.back(); }
+#pragma endregion
+
 	protected:
 		void Travel(unsigned int index , std::vector<bool>& Arrived , const std::vector<bool>& remove_flags) const;
 		//void InitializePoygonizer(float Precise , unsigned int Boundry);
@@ -208,10 +219,9 @@ namespace Geometrics{
 		// This function returns the connection judgment if there is only A & B in space
 		bool IsTwoMetaballIntersect(const Metaball& lhs, const Metaball& rhs) const;
 		float EffictiveRadiusRatio() const { return m_EffectiveRatio; };
-		void CreateConnectionGraph(_Out_ ConnectionGraph& Graph) const;
 
 	public:
-		std::vector<Metaball>	Primitives;
+		PrimitveVectorType		Primitives;
 		DirectX::BoundingBox	BoundingBox;
 		DirectX::BoundingSphere BoundingSphere;
 		//ConnectionGraph			Connections;
@@ -224,7 +234,7 @@ namespace Geometrics{
 
 	//This method is EXTEMELY COSTLY. pay attention.
 	template <typename _Tvertex, typename _TIndex>
-	void MetaBallModel::Tessellate(std::vector<_Tvertex> &Vertices,std::vector<_TIndex> &Indices,float precise)
+	void MetaBallModel::Triangulize(std::vector<_Tvertex> &Vertices,std::vector<_TIndex> &Indices,float precise)
 	{
 		if (this->size() == 0) 
 			return;
@@ -272,6 +282,11 @@ namespace Geometrics{
 		//DirectX::BoundingSphere::CreateFromPoints(BoundingSphere,Vertices.size(),points,sizeof(DirectX::XMFLOAT3));
 	}
 
+#ifdef LAPLACIAN_INTERFACE
+	typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, boost::no_property, boost::property<boost::edge_weight_t, float>> ConnectionGraph;
+
+	void CreateConnectionGraph(const MetaBallModel &Volume, _Out_ ConnectionGraph& Graph) const;
+
 	// helper function for creating Laplace matrix for a given metaball graph
 	// the OuterWeights parameter is optional , to specify a all zero on ,
 	Eigen::SparseMatrix<float> CreateLaplacianMatrix(const MetaBallModel &Volume,const std::vector<float> &OuterWeights);
@@ -279,8 +294,10 @@ namespace Geometrics{
 	{
 		return CreateLaplacianMatrix(Volume,std::vector<float>());
 	}
+#endif
 
 } // Namespace
+
 #ifdef PARALLEL_UPDATE
 #undef PARALLEL_UPDATE
 #endif

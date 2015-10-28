@@ -12,6 +12,7 @@
 #include "Textures.h"
 #include "Material.h"
 #include "ConstantBuffer.h"
+#include "Locatable.h"
 
 namespace DirectX
 {
@@ -48,17 +49,42 @@ namespace DirectX
 			};
 		}
 
+		using Microsoft::WRL::ComPtr;
+		// Example
+		//{ "SV_Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		//{ "NORMAL",      0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		//{ "TANGENT",     0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		//{ "COLOR",       0, DXGI_FORMAT_R8G8B8A8_UNORM,     0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		//{ "TEXCOORD",    0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		//{ "BLENDINDICES",0, DXGI_FORMAT_R8G8B8A8_UINT,      0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		//{ "BLENDWEIGHT", 0, DXGI_FORMAT_R8G8B8A8_UNORM,     0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		struct VertexDescription
 		{
+			VertexDescription()
+				:NumElements(0), pInputElementDescs(nullptr)
+			{}
+
+			VertexDescription(UINT num, const D3D11_INPUT_ELEMENT_DESC* pDescs) 
+				: NumElements(num), pInputElementDescs(pDescs)
+			{}
+
 			UINT NumElements;
 			const D3D11_INPUT_ELEMENT_DESC* pInputElementDescs;
 
-			bool HasUVInfo() const;
-			bool HasNormal() const;
-			bool HasColor() const;
-			bool HasTagent() const;
-			bool HasBinormal() const;
-			bool HasSkinningWeights() const;
+			bool HasSemantic(LPCSTR semanticName) const
+			{
+				return std::find_if(pInputElementDescs, pInputElementDescs + NumElements, [semanticName](const D3D11_INPUT_ELEMENT_DESC& desc)
+				{
+					return !strcmp(desc.SemanticName, semanticName);
+				}) != pInputElementDescs + NumElements;
+			}
+
+			bool HasNormal() const { return HasSemantic("NORMAL"); }
+			bool HasColor() const { return HasSemantic("COLOR"); }
+			bool HasUV() const { return HasSemantic("TEXCOORD"); }
+			bool HasTagent() const { return HasSemantic("TANGENT"); }
+			bool HasBinormal() const { return HasSemantic("BINORMAL"); }
+			bool HasSkinningWeights() const { return HasSemantic("BLENDINDICES") && HasSemantic("BLENDWEIGHT"); }
 		};
 
 		// A Container of Vertex and Indices holding geometry information with Identical effect to render
@@ -70,29 +96,6 @@ namespace DirectX
 		struct MeshBuffer
 		{
 		public:
-			~MeshBuffer() {}
-
-			static ComPtr<ID3D11InputLayout>& LookupInputLayout(const D3D11_INPUT_ELEMENT_DESC* pInputElements, IEffect * pEffect);
-
-			template<class _TVertex>
-			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount,IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, UINT VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
-
-			template<class _TVertex, class _TIndex>
-			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount, const _TIndex* indices, unsigned int IndicesCount, IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST, UINT VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
-
-			void CreateInputLayout(ID3D11Device* pDevice, IEffect *pEffect);
-			void CreateInputLayout(ID3D11Device* pDevice, const void * pShaderByteCode, size_t pByteCodeLength);
-
-			bool Empty() const { return VertexCount == 0; }
-			template<class TVertex>
-			void SetInputElementDescription()
-			{
-				static_assert(TVertex::InputElementCount, "Valiad Vertex Type should have static InputElements/InputElementCount member");
-				InputElementCount = TVertex::InputElementCount;
-				pInputElements = TVertex::InputElements;
-				VertexStride = sizeof(TVertex);
-			}
-
 			typedef std::vector<std::unique_ptr<MeshBuffer>> Collection;
 
 			uint32_t                                                IndexCount;
@@ -105,10 +108,38 @@ namespace DirectX
 			UINT													InputElementCount; // Vertex Description info
 			const D3D11_INPUT_ELEMENT_DESC*							pInputElements; // Vertex Description info
 
-			Microsoft::WRL::ComPtr<ID3D11InputLayout>               pInputLayout;
-			Microsoft::WRL::ComPtr<ID3D11Buffer>                    pIndexBuffer;
-			Microsoft::WRL::ComPtr<ID3D11Buffer>                    pVertexBuffer;
+			ComPtr<ID3D11InputLayout>               pInputLayout;
+			ComPtr<ID3D11Buffer>                    pIndexBuffer;
+			ComPtr<ID3D11Buffer>                    pVertexBuffer;
 
+		public:
+			~MeshBuffer() {}
+
+			static ComPtr<ID3D11InputLayout>& LookupInputLayout(const D3D11_INPUT_ELEMENT_DESC* pInputElements, IEffect * pEffect);
+
+			VertexDescription GetVertexDescription() const { return VertexDescription(InputElementCount, pInputElements); }
+
+			template<class _TVertex>
+			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount,IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, UINT VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
+
+			template<class _TVertex, class _TIndex>
+			void CreateDeviceResources(ID3D11Device* pDevice, const _TVertex* vertices, unsigned int VerticesCount, const _TIndex* indices, unsigned int IndicesCount, IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST, UINT VertexStride = sizeof(_TVertex), UINT startIndex = 0, UINT VertexOffset = 0);
+
+			void CreateInputLayout(ID3D11Device* pDevice, IEffect *pEffect);
+			void CreateInputLayout(ID3D11Device* pDevice, const void * pShaderByteCode, size_t pByteCodeLength);
+
+			bool Empty() const { return VertexCount == 0; }
+
+			template<class TVertex>
+			void SetInputElementDescription()
+			{
+				static_assert(TVertex::InputElementCount, "Valiad Vertex Type should have static InputElements/InputElementCount member");
+				InputElementCount = TVertex::InputElementCount;
+				pInputElements = TVertex::InputElements;
+				VertexStride = sizeof(TVertex);
+			}
+
+		public:
 			// Setup the Vertex/Index Buffer and call the draw command
 			void Draw(ID3D11DeviceContext *pContext, IEffect *pEffect = nullptr) const;
 		};
@@ -135,15 +166,76 @@ namespace DirectX
 			std::shared_ptr<MeshBufferType>	CreateCone(ID3D11Device * pDevice, float radius, size_t tessellation = 32, bool rhcoords = true);
 		}
 
-
-		template<class _TVertex, class _TIndex>
-		struct DynamicMeshBuffer : public TypedMeshBuffer<_TVertex, _TIndex>
+		struct DynamicMeshBuffer : public MeshBuffer
 		{
 		public:
+			uint32_t                                                VertexBufferCapacity;
+			uint32_t                                                IndexBufferCapacity;
+
+		public:
+
+			template<typename VertexType>
+			inline std::enable_if_t<!std::is_void<VertexType>::value> UpdateVertexBuffer(ID3D11DeviceContext* pContext, VertexType * pVertics, size_t verticesCount)
+			{
+				assert(TVertex::InputElementCount == this->InputElementCount && TVertex::InputElements == this->pInputElements);
+				ExtractDXGIFormat<_TIndex>::value;
+				UpdateVertexBuffer(pContext, pVertics, verticesCount, sizeof(VertexType));
+			}
+
+			template<typename IndexType>
+			inline std::enable_if_t<!std::is_void<IndexType>::value> UpdateIndexBuffer(ID3D11DeviceContext* pContext, void * pIndices, size_t indicesCount)
+			{
+				assert(ExtractDXGIFormat<IndexType>::value == IndexFormat);
+				UpdateIndexBuffer(pContext, pIndices, indicesCount, sizeof(IndexType));
+			}
+
+			void UpdateVertexBuffer(ID3D11DeviceContext* pContext, void * pVertics, size_t verticesCount, size_t vertexSize);
+
+			void UpdateIndexBuffer(ID3D11DeviceContext* pContext, void * pIndices, size_t indicesCount, size_t indexSize);
+
+			template<class _TVertex>
+			void CreateDeviceResources(ID3D11Device* pDevice, unsigned int VerticesCapacity, IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			template<class _TVertex, class _TIndex>
+			void CreateDeviceResources(ID3D11Device* pDevice, unsigned int VerticesCapacity, unsigned int IndicesCapacity, IEffect *pEffect = nullptr, D3D_PRIMITIVE_TOPOLOGY primitiveTopology = D3D_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		};
+
+		template<class _TVertex, class _TIndex>
+		struct TypedDynamicMeshBuffer : public DynamicMeshBuffer
+		{
+		public:
+		public:
+			static_assert(std::is_integral<_TIndex>::value, "IndexType is not integer");
+			static_assert(_TVertex::InputElementCount > 0, "Vertex type not fit the concept");
+
+			typedef TypedMeshBuffer	SelfType;
+			typedef _TVertex	VertexType;
+			typedef _TIndex		IndexType;
+
 			typedef std::vector<VertexType> VertexCollectionType;
 			typedef std::vector<IndexType>	IndexCollectionType;
 
-			void UpdateMeshBuffer(ID3D11Device* pDevice);
+			TypedDynamicMeshBuffer(size_t vertexBufferCapacity, size_t indexBufferCapacity)
+			{
+				Vertices.reserve(vertexBufferCapacity);
+				Indices.reserve(indexBufferCapacity);
+			}
+
+			void UpdateVertexBuffer(ID3D11DeviceContext* pContext)
+			{
+				UpdateVertexBuffer<VertexType>(pContext, Vertices.data(), Vertices.size());
+			}
+
+			void UpdateIndexBuffer(ID3D11DeviceContext* pContext)
+			{
+				UpdateIndexBuffer<IndexType>(pContext, Indices.data(), Indices.size());
+			}
+
+			void UpdateMeshBuffer(ID3D11DeviceContext* pContext)
+			{
+				UpdateVertexBuffer(pContext);
+				UpdateIndexBuffer(pContext);
+			}
+
 			VertexCollectionType Vertices;
 			IndexCollectionType	 Indices;
 		};
@@ -388,18 +480,20 @@ namespace DirectX
 		{
 		public:
 			virtual size_t GetBonesCount() const = 0;
-			virtual DirectX::XMMATRIX* GetBoneTransforms() = 0;
-			inline const DirectX::XMMATRIX* GetBoneTransforms() const
-			{
-				return const_cast<ISkinningModel*>(this)->GetBoneTransforms();
-			}
+			//virtual XMMATRIX* GetBoneTransforms() = 0;
+			//inline const XMMATRIX* GetBoneTransforms() const
+			//{
+			//	return const_cast<ISkinningModel*>(this)->GetBoneTransforms();
+			//}
+			virtual const BoundingOrientedBox* GetBoneBoundingBoxes() const = 0;
+			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, const XMMATRIX* boneTransforms , IEffect* pEffect = nullptr) = 0;
 		};
 
 		class DefaultSkinningModel :
 			public CompositionModel, public IDynamicAsset , public ISkinningModel
 		{
 		public:
-			typedef DirectX::VertexPositionNormalTangentColorTextureSkinning VertexType;
+			typedef VertexPositionNormalTangentColorTextureSkinning VertexType;
 			typedef uint16_t IndexType;
 			typedef FacetPrimitives::Triangle<IndexType> TriangleType;
 
@@ -424,17 +518,20 @@ namespace DirectX
 
 			// IModelNode
 			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, IEffect* pEffect = nullptr) override;
+			virtual void Render(ID3D11DeviceContext *pContext, const Matrix4x4& transform, const XMMATRIX* boneTransforms , IEffect* pEffect = nullptr) override;
 
 			// Inherited via ISkinningModel
 			virtual size_t GetBonesCount() const override;
-			virtual DirectX::XMMATRIX* GetBoneTransforms() override;
+			//virtual DirectX::XMMATRIX* GetBoneTransforms() override;
+			virtual const BoundingOrientedBox* GetBoneBoundingBoxes() const override;
 
 			DefaultSkinningModel();
 			~DefaultSkinningModel();
+
 		public:
-			std::vector<DirectX::Matrix4x4,
-				DirectX::AlignedAllocator<DirectX::Matrix4x4, 16U >>
-				BoneTransforms;
+			//std::vector<Matrix4x4,
+			//	AlignedAllocator<Matrix4x4, 16U >>
+			//	BoneTransforms;
 
 		public:
 			stdx::stride_range<VertexType>							Vertices;
@@ -450,16 +547,23 @@ namespace DirectX
 			bool				m_IsLoaded;
 			const std::string	m_FilePath;
 
+
 			uint32_t	m_VertexCount;
 			uint32_t	m_IndexCount;
 			uint32_t	m_BonesCount;
+
 			std::unique_ptr<VertexType[]>	m_Vertices;
 			std::unique_ptr<IndexType[]>	m_Indices;
+			std::unique_ptr<Matrix4x4[]>	m_DefaultBoneTransforms;
+
+			std::vector<BoundingOrientedBox> m_BoneBoxes;
+
+		protected:
 
 			void SetFromSkinMeshData(std::list<SkinMeshData> &meshes, const std::wstring& textureDir = L"");
 			void SetFromSkinMeshData(SkinMeshData* pData, const std::wstring& textureDir = L"");
 			void ResetRanges();
-
+			void CaculateBoneBoxes(const Matrix4x4* defaultBoneTransforms);
 		};
 
 		template <class _TVertex>
@@ -481,16 +585,49 @@ namespace DirectX
 			}
 
 
-			pVertexBuffer = DirectX::CreateVertexBuffer<_TVertex>(pDevice, VerticesCount, vertices);
+			this->pVertexBuffer = DirectX::CreateVertexBuffer<_TVertex>(pDevice, VerticesCount, vertices);
 			if (indices != nullptr && IndicesCount > 0)
-				pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, IndicesCount, indices);
-			IndexFormat = ExtractDXGIFormat<_TIndex>::value;
-			VertexCount = VerticesCount;
-			IndexCount = IndicesCount;
-			StartIndex = startIndex;
-			VertexStride = vertexStride;
-			VertexOffset = vertexOffset;
-			PrimitiveType = primitiveTopology;
+				this->pIndexBuffer = DirectX::CreateIndexBuffer(pDevice, IndicesCount, indices);
+			this->IndexFormat = ExtractDXGIFormat<_TIndex>::value;
+			this->VertexCount = VerticesCount;
+			this->IndexCount = IndicesCount;
+			this->StartIndex = startIndex;
+			this->VertexStride = vertexStride;
+			this->VertexOffset = vertexOffset;
+			this->PrimitiveType = primitiveTopology;
+		}
+
+		template<class _TVertex>
+		inline void DynamicMeshBuffer::CreateDeviceResources(ID3D11Device * pDevice, unsigned int VerticesCapacity, IEffect * pEffect, D3D_PRIMITIVE_TOPOLOGY primitiveTopology)
+		{
+			CreateDeviceResources<_TVertex, void>(pDevice, VerticesCapacity, 0, pEffect, primitiveTopology);
+		}
+
+		template<class _TVertex, class _TIndex>
+		inline void DynamicMeshBuffer::CreateDeviceResources(ID3D11Device * pDevice, unsigned int VerticesCapacity, unsigned int IndicesCapacity, IEffect * pEffect, D3D_PRIMITIVE_TOPOLOGY primitiveTopology)
+		{
+			SetInputElementDescription<_TVertex>();
+
+			assert(pDevice != nullptr);
+
+			if (pEffect != nullptr)
+				CreateInputLayout(pDevice, pEffect);
+
+			this->VertexBufferCapacity = VerticesCapacity;
+			this->pVertexBuffer = DirectX::CreateVertexBuffer<_TVertex>(pDevice, this->VertexBufferCapacity, nullptr, D3D11_CPU_ACCESS_WRITE);
+
+			this->IndexFormat = ExtractDXGIFormat<_TIndex>::value;;
+			this->IndexBufferCapacity = this->IndexFormat != DXGI_FORMAT_UNKNOWN ? IndicesCapacity : 0;
+
+			if (this->IndexBufferCapacity > 0)
+				this->pIndexBuffer = DirectX::CreateIndexBuffer<_TVertex>(pDevice, this->IndexBufferCapacity, nullptr, D3D11_CPU_ACCESS_WRITE);
+
+			this->VertexCount = 0;
+			this->IndexCount = 0;
+			this->StartIndex = 0;
+			this->VertexStride = sizeof(_TVertex);
+			this->VertexOffset = 0;
+			this->PrimitiveType = primitiveTopology;
 		}
 }
 }

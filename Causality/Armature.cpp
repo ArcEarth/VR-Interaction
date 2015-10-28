@@ -90,23 +90,22 @@ void Bone::UpdateLocalData(const Bone& reference)
 void Bone::UpdateLocalDataByPositionOnly(const Bone & reference)
 {
 	XMVECTOR v0 = XMLoadA(this->GblTranslation) - XMLoadA(reference.GblTranslation);
-	v0 = DirectX::XMVector3InverseRotate(v0, reference.GblRotation);
+	v0 = XMVector3InverseRotate(v0, reference.GblRotation);
 
 	LclScaling = { 1.0f, XMVectorGetX(XMVector3Length(v0)), 1.0f };
 
 	// with Constraint No-X
-	v0 = DirectX::XMVector3Normalize(v0);
+	v0 = XMVector3Normalize(v0);
 	XMFLOAT4A Sp;
-	DirectX::XMStoreFloat4A(&Sp, v0);
+	XMStoreFloat4A(&Sp, v0);
 	float Roll = -std::asinf(Sp.x);
 	float Pitch = std::atan2f(Sp.z, Sp.y);
 	this->LclRotation = XMQuaternionRotationRollPitchYaw(Pitch, 0.0f, Roll);
 	this->GblRotation = XMQuaternionMultiply(this->LclRotation, reference.GblRotation);
 }
 
-DirectX::XMMATRIX Bone::TransformMatrix(const Bone & from, const Bone & to)
+XMMATRIX Bone::TransformMatrix(const Bone & from, const Bone & to)
 {
-	using DirectX::operator+=;
 	using namespace DirectX;
 
 	XMVECTOR VScaling = XMLoadA(to.GblScaling) / XMLoadA(from.GblScaling);
@@ -131,7 +130,7 @@ DirectX::XMMATRIX Bone::TransformMatrix(const Bone & from, const Bone & to)
 	return M;
 }
 
-DirectX::XMMATRIX Bone::RigidTransformMatrix(const Bone & from, const Bone & to)
+XMMATRIX Bone::RigidTransformMatrix(const Bone & from, const Bone & to)
 {
 	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
 	rot = XMQuaternionMultiply(rot, to.GblRotation);
@@ -139,7 +138,7 @@ DirectX::XMMATRIX Bone::RigidTransformMatrix(const Bone & from, const Bone & to)
 	return XMMatrixRigidTransform(XMLoadA(from.GblTranslation), rot, tra);
 }
 
-DirectX::XMDUALVECTOR Bone::RigidTransformDualQuaternion(const Bone & from, const Bone & to)
+XMDUALVECTOR Bone::RigidTransformDualQuaternion(const Bone & from, const Bone & to)
 {
 	XMVECTOR rot = XMQuaternionInverse(from.GblRotation);
 	rot = XMQuaternionMultiply(rot, to.GblRotation);
@@ -147,7 +146,7 @@ DirectX::XMDUALVECTOR Bone::RigidTransformDualQuaternion(const Bone & from, cons
 	return XMDualQuaternionRigidTransform(XMLoadA(from.GblTranslation), rot, tra);
 }
 
-Causality::StaticArmature::StaticArmature(gsl::array_view<JointBasicData> data)
+StaticArmature::StaticArmature(gsl::array_view<JointBasicData> data)
 {
 	size_t jointCount = data.size();
 	Joints.resize(jointCount);
@@ -247,7 +246,7 @@ StaticArmature::self_type & StaticArmature::operator=(self_type && rhs)
 	return *this;
 }
 
-//void GetBlendMatrices(_Out_ DirectX::XMFLOAT4X4* pOut);
+//void GetBlendMatrices(_Out_ XMFLOAT4X4* pOut);
 
 Joint * StaticArmature::at(int index) {
 	return &Joints[index];

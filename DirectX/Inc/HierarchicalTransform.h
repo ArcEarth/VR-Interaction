@@ -1,3 +1,4 @@
+#pragma once
 #include "DirectXMathExtend.h"
 
 namespace DirectX
