@@ -137,6 +137,9 @@
     <ClCompile Include="CausalityApplication.cpp">
       <Filter>Platform Application Logic</Filter>
     </ClCompile>
+    <ClCompile Include="GestrualTracker.cpp">
+      <Filter>Character Control Logic</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NativeWindow.h">
@@ -315,6 +318,9 @@
     </ClInclude>
     <ClInclude Include="Interactive.h">
       <Filter>Platform Application Logic</Filter>
+    </ClInclude>
+    <ClInclude Include="GestrualTracker.h">
+      <Filter>Character Control Logic</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -138,8 +138,8 @@ namespace Geometrics{
 		virtual ~MetaBallModel(void);
 	public:
 		// Methods for polygonlizer to use
-		float eval(DirectX::FXMVECTOR vtr) const;
-		DirectX::Vector3 grad(DirectX::FXMVECTOR vtr) const;
+		float eval(DirectX::FXMVECTOR vtr) const override;
+		DirectX::Vector3 grad(DirectX::FXMVECTOR vtr) const override;
 
 		float GetISO() const{
 			return m_ISO;

@@ -1,8 +1,11 @@
 #pragma once
 #include "Armature.h"
+#include <vector>
+#include <chrono>
 
 namespace Causality
 {
+	using time_seconds = std::chrono::duration<double>;
 	typedef time_seconds TimeScalarType;
 
 	enum ANIM_STANDARD
@@ -257,7 +260,7 @@ namespace Causality
 	private:
 		IArmature*			pArmature;
 		size_t				bonesCount;
-		vector<frame_type>	frames;
+		std::vector<frame_type>	frames;
 	//public:
 	//	Eigen::MatrixXf		animMatrix; // 20N x F matrix
 	//	Eigen::RowVectorXf  Ecj;	// Jointwise Energy

@@ -2,10 +2,12 @@
 #include "Armature.h"
 #include "Animations.h"
 #include "ArmatureParts.h"
+#include <Eigen/Core>
 
 namespace Causality
 {
 
+	using std::vector;
 	// Represent an semantic collection of animations
 	// It's the possible pre-defined actions for an given object
 	class BehavierSpace

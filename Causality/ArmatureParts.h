@@ -1,5 +1,9 @@
 #pragma once
 #include "Armature.h"
+#include <Eigen\Core>
+#include <memory>
+#include "Common\tree.h"
+
 //#include "GaussianProcess.h"
 //#include "PcaCcaMap.h"
 //#include "RegressionModel.h"
@@ -9,6 +13,9 @@ namespace Causality
 {
 	class ArmaturePart;
 	class ShrinkedArmature;
+	using stdx::tree_node;
+	using std::vector;
+	using std::list;
 
 	class IArmaturePartFeature abstract
 	{
