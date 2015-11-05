@@ -11,6 +11,7 @@
 #include <array>
 #include <SimpleMath.h>
 #include "BezierClip.h"
+#include "KdBVH.h"
 
 #ifdef LAPLACIAN_INTERFACE
 #include <Eigen\Dense>
@@ -60,6 +61,7 @@ namespace Geometrics{
 	public:
 		typedef Bezier::BezierClipping<float,6> ClipType;
 	public:
+		Metaball() = default;
 		Metaball(DirectX::FXMVECTOR _Position,float _Radius,unsigned int _BindingIndex = 0);
 		Metaball(const DirectX::Vector3 &_Position,float _Radius,unsigned int _BindingIndex = 0);
 		Metaball(const DirectX::Vector4 & Sphere,unsigned int _BindingIndex = 0);
@@ -84,6 +86,8 @@ namespace Geometrics{
 	public:
 		float eval(DirectX::FXMVECTOR pos) const;
 		DirectX::XMVECTOR grad(DirectX::FXMVECTOR pos) const;
+		// return gradiant and value at same time, retval.w == eval
+		DirectX::XMVECTOR evalgrad(DirectX::FXMVECTOR pos) const;
 
 		inline ClipType GetBezierFunctionInLine(float Delta) const
 		{
@@ -140,6 +144,7 @@ namespace Geometrics{
 		// Methods for polygonlizer to use
 		float eval(DirectX::FXMVECTOR vtr) const override;
 		DirectX::Vector3 grad(DirectX::FXMVECTOR vtr) const override;
+		DirectX::XMVECTOR evalgrad(DirectX::FXMVECTOR pos) const;
 
 		float GetISO() const{
 			return m_ISO;
@@ -159,6 +164,10 @@ namespace Geometrics{
 		// To use this , your vertex must have the member "float3 position" & "float3 normal"
 		template <typename _Tvertex, typename _TIndex>
 		void Triangulize(std::vector<_Tvertex> &Vertices,std::vector<_TIndex> &Indices,float precise);
+
+		inline void UpdatePrimtives() {
+			Primitives.rebuild();
+		}
 
 		// Travel form the main index to delete all not connected metaballs
 		// Optimize the structure of metaballs
@@ -211,7 +220,6 @@ namespace Geometrics{
 		unsigned int FindClosestMetballindex(DirectX::FXMVECTOR vPoint) const;
 
 	public:
-		const DirectX::BoundingBox& GetBoundingBox();
 		DirectX::BoundingBox GetBoundingBox() const;
 
 		void Update();
@@ -221,9 +229,11 @@ namespace Geometrics{
 		float EffictiveRadiusRatio() const { return m_EffectiveRatio; };
 
 	public:
-		PrimitveVectorType		Primitives;
-		DirectX::BoundingBox	BoundingBox;
-		DirectX::BoundingSphere BoundingSphere;
+		typedef KdAabbTree<float, 3, Metaball> AcceleratedContainer;
+
+		AcceleratedContainer		Primitives;
+
+		//PrimitveVectorType		Primitives;
 		//ConnectionGraph			Connections;
 	private:
 		//Polygonizer::Polygonizer *m_Polygonizer;

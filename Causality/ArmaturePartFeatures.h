@@ -16,7 +16,11 @@ namespace Causality
 
 			AllJoints(const AllJoints&) = default;
 
-			int GetDimension(_In_ const ArmaturePart& block)
+			int GetDimension() const override {
+				return -1;
+			}
+
+			int GetDimension(_In_ const ArmaturePart& block) const override
 			{
 				return block.Joints.size() * BoneFeatureType::Dimension;
 			}
@@ -55,7 +59,11 @@ namespace Causality
 			std::vector<Eigen::MatrixXf> m_pcas;
 			std::vector<Eigen::RowVectorXf> m_means;
 
-			int GetDimension(_In_ const ArmaturePart& block)
+			int GetDimension() const override {
+				return -1;
+			}
+
+			int GetDimension(_In_ const ArmaturePart& block) const
 			{
 				auto bid = block.Index;
 				return m_pcas[bid].cols();
@@ -99,7 +107,12 @@ namespace Causality
 		public:
 			static_assert(std::is_base_of<IArmaturePartFeature, PartFeatureType>::value, "PartFeatureType must be derived type of IArmaturePartFeature");
 
-			int GetDimension(_In_ const ArmaturePart& block)
+			int GetDimension() const override {
+				int dim = PartFeatureType::GetDimension();
+				return dim < 0 ? -1 : dim * 2;
+			}
+
+			int GetDimension(_In_ const ArmaturePart& block) const
 			{
 				return PartFeatureType::GetDimension(block) * 2;
 			}
@@ -175,7 +188,11 @@ namespace Causality
 			typedef _BoneFeatureType BoneFeatureType;
 			EndEffector() = default;
 
-			int GetDimension(_In_ const ArmaturePart& block)
+			int GetDimension() const override{
+				return BoneFeatureType::Dimension;
+			}
+
+			int GetDimension(_In_ const ArmaturePart& block) const override
 			{
 				return BoneFeatureType::Dimension;
 			}

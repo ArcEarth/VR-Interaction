@@ -224,7 +224,7 @@ void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& contr
 {
 	auto pTrans = &controller.Binding();
 	auto pCcaTrans = dynamic_cast<const BlockizedCcaArmatureTransform*>(pTrans);
-	auto pPartTrans = dynamic_cast<const PartilizedTransform*>(pTrans);
+	auto pPartTrans = dynamic_cast<const PartilizedTransformer*>(pTrans);
 
 	auto& cparts = controller.Character().Behavier().ArmatureParts();
 	auto& sparts = g_PlayerParts; //! Not Good!!!

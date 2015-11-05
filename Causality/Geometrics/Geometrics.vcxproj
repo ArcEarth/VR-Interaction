@@ -131,8 +131,9 @@
   <ItemGroup>
     <ClInclude Include="BezierClip.h" />
     <ClInclude Include="BezierMesh.h" />
+    <ClInclude Include="BVAlgorithmsExt.h" />
     <ClInclude Include="MetaBallModel.h" />
-    <ClInclude Include="Octree.h" />
+    <ClInclude Include="KdBVH.h" />
     <ClInclude Include="Polygonizer.h" />
     <ClInclude Include="SpaceCurve.h" />
   </ItemGroup>

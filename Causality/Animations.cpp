@@ -291,3 +291,14 @@ void ArmatureFrameAnimation::Deserialize(std::istream & binary)
 void ArmatureTransform::TransformBack(frame_type & source_frame, const frame_type & target_frame) const
 {
 }
+
+void Causality::ScaleFrame(BoneHiracheryFrame & frame, const BoneHiracheryFrame & ref, float scale)
+{
+	XMVECTOR sv = XMVectorReplicate(scale);
+	for (size_t i = 0; i < frame.size(); i++)
+	{
+		auto& lt = frame[i].LocalTransform();
+		auto& rt = ref[i].LocalTransform();
+		IsometricTransform::LerpV(lt, rt, lt, sv);
+	}
+}

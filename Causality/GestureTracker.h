@@ -1,5 +1,7 @@
 #pragma once
 #include <Eigen\Core>
+#include "Animations.h"
+#include "ArmatureParts.h"
 
 namespace Causality
 {
@@ -12,7 +14,7 @@ namespace Causality
 		typedef Eigen::Matrix<ScalarType, 1, -1, Eigen::AutoAlign | Eigen::RowMajor> TrackingVectorType;
 		typedef Eigen::Block<MatrixType, 1, -1> TrackingVectorBlockType;
 
-		typedef Eigen::Matrix<MatrixType, 1, -1> InputVectorType;
+		typedef Eigen::Matrix<ScalarType, 1, -1> InputVectorType;
 
 		virtual ~IGestureTracker();
 
@@ -34,16 +36,16 @@ namespace Causality
 	// S.row(i) is a particale
 	// S(i, 0) is the particale weight
 	// S(i, 1...Dim) is the state vector
-	class ParticalFilterBase : public IGestureTracker
+	class ParticaleFilterBase : public IGestureTracker
 	{
 	public:
-		~ParticalFilterBase();
+		~ParticaleFilterBase();
 
 		void Step(const InputVectorType& input) override;
 
 		const TrackingVectorType& CurrentState() const override;
 
-		virtual void Reset(const InputVectorType& input) = 0;
+		//virtual void Reset(const InputVectorType& input) = 0;
 
 	
 	protected: // Interfaces
@@ -61,20 +63,5 @@ namespace Causality
 		MatrixType m_CurrentSample;
 		MatrixType m_NewSample;
 		TrackingVectorType m_CurrentSampleMean;
-	};
-
-	class CharacterParticalFilter : public ParticalFilterBase
-	{
-	// Inherited via ParticalFilterBase
-	public:
-		virtual void	Reset(const InputVectorType & input) override;
-
-	protected:
-		virtual void	SetInputState(const InputVectorType & input) override;
-		virtual float	Likilihood(const TrackingVectorBlockType & x) override;
-		virtual void	Progate(TrackingVectorBlockType & x) override;
-
-	protected:
-		InputVectorType m_CurrentInput;
 	};
 }

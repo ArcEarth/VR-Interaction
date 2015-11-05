@@ -514,18 +514,6 @@ void GetVolocity(_In_ const Eigen::DenseBase<DerivedX>& displacement, _Out_ Eige
 	velocity /= (2 * frame_time);
 }
 
-void ShiftFrame(_Inout_ BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& ref, float scale)
-{
-	XMVECTOR sv = XMVectorReplicate(scale);
-	for (size_t i = 0; i < frame.size(); i++)
-	{
-		auto& lt = frame[i].LocalTransform();
-		auto& rt = ref[i].LocalTransform();
-		IsometricTransform::LerpV(lt, rt, lt, sv);
-	}
-
-}
-
 vector<BoneHiracheryFrame> CreateReinforcedFrames(const BehavierSpace& behavier)
 {
 	auto& clips = behavier.Clips();
@@ -563,7 +551,7 @@ vector<BoneHiracheryFrame> CreateReinforcedFrames(const BehavierSpace& behavier)
 		{
 			for (int j = 0; j < n; j++)
 			{
-				ShiftFrame(frames[stidx + j], dframe, factors[i]);
+				ScaleFrame(frames[stidx + j], dframe, factors[i]);
 				frames[stidx + j].RebuildGlobal(armature);
 			}
 		}
@@ -1195,7 +1183,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 	selectCols(reshape(iclip.GetAllPartsMean(), pvDim, -1), Juk, &Xpvnm);
 	Xpvnm.colwise().normalize();
 
-	std::vector<unique_ptr<PartilizedTransform>> clipTransforms;
+	std::vector<unique_ptr<PartilizedTransformer>> clipTransforms;
 	clipTransforms.reserve(clips.size());
 	Eigen::VectorXf clipTransformScores(clips.size());
 
@@ -1356,11 +1344,15 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 			}
 		}
 
-		auto pBinding = new PartilizedTransform(userParts, controller);
-		pBinding->ActiveParts = move(partTransforms);
+		auto pTransformer = new PartilizedTransformer(userParts, controller);
+		pTransformer->ActiveParts = move(partTransforms);
+
+		pTransformer->InitTrackers();
+		pTransformer->EnableTracker(anim.Name);
+		pTransformer->GenerateDrivenAccesseryControl();
 
 		clipTransformScores[clipTransforms.size()] = maxScore;
-		clipTransforms.emplace_back(std::move(pBinding));
+		clipTransforms.emplace_back(std::move(pTransformer));
 
 	} // Animation clip scope
 

@@ -150,7 +150,7 @@ namespace Causality
 
 	inline Eigen::MatrixXf PcaCcaMap::TransformMatrix() const
 	{
-		assert("Not implented yet, uXpca, uYpca is not considered yet");
+		assert(!"Not implented yet, uXpca, uYpca is not considered yet");
 		auto dX = uX.size(), dY = uY.size();
 		Eigen::MatrixXf T(dX + 1, dY + 1);
 

@@ -22,7 +22,9 @@ namespace Causality
 	public:
 		virtual ~IArmaturePartFeature();
 
-		virtual int GetDimension(_In_ const ArmaturePart& block) = 0;
+		// return -1 if not a uniform dimension feature
+		virtual int GetDimension() const = 0;
+		virtual int GetDimension(_In_ const ArmaturePart& block) const = 0;
 
 		//void Get(_In_ const ShrinkedArmature& parts, _Out_ Eigen::RowVectorXf& feature, _In_ const BoneHiracheryFrame& frame);
 

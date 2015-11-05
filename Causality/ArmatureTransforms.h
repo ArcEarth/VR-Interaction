@@ -8,6 +8,7 @@
 #include "ArmatureParts.h"
 #include "BoneFeatures.h"
 #include "ArmaturePartFeatures.h"
+#include "GestureTracker.h"
 
 namespace Causality
 {
@@ -37,7 +38,8 @@ namespace Causality
 		{
 		public:
 			EndEffectorGblPosQuadratized();
-			int GetDimension(_In_ const ArmaturePart& block) override;
+
+			int GetDimension(_In_ const ArmaturePart& block) const override;
 
 			typedef BoneFeatures::QuadraticGblPosFeature BoneFeatureType;
 			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override;
@@ -98,10 +100,9 @@ namespace Causality
 
 			PerceptiveVector(CharacterController& controller);
 
-			virtual int GetDimension(_In_ const ArmaturePart& block) override
-			{
-				return Quadratic ? 9 : 3;
-			}
+			virtual int GetDimension() const;
+
+			virtual int GetDimension(_In_ const ArmaturePart& block) const override;
 
 			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override;
 
@@ -151,34 +152,88 @@ namespace Causality
 
 	class CharacterController;
 
-	class PartilizedTransform : public BlockizedArmatureTransform
+	class PartilizedTransformer;
+
+	class CharacterActionTracker : public ParticaleFilterBase
+	{
+	public:
+		CharacterActionTracker(const ArmatureFrameAnimation& animation, PartilizedTransformer transfomer);
+		// Inherited via ParticaleFilterBase
+	public:
+		virtual void	Reset(const InputVectorType & input) override;
+
+		void			Reset();
+
+		void			GetScaledFrame(_Out_ BoneHiracheryFrame& frame, float t, float s) const;
+
+	protected:
+		virtual void	SetInputState(const InputVectorType & input) override;
+		virtual float	Likilihood(const TrackingVectorBlockType & x) override;
+		virtual void	Progate(TrackingVectorBlockType & x) override;
+
+		InputVectorType GetCorrespondVector(const TrackingVectorBlockType & x) const;
+
+	protected:
+		const ArmatureFrameAnimation&	m_Animation;
+		const PartilizedTransformer&	m_Transformer;
+
+		mutable BoneHiracheryFrame		m_Frame;
+		mutable BoneHiracheryFrame		m_LastFrame;
+		InputVectorType					m_CurrentInput;
+		std::shared_ptr<IArmaturePartFeature>	m_pFeature;
+
+		// Likilihood distance cov 
+		InputVectorType					m_Cov;
+
+		// Progation velocity variance
+		float							m_varDt;
+		float							m_varDs;
+		float							m_varS;
+	};
+
+	class PartilizedTransformer : public BlockizedArmatureTransform
 	{
 	public:
 		std::vector<P2PTransform> ActiveParts;	// Direct controlled by input armature, with stylized IK
 
-		PartilizedTransform(const ShrinkedArmature& sParts, CharacterController & controller);
-		using BlockizedArmatureTransform::BlockizedArmatureTransform;
+		PartilizedTransformer(const ShrinkedArmature& sParts, CharacterController & controller);
+
+		void InitTrackers();
 
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override;
 
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const override;
 
-		void TransformCtrlHandel(Eigen::RowVectorXf &xf, const Causality::P2PTransform & ctrl) const;
+		void DriveDepentPart(Causality::ArmaturePart & cpart, Eigen::RowVectorXd &Xd, Causality::BoneHiracheryFrame & target_frame) const;
+
+		void DriveActivePartSIK(Causality::ArmaturePart & cpart, Causality::BoneHiracheryFrame & target_frame, Eigen::RowVectorXf &xf, bool computeVelocity = false) const;
+
+		void SetHandleVisualization(Causality::ArmaturePart & cpart, Eigen::RowVectorXf &xf) const;
+
+		static void TransformCtrlHandel(Eigen::RowVectorXf &xf, const Eigen::MatrixXf& homoMatrix);
 
 		void GenerateDrivenAccesseryControl();
+
+		void EnableTracker(int whichTracker);
+		void EnableTracker(const std::string& animName);
+
+		void ResetTrackers();
 
 	public:
 		std::vector<P2PTransform> DrivenParts;	// These parts will be drive by active parts on Cca base than stylized IK
 		std::vector<P2PTransform> AccesseryParts; // These parts will be animated based on active parts (and driven parts?)
+
+		typedef Eigen::RowVectorXf InputVectorType;
+		InputVectorType GetInputVector(_In_ const P2PTransform& Ctrl, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, _In_ float frame_time) const;
 	private:
 		typedef std::pair<DirectX::Vector3, DirectX::Vector3> LineSegment;
 
 		CharacterController			*m_pController;
 		std::vector<LineSegment>	*m_pHandles;
 
-		const Eigen::RowVectorXf& GetInputVector(int SrcIdx);
-
 		typedef std::shared_ptr<IArmaturePartFeature> FeaturePtr;
+
+		bool		m_useTracker;
 
 		mutable
 		FeaturePtr	m_pInputF;
@@ -188,5 +243,11 @@ namespace Causality
 		FeaturePtr	m_pDrivenF;
 		mutable
 		FeaturePtr	m_pAccesseryF;
+
+		int			m_currentTracker;
+		// Tracker for different animations 
+		mutable
+		std::vector<CharacterActionTracker>
+					m_Trackers;
 	};
 }

@@ -141,11 +141,15 @@ inline PolynomialKernel_6::SegmentFunctionType PolynomialKernel_6::SegementFunct
 	return Clipping;
 }
 
-
+#if defined (_DEBUG)
+#define assume assert
+#else
+#define assume __assume
+#endif
 
 inline float Metaball::DecayFunction(float t)
 {
-	assert (t >= 0 && t <= 1);
+	assume(t >= 0 && t <= 1);
 	float t2 = t * t;
 	float t3 = t2 * t;
 	float value = 1.0f;
@@ -165,7 +169,7 @@ inline float Metaball::DecayFunction(float t)
 
 inline float Metaball::DecayDerivative(float t)
 {
-	assert (t >= 0 && t <= 1);
+	assume(t >= 0 && t <= 1);
 	float f = - 22.0f/9.0f;
 	f += 34.0f/9.0f * t;
 	t *= t;
@@ -207,12 +211,6 @@ inline DirectX::XMVECTOR Metaball::grad(DirectX::FXMVECTOR pos) const
 		R2 = 1/R2;
 		float t = r2*R2;
 
-
-		//float f = - 22.0f/9.0f;
-		//f += 34.0f/9.0f * t;
-		//t *= t;
-		//f -= 4.0f/3.0f * t;
-
 		float f = DecayDerivative(t);
 		f *= R2 * 2;
 		return f*vtr;
@@ -222,26 +220,65 @@ inline DirectX::XMVECTOR Metaball::grad(DirectX::FXMVECTOR pos) const
 	}
 }
 
+XMVECTOR Metaball::evalgrad(DirectX::FXMVECTOR pos) const
+{
+	XMVECTOR vtr = pos - XMLoadA(Position);
+	float r2 = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(vtr));
+	float R2 = Radius*Radius;
+	if (r2 <= R2) {
+		R2 = 1 / R2;
+		float t = r2*R2;
+		float f = DecayDerivative(t);
+		f *= R2 * 2;
+		vtr *= f;
+		f = DecayFunction(t);
+		vtr = XMVectorSetW(vtr, f);
+		return vtr;
+	}
+	else
+	{
+		return g_XMZero;
+	}
+}
+
+MetaBallModel::AcceleratedContainer::AabbType getMetaballAabb(const Metaball& metaball)
+{
+	const Eigen::Vector3f& center = reinterpret_cast<const Eigen::Vector3f&>(metaball.Position);
+	Eigen::Vector3f extent;
+	extent.setConstant(metaball.Radius);
+	return MetaBallModel::AcceleratedContainer::AabbType(center - extent, center + extent); // Eigen box
+}
+
+DirectX::BoundingBox getDxBox(const MetaBallModel::AcceleratedContainer::AabbType& ebox)
+{
+	DirectX::BoundingBox dbox;
+	reinterpret_cast<Eigen::Vector3f&>(dbox.Center) = ebox.center();
+	reinterpret_cast<Eigen::Vector3f&>(dbox.Extents) = ebox.max() - reinterpret_cast<Eigen::Vector3f&>(dbox.Center);
+	return dbox;	
+}
 
 MetaBallModel::MetaBallModel(void)
+	: Primitives(getMetaballAabb)
 {
 	//m_Polygonizer = nullptr;
 	ISO = MODELING_ISO;
 }
 
 MetaBallModel::MetaBallModel(const PrimitveVectorType &primitives)
+	: Primitives(getMetaballAabb)
 {
 	//m_Polygonizer = nullptr;
-	Primitives = primitives;
+	Primitives.assign(primitives.begin(),primitives.end());
 	ISO = MODELING_ISO;
 	Update();
 }
 
 MetaBallModel::MetaBallModel(PrimitveVectorType &&primitives)
+	: Primitives(getMetaballAabb)
 {
 	//m_Polygonizer = nullptr;
 	ISO = MODELING_ISO;
-	Primitives = std::move(primitives);
+	Primitives.assign(primitives.begin(), primitives.end());
 	Update();
 }
 
@@ -250,8 +287,8 @@ MetaBallModel& MetaBallModel::operator=(const MetaBallModel& rhs)
 	Primitives = rhs.Primitives;
 	//Connections = rhs.Connections;
 	ISO = rhs.ISO;
-	BoundingBox = rhs.BoundingBox;
-	BoundingSphere = rhs.BoundingSphere;
+	//BoundingBox = rhs.BoundingBox;
+	//BoundingSphere = rhs.BoundingSphere;
 	return *this;
 }
 
@@ -260,8 +297,8 @@ MetaBallModel& MetaBallModel::operator=(MetaBallModel&& rhs)
 	Primitives = std::move(rhs.Primitives);
 	//Connections = std::move(rhs.Connections);
 	ISO = rhs.ISO;
-	BoundingBox = rhs.BoundingBox;
-	BoundingSphere = rhs.BoundingSphere;
+	//BoundingBox = rhs.BoundingBox;
+	//BoundingSphere = rhs.BoundingSphere;
 	return *this;
 }
 
@@ -279,12 +316,64 @@ MetaBallModel::~MetaBallModel(void)
 {
 }
 
+typedef MetaBallModel::AcceleratedContainer::AabbType AabbType;
+
+XM_ALIGNATTR
+struct PointContainsOperator
+{
+	typedef AabbType::VectorType VectorType;
+	VectorType pt;
+
+	bool operator()(const Metaball& ball)
+	{
+		XMVECTOR dist = XMLoadA(ball.Position) - DirectX::XMLoadFloat3A(pt.data());
+		dist = XMVector3LengthSq(dist);
+		return XMVectorGetX(dist) < ball.Radius * ball.Radius;
+	}
+
+	bool operator()(const AabbType& aabb)
+	{
+		return aabb.contains(pt);
+	}
+};
+
+XM_ALIGNATTR
+struct RayIntersectionOperator
+{
+	typedef AabbType::VectorType VectorType;
+	XMVECTOR origin;
+	XMVECTOR direction;
+
+	bool operator()(const Metaball& ball)
+	{
+		float dist;
+		return reinterpret_cast<const BoundingSphere&>(ball).Intersects(origin, direction, dist);
+	}
+
+	bool operator()(const AabbType& aabb)
+	{
+		float dist;
+		DirectX::BoundingBox box = getDxBox(aabb);
+		return box.Intersects(origin, direction, dist);
+	}
+};
+
 inline float MetaBallModel::eval(DirectX::FXMVECTOR vtr) const
 {
 	float sum  = - m_ISO;
 
-	for (unsigned int i = 0; i < This.size(); i++)
-		sum+=This[i].eval(vtr);
+	PointContainsOperator pred;
+	XMStoreFloat3A(pred.pt.data(), vtr);
+
+	auto range = BVFindAllIf(Primitives,pred);
+
+	for (auto& ball : range)
+	{
+		sum += ball.eval(vtr);
+	}
+
+	//for (unsigned int i = 0; i < This.size(); i++)
+	//	sum+=This[i].eval(vtr);
 
 	return sum;
 }
@@ -298,11 +387,37 @@ inline Vector3 MetaBallModel::grad(DirectX::FXMVECTOR vtr) const
 {
 	XMVECTOR sum = g_XMZero;
 
-	for (unsigned int i = 0; i < This.size(); i++)
-		// this should be negative since the outer is defined by the "Decreasing Direction"
-			sum-=This[i].grad(vtr);
+	PointContainsOperator pred;
+	XMStoreFloat3A(pred.pt.data(), vtr);
+
+	auto range = BVFindAllIf(Primitives, pred);
+
+	for (auto& ball : range)
+	{
+		sum -= ball.grad(vtr);
+	}
 
 	return (Vector3)sum;
+}
+
+DirectX::XMVECTOR Geometrics::MetaBallModel::evalgrad(DirectX::FXMVECTOR vtr) const
+{
+	XMVECTOR sum = g_XMZero;
+
+	PointContainsOperator pred;
+	XMStoreFloat3A(pred.pt.data(), vtr);
+
+	auto range = BVFindAllIf(Primitives, pred);
+
+	for (auto& ball : range)
+	{
+		sum -= ball.evalgrad(vtr);
+	}
+
+	sum += g_XMIdentityR3 * m_ISO;
+	sum *= g_XMNegateW;
+
+	return sum;
 }
 
 // 	float MetaBallModel::EvalSphere(const Vector3 &SphereCentre,float Radius) const
@@ -418,20 +533,24 @@ bool MetaBallModel::RayIntersection(DirectX::Vector3 &Output,DirectX::FXMVECTOR 
 	std::vector<InteresctUint> Intersections;
 	std::set<size_t> EffectiveSet;
 	// A table for storage the the intersection distance for each intersected sphere
-	std::unordered_map<size_t,std::pair<float,float>> SphereMap(Primitives.size()/5 + 1);
-	//std::map<size_t,std::pair<float,float>> SphereMap;
+	//std::unordered_map<size_t,std::pair<float,float>> SphereMap(Primitives.size() / 10 + 1);
+	std::map<size_t,std::pair<float,float>> SphereMap;
 	//std::vector<std::pair<float,float>> SphereMap(this->size());
 
 	XMVECTOR vDir= XMVector3Normalize(Direction);
 
-	for (size_t i = 0; i < Primitives.size(); i++)
+	// Aabb Tree Ray Intersection test to cull un-intersected volums
+	auto intersected = BVFindAllIf(Primitives, RayIntersectionOperator{Origin,vDir});
+
+	for (auto itr = intersected.begin(); itr != intersected.end(); ++itr)
 	{
+		int i = itr.getIndex();
 		const auto& sphere = Primitives[i];
 		int count = sphere.Intersects(Origin,vDir,distances,distances+1);
 
-		if (count > 0)
+		if (count > 0) 
 		{
-			if (count == 1)
+			if (count == 1) // if count == 1, than origin is inside this sphere, and distance[0] is in negative direction
 				EffectiveSet.insert(i);
 			else
 				Intersections.emplace_back(i,distances[0]);
@@ -751,9 +870,12 @@ void MetaBallModel::OptimizeConnection( unsigned int BlockIndex )
 	Travel(BlockIndex,Arrived,deleted_flags);
 	//std::vector<Metaball> buffer;
 	unsigned int k = 0;
-	Primitives.erase(std::remove_if(Primitives.begin(),Primitives.end(),[&Arrived,&k](const Metaball& ball)->bool{
+	auto& prims = Primitives.getObjectList();
+	prims.erase(std::remove_if(prims.begin(), prims.end(),[&Arrived,&k](const Metaball& ball)->bool{
 		return !Arrived[k++];
-	}),Primitives.end());
+	}), prims.end());
+
+	Update();
 }
 
 size_t MetaBallModel::remove_if(const std::vector<bool>& remove_flags)
@@ -771,7 +893,6 @@ size_t MetaBallModel::remove_if(const std::vector<bool>& remove_flags)
 			return 0;
 	}
 
-
 	auto beginIndex = itr - remove_flags.begin();
 
 	std::vector<bool> Arrived(Primitives.size(),false);
@@ -779,9 +900,15 @@ size_t MetaBallModel::remove_if(const std::vector<bool>& remove_flags)
 	Travel(beginIndex,Arrived,remove_flags);
 	//std::vector<Metaball> buffer;
 	unsigned int k = 0;
-	Primitives.erase(std::remove_if(Primitives.begin(),Primitives.end(),[&Arrived,&k](const Metaball& ball)->bool{
+
+	auto& prims = Primitives.getObjectList();
+
+	prims.erase(std::remove_if(prims.begin(), prims.end(),[&Arrived,&k](const Metaball& ball)->bool{
 		return !Arrived[k++];
-	}),Primitives.end());
+	}), prims.end());
+
+	Update();
+
 	return size();
 }
 
@@ -829,25 +956,23 @@ bool MetaBallModel::IsTwoMetaballIntersect(const Metaball& lhs,const Metaball& r
 	return Metaball::Connected(lhs,rhs,m_ISO);
 }
 
-const DirectX::BoundingBox& MetaBallModel::GetBoundingBox()
-{
-	CreateBoundingBoxFromSpheres(BoundingBox,Primitives.size(),reinterpret_cast<const DirectX::BoundingSphere*>(&Primitives[0]),sizeof(Metaball));
-	return BoundingBox;
-}
-
 DirectX::BoundingBox MetaBallModel::GetBoundingBox() const
 {
 	DirectX::BoundingBox boundingBox;
-	CreateBoundingBoxFromSpheres(boundingBox,Primitives.size(),reinterpret_cast<const DirectX::BoundingSphere*>(&Primitives[0]),sizeof(Metaball));
+	boundingBox = getDxBox(Primitives.getVolume(Primitives.getRootIndex()));
 	return boundingBox;
 }
 
 void MetaBallModel::Update()
 {
-	if (this->size())
-		CreateBoundingBoxFromSpheres(BoundingBox,this->size(),reinterpret_cast<const DirectX::BoundingSphere*>(&Primitives[0]),sizeof(Metaball));
-
-	//boost::edges(Connections);
+	if (!Primitives.empty())
+	{
+		UpdatePrimtives();
+	}
+	else
+	{
+		Primitives.clear();
+	}
 }
 
 

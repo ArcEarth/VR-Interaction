@@ -253,7 +253,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     </ClCompile>
     <ClCompile Include="CharacterObject.cpp" />
     <ClCompile Include="GaussianProcess.cpp" />
-    <ClCompile Include="GestrualTracker.cpp" />
+    <ClCompile Include="GestureTracker.cpp" />
     <ClCompile Include="LightObject.cpp" />
     <ClCompile Include="pch_bcl.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -320,7 +320,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="Events.h" />
     <ClInclude Include="FbxParser.h" />
     <ClInclude Include="GaussianProcess.h" />
-    <ClInclude Include="GestrualTracker.h" />
+    <ClInclude Include="GestureTracker.h" />
     <ClInclude Include="GSL\array_view.h" />
     <ClInclude Include="GSL\fail_fast.h" />
     <ClInclude Include="GSL\gsl.h" />

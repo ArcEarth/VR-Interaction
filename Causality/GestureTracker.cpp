@@ -1,33 +1,33 @@
 #include "pch_bcl.h"
-#include "GestrualTracker.h"
+#include "GestureTracker.h"
 #include <numeric>
 #include <random>
 
 
 using namespace Causality;
 
-std::random_device g_rd;
+std::random_device g_rand;
 
 IGestureTracker::~IGestureTracker()
 {
 }
 
-ParticalFilterBase::~ParticalFilterBase()
+ParticaleFilterBase::~ParticaleFilterBase()
 {
 }
 
-void ParticalFilterBase::Step(const InputVectorType & input)
+void ParticaleFilterBase::Step(const InputVectorType & input)
 {
 	SetInputState(input);
 	StepParticals();
 }
 
-const ParticalFilterBase::TrackingVectorType & ParticalFilterBase::CurrentState() const
+const ParticaleFilterBase::TrackingVectorType & ParticaleFilterBase::CurrentState() const
 {
 	return m_CurrentSample;
 }
 
-void ParticalFilterBase::StepParticals()
+void ParticaleFilterBase::StepParticals()
 {
 	Resample(m_NewSample, m_CurrentSample);
 	m_NewSample.swap(m_CurrentSample);
@@ -36,6 +36,9 @@ void ParticalFilterBase::StepParticals()
 	auto n = sample.rows();
 	auto dim = sample.cols() - 1;
 
+#if defined(openMP)
+#pragma omp parallel for
+#endif
 	for (int i = 0; i < n; i++)
 	{
 		auto partical = sample.block<1, -1>(i, 1, 1, dim);
@@ -49,9 +52,9 @@ void ParticalFilterBase::StepParticals()
 
 // resample the weighted sample in O(n*log(n)) time
 // generate n ordered point in range [0,1] is n log(n), thus we cannot get any better
-void ParticalFilterBase::Resample(Eigen::MatrixXf & resampled, const Eigen::MatrixXf & sample)
+void ParticaleFilterBase::Resample(Eigen::MatrixXf & resampled, const Eigen::MatrixXf & sample)
 {
-	std::mt19937 mt(g_rd());
+	std::mt19937 mt(g_rand());
 	assert((resampled.data() != sample.data()) && "resampled and sample cannot be the same");
 
 	auto n = sample.rows();
@@ -60,6 +63,7 @@ void ParticalFilterBase::Resample(Eigen::MatrixXf & resampled, const Eigen::Matr
 
 	auto cdf = resampled.col(0);
 	std::partial_sum(sample.col(0).data(), sample.col(0).data() + n, cdf.data());
+	cdf /= cdf[n - 1];
 
 	for (int i = 0; i < n; i++)
 	{
@@ -73,29 +77,4 @@ void ParticalFilterBase::Resample(Eigen::MatrixXf & resampled, const Eigen::Matr
 	}
 
 	cdf.array() = 1 / (float)n;
-}
-
-void CharacterParticalFilter::Reset(const InputVectorType & input)
-{
-}
-
-void CharacterParticalFilter::SetInputState(const InputVectorType & input)
-{
-	m_CurrentInput = input;
-}
-
-float CharacterParticalFilter::Likilihood(const TrackingVectorBlockType & x)
-{
-	float t = x[0];
-	float s = x[1];
-	float dt = x[2];
-	float ds = x[3];
-}
-
-void CharacterParticalFilter::Progate(TrackingVectorBlockType & x)
-{
-	float t = x[0];
-	float s = x[1];
-	float dt = x[2];
-	float ds = x[3];
 }

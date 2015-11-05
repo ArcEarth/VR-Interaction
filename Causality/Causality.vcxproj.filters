@@ -42,6 +42,9 @@
     <Filter Include="Platform Application Logic">
       <UniqueIdentifier>{b64aebbb-698d-4d0a-9fd0-86c726d4be67}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Character Control Logic\NewFilter1">
+      <UniqueIdentifier>{4b32018d-ee5a-403e-8341-a2e15869c1f5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NativeWindow.cpp">
@@ -137,7 +140,7 @@
     <ClCompile Include="CausalityApplication.cpp">
       <Filter>Platform Application Logic</Filter>
     </ClCompile>
-    <ClCompile Include="GestrualTracker.cpp">
+    <ClCompile Include="GestureTracker.cpp">
       <Filter>Character Control Logic</Filter>
     </ClCompile>
   </ItemGroup>
@@ -319,7 +322,7 @@
     <ClInclude Include="Interactive.h">
       <Filter>Platform Application Logic</Filter>
     </ClInclude>
-    <ClInclude Include="GestrualTracker.h">
+    <ClInclude Include="GestureTracker.h">
       <Filter>Character Control Logic</Filter>
     </ClInclude>
   </ItemGroup>

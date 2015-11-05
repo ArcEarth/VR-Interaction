@@ -94,6 +94,8 @@ namespace Causality
 		//}
 	};
 
+	void ScaleFrame(_Inout_ BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& ref, float scale);
+
 	class BoneVelocityFrame : public std::vector<BoneVelocity, DirectX::XMAllocator>
 	{
 	public:
