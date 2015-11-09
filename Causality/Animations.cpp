@@ -288,6 +288,11 @@ void ArmatureFrameAnimation::Deserialize(std::istream & binary)
 	}
 }
 
+ArmatureTransform::ArmatureTransform() {
+	pSource = nullptr;
+	pTarget = nullptr;
+}
+
 void ArmatureTransform::TransformBack(frame_type & source_frame, const frame_type & target_frame) const
 {
 }

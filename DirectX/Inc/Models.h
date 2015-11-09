@@ -4,7 +4,6 @@
 #include "DXGIFormatHelper.h"
 #include <vector>
 #include <string>
-#include "Renderable.h"
 #include <Effects.h>
 #include <type_traits>
 #include <VertexTypes.h>

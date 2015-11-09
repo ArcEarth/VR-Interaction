@@ -137,12 +137,13 @@ namespace Causality
 		auto r = T.block(0, 0, dX, dY);
 
 		if (useInvB)
-			r = A * invB;
+			r.noalias() = A * invB;
 		else
-			r = svdBt.solve(r.transpose()).transpose();
+			r.noalias() = svdBt.solve(r.transpose()).transpose();
 
 		// translation
-		T.block(dX, 0, 1, dY) = uY - uX * r;
+		T.block(dX, 0, 1, dY).noalias() = uY - uX * r;
+
 		T(dX, dY) = 1.0f;
 
 		return T;
@@ -150,22 +151,24 @@ namespace Causality
 
 	inline Eigen::MatrixXf PcaCcaMap::TransformMatrix() const
 	{
-		assert(!"Not implented yet, uXpca, uYpca is not considered yet");
-		auto dX = uX.size(), dY = uY.size();
+		//assert(!"Not implented yet, uXpca, uYpca is not considered yet");
+		auto dX = uXpca.size(), dY = uYpca.size();
 		Eigen::MatrixXf T(dX + 1, dY + 1);
+		Eigen::MatrixXf ri;
 
 		auto r = T.block(0, 0, dX, dY);
+		auto t = T.block(dX, 0, 1, dY);
 
 		if (useInvB)
-			r = pcX * A * invB * pcY.transpose();
+			ri.noalias() = A * invB;
 		else
-		{
-			r = svdBt.solve(A.transpose()).transpose();
-			r = pcX * r * pcY.transpose(); // pcX, pcY is orthgonal
-		}
+			ri.noalias() = svdBt.solve(A.transpose()).transpose();
+
+		r.noalias() = pcX * ri * pcY.transpose(); // pcX, pcY is orthgonal
 
 		// translation
-		T.block(dX, 0, 1, dY) = uY - uX * r;
+		t.noalias() = (uY - uX * ri) * pcY.transpose() + uYpca - uXpca * r;
+
 		T(dX, dY) = 1.0f;
 
 		return T;

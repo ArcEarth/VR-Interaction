@@ -42,6 +42,7 @@ const static Eigen::IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n
 ShrinkedArmature		 g_PlayerParts;
 std::map<string, string> g_DebugLocalMotionAction;
 bool					 g_DebugLocalMotion = false;
+bool					 g_ForceRemappingAlwaysOn = false;
 
 static const DirectX::XMVECTORF32 HumanBoneColors[JointType_Count] = {
 	{ 0.0f,0.0f,0.0f,0.0f }, //JointType_SpineBase = 0,
@@ -726,6 +727,11 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 		g_NoiseInterpolation[2] = 1.0f;
 		cout << "Local Motion Sythesis Jaming = " << g_NoiseInterpolation << endl;
 	}
+	else if (e.Key == 'R')
+	{
+		ResetPrimaryCameraPoseToDefault();
+
+	}
 }
 
 void PlayerProxy::OnKeyDown(const KeyboardEventArgs & e)
@@ -815,7 +821,8 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 
 	g_RevampLikilyhoodThreshold = 0.5;
 	g_RevampLikilyhoodTimeThreshold = 1.0;
-	m_CyclicInfo.EnableCyclicMotionDetection();
+	if (g_ForceRemappingAlwaysOn)
+		m_CyclicInfo.EnableCyclicMotionDetection();
 
 	if (IsMapped())
 	{

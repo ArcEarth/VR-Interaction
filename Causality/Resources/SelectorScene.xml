@@ -17,7 +17,7 @@
     
     <PartAssignmentTransform>4</PartAssignmentTransform>
 
-    <UsePersudoPhysicsWalk>1</UsePersudoPhysicsWalk>
+    <UsePersudoPhysicsWalk>0</UsePersudoPhysicsWalk>
     <MaxCharacterSpeed>0.5</MaxCharacterSpeed>
 
     <EnableInputFeatureLocalization>1</EnableInputFeatureLocalization>

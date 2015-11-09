@@ -24,15 +24,15 @@ void ParticaleFilterBase::Step(const InputVectorType & input)
 
 const ParticaleFilterBase::TrackingVectorType & ParticaleFilterBase::CurrentState() const
 {
-	return m_CurrentSample;
+	return m_state;
 }
 
 void ParticaleFilterBase::StepParticals()
 {
-	Resample(m_NewSample, m_CurrentSample);
-	m_NewSample.swap(m_CurrentSample);
+	Resample(m_newSample, m_sample);
+	m_newSample.swap(m_sample);
 
-	auto& sample = m_CurrentSample;
+	auto& sample = m_sample;
 	auto n = sample.rows();
 	auto dim = sample.cols() - 1;
 
@@ -47,7 +47,16 @@ void ParticaleFilterBase::StepParticals()
 		sample(i, 0) = Likilihood(partical);
 	}
 
-	m_CurrentSampleMean = (sample.rightCols(dim).array() * sample.col(0).replicate(1, dim).array()).rowwise().sum();
+	float w = sample.col(0).sum();
+	if (w > 0.0001f)
+	{
+		m_state = (sample.rightCols(dim).array() * sample.col(0).replicate(1, dim).array()).colwise().sum();
+		m_state /= w;
+	}
+	else // critial bug here, but we will use the mean particle as a dummy
+	{
+		m_state = sample.rightCols(dim).colwise().mean();
+	}
 }
 
 // resample the weighted sample in O(n*log(n)) time

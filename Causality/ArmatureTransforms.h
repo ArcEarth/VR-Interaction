@@ -20,18 +20,6 @@ namespace Causality
 
 	class CharacterController;
 
-	class CcaArmatureTransform : virtual public ArmatureTransform
-	{
-	public:
-
-		std::vector<PcaCcaMap> Maps;
-
-	public:
-		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
-		{
-		}
-	};
-
 	namespace ArmaturePartFeatures
 	{
 		class EndEffectorGblPosQuadratized : public IArmaturePartFeature
@@ -57,7 +45,7 @@ namespace Causality
 		};
 	}
 
-	class BlockizedArmatureTransform : virtual public ArmatureTransform
+	class BlockizedArmatureTransform : public ArmatureTransform
 	{
 	protected:
 		const ShrinkedArmature *pSblocks, *pTblocks;
@@ -70,9 +58,11 @@ namespace Causality
 		void SetFrom(const ShrinkedArmature * pSourceBlock, const ShrinkedArmature * pTargetBlock);
 	};
 
-	class BlockizedCcaArmatureTransform : public CcaArmatureTransform, public BlockizedArmatureTransform
+	class BlockizedCcaArmatureTransform : public BlockizedArmatureTransform
 	{
 	public:
+		std::vector<PcaCcaMap> Maps;
+
 		std::unique_ptr<IArmaturePartFeature> pInputExtractor, pOutputExtractor;
 	public:
 
@@ -157,7 +147,7 @@ namespace Causality
 	class CharacterActionTracker : public ParticaleFilterBase
 	{
 	public:
-		CharacterActionTracker(const ArmatureFrameAnimation& animation, PartilizedTransformer transfomer);
+		CharacterActionTracker(const ArmatureFrameAnimation& animation,const PartilizedTransformer &transfomer);
 		// Inherited via ParticaleFilterBase
 	public:
 		virtual void	Reset(const InputVectorType & input) override;
@@ -166,6 +156,9 @@ namespace Causality
 
 		void			GetScaledFrame(_Out_ BoneHiracheryFrame& frame, float t, float s) const;
 
+		void			SetLikihoodVarience(const InputVectorType& v);
+
+		void			SetTrackingParameters(float varDt, float varDs, float varS);
 	protected:
 		virtual void	SetInputState(const InputVectorType & input) override;
 		virtual float	Likilihood(const TrackingVectorBlockType & x) override;
@@ -183,7 +176,7 @@ namespace Causality
 		std::shared_ptr<IArmaturePartFeature>	m_pFeature;
 
 		// Likilihood distance cov 
-		InputVectorType					m_Cov;
+		InputVectorType					m_LikCov;
 
 		// Progation velocity variance
 		float							m_varDt;
@@ -204,7 +197,7 @@ namespace Causality
 
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const override;
 
-		void DriveDepentPart(Causality::ArmaturePart & cpart, Eigen::RowVectorXd &Xd, Causality::BoneHiracheryFrame & target_frame) const;
+		void DriveAccesseryPart(Causality::ArmaturePart & cpart, Eigen::RowVectorXd &Xd, Causality::BoneHiracheryFrame & target_frame) const;
 
 		void DriveActivePartSIK(Causality::ArmaturePart & cpart, Causality::BoneHiracheryFrame & target_frame, Eigen::RowVectorXf &xf, bool computeVelocity = false) const;
 

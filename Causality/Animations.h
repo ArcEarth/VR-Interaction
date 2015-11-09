@@ -276,6 +276,8 @@ namespace Causality
 	class ArmatureTransform
 	{
 	public:
+
+		ArmatureTransform();
 		virtual ~ArmatureTransform()
 		{
 		}

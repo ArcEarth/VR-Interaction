@@ -60,8 +60,9 @@ namespace Causality
 
 		void Resample(_Out_ Eigen::MatrixXf& resampled, _In_ const Eigen::MatrixXf& sample);
 
-		MatrixType m_CurrentSample;
-		MatrixType m_NewSample;
-		TrackingVectorType m_CurrentSampleMean;
+		MatrixType m_sample;
+		MatrixType m_newSample;
+		// Mean state 
+		TrackingVectorType m_state;
 	};
 }

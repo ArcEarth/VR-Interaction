@@ -1264,6 +1264,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 		cout << "__________ Parts Assignment __________" << endl;
 		for (int i = 0; i < matching.size(); i++)
 		{
+			if (matching[i] < 0) continue;
 			int ju = Juk[i], jc = Jck[matching[i]];
 			if (ju >= 0 && jc >= 0)
 			{
@@ -1279,6 +1280,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 		for (int i = 0; i < matching.size(); i++)
 		{
+			if (matching[i] < 0) continue;
 			int ju = Juk[i], jc = Jck[matching[i]];
 			for (int phi = 0; phi < T; phi += Ti)
 			{
@@ -1332,6 +1334,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 		for (int i = 0; i < matching.size(); i++)
 		{
+			if (matching[i] < 0) continue;
 			int ju = Juk[i], jc = Jck[matching[i]];
 			if (ju >= 0 && jc >= 0)
 			{

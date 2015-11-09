@@ -383,6 +383,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <None Include="Common.hlsli" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="icon1.ico" />
     <Image Include="Resources\Textures\SkyBox\GrimmNight\Back.dds">
       <DeploymentContent>true</DeploymentContent>
     </Image>
