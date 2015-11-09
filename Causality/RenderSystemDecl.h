@@ -3,6 +3,11 @@
 
 struct ID3D11Device;
 struct ID3D11DeviceContext;
+struct ID2D1Factory;
+struct IDWriteFactory;
+struct ID2D1DeviceContext;
+struct ID2D1Device;
+struct ID2D1Bitmap;
 
 namespace DirectX
 {
@@ -45,6 +50,11 @@ namespace DirectX
 		struct MaterialData;
 		struct LambertMaterialData;
 		struct PhongMaterialData;
+
+		class HUDElement;
+		class HUDCanvas;
+		class Panel;
+		class TextBlock;
 	}
 }
 
@@ -77,10 +87,19 @@ namespace Causality
 	using DirectX::Scene::LambertMaterialData;
 	using DirectX::Scene::PhongMaterialData;
 
+	using DirectX::Scene::HUDElement;
+	using DirectX::Scene::HUDCanvas;
+	using DirectX::Scene::Panel;
+	using DirectX::Scene::TextBlock;
+
+
 	using DirectX::DeviceResources;
 
-	using IRenderDevice = ID3D11Device;
+	using IRenderDevice  = ID3D11Device;
 	using IRenderContext = ID3D11DeviceContext;
+	using I2DFactory     = ID2D1Factory;
+	using I2DContext     = ID2D1DeviceContext;
+	using ITextFactory   = IDWriteFactory;
 
 	//class RenderDevice : public Microsoft::WRL::ComPtr<ID3D11Device>
 	//{

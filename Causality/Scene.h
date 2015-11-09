@@ -101,11 +101,12 @@ namespace Causality
 		bool SetAsPrimaryCamera(ICamera* camera);
 
 		IRenderDevice*			GetRenderDevice() { return render_device.Get(); }
-		const IRenderDevice*		GetRenderDevice() const { return render_device.Get(); }
+		const IRenderDevice*	GetRenderDevice() const { return render_device.Get(); }
 		IRenderContext*			GetRenderContext() { return render_context.Get(); }
 		const IRenderContext*	GetRenderContext() const { return render_context.Get(); }
 
 		void SetRenderDeviceAndContext(IRenderDevice* device, IRenderContext* context);
+		void SetHudRenderDevice(I2DFactory* pD2dFactory, ITextFactory* pTextFactory);
 
 		DirectX::RenderTarget&			Canvas() { return scene_canvas; }
 		const DirectX::RenderTarget&	Canvas() const { return scene_canvas; }
@@ -130,28 +131,37 @@ namespace Causality
 		SceneTimeLineType			timeline_type;
 		double						time_scale;
 		StepTimer					step_timer;
+
 		cptr<IRenderDevice>			render_device;
 		cptr<IRenderContext>		render_context;
+		cptr<I2DFactory>			m_2dFactory;
+		cptr<ITextFactory>			m_textFactory;
+		cptr<I2DContext>			m_2dContext;
+
 		uptr<AssetDictionary>
 									assets;
 
-		uptr<SceneObject>			content;
+		uptr<SceneObject>			m_sceneRoot;
+		uptr<HUDCanvas>				m_hudRoot;
+
 		RenderTarget				scene_canvas;
 		RenderableTexture2D			back_buffer;
+
+		bool						is_paused;
+		bool						is_loaded;
+		int							loading_count;
+
 		ICamera						*primary_cameral;
 
+		// Caches
 		vector<ICamera*>			cameras;
 		vector<ILight*>				lights;
-		vector<IVisual*>		renderables;
+		vector<IVisual*>			renderables;
 		vector<IEffect*>			effects;
 
 		std::mutex					content_mutex;
 
 		bool						camera_dirty;
 		bool						object_dirty;
-
-		bool						is_paused;
-		bool						is_loaded;
-		int							loading_count;
 	};
 }

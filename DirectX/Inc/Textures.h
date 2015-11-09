@@ -9,6 +9,13 @@
 #include <wrl\client.h>
 #include <string>
 
+// Predefine interface to Direct2D Bitmap
+interface ID2D1RenderTarget;
+interface ID2D1Factory;
+interface ID2D1DeviceContext;
+interface ID2D1Bitmap1;
+interface ID2D1Bitmap;
+
 namespace DirectX {
 
 	class Texture
@@ -381,7 +388,7 @@ namespace DirectX {
 		}
 
 		RenderableTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
-			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM, _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0, _In_opt_ bool Shared = false);
+			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_B8G8R8A8_UNORM, _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0, _In_opt_ bool Shared = false);
 		RenderableTexture2D(ID3D11Texture2D* pTexture, ID3D11RenderTargetView* pRenderTargetView, ID3D11ShaderResourceView* pShaderResouceView);
 		explicit RenderableTexture2D(ID3D11RenderTargetView* pRenderTargetView);
 		explicit RenderableTexture2D(IDXGISwapChain* pSwapChain);
@@ -410,8 +417,15 @@ namespace DirectX {
 
 		RenderableTexture2D& operator=(nullptr_t) { Reset(); return *this; }
 
+		// Create a shared bitmap interface to use D2D
+		ID2D1Bitmap1* CreateD2DBitmap(ID2D1DeviceContext *pContext, float dpi = 96.0f);
+
+		ID2D1Bitmap1* BitmapView() { return m_pD2dBitmap; }
+
 	protected:
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView>			m_pRenderTargetView;
+		// For not generate dependency for d2d headers
+		ID2D1Bitmap1*											m_pD2dBitmap;
 	};
 
 	/// <summary>

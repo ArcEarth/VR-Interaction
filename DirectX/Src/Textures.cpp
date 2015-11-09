@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <ScreenGrab.h>
 #include <wincodec.h>
+#include <d2d1_1.h>
 
 using namespace DirectX;
 using namespace std;
@@ -126,6 +127,44 @@ void Texture2D::CopyFrom(ID3D11DeviceContext *pContext, const Texture2D* pSource
 	pContext->CopyResource(this->Resource(), pSource->Resource());
 }
 
+ID2D1Bitmap1* RenderableTexture2D::CreateD2DBitmap(ID2D1DeviceContext *pContext, float dpi)
+{
+	if (m_pD2dBitmap != nullptr)
+		return m_pD2dBitmap;
+
+	ID2D1Bitmap1* bitmap = nullptr;
+	// D2D requires BGRA color order
+	if (Format() != DXGI_FORMAT_B8G8R8A8_UNORM)
+		throw runtime_error("DXGI Format must be DXGI_FORMAT_B8G8R8A8_UNORM");
+
+	// Create a Direct2D target bitmap associated with the
+	// swap chain back buffer and set it as the current target.
+	D2D1_BITMAP_PROPERTIES1 bitmapProperties =
+		D2D1::BitmapProperties1(
+			D2D1_BITMAP_OPTIONS_TARGET
+			| m_Description.BindFlags & D3D11_BIND_SHADER_RESOURCE ? D2D1_BITMAP_OPTIONS_NONE : D2D1_BITMAP_OPTIONS_CANNOT_DRAW
+			| m_Description.CPUAccessFlags & D3D11_CPU_ACCESS_READ ? D2D1_BITMAP_OPTIONS_CPU_READ : D2D1_BITMAP_OPTIONS_NONE,
+			D2D1::PixelFormat(Format(), D2D1_ALPHA_MODE_PREMULTIPLIED),
+			dpi, dpi
+			);
+
+	ComPtr<IDXGISurface2> dxgiSurface;
+	DirectX::ThrowIfFailed(
+		m_pTexture.As(&dxgiSurface)
+	);
+
+	DirectX::ThrowIfFailed(
+		pContext->CreateBitmapFromDxgiSurface(
+			dxgiSurface.Get(),
+			&bitmapProperties,
+			&bitmap
+			)
+		);
+
+	m_pD2dBitmap = bitmap;
+	return bitmap;
+}
+
 
 
 void DynamicTexture2D::SetData(ID3D11DeviceContext* pContext, const void* Raw_Data, size_t element_size)
@@ -169,6 +208,7 @@ RenderableTexture2D::RenderableTexture2D(ID3D11Texture2D* pTexture, ID3D11Render
 {
 	assert(pRenderTargetView);
 	m_pRenderTargetView = pRenderTargetView;
+	m_pD2dBitmap = nullptr;
 }
 
 inline DirectX::RenderableTexture2D::RenderableTexture2D(ID3D11RenderTargetView * pRenderTargetView)
@@ -177,24 +217,34 @@ inline DirectX::RenderableTexture2D::RenderableTexture2D(ID3D11RenderTargetView 
 	pRenderTargetView->GetResource(&m_pResource);
 	m_pResource.As(&m_pTexture);
 	m_pTexture->GetDesc(&m_Description);
+	m_pD2dBitmap = nullptr;
 }
 
 RenderableTexture2D::RenderableTexture2D()
 {
-
+	m_pD2dBitmap = nullptr;
 }
 
 RenderableTexture2D::RenderableTexture2D(RenderableTexture2D &&source)
 	: Texture2D(std::move(source)),
 	m_pRenderTargetView(std::move(source.m_pRenderTargetView))
 {
-
+	m_pD2dBitmap = source.m_pD2dBitmap;
+	source.m_pD2dBitmap = nullptr;
 }
 
 RenderableTexture2D& RenderableTexture2D::operator=(RenderableTexture2D &&source)
 {
 	Texture2D::operator=(std::move(source));
 	m_pRenderTargetView = std::move(source.m_pRenderTargetView);
+	if (m_pD2dBitmap)
+	{
+		m_pD2dBitmap->Release();
+		m_pD2dBitmap = nullptr;
+	}
+	m_pD2dBitmap = source.m_pD2dBitmap;
+	source.m_pD2dBitmap = nullptr;
+
 	return *this;
 }
 
@@ -271,7 +321,10 @@ DynamicTexture2D::~DynamicTexture2D()
 {}
 
 RenderableTexture2D::~RenderableTexture2D()
-{}
+{
+	if (m_pD2dBitmap)
+		m_pD2dBitmap->Release();
+}
 
 void RenderableTexture2D::Clear(ID3D11DeviceContext * pDeviceContext, FXMVECTOR Color)
 {

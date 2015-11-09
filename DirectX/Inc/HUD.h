@@ -113,8 +113,11 @@ namespace DirectX
 		public:
 			virtual void UpdateLayout();
 			virtual void Render(ID2D1DeviceContext* context);
+
+			void SetTarget(ID2D1Bitmap* bitmap);
+
 		protected:
-			ComPtr<ID2D1Bitmap1> m_renderTarget;
+			ComPtr<ID2D1Bitmap> m_canvasBitmap;
 		};
 
 		class StackPanel : public Panel

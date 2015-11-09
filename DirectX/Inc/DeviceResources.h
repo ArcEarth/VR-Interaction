@@ -8,7 +8,6 @@
 #include <d3d11_2.h>
 #include <d2d1_2.h>
 #include <dwrite_2.h>
-#include <wincodec.h>
 #include <DirectXMath.h>
 #include <string>
 #include <mutex>
@@ -33,22 +32,19 @@ namespace DirectX
 		Composition,
 	};
 
-	class GraphicsResource;
-
 	class IDeviceResouces abstract
 	{
 		virtual ID3D11Device2*			GetD3DDevice() const = 0;
 		virtual ID3D11DeviceContext2*	GetD3DDeviceContext() const = 0;
 		virtual ID2D1Device1*			GetD2DDevice() const = 0;
 		virtual ID2D1DeviceContext1*	GetD2DDeviceContext() const = 0;
+		virtual IDWriteFactory2*		GetDwriteFactory() const = 0;
 	};
 
 	// Controls all the DirectX device resources.
-	class DeviceResources
+	class DeviceResources : public IDeviceResouces
 	{
 	public:
-		static DeviceResources& DeviceResourcesForCurrentView();
-
 		DeviceResources();
 		void SetNativeWindow(HWND hWnd);
 
@@ -99,6 +95,7 @@ namespace DirectX
 			static Rect Empty;
 		};
 #endif
+
 		void SetLogicalSize(Size logicalSize);
 
 		void SetCurrentOrientation(DisplayOrientations currentOrientation);

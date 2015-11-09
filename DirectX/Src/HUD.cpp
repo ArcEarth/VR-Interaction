@@ -310,7 +310,17 @@ void HUDCanvas::UpdateLayout()
 
 void HUDCanvas::Render(ID2D1DeviceContext * context)
 {
-	context->SetTarget(m_renderTarget.Get());
+	context->SetTarget(m_canvasBitmap.Get());
+}
+
+void HUDCanvas::SetTarget(ID2D1Bitmap * bitmap)
+{
+	m_canvasBitmap = bitmap;
+	auto size = m_canvasBitmap->GetSize();
+	m_size.x = size.width;
+	m_size.y = size.height;
+	m_position.x = 0;
+	m_position.y = 0;
 }
 
 void Panel::AddChild(HUDElement * elem)
