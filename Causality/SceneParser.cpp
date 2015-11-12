@@ -166,6 +166,8 @@ void Scene::LoadFromXML(const string & xml_file)
 	ParseSceneSettings(nScene);
 	ParseSceneAssets(this->Assets(), nAssets);
 
+	auto nHud = nScene->FirstChildElement("scene.hud");
+
 	auto nContent = nScene->FirstChildElement("scene.content");
 	nContent = nContent->FirstChildElement();
 	ParseSceneObject(*this, nContent, nullptr);

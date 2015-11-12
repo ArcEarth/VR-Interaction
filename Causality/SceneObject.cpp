@@ -153,6 +153,16 @@ const DirectX::IsometricTransform & SceneObject::GetGlobalTransform() const
 	return m_Transform.GlobalTransform();
 }
 
+bool SceneObject::GetBoundingBox(BoundingBox & box) const
+{
+	return false;
+}
+
+bool SceneObject::GetBoundingGeometry(BoundingGeometry & geometry) const
+{
+	return false;
+}
+
 void SceneObject::UpdateTransformsParentWard() const
 {
 	if (!m_TransformDirty) return;

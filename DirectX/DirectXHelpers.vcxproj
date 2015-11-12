@@ -87,15 +87,19 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    <SourcePath>$(ProjectDir)Src;$(ProjectDir)Src\Shaders;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+    <SourcePath>$(ProjectDir)Src;$(ProjectDir)Src\Shaders;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    <SourcePath>$(ProjectDir)Src;$(ProjectDir)Src\Shaders;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    <SourcePath>$(ProjectDir)Src;$(ProjectDir)Src\Shaders;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -177,6 +181,7 @@
     <ClInclude Include="Inc\DirectXMathExtend.inl">
       <FileType>CppCode</FileType>
     </ClInclude>
+    <ClCompile Include="Src\HUD.cpp" />
     <ClCompile Include="Src\pch_directX.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -204,6 +209,7 @@
     <ClInclude Include="Inc\DirectXMathExtend.h" />
     <ClInclude Include="Inc\DXGIFormatHelper.h" />
     <ClInclude Include="Inc\HierarchicalTransform.h" />
+    <ClInclude Include="Inc\HUD.h" />
     <ClInclude Include="Inc\PostProcessingEffect.h" />
     <ClInclude Include="Inc\ShadowMapGenerationEffect.h" />
     <ClInclude Include="Src\tiny_obj_loader.h" />

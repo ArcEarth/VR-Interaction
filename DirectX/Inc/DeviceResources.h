@@ -36,9 +36,10 @@ namespace DirectX
 	{
 		virtual ID3D11Device2*			GetD3DDevice() const = 0;
 		virtual ID3D11DeviceContext2*	GetD3DDeviceContext() const = 0;
+		virtual ID2D1Factory2*			GetD2DFactory() const = 0;
 		virtual ID2D1Device1*			GetD2DDevice() const = 0;
 		virtual ID2D1DeviceContext1*	GetD2DDeviceContext() const = 0;
-		virtual IDWriteFactory2*		GetDwriteFactory() const = 0;
+		virtual IDWriteFactory2*		GetDWriteFactory() const = 0;
 	};
 
 	// Controls all the DirectX device resources.
@@ -121,8 +122,8 @@ namespace DirectX
 		Size					GetLogicalSize() const				{ return m_logicalSize; }
 
 		// D3D Accessors.
-		ID3D11Device2*			GetD3DDevice() const					{ return m_d3dDevice.Get(); }
-		ID3D11DeviceContext2*	GetD3DDeviceContext() const				{ return m_d3dContext.Get(); }
+		ID3D11Device2*			GetD3DDevice() const override			{ return m_d3dDevice.Get(); }
+		ID3D11DeviceContext2*	GetD3DDeviceContext() const	override	{ return m_d3dContext.Get(); }
 		std::mutex&				GetD3DContextMutext() const				{ return m_d3dMutex; }
 		IDXGISwapChain1*		GetSwapChain() const					{ return m_swapChain.Get(); }
 		D3D_FEATURE_LEVEL		GetDeviceFeatureLevel() const			{ return m_d3dFeatureLevel; }
@@ -134,11 +135,11 @@ namespace DirectX
 		XMMATRIX				GetOrientationTransform3D() const		{ return XMLoadFloat4x4(&m_orientationTransform3D); }
 
 		// D2D Accessors.
-		ID2D1Factory2*			GetD2DFactory() const					{ return m_d2dFactory.Get(); }
-		ID2D1Device1*			GetD2DDevice() const					{ return m_d2dDevice.Get(); }
-		ID2D1DeviceContext1*	GetD2DDeviceContext() const				{ return m_d2dContext.Get(); }
+		ID2D1Factory2*			GetD2DFactory() const override			{ return m_d2dFactory.Get(); }
+		ID2D1Device1*			GetD2DDevice() const override			{ return m_d2dDevice.Get(); }
+		ID2D1DeviceContext1*	GetD2DDeviceContext() const	override	{ return m_d2dContext.Get(); }
 		ID2D1Bitmap1*			GetD2DTargetBitmap() const				{ return m_d2dTargetBitmap.Get(); }
-		IDWriteFactory2*		GetDWriteFactory() const				{ return m_dwriteFactory.Get();	 }
+		IDWriteFactory2*		GetDWriteFactory() const override		{ return m_dwriteFactory.Get();	 }
 		//IWICImagingFactory2*	GetWicImagingFactory() const			{ return m_wicFactory.Get(); }
 		D2D1::Matrix3x2F		GetOrientationTransform2D() const		{ return m_orientationTransform2D; }
 
@@ -175,7 +176,7 @@ namespace DirectX
 
 		// DirectWrite drawing components.
 		Microsoft::WRL::ComPtr<IDWriteFactory2>			m_dwriteFactory;
-		Microsoft::WRL::ComPtr<IWICImagingFactory2>		m_wicFactory;
+		//Microsoft::WRL::ComPtr<IWICImagingFactory2>		m_wicFactory;
 
 		//std::unique_ptr<DirectX::EffectFactory>		   m_EffectFactory;
 		DeviceHostType								   m_deviceHostType;

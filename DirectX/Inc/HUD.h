@@ -5,16 +5,70 @@
 #include <limits>
 #include <dwrite_3.h>
 #include <d2d1_3.h>
+#include "DirectXMathExtend.h"
+#include "Textures.h"
 
 namespace DirectX
 {
+	/// <summary>
+	/// Convert A point in World space to texture space
+	/// </summary>
+	/// <param name="v">the point's coordinate</param>
+	/// <param name="viewport">layout in order x,y,width,height</param>
+	/// <param name="projection">the worldViewProjection Matrix</param>
+	/// <returns></returns>
+	XMVECTOR XM_CALLCONV XMVector3ConvertToTextureCoord(FXMVECTOR v, FXMVECTOR viewport, CXMMATRIX worldViewProjection)
+	{
+		XMVECTOR nv = XMVector3TransformCoord(v, worldViewProjection);
+		return nv;
+	}
+
+	/// <summary>
+	/// Convert A point in World space to texture space
+	/// </summary>
+	/// <param name="v">the point's coordinate in projection space</param>
+	/// <param name="viewport">layout in order x,y,width,height</param>
+	/// <returns></returns>
+	XMVECTOR XM_CALLCONV XMVector3ConvertToTextureCoord(FXMVECTOR v, FXMVECTOR viewport)
+	{
+		static XMVECTORF32 conv = { 0.5f,-0.5f,.0f,0.f };
+		static XMVECTORF32 addv = { 0.5f, 0.5f,.0f,0.f };
+		static XMVECTORF32 g_XMMaskXY = { 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0x00000000 };
+		XMVECTOR v1 = conv.v;
+		XMVECTOR v2 = addv.v;
+		XMVECTOR nv;
+		nv = XMVectorMultiplyAdd(nv, v1, v2); // convert from [-1,1]x[1,-1] to [0,1]x[0,1] range (Y is fliped)
+		v1 = XMVectorAndInt(viewport, g_XMMaskXY.v);
+		v2 = XMVectorShiftLeft<2>(viewport, XMVectorZero());
+		nv = XMVectorMultiplyAdd(nv, v1, v2); // convert to viewport
+		return nv;
+	}
+
+	/// <summary>
+	/// Convert a texture coord to view-ray direction in view space
+	/// </summary>
+	/// <param name="v"></param>
+	/// <param name="viewport"></param>
+	/// <returns></returns>
+	XMVECTOR XM_CALLCONV XMVector2ConvertToViewDirection(FXMVECTOR v, FXMVECTOR viewport, CXMMATRIX invProjection)
+	{
+		XMVECTOR nv;
+		XMVECTOR vs = XMVectorShiftLeft<2>(viewport, XMVectorZero());
+		nv -= viewport;
+		nv /= vs;
+		nv = XMVectorSelect(g_XMOne.v, nv, g_XMSelect1100.v);
+		nv = XMVector3TransformCoord(nv, invProjection);
+		nv = XMVector3Normalize(nv);
+		return nv;
+	}
+
 	namespace Scene
 	{
 		class TextBlock;
 
 		using Microsoft::WRL::ComPtr;
 
-		enum HorizentalAlignmentEnum
+		enum class HorizentalAlignmentEnum
 		{
 			Left,
 			Right,
@@ -22,7 +76,7 @@ namespace DirectX
 			Stretch,
 		};
 
-		enum VerticalAlignmentEnum
+		enum class VerticalAlignmentEnum
 		{
 			Top,
 			Bottom,
@@ -35,10 +89,11 @@ namespace DirectX
 		const float AutoSize = std::numeric_limits<float>::signaling_NaN();
 
 		XM_ALIGNATTR
-		class HUDElement : public AlignedNew<HUDElement>
+		class HUDElement : public AlignedNew<XMVECTOR>
 		{
 		public:
 			HUDElement();
+			virtual ~HUDElement();
 
 			float Width() const;
 			float Height() const;
@@ -52,7 +107,12 @@ namespace DirectX
 			void SetPosition(const Vector2& position);
 
 			float Opticity() const { return m_opticity; }
-			float SetOpticity(float opticity);
+			void SetOpticity(float opticity);
+
+			bool Visiability() const { return m_visiable; }
+			void SetVisiability(bool visiable) { m_visiable = visiable; }
+
+			int	ZIndex() const { return m_zIndex; }
 
 			const HUDElement* Parent() const { return m_parent; }
 			HUDElement* Parent() { return m_parent; }
@@ -76,6 +136,10 @@ namespace DirectX
 			Vector2		            m_position;
 			Vector2		            m_size;
 			Vector2		            m_maxSize;
+			Vector4					m_margin;
+			Vector4					m_padding;
+			int						m_zIndex;
+			bool					m_visiable;
 			bool					m_wAuto; // signal when width is set to auto
 			bool					m_hAuto; // signal when height is set to auto
 			float		            m_opticity;
@@ -97,12 +161,15 @@ namespace DirectX
 		class Panel : public HUDElement
 		{
 		public:
+			~Panel() override;
+
 			typedef std::vector<HUDElement*> ElementListType;
 
 			const ElementListType& Children() const { return m_children; }
 
 			virtual void AddChild(HUDElement* elem);
 
+			virtual void Render(ID2D1DeviceContext* context);
 		protected:
 			ElementListType m_children;
 		};
@@ -111,13 +178,23 @@ namespace DirectX
 		class HUDCanvas : public Panel
 		{
 		public:
+			HUDCanvas();
+			~HUDCanvas() override;
 			virtual void UpdateLayout();
 			virtual void Render(ID2D1DeviceContext* context);
 
-			void SetTarget(ID2D1Bitmap* bitmap);
+			void		 SetTarget(RenderableTexture2D* bitmap);
+
+			RenderableTexture2D*
+						 GetTarget() const;
+			void		 GetViewport(D3D11_VIEWPORT& viewport) const;
+
+			void		 SetChildPosition(int idx, const Vector2& position) { m_children[idx]->SetPosition(position); }
 
 		protected:
-			ComPtr<ID2D1Bitmap> m_canvasBitmap;
+			bool					m_clearCanvasWhenRender;
+			Color					m_background;
+			RenderableTexture2D*	m_targetTex;
 		};
 
 		class StackPanel : public Panel
@@ -161,10 +238,17 @@ namespace DirectX
 			std::vector<Vector2, AlignedAllocator<XMVECTOR>> m_rawData;
 		};
 
+		class MatrixBitmap : public HUDElement, public I2dDeviceResource
+		{
+
+		};
+
 		class TextBlock : public HUDElement, public I2dDeviceResource
 		{
 			TextBlock();
 			TextBlock(const std::wstring& text, ID2D1Factory* pD2dFactory = nullptr, IDWriteFactory* pDwriteFactory = nullptr);
+
+			~TextBlock();
 
 			void CreateDeviceResources(ID2D1Factory* pD2dFactory, IDWriteFactory* pDwriteFactory) override;
 			void ReleaseDeviceResources() override;
@@ -197,10 +281,6 @@ namespace DirectX
 			ComPtr<ID2D1DrawingStateBlock>  m_stateBlock;
 			ComPtr<IDWriteTextLayout>       m_textLayout;
 			ComPtr<IDWriteTextFormat>		m_textFormat;
-		};
-
-		class TimedTextBlock : public TextBlock
-		{
 		};
 	}
 }

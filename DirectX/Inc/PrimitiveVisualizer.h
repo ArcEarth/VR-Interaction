@@ -6,6 +6,7 @@
 #include <wrl\client.h>
 #include <GeometricPrimitive.h>
 #include "DirectXMathExtend.h"
+#include <SpriteBatch.h>
 //#include "DirectXHelper.h"
 
 namespace DirectX

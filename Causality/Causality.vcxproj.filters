@@ -45,6 +45,12 @@
     <Filter Include="Character Control Logic\NewFilter1">
       <UniqueIdentifier>{4b32018d-ee5a-403e-8341-a2e15869c1f5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dlls">
+      <UniqueIdentifier>{902576ed-1a7b-45ba-a4ff-5168de47f59d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="HUD">
+      <UniqueIdentifier>{1f8cd33e-39cb-494e-9b7e-856d80ff79c8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NativeWindow.cpp">
@@ -143,6 +149,7 @@
     <ClCompile Include="GestureTracker.cpp">
       <Filter>Character Control Logic</Filter>
     </ClCompile>
+    <ClCompile Include="FloatHud.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NativeWindow.h">
@@ -325,6 +332,9 @@
     <ClInclude Include="GestureTracker.h">
       <Filter>Character Control Logic</Filter>
     </ClInclude>
+    <ClInclude Include="FloatHud.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\OculusDisortionPixelShader.hlsl">
@@ -343,6 +353,9 @@
   <ItemGroup>
     <None Include="Common.hlsli">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="libfftw3f-3.dll">
+      <Filter>Dlls</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

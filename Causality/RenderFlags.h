@@ -13,6 +13,7 @@ namespace Causality
 		AcceptCustomizeEffects,
 		Skinable,
 		RequireBloomEffect,
+		FinalPassOnly,
 	};
 
 	#include "CompositeFlag.h"
@@ -28,7 +29,7 @@ namespace Causality
 			OpaqueObjects = 1 << Visible | 1 << RecivesLight | 1 << DropsShadow | 1 << RecivesShadow | 1 << AcceptCustomizeEffects,
 			SemiTransparentObjects = 1 << Visible | 1 << RecivesLight | 1 << DropsShadow | 1 << AcceptCustomizeEffects,
 			GhostObjects = 1 << Visible | 1 << RecivesLight | 1 << AcceptCustomizeEffects,
-			SpecialEffects = 1 << Visible,
+			SpecialEffects = 1 << Visible | 1 << FinalPassOnly,
 			SkyView = 1 << Visible,
 			Lights = 1 << LightSource,
 			Visible = 1 << Visible,

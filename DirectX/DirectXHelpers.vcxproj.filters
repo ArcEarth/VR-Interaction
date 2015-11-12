@@ -37,6 +37,9 @@
     <ClCompile Include="Src\PostProcessingEffect.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="Src\HUD.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Inc\ConstantBuffer.h">
@@ -109,6 +112,9 @@
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="Inc\HierarchicalTransform.h">
+      <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\HUD.h">
       <Filter>Include</Filter>
     </ClInclude>
   </ItemGroup>

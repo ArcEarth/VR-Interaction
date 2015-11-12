@@ -154,15 +154,17 @@ namespace Causality
 
 		void			Reset();
 
-		void			GetScaledFrame(_Out_ BoneHiracheryFrame& frame, float t, float s) const;
+		ScalarType		Step(const InputVectorType& input, ScalarType dt) override;
+
+		void			GetScaledFrame(_Out_ BoneHiracheryFrame& frame, ScalarType t, ScalarType s) const;
 
 		void			SetLikihoodVarience(const InputVectorType& v);
 
-		void			SetTrackingParameters(float varDt, float varDs, float varS);
+		void			SetTrackingParameters(ScalarType stdevDVt, ScalarType varVt, ScalarType stdevDs, ScalarType varS);
 	protected:
-		virtual void	SetInputState(const InputVectorType & input) override;
-		virtual float	Likilihood(const TrackingVectorBlockType & x) override;
-		virtual void	Progate(TrackingVectorBlockType & x) override;
+		void			SetInputState(const InputVectorType & input, ScalarType dt) override;
+		float			Likilihood(const TrackingVectorBlockType & x) override;
+		void			Progate(TrackingVectorBlockType & x) override;
 
 		InputVectorType GetCorrespondVector(const TrackingVectorBlockType & x) const;
 
@@ -177,11 +179,16 @@ namespace Causality
 
 		// Likilihood distance cov 
 		InputVectorType					m_LikCov;
+		ScalarType						m_dt;
+		ScalarType						m_confidentThre;
 
 		// Progation velocity variance
-		float							m_varDt;
-		float							m_varDs;
-		float							m_varS;
+		ScalarType						m_stdevDVt;
+		ScalarType						m_varVt;
+		ScalarType						m_stdevDs;
+		ScalarType						m_varS;
+		ScalarType						m_uS;
+		ScalarType						m_uVt;
 	};
 
 	class PartilizedTransformer : public BlockizedArmatureTransform

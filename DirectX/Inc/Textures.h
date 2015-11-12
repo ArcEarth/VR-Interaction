@@ -376,16 +376,8 @@ namespace DirectX {
 		RenderableTexture2D();
 		RenderableTexture2D(RenderableTexture2D &&);
 		RenderableTexture2D& operator=(RenderableTexture2D &&);
-		RenderableTexture2D(const RenderableTexture2D & rhs)
-		{
-			*this = rhs;
-		}
-		RenderableTexture2D& operator=(const RenderableTexture2D &rhs)
-		{
-			Texture2D::operator=(rhs);
-			m_pRenderTargetView = rhs.m_pRenderTargetView;
-			return *this;
-		}
+		RenderableTexture2D(const RenderableTexture2D & rhs);
+		RenderableTexture2D& operator=(const RenderableTexture2D &rhs);
 
 		RenderableTexture2D(_In_ ID3D11Device* pDevice, _In_ unsigned int Width, _In_ unsigned int Height,
 			_In_opt_ DXGI_FORMAT Format = DXGI_FORMAT_B8G8R8A8_UNORM, _In_opt_ UINT MultiSampleCount = 1, _In_opt_ UINT MultiSampleQuality = 0, _In_opt_ bool Shared = false);
@@ -418,7 +410,7 @@ namespace DirectX {
 		RenderableTexture2D& operator=(nullptr_t) { Reset(); return *this; }
 
 		// Create a shared bitmap interface to use D2D
-		ID2D1Bitmap1* CreateD2DBitmap(ID2D1DeviceContext *pContext, float dpi = 96.0f);
+		ID2D1Bitmap1* CreateD2DBitmapView(ID2D1DeviceContext *pContext, float dpi = 96.0f);
 
 		ID2D1Bitmap1* BitmapView() { return m_pD2dBitmap; }
 

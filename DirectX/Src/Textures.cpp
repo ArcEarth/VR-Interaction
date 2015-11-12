@@ -12,6 +12,11 @@
 using namespace DirectX;
 using namespace std;
 
+bool IsDXGIFormatD2DSupported(DXGI_FORMAT format)
+{
+	return format == DXGI_FORMAT_B8G8R8A8_UNORM || format == DXGI_FORMAT_A8_UNORM || format == DXGI_FORMAT_B8G8R8X8_UNORM || format == DXGI_FORMAT_BC1_UNORM || format == DXGI_FORMAT_BC2_UNORM || format == DXGI_FORMAT_BC3_UNORM;
+}
+
 Texture::Texture(Texture&& Src)
 	: m_pResource(std::move(Src.m_pResource))
 	, m_pShaderResourceView(std::move(Src.ShaderResourceView()))
@@ -127,15 +132,15 @@ void Texture2D::CopyFrom(ID3D11DeviceContext *pContext, const Texture2D* pSource
 	pContext->CopyResource(this->Resource(), pSource->Resource());
 }
 
-ID2D1Bitmap1* RenderableTexture2D::CreateD2DBitmap(ID2D1DeviceContext *pContext, float dpi)
+ID2D1Bitmap1* RenderableTexture2D::CreateD2DBitmapView(ID2D1DeviceContext *pContext, float dpi)
 {
 	if (m_pD2dBitmap != nullptr)
 		return m_pD2dBitmap;
 
 	ID2D1Bitmap1* bitmap = nullptr;
 	// D2D requires BGRA color order
-	if (Format() != DXGI_FORMAT_B8G8R8A8_UNORM)
-		throw runtime_error("DXGI Format must be DXGI_FORMAT_B8G8R8A8_UNORM");
+	if (!IsDXGIFormatD2DSupported(Format()))
+		throw runtime_error("D2D only support DXGI Format DXGI_FORMAT_B8G8R8A8_UNORM or DXGI_FORMAT_A8_UNORM");
 
 	// Create a Direct2D target bitmap associated with the
 	// swap chain back buffer and set it as the current target.
@@ -201,6 +206,8 @@ RenderableTexture2D::RenderableTexture2D(_In_ ID3D11Device* pDevice, _In_ unsign
 	// Create the render target view.
 	HRESULT hr = pDevice->CreateRenderTargetView(m_pResource.Get(), nullptr, &m_pRenderTargetView);
 	DirectX::ThrowIfFailed(hr);
+
+	m_pD2dBitmap = nullptr;
 }
 
 RenderableTexture2D::RenderableTexture2D(ID3D11Texture2D* pTexture, ID3D11RenderTargetView* pRenderTargetView, ID3D11ShaderResourceView* pShaderResouceView)
@@ -246,6 +253,21 @@ RenderableTexture2D& RenderableTexture2D::operator=(RenderableTexture2D &&source
 	source.m_pD2dBitmap = nullptr;
 
 	return *this;
+}
+
+RenderableTexture2D& RenderableTexture2D::operator=(const RenderableTexture2D &rhs)
+{
+	Texture2D::operator=(rhs);
+	m_pRenderTargetView = rhs.m_pRenderTargetView;
+	m_pD2dBitmap = rhs.m_pD2dBitmap;
+	if (m_pD2dBitmap)
+		m_pD2dBitmap->AddRef();
+	return *this;
+}
+
+RenderableTexture2D::RenderableTexture2D(const RenderableTexture2D & rhs)
+{
+	*this = rhs;
 }
 
 DepthStencilBuffer::DepthStencilBuffer()

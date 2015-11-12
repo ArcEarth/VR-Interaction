@@ -55,7 +55,7 @@ bool Light::AcceptRenderFlags(RenderFlags flags)
 	return result;
 }
 
-Color Causality::Light::GetColor() const { return m_Color; }
+Color Light::GetColor() const { return m_Color; }
 
 void Light::DisableDropShadow()
 {

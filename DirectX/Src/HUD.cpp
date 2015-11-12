@@ -143,7 +143,7 @@ void TextBlock::UpdateTextLayout(IDWriteFactory* pFactory)
 	else if (m_dirtyFlags & DirtyFlags::FontSize)
 	{
 		m_dirtyFlags &= ~DirtyFlags::FontSize;
-		m_textLayout->SetFontSize(m_fontSize, DWRITE_TEXT_RANGE{ 0, m_text.size() });
+		m_textLayout->SetFontSize(m_fontSize, DWRITE_TEXT_RANGE{ 0U, (UINT32)m_text.size() });
 	}
 
 	DirectX::ThrowIfFailed(
@@ -154,14 +154,14 @@ void TextBlock::UpdateTextLayout(IDWriteFactory* pFactory)
 
 void TextBlock::Render(ID2D1DeviceContext* context)
 {
-	if (m_text.empty()) return;
+	if (m_text.empty() || !m_visiable || m_opticity == .0f) return;
 
 	UpdateLayout();
 	UpdateTextLayout();
 	UpdateBrushColor(context);
 
-	if (!m_textLayout)
-		throw std::runtime_error("not intialized");
+	//if (!m_textLayout)
+	//	throw std::runtime_error("not intialized");
 
 	context->SaveDrawingState(m_stateBlock.Get());
 	context->BeginDraw();
@@ -188,12 +188,17 @@ void TextBlock::Render(ID2D1DeviceContext* context)
 	context->RestoreDrawingState(m_stateBlock.Get());
 }
 
+TextBlock::~TextBlock()
+{}
+
 Vector2 HUDElement::MeasureOverride(const Vector2 & availableSize)
 {
+	return m_size;
 }
 
 Vector2 HUDElement::ArrangeOverride(const Vector2 & actualSize)
 {
+	return m_size;
 }
 
 void HUDElement::Render(ID2D1DeviceContext * context)
@@ -203,13 +208,18 @@ void HUDElement::Render(ID2D1DeviceContext * context)
 HUDElement::HUDElement()
 	: m_parent(nullptr),
 	m_transform(D2D1::Matrix3x2F::Identity()),
-	m_hAlign(Left), m_vAlign(Top),
+	m_hAlign(HorizentalAlignmentEnum::Left), m_vAlign(VerticalAlignmentEnum::Top),
 	m_dirtyFlags(-1),
 	m_opticity(1.0f),
 	m_wAuto(true), m_hAuto(true),
-	m_position(), m_size()
+	m_position(), m_size(),
+	m_visiable(true)
 {
 }
+
+HUDElement::~HUDElement()
+{}
+
 
 float HUDElement::Width() const { return m_size.x; }
 
@@ -249,28 +259,28 @@ void HUDElement::UpdateLayout()
 
 	switch (m_hAlign)
 	{
-	case Right:
+	case HorizentalAlignmentEnum::Right:
 		tx = logicalSize.x - m_size.x;
 		break;
-	case Center:
+	case HorizentalAlignmentEnum::Center:
 		tx = (logicalSize.x - m_size.x) * 0.5f;
 		break;
-	case Stretch:
-	case Left:
+	case HorizentalAlignmentEnum::Stretch:
+	case HorizentalAlignmentEnum::Left:
 	default:
 		break;
 	}
 
 	switch (m_vAlign)
 	{
-	case Bottom:
+	case VerticalAlignmentEnum::Bottom:
 		tx = logicalSize.y - m_size.y;
 		break;
-	case Center:
+	case VerticalAlignmentEnum::Center:
 		tx = (logicalSize.y - m_size.y) * 0.5f;
 		break;
-	case Stretch:
-	case Top:
+	case VerticalAlignmentEnum::Stretch:
+	case VerticalAlignmentEnum::Top:
 	default:
 		break;
 	}
@@ -282,7 +292,7 @@ void HUDElement::UpdateLayout()
 
 }
 
-float HUDElement::SetOpticity(float opticity) {
+void HUDElement::SetOpticity(float opticity) {
 	m_opticity = opticity;
 	m_dirtyFlags |= DirtyFlags::Opticity;
 }
@@ -308,23 +318,72 @@ void HUDCanvas::UpdateLayout()
 {
 }
 
-void HUDCanvas::Render(ID2D1DeviceContext * context)
+HUDCanvas::~HUDCanvas()
 {
-	context->SetTarget(m_canvasBitmap.Get());
 }
 
-void HUDCanvas::SetTarget(ID2D1Bitmap * bitmap)
+void HUDCanvas::Render(ID2D1DeviceContext * context)
 {
-	m_canvasBitmap = bitmap;
-	auto size = m_canvasBitmap->GetSize();
+	if (!m_targetTex)
+		return;
+	context->SetTarget(m_targetTex->BitmapView());
+	if (m_clearCanvasWhenRender)
+		context->Clear(reinterpret_cast<const D2D1_COLOR_F*>(&m_background));
+
+	if (!m_children.empty())
+		return;
+	context->BeginDraw();
+	Panel::Render(context);
+	context->EndDraw();
+}
+
+HUDCanvas::HUDCanvas()
+	: m_targetTex(nullptr)
+{}
+
+void HUDCanvas::SetTarget(RenderableTexture2D* rtex)
+{
+	m_targetTex = rtex;
+	auto bitmapView = rtex->BitmapView();
+	assert(bitmapView != nullptr);
+
+	auto size = bitmapView->GetSize();
 	m_size.x = size.width;
 	m_size.y = size.height;
 	m_position.x = 0;
 	m_position.y = 0;
 }
 
+RenderableTexture2D* HUDCanvas::GetTarget() const
+{
+	return m_targetTex;
+}
+
+void HUDCanvas::GetViewport(D3D11_VIEWPORT& viewport) const
+{
+	viewport.TopLeftX = m_position.x;
+	viewport.TopLeftY = m_position.y;
+	viewport.Width    = m_size.x;
+	viewport.Height   = m_size.y;
+}
+
 void Panel::AddChild(HUDElement * elem)
 {
 	m_children.push_back(elem);
 	elem->m_parent = this;
+}
+
+void Panel::Render(ID2D1DeviceContext * context)
+{
+	UpdateLayout();
+	for (auto& element : m_children)
+	{
+		element->Render(context);
+	}
+}
+
+Panel::~Panel()
+{
+	for (auto& element : m_children)
+		delete element;
 }

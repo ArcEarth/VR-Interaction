@@ -252,6 +252,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClCompile Include="CharacterObject.cpp" />
+    <ClCompile Include="FloatHud.cpp" />
     <ClCompile Include="GaussianProcess.cpp" />
     <ClCompile Include="GestureTracker.cpp" />
     <ClCompile Include="LightObject.cpp" />
@@ -319,6 +320,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="Content\OculusDisortionRenderer.h" />
     <ClInclude Include="Events.h" />
     <ClInclude Include="FbxParser.h" />
+    <ClInclude Include="FloatHud.h" />
     <ClInclude Include="GaussianProcess.h" />
     <ClInclude Include="GestureTracker.h" />
     <ClInclude Include="GSL\array_view.h" />
@@ -381,6 +383,12 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <None Include="Common.hlsli" />
+    <None Include="libfftw3f-3.dll">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</DeploymentContent>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="icon1.ico" />

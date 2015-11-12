@@ -130,6 +130,7 @@ namespace Causality
 #pragma endregion
 
 	// Basic class for all object, camera, entity, or light
+	// It also holds a Axis-Aligned bounding box for each node, thus a AABB-tree
 	XM_ALIGNATTR
 	class SceneObject : public tree_node<SceneObject>, virtual public IRigid , public AlignedNew<XMVECTOR>
 	{
@@ -246,6 +247,10 @@ namespace Causality
 
 		void								SetLocalTransform(const TransformType& lcl);
 		const TransformType&				GetGlobalTransform() const;
+
+		virtual bool						GetBoundingBox(BoundingBox& box) const;
+		virtual bool						GetBoundingGeometry(BoundingGeometry& geometry) const;
+
 	protected:
 		void								SetTransformDirty();
 		void								UpdateTransformsParentWard() const;

@@ -9,7 +9,7 @@ namespace Causality
 	{
 	public:
 	public:
-		typedef float ScalarType;
+		typedef double ScalarType;
 		typedef Eigen::Matrix<ScalarType, -1, -1> MatrixType;
 		typedef Eigen::Matrix<ScalarType, 1, -1, Eigen::AutoAlign | Eigen::RowMajor> TrackingVectorType;
 		typedef Eigen::Block<MatrixType, 1, -1> TrackingVectorBlockType;
@@ -22,7 +22,8 @@ namespace Causality
 		// aka, Initialize, discard all history information, just initialize with input, reset all state
 		virtual void Reset(const InputVectorType& input) = 0;
 		// Step forward the tracking state from t to t+1
-		virtual void Step(const InputVectorType& input) = 0;
+		// return the confident of current tracking
+		virtual ScalarType Step(const InputVectorType& input, ScalarType dt) = 0;
 		// Get the tracking state
 		virtual const TrackingVectorType& CurrentState() const = 0;
 	};
@@ -41,24 +42,25 @@ namespace Causality
 	public:
 		~ParticaleFilterBase();
 
-		void Step(const InputVectorType& input) override;
+		ScalarType Step(const InputVectorType& input, ScalarType dt) override;
 
 		const TrackingVectorType& CurrentState() const override;
 
 		//virtual void Reset(const InputVectorType& input) = 0;
 
+		const MatrixType& GetSampleMatrix() const;
 	
 	protected: // Interfaces
-		virtual void SetInputState(const InputVectorType& input) = 0;
+		virtual void SetInputState(const InputVectorType& input, ScalarType dt) = 0;
 		// Get the likilihood of partical state x in current time with pre-seted input state
 		virtual float Likilihood(const TrackingVectorBlockType &x) = 0;
 
 		virtual void Progate(TrackingVectorBlockType& x) = 0;
 
 	protected:
-		void StepParticals();
+		ScalarType StepParticals();
 
-		void Resample(_Out_ Eigen::MatrixXf& resampled, _In_ const Eigen::MatrixXf& sample);
+		void Resample(_Out_ MatrixType& resampled, _In_ const MatrixType& sample);
 
 		MatrixType m_sample;
 		MatrixType m_newSample;

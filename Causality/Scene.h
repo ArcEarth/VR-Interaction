@@ -93,6 +93,9 @@ namespace Causality
 		SceneObject*	Content() override;
 		SceneObject*	SetContent(SceneObject* sceneRoot);
 
+		HUDCanvas*		GetHudCanvas();
+		void			SetHudCanvas(HUDCanvas* canvas);
+
 		AssetDictionary& Assets() { return *assets; }
 		const AssetDictionary& Assets() const { return *assets; }
 
@@ -101,9 +104,10 @@ namespace Causality
 		bool SetAsPrimaryCamera(ICamera* camera);
 
 		IRenderDevice*			GetRenderDevice() { return render_device.Get(); }
-		const IRenderDevice*	GetRenderDevice() const { return render_device.Get(); }
 		IRenderContext*			GetRenderContext() { return render_context.Get(); }
-		const IRenderContext*	GetRenderContext() const { return render_context.Get(); }
+		I2DContext*				Get2DContext() { return m_2dContext.Get(); }
+		I2DFactory*				Get2DFactory() { return m_2dFactory.Get(); }
+		ITextFactory*			GetTextFactory() { return m_textFactory.Get(); }
 
 		void SetRenderDeviceAndContext(IRenderDevice* device, IRenderContext* context);
 		void SetHudRenderDevice(I2DFactory* pD2dFactory, ITextFactory* pTextFactory);

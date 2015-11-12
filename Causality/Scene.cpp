@@ -5,6 +5,7 @@
 #include "CameraObject.h"
 #include "LightObject.h"
 #include "VisualObject.h"
+#include <HUD.h>
 
 using namespace Causality;
 using namespace std;
@@ -27,9 +28,13 @@ Scene::~Scene()
 
 // Contens operations
 
-SceneObject * Causality::Scene::Content() { return content.get(); }
+SceneObject * Scene::Content() { return m_sceneRoot.get(); }
 
-SceneObject * Causality::Scene::SetContent(SceneObject * sceneRoot) { content.reset(sceneRoot); return sceneRoot; }
+SceneObject * Scene::SetContent(SceneObject * sceneRoot) { m_sceneRoot.reset(sceneRoot); return sceneRoot; }
+
+inline HUDCanvas * Causality::Scene::GetHudCanvas() { return m_hudRoot.get(); }
+
+inline void Causality::Scene::SetHudCanvas(HUDCanvas * canvas) { m_hudRoot.reset(canvas); }
 
 ICamera * Scene::PrimaryCamera()
 {
@@ -51,7 +56,7 @@ void Scene::SetRenderDeviceAndContext(IRenderDevice * device, IRenderContext * c
 	render_context = context;
 }
 
-void Causality::Scene::SetCanvas(DirectX::RenderTarget & canvas) {
+void Scene::SetCanvas(DirectX::RenderTarget & canvas) {
 	scene_canvas = canvas;
 	//back_buffer = canvas.ColorBuffer();
 	//scene_canvas = DirectX::RenderTarget(DirectX::RenderableTexture2D(render_device, back_buffer.Width(), back_buffer.Height(), back_buffer.Format()), canvas.DepthBuffer());
@@ -69,7 +74,7 @@ void Scene::UpdateRenderViewCache()
 	for (auto pe : aseffects)
 		effects.push_back(pe);
 
-	for (auto& obj : content->nodes())
+	for (auto& obj : m_sceneRoot->nodes())
 	{
 		auto pCamera = obj.As<ICamera>();
 		if (pCamera != nullptr)
@@ -108,7 +113,7 @@ void Scene::Update()
 	lock_guard<mutex> guard(content_mutex);
 	step_timer.Tick([this]() {
 		time_seconds deltaTime(step_timer.GetElapsedSeconds() * time_scale);
-		for (auto& pObj : content->nodes())
+		for (auto& pObj : m_sceneRoot->nodes())
 		{
 			if (pObj.IsEnabled())
 				pObj.Update(deltaTime);
@@ -132,7 +137,7 @@ void Scene::Render(IRenderContext * context)
 	std::vector<IVisual*> visibles;
 	visibles.reserve(renderables.size());
 
-
+	// Render 3D Scene
 	for (auto pCamera : cameras) // cameras
 	{
 		auto viewCount = pCamera->ViewCount();
@@ -173,10 +178,12 @@ void Scene::Render(IRenderContext * context)
 		}
 	}
 
+	if (m_hudRoot)
+		m_hudRoot->Render(m_2dContext.Get());
 	//context->CopyResource(back_buffer.Resource(), scene_canvas.ColorBuffer().Resource());
 }
 
-vector<DirectX::IEffect*>& Causality::Scene::GetEffects() {
+vector<DirectX::IEffect*>& Scene::GetEffects() {
 	return effects;
 }
 
@@ -200,7 +207,7 @@ void Scene::SetupEffectsViewProject(DirectX::IEffect* pEffect, const DirectX::XM
 	}
 }
 
-void Causality::Scene::SetupEffectsLights(DirectX::IEffect * pEffect)
+void Scene::SetupEffectsLights(DirectX::IEffect * pEffect)
 {
 	using namespace DirectX;
 
