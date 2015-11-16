@@ -7,15 +7,15 @@ namespace Geometrics
 	using DirectX::Vector3;
 	using DirectX::XMVECTOR;
 	using DirectX::XMFLOAT4A;
-
+	using DirectX::FXMVECTOR;
 	// Class to represent a spatial curve with anchor points
 	// Provide method for linear sampling from it
 	class SpaceCurve
 	{
 	public:
 
-		SpaceCurve() {}
-		~SpaceCurve() {}
+		SpaceCurve();
+		~SpaceCurve();
 		explicit SpaceCurve(const std::vector<Vector3>& Trajectory);
 
 		std::size_t size() const { return Anchors.size(); }
@@ -25,8 +25,11 @@ namespace Geometrics
 			if (Anchors.empty()) return 0.0f;
 			return Anchors.back().w;
 		}
+		XMFLOAT4A* data() { return Anchors.data(); }
+		const XMFLOAT4A* data() const { return Anchors.data(); }
 		void clear() { Anchors.clear(); }
 		void push_back(const Vector3& p);
+		void XM_CALLCONV push_back(FXMVECTOR p);
 		XMVECTOR back() const { return XMLoadFloat4A(&Anchors.back()); }
 		//		void push_front(const Vector3& p);
 
@@ -36,7 +39,10 @@ namespace Geometrics
 		// returns a 4D vector where xyz represent the Position 
 		// w is the length from start to point;
 		XMVECTOR extract(float t) const;
-		XMVECTOR operator[](float t) const { return extract(t); }
+		XMVECTOR tangent(float t) const;
+
+		inline XMVECTOR operator[](int idx) const { return XMLoadFloat4A(&Anchors[idx]); }
+		inline XMVECTOR operator()(float t) const { return extract(t); }
 
 		std::vector<Vector3> FixIntervalSampling(float Interval) const;
 		std::vector<Vector3> FixCountSampling(unsigned int SampleSegmentCount, bool Smooth = true) const;
@@ -44,6 +50,7 @@ namespace Geometrics
 
 		static void LaplaianSmoothing(std::vector<Vector3>& Curve, unsigned IterationTimes = 2);
 
+		void Update();
 		const std::vector<XMFLOAT4A, DirectX::AlignedAllocator<XMFLOAT4A>>& ControlPoints() const
 		{
 			return Anchors;

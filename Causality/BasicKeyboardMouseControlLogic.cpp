@@ -5,6 +5,8 @@
 
 using namespace Causality;
 
+REGISTER_SCENE_OBJECT_IN_PARSER("first_person_keyboard_mouse_control", KeyboardMouseFirstPersonControl);
+
 KeyboardMouseFirstPersonControl::KeyboardMouseFirstPersonControl(IRigid* pTarget)
 {
 	Speed = 2.0f;

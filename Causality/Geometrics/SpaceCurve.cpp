@@ -4,6 +4,10 @@ using namespace Geometrics;
 using namespace DirectX;
 
 
+SpaceCurve::SpaceCurve() {}
+
+SpaceCurve::~SpaceCurve() {}
+
 SpaceCurve::SpaceCurve(const std::vector<Vector3>& Trajectory)
 {
 	for (auto& point : Trajectory)
@@ -89,7 +93,12 @@ void SpaceCurve::push_back(const Vector3& p)
 	Anchors.push_back(content);
 }
 
-DirectX::XMVECTOR SpaceCurve::extract(float t) const
+void XM_CALLCONV SpaceCurve::push_back(FXMVECTOR p)
+{
+	push_back(Vector3(p));
+}
+
+XMVECTOR SpaceCurve::extract(float t) const
 {
 	unsigned int a = 0, b = Anchors.size() - 1;
 	t = t * length();
@@ -129,6 +138,20 @@ void SpaceCurve::LaplaianSmoothing(std::vector<Vector3>& Curve, unsigned Iterati
 		{
 			BUFF[0][i] = BUFF[1][i];
 		}
+	}
+}
+
+void SpaceCurve::Update()
+{
+	Anchors[0].w = 0;
+	XMVECTOR p0 = XMLoadFloat4A(&Anchors[0]);
+	XMVECTOR p1;
+	for (int i = 1; i < Anchors.size(); i++)
+	{
+		p1 = XMLoadFloat4A(&Anchors[i]);
+		float dt = XMVectorGetX(XMVector3Length(p1 - p0));
+		Anchors[i].w = Anchors[i - 1].w + dt;
+		p0 = p1;
 	}
 }
 

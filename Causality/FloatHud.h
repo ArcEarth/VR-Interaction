@@ -27,7 +27,9 @@ namespace Causality
 		virtual void XM_CALLCONV UpdateViewMatrix(FXMMATRIX view, CXMMATRIX projection) override;
 
 	protected:
-
-		HUDElement* element;
+		Texture2D* m_pTexture;
+		Vector2	   m_position;
+		Vector2	   m_size;
+		Vector2    m_viewportSize;
 	};
 }

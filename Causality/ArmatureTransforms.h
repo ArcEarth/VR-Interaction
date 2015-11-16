@@ -163,7 +163,7 @@ namespace Causality
 		void			SetTrackingParameters(ScalarType stdevDVt, ScalarType varVt, ScalarType stdevDs, ScalarType varS);
 	protected:
 		void			SetInputState(const InputVectorType & input, ScalarType dt) override;
-		float			Likilihood(const TrackingVectorBlockType & x) override;
+		ScalarType		Likilihood(const TrackingVectorBlockType & x) override;
 		void			Progate(TrackingVectorBlockType & x) override;
 
 		InputVectorType GetCorrespondVector(const TrackingVectorBlockType & x) const;

@@ -650,12 +650,12 @@ void PartilizedTransformer::InitTrackers()
 		//! HACK!!!
 		int dim = ActiveParts.size() * m_pInputF->GetDimension() * 2;
 		Eigen::RowVectorXd var(dim);
-		var.setConstant(100000000);
+		var.setConstant(g_DefaultTrackerCovierence);
 		var.segment(dim/2,dim/2) *=	g_FrameTimeScaleFactor * g_FrameTimeScaleFactor;
 
 		tracker.SetLikihoodVarience(var.cast<IGestureTracker::ScalarType>());
 		// dt = 1/30s, ds = 0.01, s = 0.3? 
-		tracker.SetTrackingParameters(0.01, sqr(0.7), 0.01, sqr(0.3));
+		tracker.SetTrackingParameters(0.01, sqr(1.0), 0.01, sqr(0.3));
 		tracker.Reset();
 	}
 }
@@ -691,7 +691,7 @@ void PartilizedTransformer::Transform(frame_type & target_frame, const frame_typ
 	{
 		auto& ctrl = DrivenParts[0];
 		computeVelocity = true; //! HACK to force use velocity
-		auto _x = GetInputVector(ctrl, source_frame, last_frame, frame_time * (int)computeVelocity).cast<IGestureTracker::ScalarType>();
+		auto _x = GetInputVector(ctrl, source_frame, last_frame, frame_time * (int)computeVelocity).cast<IGestureTracker::ScalarType>().eval();
 
 		auto& tracker = m_Trackers[m_currentTracker];
 		auto confi = tracker.Step(_x, frame_time);
@@ -944,13 +944,13 @@ void CharacterActionTracker::Reset()
 	auto& frames = m_Animation.GetFrameBuffer();
 
 	m_dt = m_Animation.FrameInterval.count() / 2;
-	auto tchuck = frames.size() * 2;
+	auto tchuck = frames.size() / 2;
 	auto dt = m_dt;
 
 	RowVector4f v;
-	const int schunck = 5;
-	const int vchunck = 5;
-	m_sample.resize(frames.size() * schunck * vchunck, 4 + 1);
+	const int schunck = 3;
+	const int vchunck = 3;
+	m_sample.resize(tchuck * schunck * vchunck, 4 + 1);
 	auto stdevS = sqrt(m_varS);
 	auto stdevV = sqrt(m_varVt);
 
@@ -996,19 +996,20 @@ void CharacterActionTracker::SetInputState(const InputVectorType & input, Scalar
 	m_dt = dt;
 }
 
-float CharacterActionTracker::Likilihood(const TrackingVectorBlockType & x)
+CharacterActionTracker::ScalarType CharacterActionTracker::Likilihood(const TrackingVectorBlockType & x)
 {
 	auto vx = GetCorrespondVector(x);
 
 	// Distance to observation
 	InputVectorType diff = (vx - m_CurrentInput).cwiseAbs2().eval();
-	double likilihood = (diff.array() / m_LikCov.array()).sum();
+	ScalarType likilihood = (diff.array() / m_LikCov.array()).sum();
 	likilihood = exp(-likilihood);
 
 	// Scale factor distribution
 	likilihood *= exp(-sqr(x[1] - m_uS) / m_varS);
 	likilihood *= exp(-sqr(x[2] - m_uVt) / m_varVt);
 
+	//return 1.0;
 	return likilihood;
 }
 
@@ -1021,10 +1022,10 @@ void CharacterActionTracker::Progate(TrackingVectorBlockType & x)
 
 	vt += g_normal_dist(g_rand_mt) * m_stdevDVt;
 	auto dt = vt * m_dt;
-	ds += g_normal_dist(g_rand_mt) * m_stdevDs;
+	// ds += ;
 
 	t += dt;
-	s += ds;
+	s += g_normal_dist(g_rand_mt) * m_stdevDs;
 }
 
 CharacterActionTracker::InputVectorType CharacterActionTracker::GetCorrespondVector(const TrackingVectorBlockType & x) const
@@ -1040,7 +1041,6 @@ CharacterActionTracker::InputVectorType CharacterActionTracker::GetCorrespondVec
 	ctrl.SrcIdx = PvInputTypeEnum::ActiveParts;
 
 	GetScaledFrame(m_Frame, t, s);
-	m_Frame.RebuildGlobal(m_Transformer.TargetArmature());
 
 	if (!has_vel)
 	{
@@ -1049,8 +1049,7 @@ CharacterActionTracker::InputVectorType CharacterActionTracker::GetCorrespondVec
 	else
 	{
 		float dt = x[2] * m_dt, ds = x[3];
-		GetScaledFrame(m_LastFrame, t - dt, s - ds);
-		m_LastFrame.RebuildGlobal(m_Transformer.TargetArmature());
+		GetScaledFrame(m_LastFrame, t - dt, s);
 
 		vout = m_Transformer.GetInputVector(ctrl, m_Frame, m_LastFrame, dt).cast<ScalarType>();
 	}
@@ -1061,6 +1060,7 @@ void CharacterActionTracker::GetScaledFrame(_Out_ BoneHiracheryFrame& frame, Sca
 {
 	m_Animation.GetFrameAt(frame, time_seconds(t));
 	ScaleFrame(frame, m_Animation.DefaultFrame(), s);
+	frame.RebuildGlobal(m_Animation.Armature());
 }
 
 void CharacterActionTracker::SetLikihoodVarience(const InputVectorType & v)

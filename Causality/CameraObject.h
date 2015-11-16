@@ -74,6 +74,15 @@ namespace Causality
 		virtual void	BeginFrame() = 0;
 		virtual void	EndFrame() = 0;
 
+		// Focus all View at
+		inline void FocusAt(FXMVECTOR focusPoint, FXMVECTOR upDir)
+		{
+			for (int i = 0; i < ViewCount(); i++)
+			{
+				GetView(i)->FocusAt(focusPoint, upDir);
+			}
+		}
+
 		inline  const IViewControl* GetView(int view = 0) const { return const_cast<ICamera*>(this)->GetView(view); }
 	};
 
@@ -83,12 +92,16 @@ namespace Causality
 		CameraViewControl();
 		virtual XMMATRIX		GetViewMatrix() const override;
 		virtual XMMATRIX		GetProjectionMatrix() const override;
-		virtual void					FocusAt(FXMVECTOR focusPoint, FXMVECTOR upDir) override;
+		virtual void			FocusAt(FXMVECTOR focusPoint, FXMVECTOR upDir) override;
 		virtual const BoundingGeometry&	GetViewFrustum() const override;
+
+		// Tilt (Rotate) the camera along 'forward' direction, 'roll' direction
+		void	Tilt(float rad);
 
 		IRigid* GetAttachedRigid() const { return m_Parent; }
 		void	SetAttachedRigid(IRigid* pRigid);
 
+		void	SetBiasdPerspective();
 		void	SetPerspective(float fovRadius, float aspectRatioHbyW, float Near = 0.01f, float Far = 100.0f);
 		void	SetOrthographic(float viewWidth, float viewHeight, float Near = 0.01f, float Far = 100.0f);
 		void	SetHandness(bool rightHand);
@@ -103,11 +116,14 @@ namespace Causality
 		void	SetNear(float _near);
 		void	SetFar(float _far);
 
+		XMVECTOR GetDisplacement() const;
+		void	SetDisplacement(FXMVECTOR displacement);
+
 		static const XMVECTORF32 Foward, Up;
 	private:
 		IRigid*										m_Parent;
 		Vector3										m_Displacement; // local transform form view to camera
-		Vector3										m_Forward;
+		Vector3										m_Focus; // Relative focus point
 		Vector3										m_UpDir;
 		bool										m_IsRightHand;
 		bool										m_IsPerspective;
@@ -173,10 +189,11 @@ namespace Causality
 	class SingleViewCamera : public SceneObject, public virtual ICamera, public CameraViewControl
 	{
 	public:
-		SingleViewCamera()
-		{
-			CameraViewControl::SetAttachedRigid(this);
-		}
+		SingleViewCamera();
+
+		virtual void Parse(const ParamArchive* store) override;
+
+		virtual void CreateDeviceResources(IRenderDevice* pDevice, RenderTarget& canvas) = 0;
 
 		virtual size_t ViewCount() const override;
 		virtual IViewControl* GetView(int view = 0) override;
@@ -194,6 +211,8 @@ namespace Causality
 	public:
 		Camera();
 
+		virtual void CreateDeviceResources(IRenderDevice* pDevice, RenderTarget& canvas) override;
+
 		virtual size_t ViewRendererCount(int view = 0) const override;
 		virtual IRenderControl* GetViewRenderer(int view = 0, int renderer = 0) override;
 
@@ -203,11 +222,11 @@ namespace Causality
 	class MultipassCamera : public SingleViewCamera
 	{
 	public:
+		MultipassCamera();
 		virtual size_t ViewRendererCount(int view = 0) const;
 		virtual IRenderControl* GetViewRenderer(int view = 0, int renderer = 0);
 
 		void AddEffectRenderControl(const shared_ptr<EffectRenderControl>& pRenderer);
-
 	protected:
 		vector<shared_ptr<EffectRenderControl>> m_pRenderers;
 	};
@@ -222,10 +241,8 @@ namespace Causality
 		virtual void BeginFrame() override;
 		virtual void EndFrame() override;
 
-
 		void AddEffectRenderControl(const shared_ptr<EffectRenderControl>& pRenderer);
 		void AddViewRenderControl(int view , int rendererIdx);
-
 	protected:
 		vector<unique_ptr<CameraViewControl>>	m_Views;
 		vector<RenderTarget>					m_RenderTargets;
@@ -236,25 +253,39 @@ namespace Causality
 	class SoftShadowCamera : public MultipassCamera
 	{
 	public:
-		SoftShadowCamera(IRenderDevice* pDevice, RenderTarget& canvas);
+		SoftShadowCamera();
+		void CreateDeviceResources(IRenderDevice* pDevice, RenderTarget& canvas) override;
 	};
 
 	class PercentCloserShadowCamera : public MultipassCamera
 	{
 	public:
-		PercentCloserShadowCamera(IRenderDevice* pDevice, RenderTarget& canvas);
+		PercentCloserShadowCamera();
+		void CreateDeviceResources(IRenderDevice* pDevice, RenderTarget& canvas) override;
 	};
 
 	class HMDCamera : public MuiltiviewCamera
 	{
 	public:
-		HMDCamera(IRenderDevice* pDevice, RenderTarget& canvas);
+		HMDCamera();
+		~HMDCamera();
 
+		void CreateDeviceResources(IRenderDevice* pDevice, RenderTarget& canvas);
+
+		virtual void Parse(const ParamArchive* store) override;
 		virtual void BeginFrame() override;
 		virtual void EndFrame() override;
+
+		float GetIPD() const { return m_ipd; }
+		void SetIPD(float ipd);
+
+		// Automatic optimze projection matrix for left/right eye
+		void SetPerspective(float fovRadius, float aspectRatioHbyW, float Near = 0.01f, float Far = 100.0f);
+		void SetOrthographic(float viewWidth, float viewHeight, float Near = 0.01f, float Far = 100.0f);
 
 	private:
 		sptr<Devices::OculusRift>	m_pRift;
 		cptr<IRenderContext>		m_pContext;
+		float						m_ipd; // default to 64mm
 	};
 }

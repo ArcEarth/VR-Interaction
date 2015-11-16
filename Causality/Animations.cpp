@@ -239,7 +239,9 @@ bool ArmatureFrameAnimation::InterpolateFrames(double frameRate)
 
 bool ArmatureFrameAnimation::GetFrameAt(BoneHiracheryFrame & outFrame, TimeScalarType time) const
 {
+
 	double t = fmod(time.count(), Duration.count());
+	if (t < 0) t += Duration.count();
 	int frameIdx = (int)floorf(t / FrameInterval.count());
 	frameIdx = frameIdx % frames.size(); // ensure the index is none negative
 	auto& sframe = frames[frameIdx];

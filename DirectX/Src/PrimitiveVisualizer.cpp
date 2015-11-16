@@ -204,7 +204,8 @@ namespace DirectX{
 			m_pContext = pContext;
 			m_pContext->GetDevice(&m_pDevice);
 			m_pStates.reset(new CommonStates(m_pDevice.Get()));
-			m_pDirectXBatch.reset(new PrimitiveBatch<VertexPositionColor>(pContext));
+			m_pBatch.reset(new PrimitiveBatch<VertexPositionColor>(pContext));
+			m_pSprite.reset(new SpriteBatch(pContext));
 
 			m_pEffect.reset(new BasicEffect(m_pDevice.Get()));
 			m_pEffect->SetVertexColorEnabled(true);
@@ -248,7 +249,7 @@ namespace DirectX{
 
 	void PrimitveDrawer::Release()
 	{
-		m_pDirectXBatch.release();
+		m_pBatch.release();
 		m_pEffect.release();
 		m_pInputLayout.Reset();
 		m_pContext.Reset();
@@ -285,7 +286,7 @@ namespace DirectX{
 		m_pEffect->SetDiffuseColor(Colors::White.v);
 		m_pEffect->SetAlpha(1.0f);
 		m_pContext->IASetInputLayout(m_pInputLayout.Get());
-		m_pDirectXBatch->Begin();
+		m_pBatch->Begin();
 	}
 
 	void PrimitveDrawer::End()
@@ -293,16 +294,21 @@ namespace DirectX{
 		Microsoft::WRL::ComPtr<ID3D11RasterizerState> pRSState;
 		m_pContext->RSGetState(&pRSState);
 		m_pContext->RSSetState(m_pStates->CullClockwise());
-		m_pDirectXBatch->End();
+		m_pBatch->End();
 		m_pContext->RSSetState(pRSState.Get());
 	}
 
-	inline PrimitiveBatch<VertexPositionColor>* PrimitveDrawer::GetBatch() { return m_pDirectXBatch.get(); }
+	inline PrimitiveBatch<VertexPositionColor>* PrimitveDrawer::GetBatch() { return m_pBatch.get(); }
+
+	SpriteBatch * PrimitveDrawer::GetSpriteBatch()
+	{
+		return m_pSprite.get();
+	}
 
 	void XM_CALLCONV PrimitveDrawer::DrawLine(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR Color)
 	{
 		VertexType Vertices [] = { VertexType(P0,Color),VertexType(P1,Color) };
-		m_pDirectXBatch->DrawLine(Vertices[0], Vertices[1]);
+		m_pBatch->DrawLine(Vertices[0], Vertices[1]);
 	}
 
 	void XM_CALLCONV PrimitveDrawer::DrawLine(FXMVECTOR P0, FXMVECTOR P1, float Width, FXMVECTOR Color)
@@ -313,13 +319,13 @@ namespace DirectX{
 	void XM_CALLCONV PrimitveDrawer::DrawTriangle(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR P2, GXMVECTOR Color)
 	{
 		VertexType Vertices [] = { VertexType(P0,Color),VertexType(P1,Color),VertexType(P2,Color) };
-		m_pDirectXBatch->DrawTriangle(Vertices[0], Vertices[1], Vertices[2]);
+		m_pBatch->DrawTriangle(Vertices[0], Vertices[1], Vertices[2]);
 	}
 
 	void XM_CALLCONV PrimitveDrawer::DrawQuad(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR P2, GXMVECTOR P3, CXMVECTOR Color)
 	{
 		VertexType Vertices [] = { VertexType(P0,Color),VertexType(P1,Color),VertexType(P2,Color),VertexType(P3,Color) };
-		m_pDirectXBatch->DrawQuad(Vertices[0], Vertices[1], Vertices[2], Vertices[3]);
+		m_pBatch->DrawQuad(Vertices[0], Vertices[1], Vertices[2], Vertices[3]);
 	}
 
 	//void XM_CALLCONV PrimitveDrawer::DrawSphere(FXMVECTOR Center,float Radius,FXMVECTOR Color)

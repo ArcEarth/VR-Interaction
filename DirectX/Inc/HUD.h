@@ -13,23 +13,10 @@ namespace DirectX
 	/// <summary>
 	/// Convert A point in World space to texture space
 	/// </summary>
-	/// <param name="v">the point's coordinate</param>
-	/// <param name="viewport">layout in order x,y,width,height</param>
-	/// <param name="projection">the worldViewProjection Matrix</param>
-	/// <returns></returns>
-	XMVECTOR XM_CALLCONV XMVector3ConvertToTextureCoord(FXMVECTOR v, FXMVECTOR viewport, CXMMATRIX worldViewProjection)
-	{
-		XMVECTOR nv = XMVector3TransformCoord(v, worldViewProjection);
-		return nv;
-	}
-
-	/// <summary>
-	/// Convert A point in World space to texture space
-	/// </summary>
 	/// <param name="v">the point's coordinate in projection space</param>
 	/// <param name="viewport">layout in order x,y,width,height</param>
 	/// <returns></returns>
-	XMVECTOR XM_CALLCONV XMVector3ConvertToTextureCoord(FXMVECTOR v, FXMVECTOR viewport)
+	inline XMVECTOR XM_CALLCONV XMVector3ConvertToTextureCoord(FXMVECTOR v, FXMVECTOR viewport)
 	{
 		static XMVECTORF32 conv = { 0.5f,-0.5f,.0f,0.f };
 		static XMVECTORF32 addv = { 0.5f, 0.5f,.0f,0.f };
@@ -40,9 +27,23 @@ namespace DirectX
 		nv = XMVectorMultiplyAdd(nv, v1, v2); // convert from [-1,1]x[1,-1] to [0,1]x[0,1] range (Y is fliped)
 		v1 = XMVectorAndInt(viewport, g_XMMaskXY.v);
 		v2 = XMVectorShiftLeft<2>(viewport, XMVectorZero());
-		nv = XMVectorMultiplyAdd(nv, v1, v2); // convert to viewport
+		nv = XMVectorMultiplyAdd(nv, v1, v2); // convert to viewport size and add viewport leff-top
 		return nv;
 	}
+
+	/// <summary>
+	/// Convert A point in World space to texture space
+	/// </summary>
+	/// <param name="v">the point's coordinate</param>
+	/// <param name="viewport">layout in order x,y,width,height</param>
+	/// <param name="projection">the worldViewProjection Matrix</param>
+	/// <returns></returns>
+	inline XMVECTOR XM_CALLCONV XMVector3ConvertToTextureCoord(FXMVECTOR v, FXMVECTOR viewport, CXMMATRIX worldViewProjection)
+	{
+		XMVECTOR nv = XMVector3TransformCoord(v, worldViewProjection);
+		return XMVector3ConvertToTextureCoord(nv, viewport);
+	}
+
 
 	/// <summary>
 	/// Convert a texture coord to view-ray direction in view space
@@ -50,7 +51,7 @@ namespace DirectX
 	/// <param name="v"></param>
 	/// <param name="viewport"></param>
 	/// <returns></returns>
-	XMVECTOR XM_CALLCONV XMVector2ConvertToViewDirection(FXMVECTOR v, FXMVECTOR viewport, CXMMATRIX invProjection)
+	inline XMVECTOR XM_CALLCONV XMVector2ConvertToViewDirection(FXMVECTOR v, FXMVECTOR viewport, CXMMATRIX invProjection)
 	{
 		XMVECTOR nv;
 		XMVECTOR vs = XMVectorShiftLeft<2>(viewport, XMVectorZero());

@@ -15,7 +15,7 @@
     <EnableActiveDependentControl>1</EnableActiveDependentControl>
     <IngnoreInputRootRotation>1</IngnoreInputRootRotation>
     
-    <PartAssignmentTransform>4</PartAssignmentTransform>
+    <PartAssignmentTransform>2</PartAssignmentTransform>
 
     <UsePersudoPhysicsWalk>0</UsePersudoPhysicsWalk>
     <MaxCharacterSpeed>0.5</MaxCharacterSpeed>
@@ -33,6 +33,7 @@
     <IKLimitWeight>200</IKLimitWeight>
     <MarkovTermWeight>1.0</MarkovTermWeight>
     <StyleLikelihoodTermWeight>0.1</StyleLikelihoodTermWeight>-->
+    <DefaultTrackerCovierence>1000000000</DefaultTrackerCovierence>
 
     <IKTermWeight>1.0</IKTermWeight>
     <IKLimitWeight>0</IKLimitWeight>

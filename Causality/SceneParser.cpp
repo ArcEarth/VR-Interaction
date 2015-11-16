@@ -11,6 +11,9 @@
 #include "LightObject.h"
 #include "SkyDome.h"
 #include "Settings.h"
+#include "TrackedObjectControl.h"
+#include "PenModeler.h"
+#include "AssetDictionary.h"
 
 using namespace tinyxml2;
 using namespace Causality;
@@ -31,13 +34,13 @@ sptr<AssetDictionary::material_type> ParseMaterialAsset(AssetDictionary& assets,
 
 AssetDictionary::mesh_type* ParseMeshAsset(AssetDictionary & assets, XMLElement * node);
 
-AssetDictionary::texture_type & ParseTextureAsset(AssetDictionary & assets, XMLElement * node);
+AssetDictionary::texture_type * ParseTextureAsset(AssetDictionary & assets, XMLElement * node);
 
-AssetDictionary::audio_clip_type & ParseAudioAsset(AssetDictionary & assets, XMLElement * node);
+AssetDictionary::audio_clip_type * ParseAudioAsset(AssetDictionary & assets, XMLElement * node);
 
-AssetDictionary::armature_type & ParseArmatureAsset(AssetDictionary & assets, XMLElement * node);
+AssetDictionary::armature_type * ParseArmatureAsset(AssetDictionary & assets, XMLElement * node);
 
-AssetDictionary::animation_clip_type ParseAnimationClip(XMLElement * node);
+AssetDictionary::animation_clip_type* ParseAnimationClipAsset(AssetDictionary & assets, XMLElement * node);
 
 AssetDictionary::behavier_type * ParseBehavierAsset(AssetDictionary & assets, XMLElement * node);
 
@@ -213,7 +216,9 @@ void ParseSceneSettings(tinyxml2::XMLElement * nScene)
 	auto nSettings = nScene->FirstChildElement("scene.settings");
 
 	unsigned clipframe = 90;
-	nSettings->FirstChildElement("ClipRasterizeFrame")->QueryUnsignedText(&clipframe);
+	auto child = nSettings->FirstChildElement("ClipRasterizeFrame");
+	if (child)
+		child->QueryUnsignedText(&clipframe);
 	CLIP_FRAME_COUNT = clipframe;
 
 #define SETTING_REGISTERATION(type, name, val) ParseNameText(nSettings,#name,g_##name,val);
@@ -223,215 +228,42 @@ void ParseSceneSettings(tinyxml2::XMLElement * nScene)
 
 void ParseSceneAssets(AssetDictionary& assets, XMLElement* node)
 {
-	node = node->FirstChildElement();
-	while (node)
-	{
-		if (!strcmp(node->Name(), "mesh"))
-			ParseMeshAsset(assets, node);
-		else if (!strcmp(node->Name(), "texture"))
-			ParseTextureAsset(assets, node);
-		else if (!strcmp(node->Name(), "audio_clip"))
-			ParseAudioAsset(assets, node);
-		else if (!strcmp(node->Name(), "armature"))
-			ParseArmatureAsset(assets, node);
-		else if (!strcmp(node->Name(), "behavier"))
-			ParseBehavierAsset(assets, node);
-		else if (!strcmp(node->Name(), "animation_clip"))
-			ParseAudioAsset(assets, node);
-		else if (!strcmp(node->Name(), "phong_material"))
-			ParseMaterialAsset(assets, node);
-
-		node = node->NextSiblingElement();
-	}
+	assets.ParseArchive(node);
 }
 
 sptr<AssetDictionary::material_type> ParseMaterialAsset(AssetDictionary & assets, XMLElement * node)
 {
-	assert(!strcmp(node->Name(), "phong_material"));
-
-	DirectX::Scene::PhongMaterialData data;
-	data.Name = node->Attribute("name");
-
-	auto attr = node->Attribute("diffuse_map");
-	if (attr)
-		data.DiffuseMapName = attr;
-	attr = node->Attribute("normal_map");
-	if (attr)
-		data.NormalMapName = attr;
-	attr = node->Attribute("ambient_map");
-	if (attr)
-		data.AmbientMapName = attr;
-	attr = node->Attribute("displace_map");
-	if (attr)
-		data.DisplaceMapName = attr;
-	attr = node->Attribute("specular_map");
-	if (attr)
-		data.SpecularMapName = attr;
-
-	bool alpha_discard = false;
-	GetAttribute(node, "alpha_discard", alpha_discard);
-	data.UseAlphaDiscard = alpha_discard;
-
-	Color color = DirectX::Colors::White.v;
-	GetAttribute(node, "diffuse_color", color);
-	data.DiffuseColor = color;
-	GetAttribute(node, "ambient_color", color);
-	data.AmbientColor = color;
-
-	color = DirectX::Colors::Black.v;
-	GetAttribute(node, "specular_color", color);
-	data.SpecularColor = color;
-	GetAttribute(node, "emissive_color", color);
-	data.EmissiveColor = color;
-	GetAttribute(node, "reflection_color", color);
-	data.RelfectionColor = color;
-	auto pPhong = std::make_shared<DirectX::Scene::PhongMaterial>(data, assets.GetTextureDirectory().wstring(), assets.GetRenderDevice());
-	assets.AddMaterial(node->Attribute("name"), pPhong);
-	return pPhong;
+	return assets.ParseMaterial(node);
 }
 
 AssetDictionary::mesh_type* ParseMeshAsset(AssetDictionary& assets, XMLElement* node)
 {
-	if (!strcmp(node->Name(), "box"))
-	{
-	}
-	else if (!strcmp(node->Name(), "cylinder"))
-	{
-	}
-	else if (!strcmp(node->Name(), "sphere"))
-	{
-	}
-	else if (!strcmp(node->Name(), "mesh"))
-	{
-		auto src = node->Attribute("src");
-		if (src != nullptr && strlen(src) != 0)
-		{
-			boost::filesystem::path ref(src);
-			if (ref.extension().string() == ".obj")
-			{
-				//auto task = assets.LoadMeshAsync(src);
-				//task.wait();
-				//return task.get();
-				auto mesh = assets.LoadObjMesh(node->Attribute("name"), src);
-				return mesh;
-			}
-			else if (ref.extension().string() == ".fbx")
-			{
-				sptr<IMaterial> pMat;
-
-				// Material overhaul
-				auto attr = node->Attribute("material");
-				if (attr != nullptr && attr[0] == '{') // asset reference
-				{
-					const std::string key(attr + 1, attr + strlen(attr) - 1);
-					pMat = assets.GetMaterial(key);
-				}
-
-				if (pMat != nullptr)
-				{
-					auto mesh = assets.LoadFbxMesh(node->Attribute("name"), src, pMat);
-					return mesh;
-				}
-				else
-				{
-					// import material
-					auto mesh = assets.LoadFbxMesh(node->Attribute("name"), src, true);
-					return mesh;
-				}
-			}
-		}
-	}
-	return assets.GetMesh("default");
+	assets.ParseMesh(node);
 }
 
-AssetDictionary::texture_type& ParseTextureAsset(AssetDictionary& assets, XMLElement* node)
+AssetDictionary::texture_type* ParseTextureAsset(AssetDictionary& assets, XMLElement* node)
 {
-	if (!strcmp(node->Name(), "texture"))
-	{
-		return assets.LoadTexture(node->Attribute("name"), node->Attribute("src"));
-	}
-	return assets.GetTexture("default");
+	assets.ParseTexture(node);
 }
 
-AssetDictionary::audio_clip_type& ParseAudioAsset(AssetDictionary& assets, XMLElement* node)
+AssetDictionary::audio_clip_type* ParseAudioAsset(AssetDictionary& assets, XMLElement* node)
 {
 	return assets.GetAudio("default");
 }
 
-AssetDictionary::armature_type& ParseArmatureAsset(AssetDictionary& assets, XMLElement* node)
+AssetDictionary::armature_type* ParseArmatureAsset(AssetDictionary& assets, XMLElement* node)
 {
-	using armature_type = AssetDictionary::armature_type;
-	auto src = node->Attribute("src");
-	auto name = node->Attribute("name");
-	if (src != nullptr)
-	{
-		return assets.LoadArmature(name, src);
-	}
-	else // no file armature define
-	{
-		node->FirstChildElement("joint");
-	}
-	return assets.GetAsset<armature_type>("default");
+	return assets.ParseArmature(node);
 }
 
-AssetDictionary::animation_clip_type& ParseAnimationClip(AssetDictionary& assets, XMLElement* node)
+AssetDictionary::animation_clip_type* ParseAnimationClipAsset(AssetDictionary& assets, XMLElement* node)
 {
-	using clip_type = AssetDictionary::animation_clip_type;
-	auto src = node->Attribute("src");
-	return assets.LoadAnimation(node->Attribute("name"), src);
+	return assets.ParseAnimation(node);
 }
 
 AssetDictionary::behavier_type* ParseBehavierAsset(AssetDictionary& assets, XMLElement* node)
 {
-	using behavier_type = AssetDictionary::behavier_type;
-	if (!strcmp(node->Name(), "behavier"))
-	{
-		auto attr = node->Attribute("src");
-		if (attr)
-		{
-			return assets.LoadBehavierFbx(node->Attribute("name"), attr);
-		}
-
-		attr = node->Attribute("armature");
-		if (attr)
-		{
-			auto actions = node->FirstChildElement("behavier.actions");
-			if (actions)
-			{
-				list<pair<string, string>> actionlist;
-				for (auto action = actions->FirstChildElement("action"); action != nullptr; action = action->NextSiblingElement("action"))
-				{
-					auto aname = action->Attribute("name");
-					auto asrc = action->Attribute("src");
-					if (aname && asrc)
-						actionlist.emplace_back(aname, asrc);
-				}
-				return assets.LoadBehavierFbxs(node->Attribute("name"), attr, actionlist);
-			}
-		}
-		//else
-		//{
-		//	auto& behavier = assets.AddBehavier(node->Attribute("name"), new behavier_type);
-		//	attr = node->Attribute("armature");
-		//	if (attr[0] == '{')
-		//	{
-		//		string key(attr + 1, attr + strlen(attr) - 1);
-		//		auto& armature = assets.GetAsset<AssetDictionary::armature_type>(key);
-		//		behavier.SetArmature(armature);
-		//	}
-
-		//	auto clip = node->FirstChildElement("animation_clip");
-		//	while (clip)
-		//	{
-		//		auto& aniClip = ParseAnimationClip(assets, clip);
-		//		aniClip.SetArmature(behavier.Armature());
-		//		behavier.AddAnimationClip(clip->Attribute("name"), move(aniClip));
-		//		clip = node->NextSiblingElement("animation_clip");
-		//	}
-		//	return behavier;
-		//}
-	}
-	return nullptr;
+	return assets.ParseBehavier(node);
 }
 
 void ParseSceneObjectAttributes(SceneObject *pObj, XMLElement* node)
@@ -465,11 +297,11 @@ void ParseSkydomeObjectAttributes(SkyDome* pSkyDome, XMLElement* node)
 	if (bg[0] == '{')
 	{
 		string key(bg + 1, strlen(bg) - 2);
-		pSkyDome->SetTexture(assets.GetTexture(key));
+		pSkyDome->SetTexture(*assets.GetTexture(key));
 	}
 	else
 	{
-		pSkyDome->SetTexture(assets.LoadTexture(pSkyDome->Name + "_background", bg));
+		pSkyDome->SetTexture(*assets.LoadTexture(pSkyDome->Name + "_background", bg));
 	}
 }
 
@@ -490,86 +322,111 @@ std::unique_ptr<SceneObject> ParseSceneObject(Scene& scene, XMLElement* node, Sc
 	uptr<SceneObject> pObj;
 
 	// parent property
-	if (*std::find(node->Name(), node->Name() + strlen(node->Name()), '.'))
+	auto tag = node->Name();
+	if (*std::find(tag, tag + strlen(tag), '.'))
 		return nullptr;
 
-	if (!strcmp(node->Name(), "object"))
+	auto itr = SceneObject::g_Creators.find(tag);
+	if (itr != SceneObject::g_Creators.end())
 	{
-		auto pEntity = CreateSceneObject<VisualObject>(&scene);
-		ParseVisualObjectAttributes(pEntity, node);
-		pObj.reset(pEntity);
-	}
-	else if (!strcmp(node->Name(), "camera"))
-	{
-		auto pCamera = CreateSceneObject<Camera>(&scene);
-		ParseCameraObjectAttributes(pCamera, node);
-		pObj.reset(pCamera);
-	}
-	else if (!strcmp(node->Name(), "shadow_camera"))
-	{
-		auto pCamera = new PercentCloserShadowCamera(scene.GetRenderDevice(), scene.Canvas());
-		pCamera->Scene = &scene;
-		ParseCameraObjectAttributes(pCamera, node);
-		pObj.reset(pCamera);
-	}
-	else if (!strcmp(node->Name(), "hmd_camera"))
-	{
-		auto pCamera = new HMDCamera(scene.GetRenderDevice(), scene.Canvas());
-		pCamera->Scene = &scene;
-		ParseHmdCameraObjectAttributes(pCamera, node);
-		pObj.reset(pCamera);
-	}
-	else if (!strcmp(node->Name(), "light"))
-	{
-		auto pControl = CreateSceneObject<Light>(&scene);
-		ParseLightObjectAttributes(pControl, node);
-		pObj.reset(pControl);
-	}
-	else if (!strcmp(node->Name(), "skydome"))
-	{
-		auto pControl = CreateSceneObject<Causality::SkyDome>(&scene);
-		pObj.reset(pControl);
-		ParseSkydomeObjectAttributes(pControl, node);
-	}
-	else if (!strcmp(node->Name(), "creature"))
-	{
-		auto pCreature = CreateSceneObject<CharacterObject>(&scene);
-		ParseChaacterObjectAttributes(pCreature, node);
-
-		pObj.reset(pCreature);
-	}
-	else if (!strcmp(node->Name(), "first_person_keyboard_mouse_control"))
-	{
-		auto pControl = CreateSceneObject<KeyboardMouseFirstPersonControl>(&scene);
-		pControl->SetTarget(parent);
-
-		pObj.reset(pControl);
-		ParseSceneObjectAttributes(pObj.get(), node);
-	}
-	else if (!strcmp(node->Name(), "coordinate_axis"))
-	{
-		auto pControl = CreateSceneObject<CoordinateAxis>(&scene);
-		pObj.reset(pControl);
-		ParseSceneObjectAttributes(pObj.get(), node);
-	}
-	else if (!strcmp(node->Name(), "player_controller"))
-	{
-		auto pControl = CreateSceneObject<PlayerProxy>(&scene);
-		pObj.reset(pControl);
-		//pObj.reset();
-		ParseSceneObjectAttributes(pObj.get(), node);
-	}
-	else if (!strcmp(node->Name(), "kinect_visualizer"))
-	{
-		auto pControl = CreateSceneObject<KinectVisualizer>(&scene);
-		pObj.reset(pControl);
-		ParseSceneObjectAttributes(pObj.get(), node);
+		auto ptr = itr->second(&scene, node);
+		pObj.reset(ptr);
 	}
 	else
 	{
-		pObj.reset(CreateSceneObject<SceneObject>(&scene));
-		ParseSceneObjectAttributes(pObj.get(), node);
+		auto ptr = SceneObject::g_Creators["scene_object"](&scene, node);
+		pObj.reset(ptr);
 	}
+
+	//if (!strcmp(node->Name(), "object"))
+	//{
+	//	auto pEntity = CreateSceneObject<VisualObject>(&scene);
+	//	ParseVisualObjectAttributes(pEntity, node);
+	//	pObj.reset(pEntity);
+	//}
+	//else if (!strcmp(node->Name(), "camera"))
+	//{
+	//	auto pCamera = CreateSceneObject<Camera>(&scene);
+	//	ParseCameraObjectAttributes(pCamera, node);
+	//	pObj.reset(pCamera);
+	//}
+	//else if (!strcmp(node->Name(), "shadow_camera"))
+	//{
+	//	auto pCamera = CreateSceneObject<PercentCloserShadowCamera>(&scene);
+	//	pCamera->Scene = &scene;
+	//	ParseCameraObjectAttributes(pCamera, node);
+	//	pObj.reset(pCamera);
+	//}
+	//else if (!strcmp(node->Name(), "hmd_camera"))
+	//{
+	//	auto pCamera = CreateSceneObject<HMDCamera>(&scene);
+	//	pCamera->Scene = &scene;
+	//	ParseHmdCameraObjectAttributes(pCamera, node);
+	//	pObj.reset(pCamera);
+	//}
+	//else if (!strcmp(node->Name(), "light"))
+	//{
+	//	auto pControl = CreateSceneObject<Light>(&scene);
+	//	ParseLightObjectAttributes(pControl, node);
+	//	pObj.reset(pControl);
+	//}
+	//else if (!strcmp(node->Name(), "skydome"))
+	//{
+	//	auto pControl = CreateSceneObject<Causality::SkyDome>(&scene);
+	//	pObj.reset(pControl);
+	//	ParseSkydomeObjectAttributes(pControl, node);
+	//}
+	//else if (!strcmp(node->Name(), "creature"))
+	//{
+	//	auto pCreature = CreateSceneObject<CharacterObject>(&scene);
+	//	ParseChaacterObjectAttributes(pCreature, node);
+
+	//	pObj.reset(pCreature);
+	//}
+	//else if (!strcmp(node->Name(), "first_person_keyboard_mouse_control"))
+	//{
+	//	auto pControl = CreateSceneObject<KeyboardMouseFirstPersonControl>(&scene);
+	//	pControl->SetTarget(parent);
+
+	//	pObj.reset(pControl);
+	//	ParseSceneObjectAttributes(pObj.get(), node);
+	//}
+	//else if (!strcmp(node->Name(), "coordinate_axis"))
+	//{
+	//	auto pControl = CreateSceneObject<CoordinateAxis>(&scene);
+	//	pObj.reset(pControl);
+	//	ParseSceneObjectAttributes(pObj.get(), node);
+	//}
+	//else if (!strcmp(node->Name(), "player_controller"))
+	//{
+	//	auto pControl = CreateSceneObject<PlayerProxy>(&scene);
+	//	pObj.reset(pControl);
+	//	//pObj.reset();
+	//	ParseSceneObjectAttributes(pObj.get(), node);
+	//}
+	//else if (!strcmp(node->Name(), "kinect_visualizer"))
+	//{
+	//	auto pControl = CreateSceneObject<KinectVisualizer>(&scene);
+	//	pObj.reset(pControl);
+	//	ParseSceneObjectAttributes(pObj.get(), node);
+	//}
+	//else if (!strcmp(node->Name(), "tracked_object"))
+	//{
+	//	auto pControl = CreateSceneObject<TrackedObjectControl>(&scene);
+	//	pObj.reset(pControl);
+	//	ParseSceneObjectAttributes(pObj.get(), node);
+	//}
+	//else if (!strcmp(node->Name(), "pen_modeler"))
+	//{
+	//	auto pControl = CreateSceneObject<PenModeler>(&scene);
+	//	pObj.reset(pControl);
+	//	ParseSceneObjectAttributes(pObj.get(), node);
+	//}
+	//else
+	//{
+	//	pObj.reset(CreateSceneObject<SceneObject>(&scene));
+	//	ParseSceneObjectAttributes(pObj.get(), node);
+	//}
 
 	if (pObj)
 		pObj->Scene = &scene;
@@ -612,7 +469,7 @@ void ParseChaacterObjectAttributes(CharacterObject* pCreature, tinyxml2::XMLElem
 		if (path[0] == '{') // asset reference
 		{
 			const std::string key(path + 1, path + strlen(path) - 1);
-			pCreature->SetBehavier(assets.GetBehavier(key));
+			pCreature->SetBehavier(*assets.GetBehavier(key));
 			auto& behavier = pCreature->Behavier();
 		}
 	}
@@ -720,6 +577,7 @@ void ParseHmdCameraObjectAttributes(HMDCamera *pCamera, tinyxml2::XMLElement * n
 	Vector3 up = g_XMIdentityR1.v;
 	Color color = Colors::White.v;
 	bool perspective = true;
+	float ipd = 0.065;
 	GetAttribute(node, "background", color);
 	GetAttribute(node, "fov", fov);
 	GetAttribute(node, "near", _near);
@@ -729,6 +587,8 @@ void ParseHmdCameraObjectAttributes(HMDCamera *pCamera, tinyxml2::XMLElement * n
 	GetAttribute(node, "aspect", aspect);
 	GetAttribute(node, "primary", is_primary);
 	GetAttribute(node, "perspective", perspective);
+	GetAttribute(node, "ipd", ipd);
+	pCamera->SetIPD(ipd);
 
 	auto pRenderControl = pCamera->GetViewRenderer(0, pCamera->ViewRendererCount() - 1);
 	auto pEffectRender = dynamic_cast<EffectRenderControl*>(pRenderControl);

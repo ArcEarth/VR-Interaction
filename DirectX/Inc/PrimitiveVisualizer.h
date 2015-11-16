@@ -42,6 +42,7 @@ namespace DirectX
 		void End();
 
 		PrimitiveBatch<VertexPositionColor>* GetBatch();
+		SpriteBatch* GetSpriteBatch();
 
 		void XM_CALLCONV DrawLine(FXMVECTOR P0, FXMVECTOR P1, FXMVECTOR Color);
 		void XM_CALLCONV DrawLine(FXMVECTOR P0, FXMVECTOR P1, float Width, FXMVECTOR Color);
@@ -86,9 +87,10 @@ namespace DirectX
 		std::unique_ptr<DirectX::GeometricPrimitive> m_pSphere;
 		std::unique_ptr<DirectX::GeometricPrimitive> m_pCube;
 		std::unique_ptr<DirectX::GeometricPrimitive> m_pCone;
-		::std::unique_ptr<PrimitiveBatch<VertexPositionColor>> m_pDirectXBatch;
+		::std::unique_ptr<PrimitiveBatch<VertexPositionColor>> m_pBatch;
 		::std::unique_ptr<CommonStates>	m_pStates;
-		::std::unique_ptr<BasicEffect> m_pEffect;
+		::std::unique_ptr<BasicEffect>	m_pEffect;
+		::std::unique_ptr<SpriteBatch>	m_pSprite;
 		::Microsoft::WRL::ComPtr<ID3D11InputLayout> m_pInputLayout;
 		::Microsoft::WRL::ComPtr<ID3D11InputLayout> m_pGeometryInputLayout;
 		::Microsoft::WRL::ComPtr<ID3D11DeviceContext> m_pContext;

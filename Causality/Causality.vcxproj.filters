@@ -51,6 +51,12 @@
     <Filter Include="HUD">
       <UniqueIdentifier>{1f8cd33e-39cb-494e-9b7e-856d80ff79c8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ArSketch Objects">
+      <UniqueIdentifier>{1ba06f40-366b-4381-8afb-6282dd7a5f57}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Serialization">
+      <UniqueIdentifier>{3e944cf1-fadf-4432-a24f-fdafb822bdd5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NativeWindow.cpp">
@@ -149,7 +155,16 @@
     <ClCompile Include="GestureTracker.cpp">
       <Filter>Character Control Logic</Filter>
     </ClCompile>
-    <ClCompile Include="FloatHud.cpp" />
+    <ClCompile Include="TrackedObjectControl.cpp">
+      <Filter>ArSketch Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="FloatHud.cpp">
+      <Filter>HUD</Filter>
+    </ClCompile>
+    <ClCompile Include="PenModeler.cpp">
+      <Filter>ArSketch Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="Serialization.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="NativeWindow.h">
@@ -335,6 +350,18 @@
     <ClInclude Include="FloatHud.h">
       <Filter>Scene Objects</Filter>
     </ClInclude>
+    <ClInclude Include="TrackedObjectControl.h">
+      <Filter>ArSketch Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="PenModeler.h">
+      <Filter>ArSketch Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="Serialization.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="Asset.h">
+      <Filter>Scene Objects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Content\OculusDisortionPixelShader.hlsl">
@@ -359,24 +386,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\Back.dds">
-      <Filter>Resource Files\SkyBox</Filter>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\Bottom.dds">
-      <Filter>Resource Files\SkyBox</Filter>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\front.dds">
-      <Filter>Resource Files\SkyBox</Filter>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\Left.dds">
-      <Filter>Resource Files\SkyBox</Filter>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\Right.dds">
-      <Filter>Resource Files\SkyBox</Filter>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\top.dds">
-      <Filter>Resource Files\SkyBox</Filter>
-    </Image>
     <Image Include="icon1.ico">
       <Filter>Resource Files</Filter>
     </Image>
@@ -387,14 +396,17 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="Resources\Foregrounds.xml">
+    <Xml Include="manifest.xml">
+      <Filter>Platform Application Logic</Filter>
+    </Xml>
+    <Xml Include="Resources\ArSketch.xml">
+      <Filter>Resource Files</Filter>
+    </Xml>
+    <Xml Include="Resources\App.xml">
       <Filter>Resource Files</Filter>
     </Xml>
     <Xml Include="Resources\SelectorScene.xml">
       <Filter>Resource Files</Filter>
-    </Xml>
-    <Xml Include="manifest.xml">
-      <Filter>Platform Application Logic</Filter>
     </Xml>
   </ItemGroup>
 </Project>

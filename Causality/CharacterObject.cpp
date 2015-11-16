@@ -5,10 +5,14 @@
 #include "Settings.h"
 #include <Models.h>
 #include <ShaderEffect.h>
+#include "Scene.h"
+#include "AssetDictionary.h"
 
 using namespace Causality;
 using namespace DirectX;
 using namespace DirectX::Scene;
+
+REGISTER_SCENE_OBJECT_IN_PARSER("creature", CharacterObject);
 
 double updateFrequency = 60;
 
@@ -184,6 +188,8 @@ void CharacterObject::Update(time_seconds const & time_delta)
 		m_CurrentActionTime += time_delta;
 		this->MapCurrentFrameForUpdate();
 		m_pCurrentAction->GetFrameAt(m_CurrentFrame, m_CurrentActionTime);
+		//ScaleFrame(m_CurrentFrame, Armature().default_frame(), 0.95);
+		//m_CurrentFrame.RebuildGlobal(Armature());
 		this->ReleaseCurrentFrameFrorUpdate();
 	}
 
@@ -285,6 +291,38 @@ CharacterObject::CharacterObject()
 
 CharacterObject::~CharacterObject()
 {
+}
+
+void CharacterObject::Parse(const ParamArchive * store)
+{
+	VisualObject::Parse(store);
+
+	auto& assets = Scene->Assets();
+	const char* behv_src = nullptr;
+	GetParam(store, "behavier", behv_src);
+	if (behv_src != nullptr && strlen(behv_src) != 0)
+	{
+		if (behv_src[0] == '{') // asset reference
+		{
+			const std::string key(behv_src + 1, behv_src + strlen(behv_src) - 1);
+			SetBehavier(*assets.GetBehavier(key));
+		}
+	}
+	else
+	{
+		auto inlineBehave = GetFirstChildArchive(store,"creature.behavier");
+		if (inlineBehave)
+		{
+			inlineBehave = GetFirstChildArchive(inlineBehave);
+			auto behavier = assets.ParseBehavier(inlineBehave);
+			SetBehavier(*behavier);
+		}
+	}
+
+	const char* action = nullptr;
+	GetParam(store, "action", action);
+	if (action)
+		StartAction(action);
 }
 
 void CharacterObject::EnabeAutoDisplacement(bool is_enable)

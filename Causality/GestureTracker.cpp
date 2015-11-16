@@ -3,7 +3,6 @@
 #include <numeric>
 #include <random>
 
-
 using namespace Causality;
 
 std::random_device g_rand;
@@ -34,8 +33,8 @@ const ParticaleFilterBase::MatrixType & ParticaleFilterBase::GetSampleMatrix() c
 
 ParticaleFilterBase::ScalarType ParticaleFilterBase::StepParticals()
 {
-	//Resample(m_newSample, m_sample);
-	//m_newSample.swap(m_sample);
+	Resample(m_newSample, m_sample);
+	m_newSample.swap(m_sample);
 
 	auto& sample = m_sample;
 	auto n = sample.rows();
@@ -52,16 +51,21 @@ ParticaleFilterBase::ScalarType ParticaleFilterBase::StepParticals()
 		sample(i, 0) = Likilihood(partical);
 	}
 
+	m_liks = sample.col(0);
 	auto w = sample.col(0).sum();
 	if (w > 0.0001)
 	{
 		m_state = (sample.rightCols(dim).array() * sample.col(0).replicate(1, dim).array()).colwise().sum();
 		m_state /= w;
+		//Eigen::DenseIndex idx;
+		//sample.col(0).maxCoeff(&idx);
+		//m_state = sample.block<1, -1>(idx, 1,1,sample.cols()-1);
 	}
 	else // critial bug here, but we will use the mean particle as a dummy
 	{
 		m_state = sample.rightCols(dim).colwise().mean();
 	}
+
 	return w;
 }
 

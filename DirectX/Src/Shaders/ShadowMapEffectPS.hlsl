@@ -7,16 +7,7 @@ SamplerState NormalSampler : register(s1);
 
 // Should be linear
 SamplerState ShadowSampler : register(s2);
-SamplerComparisonState ShadowSampleCmpState : register(s3)
-{
-	// sampler state
-	Filter = COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
-	AddressU = MIRROR;
-	AddressV = MIRROR;
-
-	// sampler comparison state
-	ComparisonFunc = LESS;
-};
+SamplerComparisonState ShadowSampleCmpState : register(s3);
 
 #define REGISTER(b) : register(b)
 

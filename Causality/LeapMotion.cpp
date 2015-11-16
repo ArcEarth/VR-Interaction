@@ -50,7 +50,7 @@ LeapMotion::LeapMotion(bool useEvent, bool isFixed)
 	PrevConnectionStates = false;
 	//pHeadLocation = nullptr;
 	//pHeadOrientation = nullptr;
-	Coordinate = XMMatrixScalingFromVector(XMVectorReplicate(0.001f)) * XMMatrixTranslation(0, -0.20f, -0.50f); // Default setting
+	Coordinate = XMMatrixScalingFromVector(XMVectorReplicate(0.001f));// Default setting
 	if (useEvent)
 		LeapController.addListener(*pListener.get());
 	if (!isFixed)

@@ -293,8 +293,9 @@ public:
 		CD3D11_SAMPLER_DESC samplerDesc (def);
 		samplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS;
 		samplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR;
-		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+		XMStoreFloat4(samplerDesc.BorderColor, Colors::White.v);
 
 		ThrowIfFailed(
 			device->CreateSamplerState(&samplerDesc, &pShadowMapSampler)

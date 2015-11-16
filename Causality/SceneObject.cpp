@@ -6,6 +6,11 @@ using namespace Causality;
 using namespace DirectX;
 //using namespace DirectX::Scene;
 
+std::unordered_map<std::string, std::function<SceneObject*(Causality::Scene*, const ParamArchive*)>>
+SceneObject::g_Creators;
+
+REGISTER_SCENE_OBJECT_IN_PARSER("scene_object", SceneObject);
+
 SceneObject::~SceneObject()
 {
 	int *p = nullptr;
@@ -15,6 +20,25 @@ SceneObject::SceneObject() {
 	m_IsEnabled = true;
 	m_IsStatic = false;
 	m_TransformDirty = false;
+}
+
+void SceneObject::Parse(const ParamArchive * store)
+{
+	GetParam(store, "name", Name);
+	GetParam(store, "tag", Tag);
+
+	Vector3 scale(1.0f);
+	Vector3 pos;
+	Vector3 eular;
+
+	GetParam(store, "position", pos);
+	GetParam(store, "scale", scale);
+	GetParam(store, "orientation", eular);
+
+	SetPosition(pos);
+	SetScale(scale);
+	SetOrientation(Quaternion::CreateFromYawPitchRoll(eular.y, eular.x, eular.z));
+
 }
 
 void SceneObject::AddChild(SceneObject * child)
@@ -102,9 +126,11 @@ void SceneObject::SetPosition(const Vector3 & p)
 	{
 		XMVECTOR refQ = parent()->GetOrientation(); // parent global orientation
 		XMVECTOR V = parent()->GetPosition();
+		XMVECTOR S = parent()->GetScale();
 		V = p.Load() - V;
 		refQ = XMQuaternionConjugate(refQ);
 		V = XMVector3Rotate(V, refQ); // V *= Inverse(ref.Orientation)
+		V /= S;
 		m_Transform.LclTranslation = V;
 	}
 	SetTransformDirty();

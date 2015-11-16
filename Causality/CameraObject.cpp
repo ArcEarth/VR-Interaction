@@ -5,9 +5,17 @@
 #include <ShadowMapEffect.h>
 #include <PostProcessingEffect.h>
 #include "OculusRift.h"
+#include "Scene.h"
 
 using namespace DirectX;
 using namespace Causality;
+
+REGISTER_SCENE_OBJECT_IN_PARSER("camera", PercentCloserShadowCamera);
+REGISTER_SCENE_OBJECT_IN_PARSER("soft_shadow_camera", SoftShadowCamera);
+REGISTER_SCENE_OBJECT_IN_PARSER("hmd_camera", HMDCamera);
+
+
+const float g_DefaultIPD = 0.064f; // 64 mm
 
 const XMVECTORF32 CameraViewControl::Foward = g_XMNegIdentityR2, CameraViewControl::Up = g_XMIdentityR1;
 
@@ -22,7 +30,7 @@ XMMATRIX CameraViewControl::UpdateProjectionCache() const
 {
 	if (m_ProjectDirty)
 	{
-		using namespace DirectX;
+		using namespace Math;
 		m_ProjectDirty = false;
 		XMMATRIX proj;
 		if (m_IsPerspective)
@@ -78,31 +86,46 @@ CameraViewControl::CameraViewControl()
 	m_ViewDirty = true;
 	m_Parent = nullptr;
 	m_IsRightHand = true;
-	m_Forward = Foward.v;
+	m_Focus = Foward.v;
 	m_Displacement = g_XMZero.v;
 	m_UpDir = Up.v;
 }
 
 XMMATRIX CameraViewControl::GetViewMatrix() const
 {
-	using namespace DirectX;
-	XMVECTOR refLoc = (XMVECTOR)m_Parent->GetPosition();
+	using namespace Math;
+	XMVECTOR origin = m_Parent->GetPosition();
 	XMVECTOR rot = m_Parent->GetOrientation();
-	XMVECTOR up = XMVector3Rotate(m_UpDir.Load(), rot);
-	XMVECTOR forward = XMVector3Rotate(m_Forward.Load(), rot);
+	XMVECTOR focus = m_Focus;
+	XMVECTOR disp = XMLoad(m_Displacement);
 
-	return XMMatrixLookToRH(refLoc, forward, up);
+	focus -= disp;
+	// the focus direction in World coordinate
+	focus = XMVector3Rotate(focus, rot);
+
+	// displace
+	origin += XMVector3Rotate(disp, rot);
+
+	XMVECTOR up = XMVector3Rotate(XMLoad(m_UpDir), rot);
+
+	//XMVECTOR forward = XMVector3Rotate(XMLoad(m_Forward), rot);
+
+	return XMMatrixLookToRH(origin, focus, up);
 }
 
 void CameraViewControl::FocusAt(FXMVECTOR focusPoint, FXMVECTOR upDir)
 {
-	using namespace DirectX;
-	// Right-Hand Coordinate
-	auto pos = m_Parent->GetPosition(); // assume this is a Rigid transform without scale
-	auto rot = m_Parent->GetOrientation();
+	//using namespace Math;
+	//// Right-Hand Coordinate
+	XMVECTOR pos = m_Parent->GetPosition(); // assume this is a Rigid transform without scale
+	XMVECTOR rot = m_Parent->GetOrientation();
+	//// displace
+	//pos += XMVector3Rotate(XMLoad(m_Displacement), rot);
+	//m_Forward =
 
-	m_Forward = XMVector3Rotate(focusPoint - pos.Load(), XMQuaternionConjugate(rot.Load()));
-	m_Forward -= m_Displacement;
+	m_Focus = XMVector3Rotate(focusPoint - pos, XMQuaternionConjugate(rot));;
+	m_UpDir = upDir;
+	//m_Forward -= m_Displacement;
 }
 
 void CameraViewControl::SetAttachedRigid(DirectX::IRigid * pRigid)
@@ -114,9 +137,9 @@ void CameraViewControl::SetPerspective(float fovRadius, float aspectRatioHbyW, f
 {
 	m_IsPerspective = true;
 	m_ProjectDirty = true;
-	m_Fov = fovRadius; 
-	m_AspectRatio = aspectRatioHbyW; 
-	m_Near = _near; 
+	m_Fov = fovRadius;
+	m_AspectRatio = aspectRatioHbyW;
+	m_Near = _near;
 	m_Far = _far;
 }
 
@@ -124,9 +147,9 @@ void CameraViewControl::SetOrthographic(float viewWidth, float viewHeight, float
 {
 	m_IsPerspective = false;
 	m_ProjectDirty = true;
-	m_Fov = viewHeight; 
+	m_Fov = viewHeight;
 	m_AspectRatio = viewWidth / viewHeight;
-	m_Near = _near; 
+	m_Near = _near;
 	m_Far = _far;
 }
 
@@ -143,16 +166,20 @@ float CameraViewControl::GetNear() const { return m_Near; }
 
 float CameraViewControl::GetFar() const { return m_Far; }
 
-void Causality::CameraViewControl::SetFov(float fov) { m_Fov = fov; m_ProjectDirty = true; }
+void CameraViewControl::SetFov(float fov) { m_Fov = fov; m_ProjectDirty = true; }
 
-void Causality::CameraViewControl::SetAspectRatio(float aspectHbyW) { 
-	m_AspectRatio = aspectHbyW; 
+void CameraViewControl::SetAspectRatio(float aspectHbyW) {
+	m_AspectRatio = aspectHbyW;
 	m_ProjectDirty = true;
 }
 
-void Causality::CameraViewControl::SetNear(float _near) { m_Near = _near; m_ProjectDirty = true; }
+void CameraViewControl::SetNear(float _near) { m_Near = _near; m_ProjectDirty = true; }
 
-void Causality::CameraViewControl::SetFar(float _far) { m_Far = _far; m_ProjectDirty = true; }
+void CameraViewControl::SetFar(float _far) { m_Far = _far; m_ProjectDirty = true; }
+
+XMVECTOR CameraViewControl::GetDisplacement() const { return m_Displacement; }
+
+void CameraViewControl::SetDisplacement(FXMVECTOR displacement) { m_Displacement = displacement; }
 
 // Only need for Stereo or more camera
 
@@ -164,11 +191,11 @@ EffectRenderControl::EffectRenderControl()
 {
 }
 
- EffectRenderControl::~EffectRenderControl()
+EffectRenderControl::~EffectRenderControl()
 {
 }
 
- void EffectRenderControl::Begin(IRenderContext * context)
+void EffectRenderControl::Begin(IRenderContext * context)
 {
 	m_pRenderContext = context;
 	m_HaveItemRendered = false;
@@ -178,7 +205,7 @@ EffectRenderControl::EffectRenderControl()
 	m_RenderTarget.SetAsRenderTarget(pContext);
 }
 
- void EffectRenderControl::End()
+void EffectRenderControl::End()
 {
 	// if no item is rendered, no need to call post processing effect
 	if (m_pPostEffect && m_HaveItemRendered)
@@ -189,14 +216,14 @@ EffectRenderControl::EffectRenderControl()
 	m_pRenderContext = nullptr;
 }
 
- bool EffectRenderControl::AcceptRenderFlags(RenderFlags flags)
+bool EffectRenderControl::AcceptRenderFlags(RenderFlags flags)
 {
 	bool result = flags.Contains(m_RequstFlags);
 	m_HaveItemRendered |= result;
 	return result;
 }
 
- void EffectRenderControl::SetView(IViewControl * pViewControl) {
+void EffectRenderControl::SetView(IViewControl * pViewControl) {
 	auto pEffectMatrices = dynamic_cast<DirectX::IEffectMatrices*>(m_pEffect.get());
 	if (pEffectMatrices && pViewControl)
 	{
@@ -205,106 +232,175 @@ EffectRenderControl::EffectRenderControl()
 	}
 }
 
- DirectX::IEffect * EffectRenderControl::GetRenderEffect() { return m_pEffect.get(); }
+DirectX::IEffect * EffectRenderControl::GetRenderEffect() { return m_pEffect.get(); }
 
- DirectX::IPostEffect * Causality::EffectRenderControl::GetPostEffect()
- {
-	 return m_pPostEffect.get();
- }
+DirectX::IPostEffect * EffectRenderControl::GetPostEffect()
+{
+	return m_pPostEffect.get();
+}
 
- void EffectRenderControl::SetRequestRenderFlags(RenderFlags flags) {
+void EffectRenderControl::SetRequestRenderFlags(RenderFlags flags) {
 	m_RequstFlags = flags;
 }
 
- void EffectRenderControl::SetRenderEffect(const std::shared_ptr<DirectX::IEffect>& pEffect) { m_pEffect = pEffect; }
+void EffectRenderControl::SetRenderEffect(const std::shared_ptr<DirectX::IEffect>& pEffect) { m_pEffect = pEffect; }
 
- void EffectRenderControl::SetPostEffect(const std::shared_ptr<DirectX::IPostEffect>& pPostEffect) { m_pPostEffect = pPostEffect; }
+void EffectRenderControl::SetPostEffect(const std::shared_ptr<DirectX::IPostEffect>& pPostEffect) { m_pPostEffect = pPostEffect; }
 
- void EffectRenderControl::SetRenderTargetClearence(bool ifClear)
- {
-	 m_IfClearRenderTarget = ifClear;
- }
+void EffectRenderControl::SetRenderTargetClearence(bool ifClear)
+{
+	m_IfClearRenderTarget = ifClear;
+}
 
- Color EffectRenderControl::GetBackground() const { return m_Background; }
+Color EffectRenderControl::GetBackground() const { return m_Background; }
 
- void EffectRenderControl::SetBackground(const Color & color) { m_Background = color; }
+void EffectRenderControl::SetBackground(const Color & color) { m_Background = color; }
 
- DirectX::RenderTarget & EffectRenderControl::GetRenderTarget() {
+DirectX::RenderTarget & EffectRenderControl::GetRenderTarget() {
 	return m_RenderTarget;
 }
 
- DirectX::Texture2D & Causality::EffectRenderControl::GetOutput()
- {
-	 if (m_PostEffectOutput == nullptr)
-		 return m_RenderTarget.ColorBuffer();
-	 else
-		 return m_PostEffectOutput;
- }
+DirectX::Texture2D & EffectRenderControl::GetOutput()
+{
+	if (m_PostEffectOutput == nullptr)
+		return m_RenderTarget.ColorBuffer();
+	else
+		return m_PostEffectOutput;
+}
 
- void EffectRenderControl::SetRenderTarget(DirectX::RenderTarget & renderTarget) {
-	 m_RenderTarget = renderTarget; 
- }
+void EffectRenderControl::SetRenderTarget(DirectX::RenderTarget & renderTarget) {
+	m_RenderTarget = renderTarget;
+}
 
- void Causality::EffectRenderControl::SetPostEffectOutput(DirectX::RenderableTexture2D & output)
- {
-	 m_PostEffectOutput = output;
- }
+void EffectRenderControl::SetPostEffectOutput(DirectX::RenderableTexture2D & output)
+{
+	m_PostEffectOutput = output;
+}
 
- XMVECTOR XM_CALLCONV GetOrientationFromFocus(FXMVECTOR origin, FXMVECTOR focus, FXMVECTOR up)
- {
-	 XMVECTOR foward = focus - origin; // -Z
-	 XMMATRIX M;
-	 M.r[2] = -XMVector3Normalize(foward);
-	 M.r[1] = XMVector3Normalize(up);
-	 M.r[0] = XMVector3Cross(M.r[1], M.r[2]); // X = YxZ, for rh coords
+XMVECTOR XM_CALLCONV GetOrientationFromFocus(FXMVECTOR origin, FXMVECTOR focus, FXMVECTOR up)
+{
+	XMVECTOR foward = focus - origin; // -Z
+	XMMATRIX M;
+	M.r[2] = -XMVector3Normalize(foward);
+	M.r[1] = XMVector3Normalize(up);
+	M.r[0] = XMVector3Cross(M.r[1], M.r[2]); // X = YxZ, for rh coords
 
-	 // for the case up is not orthogal with foward
-	 M.r[1] = XMVector3Cross(M.r[2], M.r[0]); // Y = ZxX
-	 M.r[3] = g_XMNegIdentityR3.v;
+	// for the case up is not orthogal with foward
+	M.r[1] = XMVector3Cross(M.r[2], M.r[0]); // Y = ZxX
+	M.r[3] = g_XMNegIdentityR3.v;
 
-	 // M' is the rotation of StandardView -> CurrentView Orientation
-	 XMVECTOR q = XMQuaternionRotationMatrix(M);
-	 XMVECTOR tF = XMVector3Transform(-g_XMIdentityR2.v, M);
-	 //q = XMQuaternionConjugate(q);
-	 return q;
- }
+	// M' is the rotation of StandardView -> CurrentView Orientation
+	XMVECTOR q = XMQuaternionRotationMatrix(M);
+	XMVECTOR tF = XMVector3Transform(-g_XMIdentityR2.v, M);
+	//q = XMQuaternionConjugate(q);
+	return q;
+}
 
- Camera::Camera()
- {
- }
+Camera::Camera()
+{
+}
 
- size_t Causality::Camera::ViewRendererCount(int view) const { return 1; }
+void Camera::CreateDeviceResources(IRenderDevice * pDevice, RenderTarget & canvas)
+{
+	SetRenderTarget(canvas);
+}
 
- IRenderControl * Causality::Camera::GetViewRenderer(int view, int renderer) { return this; }
- 
- void Camera::SetRenderTarget(DirectX::RenderTarget & renderTarget)
- {
-	 float rtvAspect = renderTarget.ViewPort().Width / renderTarget.ViewPort().Height;
-	 if (abs(GetAspectRatio() - rtvAspect) > 0.01f)
-		 SetAspectRatio(rtvAspect);
-	 EffectRenderControl::SetRenderTarget(renderTarget);
- }
+size_t Camera::ViewRendererCount(int view) const { return 1; }
 
- size_t Causality::SingleViewCamera::ViewCount() const { return 1; }
+IRenderControl * Camera::GetViewRenderer(int view, int renderer) { return this; }
 
- IViewControl * Causality::SingleViewCamera::GetView(int view) { return this; }
+void Camera::SetRenderTarget(DirectX::RenderTarget & renderTarget)
+{
+	float rtvAspect = renderTarget.ViewPort().Width / renderTarget.ViewPort().Height;
+	if (abs(GetAspectRatio() - rtvAspect) > 0.01f)
+		SetAspectRatio(rtvAspect);
+	EffectRenderControl::SetRenderTarget(renderTarget);
+}
 
- void SingleViewCamera::FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir)
+SingleViewCamera::SingleViewCamera()
+{
+	CameraViewControl::SetAttachedRigid(this);
+}
+
+void SingleViewCamera::Parse(const ParamArchive * store)
+{
+	using namespace DirectX;
+	SceneObject::Parse(store);
+	bool enable_stereo;
+	GetParam(store, "enable_stereo", enable_stereo);
+	float fov = 70, aspect = 1, hfov, wfov;
+	float _near = 0.1f, _far = 20.0f;
+	bool is_primary = false;
+	Vector3 focus = (XMVECTOR)GetPosition() + XMVector3Rotate(Camera::Foward, GetOrientation());
+	Vector3 up = g_XMIdentityR1.v;
+	Color color = Colors::White.v;
+	bool perspective = true;
+	GetParam(store, "background", color);
+	GetParam(store, "fov", fov);
+	GetParam(store, "near", _near);
+	GetParam(store, "far", _far);
+	GetParam(store, "focus", focus);
+	GetParam(store, "up", up);
+	GetParam(store, "aspect", aspect);
+	GetParam(store, "primary", is_primary);
+	GetParam(store, "perspective", perspective);
+
+	auto pScene = this->Scene;
+	auto device = pScene->GetRenderDevice();
+	RenderTarget canvas;
+
+	auto rtnode = GetFirstChildArchive(store, "camera.render_target");
+	if (is_primary)
+	{
+		pScene->SetAsPrimaryCamera(this);
+		canvas = pScene->Canvas();
+	} else if (rtnode)
+	{
+		int width, height;
+		rtnode = GetFirstChildArchive(rtnode, "render_target");
+		GetParam(rtnode, "width", width);
+		GetParam(rtnode, "height", height);
+		canvas = RenderTarget(device, width, height);
+	}
+
+	aspect = (float)canvas.Width() / (float)canvas.Height();
+
+	CreateDeviceResources(device, canvas);
+	FocusAt(focus, up);
+
+	if (perspective)
+		SetPerspective(XMConvertToRadians(fov), aspect, _near, _far);
+	else
+	{
+		wfov = hfov * aspect;
+		SetOrthographic(wfov, hfov, _near, _far);
+	}
+}
+
+size_t SingleViewCamera::ViewCount() const { return 1; }
+
+IViewControl * SingleViewCamera::GetView(int view) { return this; }
+
+void SingleViewCamera::FocusAt(DirectX::FXMVECTOR focusPoint, DirectX::FXMVECTOR upDir)
 {
 	XMVECTOR origin = GetPosition();
 	XMVECTOR q = GetOrientationFromFocus(origin, focusPoint, upDir);
 	SetOrientation(q);
 }
 
- void SingleViewCamera::BeginFrame()
- {
- }
+void SingleViewCamera::BeginFrame()
+{
+}
 
- void SingleViewCamera::EndFrame()
- {
- }
+void SingleViewCamera::EndFrame()
+{
+}
 
-SoftShadowCamera::SoftShadowCamera(IRenderDevice * pDevice, DirectX::RenderTarget& canvas)
+SoftShadowCamera::SoftShadowCamera()
+{
+}
+
+void SoftShadowCamera::CreateDeviceResources(IRenderDevice * pDevice, DirectX::RenderTarget& canvas)
 {
 	using namespace DirectX;
 	auto resolution = canvas.Bounds();
@@ -362,7 +458,11 @@ SoftShadowCamera::SoftShadowCamera(IRenderDevice * pDevice, DirectX::RenderTarge
 
 }
 
-PercentCloserShadowCamera::PercentCloserShadowCamera(IRenderDevice * pDevice, RenderTarget & canvas)
+PercentCloserShadowCamera::PercentCloserShadowCamera()
+{
+}
+
+void PercentCloserShadowCamera::CreateDeviceResources(IRenderDevice * pDevice, RenderTarget & canvas)
 {
 	using namespace DirectX;
 	auto resolution = canvas.Bounds();
@@ -402,6 +502,8 @@ PercentCloserShadowCamera::PercentCloserShadowCamera(IRenderDevice * pDevice, Re
 	m_pRenderers.push_back(pEffectRender);
 }
 
+MultipassCamera::MultipassCamera() {}
+
 size_t MultipassCamera::ViewRendererCount(int view) const { return m_pRenderers.size(); }
 
 IRenderControl * MultipassCamera::GetViewRenderer(int view, int renderer) { return m_pRenderers[renderer].get(); }
@@ -420,15 +522,24 @@ IRenderControl * MuiltiviewCamera::GetViewRenderer(int view, int renderer) {
 	return pRenderer;
 }
 
-void Causality::MuiltiviewCamera::BeginFrame()
+void MuiltiviewCamera::BeginFrame()
 {
 }
 
-void Causality::MuiltiviewCamera::EndFrame()
+void MuiltiviewCamera::EndFrame()
 {
 }
 
-HMDCamera::HMDCamera(IRenderDevice *pDevice, RenderTarget & canvas)
+HMDCamera::HMDCamera()
+{
+}
+
+Causality::HMDCamera::~HMDCamera()
+{
+
+}
+
+void HMDCamera::CreateDeviceResources(IRenderDevice *pDevice, RenderTarget & canvas)
 {
 	using namespace DirectX;
 	auto resolution = canvas.Bounds();
@@ -457,6 +568,8 @@ HMDCamera::HMDCamera(IRenderDevice *pDevice, RenderTarget & canvas)
 	m_Views[0]->SetAttachedRigid(this);
 	m_Views[1]->SetAttachedRigid(this);
 
+	SetIPD(g_DefaultIPD);
+
 	auto viewport = canvas.ViewPort();
 	viewport.Width /= 2;
 	m_RenderTargets.resize(2);
@@ -465,6 +578,69 @@ HMDCamera::HMDCamera(IRenderDevice *pDevice, RenderTarget & canvas)
 	m_RenderTargets[1] = canvas.Subview(viewport);
 
 	pDevice->GetImmediateContext(&m_pContext);
+}
+
+void HMDCamera::Parse(const ParamArchive * store)
+{
+	using namespace DirectX;
+	SceneObject::Parse(store);
+
+	bool enable_stereo;
+	float fov = 70, aspect = 1, hfov, wfov;
+	float _near = 0.1f, _far = 20.0f;
+	bool is_primary = false;
+	Vector3 focus = (XMVECTOR)GetPosition() + XMVector3Rotate(Camera::Foward, GetOrientation());
+	Vector3 up = g_XMIdentityR1.v;
+	Color color = Colors::White.v;
+	bool perspective = true;
+	float ipd = 0.065;
+
+	GetParam(store, "enable_stereo", enable_stereo);
+	GetParam(store, "background", color);
+	GetParam(store, "fov", fov);
+	GetParam(store, "near", _near);
+	GetParam(store, "far", _far);
+	GetParam(store, "focus", focus);
+	GetParam(store, "up", up);
+	GetParam(store, "aspect", aspect);
+	GetParam(store, "primary", is_primary);
+	GetParam(store, "perspective", perspective);
+	GetParam(store, "ipd", ipd);
+	GetParam(store, "hfov", hfov);
+	GetParam(store, "wfov", wfov);
+
+	auto pScene = this->Scene;
+	auto device = pScene->GetRenderDevice();
+	RenderTarget canvas;
+
+	auto rtnode = GetFirstChildArchive(store, "camera.render_target");
+	if (is_primary)
+	{
+		pScene->SetAsPrimaryCamera(this);
+		canvas = pScene->Canvas();
+	} else if (rtnode)
+	{
+		int width, height;
+		rtnode = GetFirstChildArchive(rtnode, "render_target");
+		GetParam(rtnode, "width", width);
+		GetParam(rtnode, "height", height);
+		canvas = RenderTarget(device, width, height);
+	}
+
+	aspect = (float)canvas.Width() / (float)canvas.Height();
+	aspect *= 0.5f; // since each eye canvas only have half width
+
+	CreateDeviceResources(device, canvas);
+	SetIPD(ipd);
+	FocusAt(focus, up);
+
+	if (perspective)
+		SetPerspective(XMConvertToRadians(fov), aspect, _near, _far);
+	else
+	{
+		wfov = hfov * aspect;
+		SetOrthographic(wfov, hfov, _near, _far);
+	}
 }
 
 void HMDCamera::BeginFrame()
@@ -479,4 +655,22 @@ void HMDCamera::EndFrame()
 {
 	//if (m_pRift)
 		//m_pRift->EndFrame();
+}
+
+void HMDCamera::SetIPD(float ipd) {
+	m_ipd = ipd;
+	m_Views[0]->SetDisplacement(XMVectorSet(0.5f * ipd, 0, 0, 0));
+	m_Views[1]->SetDisplacement(XMVectorSet(-0.5f * ipd, 0, 0, 0));
+}
+
+void HMDCamera::SetPerspective(float fov, float aspect, float _near, float _far)
+{
+	m_Views[0]->SetPerspective(fov, aspect, _near, _far);
+	m_Views[1]->SetPerspective(fov, aspect, _near, _far);
+}
+
+void HMDCamera::SetOrthographic(float viewWidth, float viewHeight, float Near, float Far)
+{
+	m_Views[0]->SetOrthographic(viewWidth, viewHeight, Near, Far);
+	m_Views[1]->SetOrthographic(viewWidth, viewHeight, Near, Far);
 }

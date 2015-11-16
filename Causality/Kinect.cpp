@@ -128,6 +128,11 @@ public:
 	{
 
 	}
+
+	~Impl()
+	{
+		StopTracking();
+	}
 public:
 	bool IsActive() const
 	{
@@ -294,11 +299,16 @@ public:
 	{
 		if (!m_FrameReadyEvent.IsValid())
 			return;
-
-		m_pBodyFrameReader->UnsubscribeFrameArrived(reinterpret_cast<WAITABLE_HANDLE>(m_FrameReadyEvent.Get()));
-		m_FrameReadyEvent.Detach();
+		if (m_pBodyFrameReader && m_FrameReadyEvent.Get() != NULL)
+		{
+			m_pBodyFrameReader->UnsubscribeFrameArrived(reinterpret_cast<WAITABLE_HANDLE>(m_FrameReadyEvent.Get()));
+			m_FrameReadyEvent.Detach();
+		}
 		if (m_pThread)
+		{
 			m_pThread->join();
+			m_pThread.reset();
+		}
 	}
 
 	bool HasNewFrame() const
@@ -563,6 +573,7 @@ std::shared_ptr<KinectSensor> Causality::Devices::KinectSensor::GetForCurrentVie
 
 KinectSensor::~KinectSensor()
 {
+	Stop();
 }
 
 bool KinectSensor::IsConnected() const
@@ -605,7 +616,6 @@ bool Causality::Devices::KinectSensor::Start()
 
 void Causality::Devices::KinectSensor::Stop()
 {
-	pImpl->StopTracking();
 }
 
 const std::list<TrackedBody>& KinectSensor::GetTrackedBodies() const

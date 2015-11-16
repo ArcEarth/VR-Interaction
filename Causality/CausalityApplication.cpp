@@ -18,6 +18,8 @@ using namespace DirectX::Scene;
 //using namespace Platform;
 using namespace boost;
 //std::unique_ptr<Causality::DXAppMain> m_main;
+std::wstring sceneFile = L"ArSketch.xml";
+//std::wstring sceneFile = L"SelectorScene.xml";
 
 
 Causality::IAppComponent::~IAppComponent()
@@ -133,7 +135,8 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 	//	if (!pRift->InitializeGraphics(pWindow->Handle(), pDeviceResources.get()))
 	//		pRift = nullptr;
 	//}
-	//pLeap = Devices::LeapMotion::GetForCurrentView();;
+
+	pLeap = Devices::LeapMotion::GetForCurrentView();
 	pKinect = Devices::KinectSensor::GetForCurrentView();
 	//auto loadingScene = new Scene;
 	//Scenes.emplace_back(loadingScene);
@@ -149,7 +152,7 @@ void Causality::App::OnStartup(const std::vector<std::string>& args)
 		cout << "[Scene] Loading ...";
 		CoInitializeEx(NULL, COINIT::COINIT_APARTMENTTHREADED);
 		
-		selector->LoadFromXML((ResourceDirectory / "SelectorScene.xml").string());
+		selector->LoadFromXML((ResourceDirectory / sceneFile).string());
 
 		XMMATRIX kinectCoord = XMMatrixRigidTransform(
 			XMQuaternionRotationRollPitchYaw(-XM_PI / 12.0f, XM_PI, 0), // Orientation

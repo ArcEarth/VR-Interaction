@@ -1308,6 +1308,22 @@ namespace DirectX
 	inline XMMATRIX XM_CALLCONV XMMatrixRigidTransform(FXMVECTOR RotationQuaterion, FXMVECTOR Translation);
 
 #pragma region XMLoadStoreA Helpers
+	inline XMVECTOR XMLoad(const XMFLOAT2& src)
+	{
+		return XMLoadFloat2(&src);
+	}
+	inline XMVECTOR XMLoadA(const XMFLOAT2& src)
+	{
+		return XMLoadFloat2A(reinterpret_cast<const XMFLOAT2A*>(&src));
+	}
+	inline void XM_CALLCONV XMStore(XMFLOAT2& dest, FXMVECTOR v)
+	{
+		XMStoreFloat2(&dest, v);
+	}
+	inline void XM_CALLCONV XMStoreA(XMFLOAT2& dest, FXMVECTOR v)
+	{
+		XMStoreFloat2A(reinterpret_cast<XMFLOAT2A*>(&dest), v);
+	}
 	inline XMVECTOR XMLoad(const XMFLOAT3& src)
 	{
 		return XMLoadFloat3(&src);

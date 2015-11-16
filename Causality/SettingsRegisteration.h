@@ -56,3 +56,5 @@ SETTING_REGISTERATION(bool, UseJointLengthWeight, false)
 
 SETTING_REGISTERATION(bool, UseStylizedIK, true)
 SETTING_REGISTERATION(bool, UseVelocity, false)
+
+SETTING_REGISTERATION(float, DefaultTrackerCovierence, 1000000000)

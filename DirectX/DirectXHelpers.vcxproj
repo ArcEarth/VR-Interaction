@@ -178,6 +178,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Inc\AlignedVector.h" />
     <ClInclude Include="Inc\DirectXMathExtend.inl">
       <FileType>CppCode</FileType>
     </ClInclude>

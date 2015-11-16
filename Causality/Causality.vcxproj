@@ -277,6 +277,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PenModeler.cpp" />
     <ClCompile Include="PlayerProxy.cpp">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -285,6 +286,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="SceneObject.cpp" />
     <ClCompile Include="SceneParser.cpp" />
     <ClCompile Include="SelectorScene.cpp" />
+    <ClCompile Include="Serialization.cpp" />
     <ClCompile Include="Settings.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -294,11 +296,13 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="SkinningModelFromFbx.cpp" />
     <ClCompile Include="SkyDome.cpp" />
     <ClCompile Include="StylizedIK.cpp" />
+    <ClCompile Include="TrackedObjectControl.cpp" />
     <ClCompile Include="VisualObject.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationObject.h" />
     <ClInclude Include="ArmaturePartFeatures.h" />
+    <ClInclude Include="Asset.h" />
     <ClInclude Include="BasicKeyboardMouseControlLogic.h" />
     <ClInclude Include="BCL.h" />
     <ClInclude Include="ClipMetric.h" />
@@ -332,10 +336,13 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="LeapMotion.h" />
     <ClInclude Include="LightObject.h" />
     <ClInclude Include="NativeWindow.h" />
+    <ClInclude Include="PenModeler.h" />
+    <ClInclude Include="Serialization.h" />
     <ClInclude Include="SkyDome.h" />
     <ClInclude Include="Math3D.h" />
     <ClInclude Include="SmartPointers.h" />
     <ClInclude Include="String.h" />
+    <ClInclude Include="TrackedObjectControl.h" />
     <ClInclude Include="VisualObject.h" />
     <ClInclude Include="OculusRift.h" />
     <ClInclude Include="PcaCcaMap.h" />
@@ -392,38 +399,15 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <Image Include="icon1.ico" />
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\Back.dds">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\Bottom.dds">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\front.dds">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\Left.dds">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\Right.dds">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
-    <Image Include="Resources\Textures\SkyBox\GrimmNight\top.dds">
-      <DeploymentContent>true</DeploymentContent>
-    </Image>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Causality.rc" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="manifest.xml" />
-    <Xml Include="Resources\Foregrounds.xml">
-      <SubType>Designer</SubType>
-    </Xml>
-    <Xml Include="Resources\SelectorScene.xml">
-      <SubType>Designer</SubType>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</DeploymentContent>
-      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
-    </Xml>
+    <Xml Include="Resources\App.xml" />
+    <Xml Include="Resources\ArSketch.xml" />
+    <Xml Include="Resources\SelectorScene.xml" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\..\..\SDKs\DirectXTK\DirectXTK_Desktop_2015.vcxproj">
