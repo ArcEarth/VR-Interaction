@@ -14,7 +14,7 @@ namespace Causality
 using namespace DirectX;
 using namespace Causality;
 
-REGISTER_SCENE_OBJECT_IN_PARSER("light", Light);
+REGISTER_SCENE_OBJECT_IN_PARSER(light, Light);
 
 std::weak_ptr<ShadowMapGenerationEffect> g_wpSMGEffect;
 

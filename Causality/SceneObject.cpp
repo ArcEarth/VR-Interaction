@@ -4,12 +4,8 @@
 
 using namespace Causality;
 using namespace DirectX;
-//using namespace DirectX::Scene;
 
-std::unordered_map<std::string, std::function<SceneObject*(Causality::Scene*, const ParamArchive*)>>
-SceneObject::g_Creators;
-
-REGISTER_SCENE_OBJECT_IN_PARSER("scene_object", SceneObject);
+REGISTER_SCENE_OBJECT_IN_PARSER(scene_object, SceneObject);
 
 SceneObject::~SceneObject()
 {
@@ -215,4 +211,13 @@ void SceneObject::UpdateTransformsChildWard()
 			child.UpdateTransformsChildWard();
 		}
 	}
+}
+
+SceneObjectParser::CreatorMapType & Causality::SceneObjectParser::Creators()
+{
+	static std::unique_ptr<CreatorMapType>
+		g_pCreators;
+	if (g_pCreators == nullptr)
+		g_pCreators.reset(new CreatorMapType());
+	return *g_pCreators;
 }

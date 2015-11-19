@@ -13,11 +13,11 @@
   <scene.content>
     <grid name="root">
 
-      <light name="sun_light" primary="false" color="#FFAAAAAA" position="5,10,5" near="2" far="16" focus="0,0,0" up="0,0,-1" hfov="3" wfov="3" aspect="1" perspective="false" drops_shadow="true" resolution="2048" />
+      <light name="sun_light" primary="false" color="#FFAAAAAA" position="2,5,2" near="2" far="10" focus="0,0,0" up="0,0,-1" hfov="2" wfov="2" aspect="1" perspective="false" drops_shadow="true" resolution="4096" />
 
-      <hmd_camera name="primary_camera" primary="true" background="#FFFFFFFF" position="0,1.2,1.5" focus="0,0.5,0" up="0,1,0" ipd="0.065" fov="60">
+      <shadow_camera name="primary_camera" primary="true" background="#FFFFFFFF" position="0,1.2,1.5" focus="0,0.5,0" up="0,1,0" ipd="0.065" fov="60">
         <first_person_keyboard_mouse_control />
-      </hmd_camera>
+      </shadow_camera>
 
       <skydome name="sky" background="Skydome\Sunny_01B.dds"/>
 

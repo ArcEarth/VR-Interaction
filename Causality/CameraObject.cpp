@@ -10,9 +10,9 @@
 using namespace DirectX;
 using namespace Causality;
 
-REGISTER_SCENE_OBJECT_IN_PARSER("camera", PercentCloserShadowCamera);
-REGISTER_SCENE_OBJECT_IN_PARSER("soft_shadow_camera", SoftShadowCamera);
-REGISTER_SCENE_OBJECT_IN_PARSER("hmd_camera", HMDCamera);
+REGISTER_SCENE_OBJECT_IN_PARSER(shadow_camera, PercentCloserShadowCamera);
+REGISTER_SCENE_OBJECT_IN_PARSER(soft_shadow_camera, SoftShadowCamera);
+REGISTER_SCENE_OBJECT_IN_PARSER(hmd_camera, HMDCamera);
 
 
 const float g_DefaultIPD = 0.064f; // 64 mm
@@ -344,6 +344,8 @@ void SingleViewCamera::Parse(const ParamArchive * store)
 	GetParam(store, "aspect", aspect);
 	GetParam(store, "primary", is_primary);
 	GetParam(store, "perspective", perspective);
+	GetParam(store, "hfov", hfov);
+	GetParam(store, "wfov", wfov);
 
 	auto pScene = this->Scene;
 	auto device = pScene->GetRenderDevice();

@@ -33,8 +33,8 @@ using namespace Eigen;
 using namespace std;
 using namespace ArmaturePartFeatures;
 
-REGISTER_SCENE_OBJECT_IN_PARSER("player_controller", PlayerProxy);
-REGISTER_SCENE_OBJECT_IN_PARSER("kinect_visualizer", KinectVisualizer);
+REGISTER_SCENE_OBJECT_IN_PARSER(player_controller, PlayerProxy);
+REGISTER_SCENE_OBJECT_IN_PARSER(kinect_visualizer, KinectVisualizer);
 
 using boost::filesystem::path;
 

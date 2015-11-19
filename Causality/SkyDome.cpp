@@ -13,7 +13,7 @@ namespace Causality
 	extern bool		g_ShowCharacterMesh;
 }
 
-REGISTER_SCENE_OBJECT_IN_PARSER("skydome", SkyDome);
+REGISTER_SCENE_OBJECT_IN_PARSER(skydome, SkyDome);
 
 SkyDome::SkyDome()
 {

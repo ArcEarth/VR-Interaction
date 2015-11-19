@@ -12,7 +12,7 @@ using namespace Causality;
 using namespace DirectX;
 using namespace DirectX::Scene;
 
-REGISTER_SCENE_OBJECT_IN_PARSER("creature", CharacterObject);
+REGISTER_SCENE_OBJECT_IN_PARSER(creature, CharacterObject);
 
 double updateFrequency = 60;
 
@@ -140,8 +140,9 @@ string CharacterObject::CurrentActionName() const { return m_pCurrentAction ? m_
 
 bool CharacterObject::StartAction(const string & key, time_seconds begin_time, bool loop, time_seconds transition_time)
 {
+	if (!m_pBehavier->Contains(key))
+		return false;
 	auto& anim = (*m_pBehavier)[key];
-	if (&anim == nullptr) return false;
 	m_pCurrentAction = &anim;
 	m_CurrentActionTime = begin_time;
 	m_LoopCurrentAction = loop;

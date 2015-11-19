@@ -134,7 +134,7 @@ namespace Causality
 				param.z = ((float)((val & 0x000000ffU) >> 0)) / (float)0xff;
 				return true;
 			}
-			else if (std::isdigit(attrval[0]) || attrval[0] == '.') // for Vector4 literal
+			else if (attrval != nullptr && (std::isdigit(attrval[0]) || attrval[0] == '.')) // for Vector4 literal
 			{
 				Serialization::GetVector4(store, name, reinterpret_cast<Vector4&>(param));
 				return true;
@@ -150,12 +150,12 @@ namespace Causality
 
 	const ParamArchive * GetPrevSiblingArchive(const ParamArchive * store, const char * name)
 	{
-		return store->NextSiblingElement(name);
+		return store->PreviousSiblingElement(name);
 	}
 
 	const ParamArchive * GetNextSiblingArchive(const ParamArchive * store, const char * name)
 	{
-		return store->PreviousSiblingElement(name);
+		return store->NextSiblingElement(name);
 	}
 
 	const ParamArchive * GetParentArchive(const ParamArchive * store)

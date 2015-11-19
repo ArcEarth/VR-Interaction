@@ -132,8 +132,6 @@ namespace Causality
 	class SceneObject : public tree_node<SceneObject>, virtual public IRigid, public AlignedNew<XMVECTOR>
 	{
 	public:
-		static std::unordered_map<std::string, std::function<SceneObject*(Scene*, const ParamArchive*)>>
-			g_Creators;
 
 		typedef tree_node<SceneObject> tree_base_type;
 		typedef IsometricTransform TransformType;
@@ -271,18 +269,44 @@ namespace Causality
 
 	};
 
+	struct SceneObjectParser
+	{
+		typedef std::function<SceneObject*(Scene*, const ParamArchive*)> CreationFunctionType;
+
+		typedef std::unordered_map<std::string, CreationFunctionType> CreatorMapType;
+
+		static CreatorMapType& Creators();
+
+		template<typename _TSceneObject>
+		static SceneObject* Create(Scene* scene, const ParamArchive* archive)
+		{
+			static_assert(std::is_base_of<SceneObject, _TSceneObject>::value, "You can only register type derived from SceneObject");
+			using type = _TSceneObject;
+
+			auto instance = new type();
+			instance->Scene = scene;
+			instance->Parse(archive);
+			return instance;
+		}
+
+		template<typename _TSceneObject>
+		static void Register(const std::string& tagname)
+		{
+			static_assert(std::is_base_of<SceneObject, _TSceneObject>::value, "You can only register type derived from SceneObject");
+			using type = _TSceneObject;
+
+			Creators()[tagname] = &SceneObjectParser::Create<type>;
+		}
+
+		static SceneObject* ParseSceneObject(Scene* scene, SceneObject* parent, const ParamArchive* archive);
+	};
+
+
 #define REGISTER_SCENE_OBJECT_IN_PARSER(xml_name,type) \
-	static struct type##_parsing_registeration{ \
-		static type* create(Causality::Scene* scene, const Causality::ParamArchive* archive)\
+	static struct type##_##xml_name##_parsing_registeration{ \
+		type##_##xml_name##_parsing_registeration()\
 		{\
-			auto instance = new type();\
-			instance->Scene = scene;\
-			instance->Parse(archive);\
-			return instance;\
+			Causality::SceneObjectParser::Register<type>(#xml_name); \
 		}\
-		type##_parsing_registeration()\
-		{\
-			Causality::SceneObject::g_Creators[#xml_name] = &type##_parsing_registeration::create; \
-		}\
-	} type##_parsing_registeration_instance;
+	} type##_##xml_name##_parsing_registeration_instance;
 }

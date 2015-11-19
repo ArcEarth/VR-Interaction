@@ -224,8 +224,8 @@ AssetDictionary::behavier_type * AssetDictionary::ParseBehavier(const ParamArchi
 				for (auto action = GetFirstChildArchive(actions,"action"); action != nullptr; action = GetNextSiblingArchive(action,"action"))
 				{
 					const char* asrc = nullptr, *aname = nullptr;
-					GetParam(store, "name", aname);
-					GetParam(store, "src", asrc);
+					GetParam(action, "name", aname);
+					GetParam(action, "src", asrc);
 					if (aname && asrc)
 						actionlist.emplace_back(aname, asrc);
 				}

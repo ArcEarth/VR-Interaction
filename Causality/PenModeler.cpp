@@ -9,7 +9,7 @@ using namespace Devices;
 using namespace Math;
 using namespace DirectX::Visualizers;
 
-REGISTER_SCENE_OBJECT_IN_PARSER("pen_modeler", PenModeler);
+REGISTER_SCENE_OBJECT_IN_PARSER(pen_modeler, PenModeler);
 
 class PenModeler::TrackedPen
 {

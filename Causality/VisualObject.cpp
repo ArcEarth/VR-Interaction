@@ -18,9 +18,9 @@ namespace Causality
 	extern bool		g_MirrowInputX;
 }
 
-REGISTER_SCENE_OBJECT_IN_PARSER("object", VisualObject);
-REGISTER_SCENE_OBJECT_IN_PARSER("glowing_border", GlowingBorder);
-REGISTER_SCENE_OBJECT_IN_PARSER("coordinate_axis", CoordinateAxis);
+REGISTER_SCENE_OBJECT_IN_PARSER(object, VisualObject);
+REGISTER_SCENE_OBJECT_IN_PARSER(glowing_border, GlowingBorder);
+REGISTER_SCENE_OBJECT_IN_PARSER(coordinate_axis, CoordinateAxis);
 
 void XM_CALLCONV DrawBox(_In_reads_(8) Vector3 *conners, FXMVECTOR color)
 {

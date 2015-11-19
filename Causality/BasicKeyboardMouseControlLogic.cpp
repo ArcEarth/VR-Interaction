@@ -5,7 +5,7 @@
 
 using namespace Causality;
 
-REGISTER_SCENE_OBJECT_IN_PARSER("first_person_keyboard_mouse_control", KeyboardMouseFirstPersonControl);
+REGISTER_SCENE_OBJECT_IN_PARSER(first_person_keyboard_mouse_control, KeyboardMouseFirstPersonControl);
 
 KeyboardMouseFirstPersonControl::KeyboardMouseFirstPersonControl(IRigid* pTarget)
 {
@@ -31,6 +31,11 @@ void KeyboardMouseFirstPersonControl::SetTarget(IRigid * pTarget)
 			Register();
 	}
 
+}
+
+void KeyboardMouseFirstPersonControl::OnParentChanged(SceneObject * oldParent)
+{
+	SetTarget(parent());
 }
 
 void KeyboardMouseFirstPersonControl::Update(time_seconds const& time_delta)
