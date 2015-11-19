@@ -35,11 +35,11 @@ void CharacterObject::DisplaceByVelocityFrame()
 	float lowest = std::numeric_limits<float>::max();
 	for (int jid = 0; jid < armature.size(); jid++)
 	{
-		XMVECTOR pos = XMVector3Transform(frame[jid].GblTranslation.LoadA(), world);
+		XMVECTOR pos = XMVector3Transform(XMLoadA(frame[jid].GblTranslation), world);
 		float y = XMVectorGetY(pos);
 		if (XMVectorGetY(pos) < threshold)
 		{
-			XMVECTOR vec = vframe[jid].LinearVelocity.LoadA();
+			XMVECTOR vec = XMLoadA(vframe[jid].LinearVelocity);
 			vec = XMVectorSetW(vec, 0.f);
 			vec = XMVector4Transform(vec, world);
 
@@ -99,8 +99,8 @@ void CharacterObject::ComputeVelocityFrame(time_seconds time_delta)
 
 	for (size_t i = 0; i < armature.size(); i++)
 	{
-		XMVECTOR disp = cframe[i].GblTranslation.LoadA() - lframe[i].GblTranslation.LoadA();
-		vframe[i].LinearVelocity.StoreA(disp / time_delta.count());
+		XMVECTOR disp = XMLoadA(cframe[i].GblTranslation) - XMLoadA(lframe[i].GblTranslation);
+		XMStoreA(vframe[i].LinearVelocity,disp / time_delta.count());
 	}
 }
 

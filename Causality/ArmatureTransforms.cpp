@@ -374,8 +374,8 @@ void RBFInterpolationTransform::Render(DirectX::CXMVECTOR color, DirectX::CXMMAT
 	{
 		auto& line = pvs[map.Jy];
 		XMVECTOR p0, p1;
-		p0 = XMVector3Transform(line.first.Load(), world);
-		p1 = XMVector3Transform(line.second.Load(), world);
+		p0 = XMVector3Transform(XMLoad(line.first), world);
+		p1 = XMVector3Transform(XMLoad(line.second), world);
 		//drawer.DrawLine(line.first, line.second, color);
 
 		if (map.Jx >= 0)

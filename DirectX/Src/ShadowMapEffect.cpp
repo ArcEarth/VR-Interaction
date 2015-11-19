@@ -356,10 +356,10 @@ public:
 		{
 			for (size_t i = 0; i < lightsEnabled; i++) //? Use MAX_LIGHT instead of 1
 			{
-				XMMATRIX lvp = lights[i].View.LoadA();
+				XMMATRIX lvp = XMLoadA(lights[i].View);
 				constants.LightPosition[i] = lights[i].SourcePosition;
 				constants.LightDirection[i] = lights[i].FocusDirection;
-				lvp *= lights[i].Projection.LoadA();
+				lvp *= XMLoadA(lights[i].Projection);
 				constants.LightViewProjection[i] = XMMatrixTranspose(lvp);
 			}
 

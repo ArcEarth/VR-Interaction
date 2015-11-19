@@ -13,10 +13,10 @@ namespace Causality
 			inline static void Get(_Out_ Eigen::DenseBase<Derived>& fv, _In_ const Bone& bone)
 			{
 				XM_ALIGNATTR Vector3 qs;
-				DirectX::XMVECTOR q = bone.LclRotation.LoadA();
+				DirectX::XMVECTOR q = XMLoadA(bone.LclRotation);
 				q = DirectX::XMQuaternionLn(q);
 				//q *= bone.GblLength;
-				qs.StoreA(q);
+				XMStoreA(qs,q);
 				fv = Eigen::Vector3f::MapAligned(&qs.x);
 			}
 
@@ -28,7 +28,7 @@ namespace Causality
 				DirectX::XMVECTOR q = DirectX::XMLoadFloat3(reinterpret_cast<const DirectX::XMFLOAT3 *>(cfv.data()));
 				//q /= bone.GblLength;
 				q = DirectX::XMQuaternionExp(q);
-				bone.LclRotation.StoreA(q);
+				XMStoreA(bone.LclRotation,q);
 			}
 		};
 
@@ -43,7 +43,7 @@ namespace Causality
 			{
 				assert(fv.size() == Dimension);
 				using DirectX::operator*=;
-				DirectX::XMVECTOR q = bone.LclRotation.LoadA();
+				DirectX::XMVECTOR q = XMLoadA(bone.LclRotation);
 				q = DirectX::XMQuaternionLn(q);
 
 				//! IMPORTANT
@@ -71,7 +71,7 @@ namespace Causality
 				q /= bone.GblLength;
 
 				q = DirectX::XMQuaternionExp(q);
-				bone.LclRotation.StoreA(q);
+				XMStoreA(bone.LclRotation,q);
 				bone.LclTranslation = reinterpret_cast<const DirectX::Vector3&>(cfv.data()[3]);
 			}
 		};
@@ -86,7 +86,7 @@ namespace Causality
 			{
 				assert(fv.size() == Dimension);
 				using DirectX::operator*=;
-				DirectX::XMVECTOR q = bone.LclRotation.LoadA();
+				DirectX::XMVECTOR q = XMLoadA(bone.LclRotation);
 				q = DirectX::XMQuaternionLn(q);
 
 				//! IMPORTANT
@@ -114,7 +114,7 @@ namespace Causality
 				q /= bone.GblLength;
 
 				q = DirectX::XMQuaternionExp(q);
-				bone.LclRotation.StoreA(q);
+				XMStoreA(bone.LclRotation,q);
 				bone.GblTranslation = reinterpret_cast<const DirectX::Vector3&>(cfv.data()[3]);
 			}
 		};

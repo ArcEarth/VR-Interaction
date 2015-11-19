@@ -123,7 +123,7 @@ void SceneObject::SetPosition(const Vector3 & p)
 		XMVECTOR refQ = parent()->GetOrientation(); // parent global orientation
 		XMVECTOR V = parent()->GetPosition();
 		XMVECTOR S = parent()->GetScale();
-		V = p.Load() - V;
+		V = XMLoad(p) - V;
 		refQ = XMQuaternionConjugate(refQ);
 		V = XMVector3Rotate(V, refQ); // V *= Inverse(ref.Orientation)
 		V /= S;
@@ -157,7 +157,7 @@ void SceneObject::SetScale(const Vector3 & s)
 	else
 	{
 		XMVECTOR refS = parent()->GetScale();
-		m_Transform.LclScaling = s.Load() / refS;
+		m_Transform.LclScaling = XMLoad(s) / refS;
 	}
 	SetTransformDirty();
 }
