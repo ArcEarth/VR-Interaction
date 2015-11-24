@@ -356,6 +356,7 @@ void SingleViewCamera::Parse(const ParamArchive * store)
 	{
 		pScene->SetAsPrimaryCamera(this);
 		canvas = pScene->Canvas();
+		aspect = (float)canvas.Width() / (float)canvas.Height();
 	} else if (rtnode)
 	{
 		int width, height;
@@ -363,9 +364,8 @@ void SingleViewCamera::Parse(const ParamArchive * store)
 		GetParam(rtnode, "width", width);
 		GetParam(rtnode, "height", height);
 		canvas = RenderTarget(device, width, height);
+		aspect = (float)canvas.Width() / (float)canvas.Height();
 	}
-
-	aspect = (float)canvas.Width() / (float)canvas.Height();
 
 	CreateDeviceResources(device, canvas);
 	FocusAt(focus, up);
@@ -620,6 +620,8 @@ void HMDCamera::Parse(const ParamArchive * store)
 	{
 		pScene->SetAsPrimaryCamera(this);
 		canvas = pScene->Canvas();
+		aspect = 0.5f * (float)canvas.Width() / (float)canvas.Height();
+		// since each eye canvas only have half width
 	} else if (rtnode)
 	{
 		int width, height;
@@ -627,10 +629,9 @@ void HMDCamera::Parse(const ParamArchive * store)
 		GetParam(rtnode, "width", width);
 		GetParam(rtnode, "height", height);
 		canvas = RenderTarget(device, width, height);
+		aspect = 0.5f * (float)canvas.Width() / (float)canvas.Height();
+		// since each eye canvas only have half width
 	}
-
-	aspect = (float)canvas.Width() / (float)canvas.Height();
-	aspect *= 0.5f; // since each eye canvas only have half width
 
 	CreateDeviceResources(device, canvas);
 	SetIPD(ipd);

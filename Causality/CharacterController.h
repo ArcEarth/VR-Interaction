@@ -17,6 +17,8 @@ namespace Causality
 	class CharacterClipinfo;
 	class ClipFacade;
 
+	void RemoveFrameRootTransform(BoneHiracheryFrame& frame, const IArmature& armature);
+
 	class CharacterController
 	{
 	public:

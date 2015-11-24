@@ -178,7 +178,10 @@ namespace Causality
 		std::shared_ptr<IArmaturePartFeature>	m_pFeature;
 
 		// Likilihood distance cov 
+		int								m_lidxCount;
+		MatrixType						m_fvectors;
 		InputVectorType					m_LikCov;
+		// time difference
 		ScalarType						m_dt;
 		ScalarType						m_confidentThre;
 
@@ -204,6 +207,8 @@ namespace Causality
 
 		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const override;
 
+		void DrivePartsTrackers(Eigen::Matrix<double, 1, -1> &_x, float frame_time, Causality::BoneHiracheryFrame & target_frame) const;
+
 		void DriveAccesseryPart(Causality::ArmaturePart & cpart, Eigen::RowVectorXd &Xd, Causality::BoneHiracheryFrame & target_frame) const;
 
 		void DriveActivePartSIK(Causality::ArmaturePart & cpart, Causality::BoneHiracheryFrame & target_frame, Eigen::RowVectorXf &xf, bool computeVelocity = false) const;
@@ -224,7 +229,8 @@ namespace Causality
 		std::vector<P2PTransform> AccesseryParts; // These parts will be animated based on active parts (and driven parts?)
 
 		typedef Eigen::RowVectorXf InputVectorType;
-		InputVectorType GetInputVector(_In_ const P2PTransform& Ctrl, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, _In_ float frame_time) const;
+		InputVectorType GetInputVector(_In_ const P2PTransform& Ctrl, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, _In_ float frame_time, bool has_velocity) const;
+		InputVectorType GetCharacterInputVector(_In_ const P2PTransform& Ctrl, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, _In_ float frame_time, bool has_velocity) const;
 	private:
 		typedef std::pair<DirectX::Vector3, DirectX::Vector3> LineSegment;
 

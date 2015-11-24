@@ -14,6 +14,8 @@ using namespace DirectX::Scene;
 
 REGISTER_SCENE_OBJECT_IN_PARSER(creature, CharacterObject);
 
+bool g_DrawPartBoxes = false;
+bool g_DrawXRayArmature = true;
 double updateFrequency = 60;
 
 void CharacterObject::DisplaceByVelocityFrame()
@@ -72,7 +74,8 @@ void CharacterObject::DisplaceByVelocityFrame()
 			speed = g_MaxCharacterSpeed;
 
 		vsum *= speed;
-	} else
+	}
+	else
 	{
 		m_SpeedFilter.Apply(speed);
 	}
@@ -90,7 +93,7 @@ void CharacterObject::ComputeVelocityFrame(time_seconds time_delta)
 	auto &lframe = m_LastFrame;
 	auto &vframe = m_VelocityFrame;
 	auto &armature = *m_pArmature;
-	
+
 	if (lframe.size() == 0)
 		return;
 
@@ -100,7 +103,7 @@ void CharacterObject::ComputeVelocityFrame(time_seconds time_delta)
 	for (size_t i = 0; i < armature.size(); i++)
 	{
 		XMVECTOR disp = XMLoadA(cframe[i].GblTranslation) - XMLoadA(lframe[i].GblTranslation);
-		XMStoreA(vframe[i].LinearVelocity,disp / time_delta.count());
+		XMStoreA(vframe[i].LinearVelocity, disp / time_delta.count());
 	}
 }
 
@@ -224,7 +227,7 @@ void CharacterObject::Render(IRenderContext * pContext, DirectX::IEffect* pEffec
 	if (g_ShowCharacterMesh)
 	{
 		auto pSkinEffect = dynamic_cast<IEffectSkinning*>(pEffect);
-	
+
 		if (pSkinEffect)
 			pSkinEffect->SetBoneTransforms(GetBoneTransforms(), m_BoneTransforms.size());
 
@@ -239,33 +242,41 @@ void CharacterObject::Render(IRenderContext * pContext, DirectX::IEffect* pEffec
 		const auto& frame = m_CurrentFrame;
 		//g_PrimitiveDrawer.Begin();
 		//const auto& dframe = Armature().default_frame();
-		DirectX::XMVECTOR color = DirectX::Colors::Yellow.v;
-		color = DirectX::XMVectorSetW(color, Opticity());
 
 		auto trans = this->GlobalTransformMatrix();
 
-		ID3D11DepthStencilState *pDSS = NULL;
-		UINT StencilRef;
-		pContext->OMGetDepthStencilState(&pDSS, &StencilRef);
-		pContext->OMSetDepthStencilState(g_PrimitiveDrawer.GetStates()->DepthNone(), StencilRef);
-		DrawArmature(this->Armature(), frame, color, trans, g_DebugArmatureThinkness / this->GetGlobalTransform().Scale.x);
-		pContext->OMSetDepthStencilState(pDSS, StencilRef);
+		// Draw X-ray armature
+		if (g_DrawXRayArmature)
+		{
+			XMVECTOR color = Colors::Yellow.v;
+			color = DirectX::XMVectorSetW(color, Opticity());
+
+			ID3D11DepthStencilState *pDSS = NULL;
+			UINT StencilRef;
+			pContext->OMGetDepthStencilState(&pDSS, &StencilRef);
+			pContext->OMSetDepthStencilState(g_PrimitiveDrawer.GetStates()->DepthNone(), StencilRef);
+			DrawArmature(this->Armature(), frame, color, trans, g_DebugArmatureThinkness / this->GetGlobalTransform().Scale.x);
+			pContext->OMSetDepthStencilState(pDSS, StencilRef);
+		}
 
 		// Draw bone bounding boxes
-		auto& drawer = g_PrimitiveDrawer;
-		drawer.SetWorld(trans);
-		drawer.Begin();
-		if (g_ShowCharacterMesh && m_pSkinModel)
+		if (g_DrawPartBoxes)
 		{
-			auto boxes = m_pSkinModel->GetBoneBoundingBoxes();
-			for (int i = 0; i < m_pArmature->size(); i++)
+			auto& drawer = g_PrimitiveDrawer;
+			drawer.SetWorld(trans);
+			drawer.Begin();
+			if (g_ShowCharacterMesh && m_pSkinModel)
 			{
-				BoundingGeometry geo(boxes[i]);
-				geo.Transform(geo, XMLoadA(m_BoneTransforms[i]));
-				DrawGeometryOutline(geo, Colors::Orange);
+				auto boxes = m_pSkinModel->GetBoneBoundingBoxes();
+				for (int i = 0; i < m_pArmature->size(); i++)
+				{
+					BoundingGeometry geo(boxes[i]);
+					geo.Transform(geo, XMLoadA(m_BoneTransforms[i]));
+					DrawGeometryOutline(geo, Colors::Orange);
+				}
 			}
+			drawer.End();
 		}
-		drawer.End();
 	}
 }
 
@@ -311,7 +322,7 @@ void CharacterObject::Parse(const ParamArchive * store)
 	}
 	else
 	{
-		auto inlineBehave = GetFirstChildArchive(store,"creature.behavier");
+		auto inlineBehave = GetFirstChildArchive(store, "creature.behavier");
 		if (inlineBehave)
 		{
 			inlineBehave = GetFirstChildArchive(inlineBehave);
@@ -366,7 +377,7 @@ void Causality::DrawArmature(const IArmature & armature, const BoneHiracheryFram
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 
 	// Invaliad frame
-	if (frame.size() < armature.size()) 
+	if (frame.size() < armature.size())
 		return;
 
 	g_PrimitiveDrawer.SetWorld(world);
@@ -395,7 +406,7 @@ void CharacterGlowParts::Render(IRenderContext * pContext, DirectX::IEffect * pE
 	if (pSGEffect && pSGEffect->GetShadowFillMode() == ShadowMapGenerationEffect::BoneColorFill)
 	{
 		pSGEffect->SetBoneColors(reinterpret_cast<XMVECTOR*>(m_BoneColors.data()), m_BoneColors.size());
-		pSGEffect->SetBoneTransforms(m_pCharacter->GetBoneTransforms(),m_BoneColors.size());
+		pSGEffect->SetBoneTransforms(m_pCharacter->GetBoneTransforms(), m_BoneColors.size());
 		auto pModel = m_pCharacter->RenderModel();
 		if (pModel)
 		{

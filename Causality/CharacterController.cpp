@@ -17,6 +17,7 @@
 #include "GaussianProcess.h"
 #include "StylizedIK.h"
 #include "ArmaturePartFeatures.h"
+#include "FloatHud.h"
 
 using namespace Causality;
 using namespace std;
@@ -415,7 +416,14 @@ float CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & fram
 	{
 		std::lock_guard<mutex> guard(m_bindMutex);
 		auto& cframe = m_pCharacter->MapCurrentFrameForUpdate();
-		m_pBinding->Transform(cframe, frame, lastframe, deltaTime);
+		BoneHiracheryFrame f(frame), lf(lastframe);
+		if (g_IngnoreInputRootRotation)
+		{
+			auto& sarm = m_pBinding->SourceArmature();
+			RemoveFrameRootTransform(f, sarm);
+			RemoveFrameRootTransform(lf, sarm);
+		}
+		m_pBinding->Transform(cframe, f, lf, deltaTime);
 	}
 
 	float l = 100;
@@ -565,6 +573,10 @@ vector<BoneHiracheryFrame> CreateReinforcedFrames(const BehavierSpace& behavier)
 void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 	m_pCharacter = &chara;
+
+	auto sprite = new SpriteObject();
+	m_pCharacter->AddChild(sprite);
+	//sprite->SetTexture();
 
 	if (m_pBinding)
 		m_pBinding->SetTargetArmature(chara.Armature());
@@ -1000,6 +1012,13 @@ Eigen::PermutationMatrix<Dynamic> upRotatePermutation(int rows, int rotation)
 	return perm;
 }
 
+void TransformHomo(RowVectorXf &xf, const Eigen::MatrixXf& homo)
+{
+	xf *= homo.topLeftCorner(homo.rows() - 1, homo.cols() - 1);
+	xf += homo.block(homo.rows() - 1, 0, 1, homo.cols() - 1);
+}
+
+
 void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& iclip, const ClipFacade& cclip, size_t phi)
 {
 	int ju = transform.SrcIdx;
@@ -1061,9 +1080,17 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& 
 
 		auto rank = rawX.cols();
 
-		transform.HomoMatrix.setIdentity(uX.size() + 1, uY.size() + 1);
-		transform.HomoMatrix.topLeftCorner(uX.size(), uY.size()) = alpha.asDiagonal();
-		transform.HomoMatrix.block(uX.size(), 0, 1, uY.size()) = -uX*alpha.asDiagonal() + uY;
+		auto& homo = transform.HomoMatrix;
+		homo.setIdentity(uX.size() + 1, uY.size() + 1);
+		homo.topLeftCorner(uX.size(), uY.size()) = alpha.asDiagonal();
+		homo.block(uX.size(), 0, 1, uY.size()) = -uX*alpha.asDiagonal() + uY;
+
+		//uX = _X.row(0);
+		//uY = uX * alpha.asDiagonal() + uY;
+		//uX = rawX.row(0);
+		//TransformHomo(uX, homo);
+
+		//uY = uX;
 	}
 }
 
@@ -1388,4 +1415,13 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 	//	}
 	//}
 
+}
+
+void Causality::RemoveFrameRootTransform(BoneHiracheryFrame & frame, const IArmature & armature)
+{
+	auto& rotBone = frame[armature.root()->ID];
+	rotBone.GblRotation = rotBone.LclRotation = Math::Quaternion::Identity;
+	rotBone.GblTranslation = rotBone.LclTranslation = Math::Vector3::Zero;
+	rotBone.GblScaling = rotBone.LclScaling = Math::Vector3::One;
+	frame.RebuildGlobal(armature);
 }

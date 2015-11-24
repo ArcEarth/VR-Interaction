@@ -44,7 +44,11 @@ namespace Causality
 
 		ScalarType Step(const InputVectorType& input, ScalarType dt) override;
 
+		// Weighted Avaerage State
 		const TrackingVectorType& CurrentState() const override;
+		const TrackingVectorType& MostLikilyState() const;
+
+		int*  GetTopKStates(int k) const;
 
 		//virtual void Reset(const InputVectorType& input) = 0;
 
@@ -65,9 +69,12 @@ namespace Causality
 
 		void Resample(_Out_ MatrixType& resampled, _In_ const MatrixType& sample);
 
-		MatrixType m_sample;
-		MatrixType m_newSample;
+		int			m_maxK;
+		mutable vector<int> m_srtIdxes;
+		MatrixType  m_sample;
+		MatrixType  m_newSample;
 		// Mean state 
-		TrackingVectorType m_state;
+		TrackingVectorType m_waState;
+		TrackingVectorType m_mleState;
 	};
 }

@@ -23,6 +23,7 @@
 #include "CameraObject.h"
 #include <Models.h>
 
+
 //					When this flag set to true, a CCA will be use to find the general linear transform between Player 'Limb' and Character 'Limb'
 
 //float				g_NoiseInterpolation = 1.0f;
@@ -129,9 +130,7 @@ void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::
 	m_CurrentPlayerFrame = frame;
 	if (g_IngnoreInputRootRotation)
 	{
-		auto& rotBone = m_CurrentPlayerFrame[m_pPlayerArmature->root()->ID];
-		rotBone.GblRotation = rotBone.LclRotation = Quaternion::Identity;
-		m_CurrentPlayerFrame.RebuildGlobal(*m_pPlayerArmature);
+		RemoveFrameRootTransform(m_CurrentPlayerFrame, *m_pPlayerArmature);
 	}
 
 	bool newMetric = m_CyclicInfo.StreamFrame(m_CurrentPlayerFrame);

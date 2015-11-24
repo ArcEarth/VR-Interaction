@@ -256,6 +256,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="GaussianProcess.cpp" />
     <ClCompile Include="GestureTracker.cpp" />
     <ClCompile Include="LightObject.cpp" />
+    <ClCompile Include="MatrixVisualizer.cpp" />
     <ClCompile Include="pch_bcl.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
       <PrecompiledHeaderFile>pch_bcl.h</PrecompiledHeaderFile>
@@ -335,6 +336,7 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClInclude Include="Kinect.h" />
     <ClInclude Include="LeapMotion.h" />
     <ClInclude Include="LightObject.h" />
+    <ClInclude Include="MatrixVisualizer.h" />
     <ClInclude Include="NativeWindow.h" />
     <ClInclude Include="PenModeler.h" />
     <ClInclude Include="Serialization.h" />
@@ -412,12 +414,6 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\..\..\SDKs\DirectXTK\DirectXTK_Desktop_2015.vcxproj">
       <Project>{e0b52ae7-e160-4d32-bf3f-910b785e5a8e}</Project>
-    </ProjectReference>
-    <ProjectReference Include="$(Bullet3Dir)\build3\vs2013\BulletCollision.vcxproj">
-      <Project>{8937c279-5097-eb49-b459-ce535897a306}</Project>
-    </ProjectReference>
-    <ProjectReference Include="$(Bullet3Dir)\build3\vs2013\BulletDynamics.vcxproj">
-      <Project>{f3e7f78e-18aa-cb43-84bc-0b1c979f0993}</Project>
     </ProjectReference>
     <ProjectReference Include="$(Bullet3Dir)\build3\vs2013\LinearMath.vcxproj">
       <Project>{94240b48-9226-514f-b232-8d06ae1cd252}</Project>

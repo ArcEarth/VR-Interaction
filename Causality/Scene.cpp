@@ -57,6 +57,9 @@ void Scene::SetRenderDeviceAndContext(IRenderDevice * device, IRenderContext * c
 }
 
 void Scene::SetCanvas(DirectX::RenderTarget & canvas) {
+	for (auto& camera : cameras)
+	{
+	}
 	scene_canvas = canvas;
 	//back_buffer = canvas.ColorBuffer();
 	//scene_canvas = DirectX::RenderTarget(DirectX::RenderableTexture2D(render_device, back_buffer.Width(), back_buffer.Height(), back_buffer.Format()), canvas.DepthBuffer());

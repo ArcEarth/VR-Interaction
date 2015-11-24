@@ -118,6 +118,7 @@ void App::OnStartup(const std::vector<std::string>& args)
 	pDeviceResources->SetNativeWindow(pWindow->Handle());
 	// Register to be notified if the Device is lost or recreated
 	pDeviceResources->RegisterDeviceNotify(this);
+	pWindow->SizeChanged += MakeEventHandler(&App::OnResize, this);
 
 	//return;
 
@@ -258,6 +259,16 @@ void App::OnDeviceLost()
 
 void App::OnDeviceRestored()
 {
+}
+
+void App::OnResize(const Vector2 & size)
+{
+	//pDeviceResources->SetLogicalSize(DeviceResources::Size(size.x,size.y));
+	//auto& bb = pDeviceResources->GetBackBufferRenderTarget();
+	//for (auto& scene : Scenes)
+	//{
+	//	scene->SetCanvas(bb);
+	//}
 }
 
 boost::filesystem::path App::GetResourcesDirectory() const

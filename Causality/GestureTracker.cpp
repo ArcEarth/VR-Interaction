@@ -26,7 +26,25 @@ ParticaleFilterBase::ScalarType ParticaleFilterBase::Step(const InputVectorType 
 
 const ParticaleFilterBase::TrackingVectorType & ParticaleFilterBase::CurrentState() const
 {
-	return m_state;
+	return m_waState;
+}
+
+const ParticaleFilterBase::TrackingVectorType & Causality::ParticaleFilterBase::MostLikilyState() const
+{
+	return m_mleState;
+}
+
+int * ParticaleFilterBase::GetTopKStates(int k) const
+{
+	// instead of max one, we select max-K element
+	auto& sample = m_sample;
+	if (m_srtIdxes.size() < m_sample.rows())
+		m_srtIdxes.resize(m_sample.rows());
+	std::iota(m_srtIdxes.begin(), m_srtIdxes.end(), 0);
+	std::partial_sort(m_srtIdxes.begin(), m_srtIdxes.begin() + m_maxK, m_srtIdxes.end(), [&sample](int i, int j) {
+		return sample(i, 0) > sample(j, 0);
+	});
+	return m_srtIdxes.data();
 }
 
 const ParticaleFilterBase::MatrixType & ParticaleFilterBase::GetSampleMatrix() const { return m_sample; }
@@ -55,15 +73,18 @@ ParticaleFilterBase::ScalarType ParticaleFilterBase::StepParticals()
 	auto w = sample.col(0).sum();
 	if (w > 0.0001)
 	{
-		m_state = (sample.rightCols(dim).array() * sample.col(0).replicate(1, dim).array()).colwise().sum();
-		m_state /= w;
-		//Eigen::DenseIndex idx;
-		//sample.col(0).maxCoeff(&idx);
-		//m_state = sample.block<1, -1>(idx, 1,1,sample.cols()-1);
+		//! Averaging state variable may not be a good choice
+		m_waState = (sample.rightCols(dim).array() * sample.col(0).replicate(1, dim).array()).colwise().sum();
+		m_waState /= w;
+		
+		Eigen::Index idx;
+		sample.col(0).maxCoeff(&idx);
+		m_mleState = sample.block<1, -1>(idx, 1,1,sample.cols()-1);
 	}
 	else // critial bug here, but we will use the mean particle as a dummy
 	{
-		m_state = sample.rightCols(dim).colwise().mean();
+		m_waState = sample.rightCols(dim).colwise().mean();
+		m_mleState = m_waState;
 	}
 
 	return w;
