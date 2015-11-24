@@ -662,7 +662,7 @@ void PartilizedTransformer::Transform(frame_type & target_frame, const frame_typ
 		RowVectorXf xf = GetInputVector(ctrl, source_frame, last_frame, frame_time * (int)computeVelocity, computeVelocity);
 		SetHandleVisualization(cpart, xf);
 
-		if (!m_useTracker)
+		//if (!m_useTracker)
 			DriveActivePartSIK(cpart, target_frame, xf, computeVelocity);
 	}
 
