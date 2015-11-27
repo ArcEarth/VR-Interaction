@@ -102,8 +102,8 @@ public:
 		: pController(&controller), pHandles(nullptr)
 	{
 		pBlockArmature = &controller.Character().Behavier().ArmatureParts();
-		pSource = &pBlockArmature->Armature();
-		pTarget = &pBlockArmature->Armature();
+		m_sArmature = &pBlockArmature->Armature();
+		m_tArmature = &pBlockArmature->Armature();
 
 		InitializeOutputFeature();
 	}
@@ -163,7 +163,7 @@ public:
 			}
 		}
 
-		target_frame.RebuildGlobal(*pTarget);
+		target_frame.RebuildGlobal(*m_tArmature);
 	}
 
 	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const
@@ -348,7 +348,7 @@ public:
 
 		target_frame[0].LclTranslation = source_frame[0].LclTranslation;
 		target_frame[0].GblTranslation = source_frame[0].GblTranslation;
-		target_frame.RebuildGlobal(*pTarget);
+		target_frame.RebuildGlobal(*m_tArmature);
 	}
 
 	void Visualize();
@@ -366,7 +366,7 @@ CharacterController::~CharacterController()
 {
 }
 
-void CharacterController::Initialize(const IArmature & player, CharacterObject & character)
+void CharacterController::Initialize(const IArmature & player, CharacterObject & character, const ParamArchive* settings)
 {
 	IsReady = false;
 	CharacterScore = 0;
@@ -378,6 +378,11 @@ void CharacterController::Initialize(const IArmature & player, CharacterObject &
 const ArmatureTransform & CharacterController::Binding() const { return *m_pBinding; }
 
 ArmatureTransform & CharacterController::Binding() { return *m_pBinding; }
+
+std::mutex & CharacterController::GetBindingMutex()
+{
+	return m_bindMutex;
+}
 
 void CharacterController::SetBinding(std::unique_ptr<ArmatureTransform> &&pBinding)
 {
@@ -415,7 +420,7 @@ float CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & fram
 		return 0;
 	{
 		std::lock_guard<mutex> guard(m_bindMutex);
-		auto& cframe = m_pCharacter->MapCurrentFrameForUpdate();
+		auto& cframe = m_charaFrame;
 		BoneHiracheryFrame f(frame), lf(lastframe);
 		if (g_IngnoreInputRootRotation)
 		{
@@ -424,6 +429,8 @@ float CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & fram
 			RemoveFrameRootTransform(lf, sarm);
 		}
 		m_pBinding->Transform(cframe, f, lf, deltaTime);
+		m_pCharacter->MapCurrentFrameForUpdate() = m_charaFrame;
+		m_pCharacter->ReleaseCurrentFrameFrorUpdate();
 	}
 
 	float l = 100;
@@ -437,14 +444,25 @@ float CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & fram
 
 	auto& bone = frame[0];
 	//auto pos = frame[0].GblTranslation - MapRefPos + CMapRefPos;
-	SychronizeRootDisplacement(bone);
 
-	m_pCharacter->ReleaseCurrentFrameFrorUpdate();
+	SychronizeRootDisplacement(bone);
 
 	return 1.0;
 }
 
-void Causality::CharacterController::SychronizeRootDisplacement(const Causality::Bone & bone) const
+void CharacterController::SetReferenceSourcePose(const Bone & sourcePose)
+{
+	auto& chara = *m_pCharacter;
+	MapRefPos = sourcePose.GblTranslation;
+	LastPos = MapRefPos;
+	CMapRefPos = chara.GetPosition();
+
+	MapRefRot = sourcePose.GblRotation;
+	CMapRefRot = chara.GetOrientation();
+
+}
+
+void CharacterController::SychronizeRootDisplacement(const Causality::Bone & bone) const
 {
 	auto pos = Character().GetPosition() + bone.GblTranslation - LastPos;
 
@@ -464,7 +482,7 @@ void Causality::CharacterController::SychronizeRootDisplacement(const Causality:
 
 
 	m_pCharacter->SetPosition(pos);
-	m_pCharacter->SetOrientation(rot);
+	//m_pCharacter->SetOrientation(rot);
 }
 
 float CreateControlTransform(CharacterController & controller, const ClipFacade& iclip);
@@ -588,6 +606,7 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 
 	m_SIKs.resize(parts.size());
 	PotientialFrame = armature.default_frame();
+	m_charaFrame = armature.default_frame();
 	m_PvHandles.resize(armature.size());
 
 	parts.ComputeWeights();
@@ -994,7 +1013,7 @@ void InitGprXML(tinyxml2::XMLElement * settings, const std::string & blockName, 
 // helper functions
 extern void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipInfo& iclip, const ClipInfo& cclip);
 
-extern Matrix3f FindIsometricTransformXY(const Eigen::MatrixXf& X, const Eigen::MatrixXf& Y);
+extern Matrix3f FindIsometricTransformXY(const Eigen::MatrixXf& X, const Eigen::MatrixXf& Y, float* pError = nullptr);
 
 Eigen::PermutationMatrix<Dynamic> upRotatePermutation(int rows, int rotation)
 {
@@ -1018,8 +1037,126 @@ void TransformHomo(RowVectorXf &xf, const Eigen::MatrixXf& homo)
 	xf += homo.block(homo.rows() - 1, 0, 1, homo.cols() - 1);
 }
 
+float GetConstraitedRotationFromSinVector(Eigen::Matrix3f &Rot, const Eigen::MatrixXf &covXY, int pivot)
+{
+	//RowVector3f angles;
+	//for (int i = 0; i < 3; i++)
+	//{
+	//	float sin = sinRot[i];
+	//	if (sin < -1.0f || sin > 1.0f)
+	//		angles[i] = 0;
+	//	else
+	//		angles[i] = asinf(sin);
+	//}
 
-void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& iclip, const ClipFacade& cclip, size_t phi)
+	//DirectX::Matrix4x4 rot = DirectX::XMMatrixRotationRollPitchYaw(angles[0], angles[1], angles[2]);
+	//for (int i = 0; i < 3; i++)
+	//	for (int j = 0; j < 3; j++)
+	//		Rot(i, j) = rot(i, j);
+
+	//return;
+
+	// Assumption on one axis rotation
+
+	//DenseIndex pivot = -1;
+	//sinRot.cwiseAbs().minCoeff(&pivot);
+	float tanX = (covXY(1, 2) - covXY(2, 1)) / (covXY(1, 1) + covXY(2, 2));
+	float tanY = (covXY(2, 0) - covXY(0, 2)) / (covXY(0, 0) + covXY(2, 2));
+	float tanZ = (covXY(0, 1) - covXY(1, 0)) / (covXY(0, 0) + covXY(1, 1));
+	//assert(sin <= 1.0f && sin >= -1.0f && "sin value must within range [0,1]");
+
+	// there is nothing bad about using positive value of cosine, it ensure the angle set in [-pi/2,pi/2]
+	float cosX = 1.0f / sqrt(1 + tanX*tanX);
+	float sinX = cosX * tanX;
+	float cosY = 1.0f / sqrt(1 + tanY*tanY);
+	float sinY = cosY * tanY;
+	float cosZ = 1.0f / sqrt(1 + tanZ*tanZ);
+	float sinZ = cosZ * tanZ;
+
+	sinX = -sinX;
+	sinY = -sinY;
+	sinZ = -sinZ;
+	Rot.setIdentity();
+
+	//! IMPORTANT, Right-Hand 
+	switch (pivot)
+	{
+	case 0:
+		Rot(1, 1) = cosX;
+		Rot(1, 2) = -sinX;
+		Rot(2, 2) = cosX;
+		Rot(2, 1) = sinX;
+		break;
+	case 1:
+		Rot(0, 0) = cosY;
+		Rot(0, 2) = sinY;
+		Rot(2, 2) = cosY;
+		Rot(2, 0) = -sinY;
+		break;
+	case 2:
+		Rot(0, 0) = cosZ;
+		Rot(0, 1) = -sinZ;
+		Rot(1, 1) = cosZ;
+		Rot(1, 0) = sinZ;
+		break;
+	}
+	return atanf(tanX);
+}
+
+
+Matrix3f FindIsometricTransformXY(const Eigen::MatrixXf& X, const Eigen::MatrixXf& Y, float* pError)
+{
+	assert(X.cols() == Y.cols() && X.rows() == Y.rows() && X.cols() == 3 && "input X,Y dimension disagree");
+
+	auto uX = X.colwise().mean().eval();
+	auto uY = Y.colwise().mean().eval();
+
+	//sum(Xi1*Yi1,Xi2*Yi2,Xi3*Yi3)
+	MatrixXf covXY = X.transpose() * Y;
+
+	// The one axis rotation matrix
+	Matrix3f BestRot;
+	float BestScale, bestAng;
+	int bestPiv = -1;
+	float bestErr = numeric_limits<float>::max();
+
+	for (int pivot = 0; pivot < 3; pivot++)
+	{
+		Matrix3f Rot;
+		float scale = 1.0f;
+		float ang = GetConstraitedRotationFromSinVector(Rot, covXY, pivot);
+		// the isometric scale factor
+		scale = ((X * Rot).array()*Y.array()).sum() / X.cwiseAbs2().sum();
+		float err = (X * scale * Rot - Y).cwiseAbs2().sum();
+		if (err < bestErr)
+		{
+			bestPiv = pivot;
+			BestRot = Rot;
+			BestScale = scale;
+			bestErr = err;
+			bestAng = ang;
+		}
+	}
+
+	if (bestPiv == -1)
+	{
+		cout << "[!] Error , Failed to find isometric transform about control handle" << endl;
+	}
+	else
+	{
+		static char xyz[] = "XYZ";
+		cout << "Isometric transform found : Scale [" << BestScale << "] , Rotation along axis [" << xyz[bestPiv] << "] for " << bestAng / DirectX::XM_PI << "pi , Error = " << bestErr << endl;
+	}
+
+	if (pError != nullptr)
+	{
+		*pError = bestErr;
+	}
+	return BestScale * BestRot;
+}
+
+// Return the average re-construction error in squared-distance form
+float FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& iclip, const ClipFacade& cclip, size_t phi)
 {
 	int ju = transform.SrcIdx;
 	int jc = transform.DstIdx;
@@ -1033,8 +1170,10 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& 
 
 	assert(rawX.rows() == rawY.rows() && rawY.rows() == T);
 
+	float err = 0;
 	if (g_PartAssignmentTransform == PAT_CCA)
 	{
+		assert(!"PAT_CCA is currently buggy!");
 		PcaCcaMap map;
 		map.CreateFrom(rawX, rawY, iclip.PcaCutoff(), cclip.PcaCutoff());
 		transform.HomoMatrix = map.TransformMatrix();
@@ -1044,7 +1183,7 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& 
 		//RowVectorXf alpha = (rawY.cwiseAbs2().colwise().sum().array() / rawX.cwiseAbs2().colwise().sum().array()).cwiseSqrt();
 		//float err = (rawY - rawX * alpha.asDiagonal()).cwiseAbs2().sum();
 
-		auto Transf = FindIsometricTransformXY(rawX, rawY);
+		auto Transf = FindIsometricTransformXY(rawX, rawY,&err);
 		auto rank = rawX.cols();
 
 		transform.HomoMatrix.setIdentity(4, 4);
@@ -1053,7 +1192,7 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& 
 	else if (g_PartAssignmentTransform == PAT_AnisometricScale)
 	{
 		RowVectorXf alpha = (rawY.cwiseAbs2().colwise().sum().array() / rawX.cwiseAbs2().colwise().sum().array()).cwiseSqrt();
-		float err = (rawY - rawY * alpha.asDiagonal()).cwiseAbs2().sum();
+		err = (rawY - rawY * alpha.asDiagonal()).cwiseAbs2().sum();
 
 		transform.HomoMatrix.setIdentity(4, 4);
 		transform.HomoMatrix.topLeftCorner(3, 3) = alpha.asDiagonal();
@@ -1069,7 +1208,7 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& 
 
 		alpha = alpha.cwiseMax(0.5f).cwiseMin(1.5f) * unis;
 
-		float err = (_Y - _X * alpha.asDiagonal()).cwiseAbs2().sum();
+		err = (_Y - _X * alpha.asDiagonal()).cwiseAbs2().sum();
 
 		//alpha[2] = -alpha[2];
 		//float flipErr = (_Y - _X * alpha.asDiagonal()).cwiseAbs2().sum();
@@ -1092,6 +1231,7 @@ void FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade& 
 
 		//uY = uX;
 	}
+	return err;
 }
 
 bool is_symetric(const ArmaturePart& lhs, const ArmaturePart& rhs)
@@ -1263,6 +1403,14 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 		vector<DenseIndex> matching(A.cols());
 
+		//float score = 0;
+		//for (int i = 0; i < Jck.size(); i++)
+		//{
+		//	Index idx;
+		//	matching[i] = -1;
+		//	score += A.col(i).maxCoeff(&idx);
+		//	matching[i] = idx;
+		//}
 		float score = max_quadratic_assignment(A, C, matching);
 
 		float maxScore = score;
@@ -1359,6 +1507,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 		// Transform pair for active parts
 		std::vector<P2PTransform> partTransforms;
 
+		double partAssignError = 0;
 		for (int i = 0; i < matching.size(); i++)
 		{
 			if (matching[i] < 0) continue;
@@ -1370,14 +1519,15 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 				partTra.DstIdx = jc;
 				partTra.SrcIdx = ju;
 
-				FindPartToPartTransform(partTra, iclip, cpv, maxPhi[i]);
+				auto err = FindPartToPartTransform(partTra, iclip, cpv, maxPhi[i]);
+				partAssignError += err / cpv.ClipFrames();
 			}
 		}
 
 		auto pTransformer = new PartilizedTransformer(userParts, controller);
 		pTransformer->ActiveParts = move(partTransforms);
 
-		pTransformer->InitTrackers();
+		pTransformer->SetupTrackers(partAssignError,5,0.1,0.1,0.3,0.3,5.0,1,3);
 		pTransformer->EnableTracker(anim.Name);
 		pTransformer->GenerateDrivenAccesseryControl();
 
@@ -1390,9 +1540,8 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 	float maxScore = clipTransformScores.maxCoeff(&maxClipIdx);
 
 	cout << maxScore << endl;
-	if (maxScore > controller.CharacterScore * 1.2)
+	if (&controller.Binding() == nullptr || maxScore > controller.CharacterScore * 1.2)
 	{
-
 		auto pBinding = move(clipTransforms[maxClipIdx]);
 
 		controller.SetBinding(move(pBinding));

@@ -44,7 +44,6 @@ static const char*  DefaultAnimationSet = "walk";
 Eigen::RowVector3d	g_NoiseInterpolation = { 1.0,1.0,1.0 };
 const static Eigen::IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n");
 
-ShrinkedArmature		 g_PlayerParts;
 std::map<string, string> g_DebugLocalMotionAction;
 bool					 g_DebugLocalMotion = false;
 bool					 g_ForceRemappingAlwaysOn = false;
@@ -119,7 +118,7 @@ float BoneRadius[JointType_Count] = {
 #define BEGIN_TO_END(range) range.begin(), range.end()
 
 
-void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& controller);
+void SetGlowBoneColor(CharacterGlowParts* glow, const Causality::ShrinkedArmature & sparts, const CharacterController& controller);
 
 // Player Proxy methods
 void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::FrameType& frame)
@@ -127,13 +126,15 @@ void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::
 	using namespace Eigen;
 	using namespace DirectX;
 
-	m_CurrentPlayerFrame = frame;
+	m_pushFrame = frame;
+	m_newFrameAvaiable = true;
+
 	if (g_IngnoreInputRootRotation)
 	{
-		RemoveFrameRootTransform(m_CurrentPlayerFrame, *m_pPlayerArmature);
+		RemoveFrameRootTransform(m_pushFrame, *m_pPlayerArmature);
 	}
 
-	bool newMetric = m_CyclicInfo.StreamFrame(m_CurrentPlayerFrame);
+	bool newMetric = m_CyclicInfo.StreamFrame(m_pushFrame);
 	if (newMetric && !m_mapTaskOnGoing)
 	{
 		m_mapTaskOnGoing = true;
@@ -150,7 +151,14 @@ void PlayerProxy::ResetPlayer(TrackedBody * pOld, TrackedBody * pNew)
 {
 	m_CyclicInfo.ResetStream();
 	m_CyclicInfo.EnableCyclicMotionDetection(true);
+	m_updateTime = 0;
+	m_updateCounter = 0;
 	SetActiveController(-1);
+
+	if (pNew != nullptr)
+		StartUpdateThread();
+	else
+		StopUpdateThread();
 }
 
 
@@ -161,15 +169,16 @@ PlayerProxy::PlayerProxy()
 	current_time(0),
 	m_mapTaskOnGoing(false),
 	m_EnableOverShoulderCam(false),
-	m_DefaultCameraFlag(true)
+	m_DefaultCameraFlag(true),
+	m_updateCounter(0),
+	m_updateTime(0),
+	m_pParts(new ShrinkedArmature())
 {
-	m_pParts = &g_PlayerParts;
-
 	m_pKinect = Devices::KinectSensor::GetForCurrentView();
 	m_pPlayerArmature = &m_pKinect->Armature();
-	if (g_PlayerParts.empty())
+	if (m_pParts->empty())
 	{
-		g_PlayerParts.SetArmature(*m_pPlayerArmature);
+		m_pParts->SetArmature(*m_pPlayerArmature);
 	}
 
 	m_CyclicInfo.Initialize(*m_pParts, time_seconds(0.5), time_seconds(3), 30, 0);
@@ -183,11 +192,32 @@ PlayerProxy::PlayerProxy()
 
 	m_playerSelector.Initialize(m_pKinect.get(), TrackedBodySelector::SelectionMode::Closest);
 	Register();
+	m_stopUpdate = true;
 	m_IsInitialized = true;
+
+	m_pKinect->Start();
 }
+
+void PlayerProxy::StartUpdateThread()
+{
+	if (!m_stopUpdate) return;
+	m_stopUpdate = false;
+	m_updateCounter = 0;
+	m_lastUpdateTime = chrono::system_clock::now();
+	m_updateThread = thread(std::bind(&PlayerProxy::UpdateThreadRuntime, this));
+}
+
+void PlayerProxy::StopUpdateThread()
+{
+	m_stopUpdate = true;
+	if (m_updateThread.joinable())
+		m_updateThread.join();
+}
+
 
 PlayerProxy::~PlayerProxy()
 {
+	StopUpdateThread();
 	Unregister();
 	//std::ofstream fout("handpos.txt", std::ofstream::out);
 
@@ -200,10 +230,12 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 	auto pChara = dynamic_cast<CharacterObject*>(pChild);
 	if (pChara)
 	{
+		auto settings = Scene->GetSceneSettings();
+
 		m_Controllers.emplace_back();
 		auto& controller = m_Controllers.back();
 		controller.ID = m_Controllers.size() - 1;
-		controller.Initialize(*m_pPlayerArmature, *pChara);
+		controller.Initialize(*m_pPlayerArmature, *pChara, settings);
 		pChara->SetOpticity(1.0f);
 
 		if (g_DebugLocalMotion)
@@ -216,6 +248,7 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 		if (glow == nullptr)
 		{
 			glow = new CharacterGlowParts();
+			glow->Scene = this->Scene;
 			glow->SetEnabled(false);
 			pChara->AddChild(glow);
 		}
@@ -224,14 +257,13 @@ void PlayerProxy::AddChild(SceneObject* pChild)
 
 void SetGlowBoneColorPartPair(Causality::CharacterGlowParts * glow, int Jx, int Jy, const DirectX::XMVECTORF32 *colors, const Causality::ShrinkedArmature & sparts, const Causality::ShrinkedArmature & cparts);
 
-void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& controller)
+void SetGlowBoneColor(CharacterGlowParts* glow, const Causality::ShrinkedArmature & sparts, const CharacterController& controller)
 {
 	auto pTrans = &controller.Binding();
 	auto pCcaTrans = dynamic_cast<const BlockizedCcaArmatureTransform*>(pTrans);
 	auto pPartTrans = dynamic_cast<const PartilizedTransformer*>(pTrans);
 
 	auto& cparts = controller.Character().Behavier().ArmatureParts();
-	auto& sparts = g_PlayerParts; //! Not Good!!!
 	auto& colors = HumanBoneColors;
 
 	//auto& carmature = controller.Character().Armature();
@@ -241,7 +273,7 @@ void SetGlowBoneColor(CharacterGlowParts* glow, const CharacterController& contr
 	//}
 	//return;
 
-	glow->ResetBoneColor( Math::Colors::Transparent.v);
+	glow->ResetBoneColor(Math::Colors::Transparent.v);
 
 	if (pCcaTrans)
 	{
@@ -349,15 +381,14 @@ void PlayerProxy::SetActiveController(int idx)
 			if (glow)
 			{
 				glow->SetEnabled(true);
-				SetGlowBoneColor(glow, controller);
+				std::lock_guard<std::mutex> guard(controller.GetBindingMutex());
+				SetGlowBoneColor(glow, *m_pParts, controller);
 			}
 
-			controller.MapRefPos = m_playerSelector->PeekFrame()[0].GblTranslation;
-			controller.LastPos = controller.MapRefPos;
-			controller.CMapRefPos = chara.GetPosition();
-
-			controller.MapRefRot = m_playerSelector->PeekFrame()[0].GblRotation;
-			controller.CMapRefRot = chara.GetOrientation();
+			assert(m_playerSelector);
+			auto& frame = m_playerSelector->PeekFrame();
+			auto pose = frame[m_pPlayerArmature->root()->ID];
+			controller.SetReferenceSourcePose(pose);
 
 			chara.EnabeAutoDisplacement(g_UsePersudoPhysicsWalk);
 		}
@@ -373,123 +404,15 @@ void PlayerProxy::SetActiveController(int idx)
 		auto glow = chara.FirstChildOfType<CharacterGlowParts>();
 		if (glow)
 		{
-			SetGlowBoneColor(glow, controller);
+			SetGlowBoneColor(glow, *m_pParts, controller);
 			glow->SetEnabled(!g_DebugView);
 		}
 	}
-}
 
-float GetConstraitedRotationFromSinVector(Eigen::Matrix3f &Rot, const Eigen::MatrixXf &covXY, int pivot)
-{
-	//RowVector3f angles;
-	//for (int i = 0; i < 3; i++)
-	//{
-	//	float sin = sinRot[i];
-	//	if (sin < -1.0f || sin > 1.0f)
-	//		angles[i] = 0;
-	//	else
-	//		angles[i] = asinf(sin);
-	//}
-
-	//DirectX::Matrix4x4 rot = DirectX::XMMatrixRotationRollPitchYaw(angles[0], angles[1], angles[2]);
-	//for (int i = 0; i < 3; i++)
-	//	for (int j = 0; j < 3; j++)
-	//		Rot(i, j) = rot(i, j);
-
-	//return;
-
-	// Assumption on one axis rotation
-
-	//DenseIndex pivot = -1;
-	//sinRot.cwiseAbs().minCoeff(&pivot);
-	float tanX = (covXY(1, 2) - covXY(2, 1)) / (covXY(1, 1) + covXY(2, 2));
-	float tanY = (covXY(2, 0) - covXY(0, 2)) / (covXY(0, 0) + covXY(2, 2));
-	float tanZ = (covXY(0, 1) - covXY(1, 0)) / (covXY(0, 0) + covXY(1, 1));
-	//assert(sin <= 1.0f && sin >= -1.0f && "sin value must within range [0,1]");
-
-	// there is nothing bad about using positive value of cosine, it ensure the angle set in [-pi/2,pi/2]
-	float cosX = 1.0f / sqrt(1 + tanX*tanX);
-	float sinX = cosX * tanX;
-	float cosY = 1.0f / sqrt(1 + tanY*tanY);
-	float sinY = cosY * tanY;
-	float cosZ = 1.0f / sqrt(1 + tanZ*tanZ);
-	float sinZ = cosZ * tanZ;
-
-	sinX = -sinX;
-	sinY = -sinY;
-	sinZ = -sinZ;
-	Rot.setIdentity();
-
-	//! IMPORTANT, Right-Hand 
-	switch (pivot)
-	{
-	case 0:
-		Rot(1, 1) = cosX;
-		Rot(1, 2) = -sinX;
-		Rot(2, 2) = cosX;
-		Rot(2, 1) = sinX;
-		break;
-	case 1:
-		Rot(0, 0) = cosY;
-		Rot(0, 2) = sinY;
-		Rot(2, 2) = cosY;
-		Rot(2, 0) = -sinY;
-		break;
-	case 2:
-		Rot(0, 0) = cosZ;
-		Rot(0, 1) = -sinZ;
-		Rot(1, 1) = cosZ;
-		Rot(1, 0) = sinZ;
-		break;
-	}
-	return atanf(tanX);
-}
-
-Matrix3f FindIsometricTransformXY(const Eigen::MatrixXf& X, const Eigen::MatrixXf& Y)
-{
-	assert(X.cols() == Y.cols() && X.rows() == Y.rows() && X.cols() == 3 && "input X,Y dimension disagree");
-
-	auto uX = X.colwise().mean().eval();
-	auto uY = Y.colwise().mean().eval();
-
-	//sum(Xi1*Yi1,Xi2*Yi2,Xi3*Yi3)
-	MatrixXf covXY = X.transpose() * Y;
-
-	// The one axis rotation matrix
-	Matrix3f BestRot;
-	float BestScale, bestAng;
-	int bestPiv = -1;
-	float bestErr = numeric_limits<float>::max();
-
-	for (int pivot = 0; pivot < 3; pivot++)
-	{
-		Matrix3f Rot;
-		float scale = 1.0f;
-		float ang = GetConstraitedRotationFromSinVector(Rot, covXY, pivot);
-		// the isometric scale factor
-		scale = ((X * Rot).array()*Y.array()).sum() / X.cwiseAbs2().sum();
-		float err = (X * scale * Rot - Y).cwiseAbs2().sum();
-		if (err < bestErr)
-		{
-			bestPiv = pivot;
-			BestRot = Rot;
-			BestScale = scale;
-			bestErr = err;
-			bestAng = ang;
-		}
-	}
-
-	if (bestPiv == -1)
-	{
-		cout << "[!] Error , Failed to find isometric transform about control handle" << endl;
-	}
-	else
-	{
-		static char xyz[] = "XYZ";
-		cout << "Isometric transform found : Scale [" << BestScale << "] , Rotation along axis [" << xyz[bestPiv] << "] for " << bestAng / DirectX::XM_PI << "pi , Error = " << bestErr << endl;
-	}
-
-	return BestScale * BestRot;
+	//if (m_CurrentIdx >= 0)
+	//	StartUpdateThread();
+	//else
+	//	StopUpdateThread();
 }
 
 void CreateControlBinding(CharacterController & controller, const InputClipInfo& iclip);
@@ -602,11 +525,18 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 {
 	if (e.Key == VK_OEM_PERIOD || e.Key == '.' || e.Key == '>')
 	{
-		SetActiveController(m_CurrentIdx + 1);
+		int idx = (m_CurrentIdx + 1) % m_Controllers.size();
+		SetActiveController(idx);
 	}
 	else if (e.Key == VK_OEM_COMMA || e.Key == ',' || e.Key == '<')
 	{
-		SetActiveController(m_CurrentIdx - 1);
+		if (m_Controllers.size() > 0)
+		{
+			int idx = m_CurrentIdx - 1;
+			if (idx < 0)
+				idx = m_Controllers.size() - 1;
+			SetActiveController(idx);
+		}
 	}
 	else if (e.Key == 'L')
 	{
@@ -759,6 +689,68 @@ void AddNoise(BoneHiracheryFrame& frame, float sigma)
 	//}
 }
 
+void PlayerProxy::UpdateThreadRuntime()
+{
+	while (!(bool)m_stopUpdate)
+	{
+		if (!(bool)m_newFrameAvaiable) continue;
+
+		auto& player = *m_playerSelector;
+		if (!m_playerSelector || !player.IsTracked() || !player.ReadLatestFrame())
+			return;
+
+		// Update time / frame
+		auto now = std::chrono::system_clock::now();
+		time_seconds dts = now - m_lastUpdateTime;
+		double dt = dts.count();
+		m_lastUpdateTime = now;
+
+		m_lastFrame = m_currentFrame;
+		m_currentFrame = player.PeekFrame();
+
+		m_newFrameAvaiable = false;
+
+		// we need lastFrame and currentFrame be both valiad, thus 2 frame
+		if (++m_updateCounter < 2)
+			continue;
+
+		const auto& frame = m_currentFrame;
+		const auto& lastFrame = m_lastFrame;
+
+		g_RevampLikilyhoodThreshold = 0.5;
+		g_RevampLikilyhoodTimeThreshold = 1.0;
+
+		if (g_ForceRemappingAlwaysOn)
+			m_CyclicInfo.EnableCyclicMotionDetection();
+
+		if (IsMapped())
+		{
+			std::lock_guard<std::mutex> guard(m_controlMutex);
+			auto& controller = CurrentController();
+			float lik = controller.UpdateTargetCharacter(frame, lastFrame, dt);
+
+			// Check if we need to "Revamp" Control Binding
+			if (lik < g_RevampLikilyhoodThreshold)
+			{
+				m_LowLikilyTime += dt;
+				if (m_LowLikilyTime > g_RevampLikilyhoodTimeThreshold)
+				{
+					m_CyclicInfo.EnableCyclicMotionDetection();
+				}
+			}
+			else
+			{
+				m_CyclicInfo.EnableCyclicMotionDetection(false);
+				m_LowLikilyTime = 0;
+			}
+		}
+		else
+		{
+
+		}
+	}
+}
+
 void PlayerProxy::Update(time_seconds const & time_delta)
 {
 	SceneObject::Update(time_delta);
@@ -770,92 +762,58 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 
 	if (g_DebugLocalMotion && !IsMapped())
 	{
-		current_time += time_delta;
-		BoneHiracheryFrame last_frame;
-		BoneHiracheryFrame anotherFrame, anotherLastFrame;
-		for (auto& controller : m_Controllers)
-		{
-			if (!controller.IsReady)
-				continue;
-			auto& chara = controller.Character();
-			auto& actionName = g_DebugLocalMotionAction[chara.Name];
-			if (actionName.empty())
-				continue;
-			auto& action = controller.Character().Behavier()[actionName];
-			auto& target_frame = controller.Character().MapCurrentFrameForUpdate();
-			auto frame = controller.Character().Armature().default_frame();
-
-			target_frame = frame;
-			action.GetFrameAt(frame, current_time);
-			action.GetFrameAt(last_frame, current_time - time_delta);
-
-			//auto& anotheraction = controller.Character().Behavier()["run"];
-			//anotheraction.GetFrameAt(anotherFrame, current_time);
-			//anotheraction.GetFrameAt(anotherLastFrame, current_time - time_delta);
-
-			//for (size_t i = 0; i < frame.size(); i++)
-			//{
-			//	frame[i].GblTranslation = DirectX::XMVectorLerp(frame[i].GblTranslation, anotherFrame[i].GblTranslation, g_NoiseInterpolation);
-			//	last_frame[i].GblTranslation = DirectX::XMVectorLerp(last_frame[i].GblTranslation, anotherLastFrame[i].GblTranslation, g_NoiseInterpolation);
-			//}
-
-			// Add motion to non-active joints that visualize more about errors for active joints
-			//target_frame = frame;
-			//AddNoise(frame, .1f);
-			controller.SelfBinding().Transform(target_frame, frame, last_frame, time_delta.count());
-		}
+		UpdateSelfMotionBinder(time_delta);
 		return;
 	}
 
-	if (!m_IsInitialized || !m_playerSelector)
-		return;
 
-	static long long frame_count = 0;
-
-	auto& player = *m_playerSelector;
-	if (!player.IsTracked()) return;
+	if (IsMapped() && m_EnableOverShoulderCam && m_playerSelector->IsTracked())
+		UpdatePrimaryCameraForTrack();
 
 	// no new frame is coming
-	if (!player.ReadLatestFrame())
-		return;
-	const auto& frame = player.PeekFrame();
-	m_LastPlayerFrame = m_CurrentPlayerFrame;
-	m_CurrentPlayerFrame = frame;
+	static long long frame_count = 0;
+}
 
-	g_RevampLikilyhoodThreshold = 0.5;
-	g_RevampLikilyhoodTimeThreshold = 1.0;
-	if (g_ForceRemappingAlwaysOn)
-		m_CyclicInfo.EnableCyclicMotionDetection();
-
-	if (IsMapped())
+void PlayerProxy::UpdateSelfMotionBinder(const Causality::time_seconds & time_delta)
+{
+	current_time += time_delta;
+	BoneHiracheryFrame last_frame;
+	BoneHiracheryFrame anotherFrame, anotherLastFrame;
+	for (auto& controller : m_Controllers)
 	{
-		auto& controller = CurrentController();
-		float lik = controller.UpdateTargetCharacter(frame, m_LastPlayerFrame, time_delta.count());
+		if (!controller.IsReady)
+			continue;
+		auto& chara = controller.Character();
+		auto& actionName = g_DebugLocalMotionAction[chara.Name];
+		if (actionName.empty())
+			continue;
+		auto& action = controller.Character().Behavier()[actionName];
+		auto& target_frame = controller.Character().MapCurrentFrameForUpdate();
+		auto frame = controller.Character().Armature().default_frame();
 
-		// Check if we need to "Revamp" Control Binding
-		if (lik < g_RevampLikilyhoodThreshold)
-		{
-			m_LowLikilyTime += time_delta.count();
-			if (m_LowLikilyTime > g_RevampLikilyhoodTimeThreshold)
-			{
-				m_CyclicInfo.EnableCyclicMotionDetection();
-			}
-		}
-		else
-		{
-			m_CyclicInfo.EnableCyclicMotionDetection(false);
-			m_LowLikilyTime = 0;
-		}
+		target_frame = frame;
+		action.GetFrameAt(frame, current_time);
+		action.GetFrameAt(last_frame, current_time - time_delta);
 
-		if (m_EnableOverShoulderCam)
-			UpdatePrimaryCameraForTrack();
-		return;
+		//auto& anotheraction = controller.Character().Behavier()["run"];
+		//anotheraction.GetFrameAt(anotherFrame, current_time);
+		//anotheraction.GetFrameAt(anotherLastFrame, current_time - time_delta);
+
+		//for (size_t i = 0; i < frame.size(); i++)
+		//{
+		//	frame[i].GblTranslation = DirectX::XMVectorLerp(frame[i].GblTranslation, anotherFrame[i].GblTranslation, g_NoiseInterpolation);
+		//	last_frame[i].GblTranslation = DirectX::XMVectorLerp(last_frame[i].GblTranslation, anotherLastFrame[i].GblTranslation, g_NoiseInterpolation);
+		//}
+
+		// Add motion to non-active joints that visualize more about errors for active joints
+		//target_frame = frame;
+		//AddNoise(frame, .1f);
+		controller.SelfBinding().Transform(target_frame, frame, last_frame, time_delta.count());
 	}
 }
 
 void PlayerProxy::UpdatePrimaryCameraForTrack()
 {
-
 	auto& camera = *this->Scene->PrimaryCamera();
 	auto& cameraPos = dynamic_cast<SceneObject&>(camera);
 	auto& contrl = this->CurrentController();
@@ -876,7 +834,7 @@ void PlayerProxy::UpdatePrimaryCameraForTrack()
 	camera.GetView()->FocusAt((XMVECTOR)chara.GetPosition() + XMVector3Rotate(XMVectorMultiplyAdd(ext, XMVectorSet(-2.0f, 0.0f, 0.0f, 0.0f), XMVectorSet(-0.5f, 0.5, -0.5, 0)), chara.GetOrientation()), g_XMIdentityR1.v);
 }
 
-void Causality::PlayerProxy::ResetPrimaryCameraPoseToDefault()
+void PlayerProxy::ResetPrimaryCameraPoseToDefault()
 {
 	// Camera pose not changed by Over Shoulder view
 	if (m_DefaultCameraFlag)

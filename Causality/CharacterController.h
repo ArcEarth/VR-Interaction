@@ -3,6 +3,7 @@
 #include <atomic>
 #include "ClipMetric.h"
 #include "StylizedIK.h"
+#include "Serialization.h"
 
 namespace tinyxml2
 {
@@ -23,10 +24,11 @@ namespace Causality
 	{
 	public:
 		~CharacterController();
-		void Initialize(const IArmature& player, CharacterObject& character);
+		void Initialize(const IArmature& player, CharacterObject& character, const ParamArchive* settings);
 
 		const ArmatureTransform& Binding() const;
 		ArmatureTransform& Binding();
+		std::mutex& GetBindingMutex();
 		void SetBinding(std::unique_ptr<ArmatureTransform> &&upBinding);
 
 		const ArmatureTransform& SelfBinding() const { return *m_pSelfBinding; }
@@ -46,6 +48,8 @@ namespace Causality
 
 
 		float UpdateTargetCharacter(const BoneHiracheryFrame& sourceFrame, const BoneHiracheryFrame& lastSourceFrame, double deltaTime_seconds) const;
+
+		void  SetReferenceSourcePose(const Bone& sourcePose);
 
 		float GetLastUpdateLikilyhood() const;
 
@@ -88,6 +92,9 @@ namespace Causality
 		CharacterClipinfo& GetUnitedClipinfo() { return m_cpxClipinfo; }
 		const CharacterClipinfo& GetUnitedClipinfo() const { return m_cpxClipinfo; }
 	protected:
+		// Cache frame for character
+		mutable
+		BoneHiracheryFrame										m_charaFrame;
 		CharacterObject*										m_pCharacter;
 		std::vector<CharacterClipinfo>							m_Clipinfos;
 

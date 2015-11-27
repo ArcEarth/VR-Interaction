@@ -2,7 +2,9 @@
 #include "GestureTracker.h"
 #include <numeric>
 #include <random>
-
+#ifndef _DEBUG
+#define openMP
+#endif
 using namespace Causality;
 
 std::random_device g_rand;
@@ -37,12 +39,11 @@ const ParticaleFilterBase::TrackingVectorType & Causality::ParticaleFilterBase::
 int * ParticaleFilterBase::GetTopKStates(int k) const
 {
 	// instead of max one, we select max-K element
-	auto& sample = m_sample;
 	if (m_srtIdxes.size() < m_sample.rows())
 		m_srtIdxes.resize(m_sample.rows());
 	std::iota(m_srtIdxes.begin(), m_srtIdxes.end(), 0);
-	std::partial_sort(m_srtIdxes.begin(), m_srtIdxes.begin() + m_maxK, m_srtIdxes.end(), [&sample](int i, int j) {
-		return sample(i, 0) > sample(j, 0);
+	std::partial_sort(m_srtIdxes.begin(), m_srtIdxes.begin() + k, m_srtIdxes.end(), [this](int i, int j) {
+		return m_sample(i, 0) > m_sample(j, 0);
 	});
 	return m_srtIdxes.data();
 }
@@ -55,7 +56,7 @@ ParticaleFilterBase::ScalarType ParticaleFilterBase::StepParticals()
 	m_newSample.swap(m_sample);
 
 	auto& sample = m_sample;
-	auto n = sample.rows();
+	int n = sample.rows();
 	auto dim = sample.cols() - 1;
 
 #if defined(openMP)
@@ -63,10 +64,10 @@ ParticaleFilterBase::ScalarType ParticaleFilterBase::StepParticals()
 #endif
 	for (int i = 0; i < n; i++)
 	{
-		auto partical = sample.block<1, -1>(i, 1, 1, dim);
+		auto partical = m_sample.block<1, -1>(i, 1, 1, dim);
 
 		Progate(partical);
-		sample(i, 0) = Likilihood(partical);
+		m_sample(i, 0) = Likilihood(i, partical);
 	}
 
 	m_liks = sample.col(0);

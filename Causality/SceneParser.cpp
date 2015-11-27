@@ -158,16 +158,18 @@ std::unique_ptr<Scene> Scene::LoadSceneFromXML(const string& xml_file)
 void Scene::LoadFromFile(const string & xml_file)
 {
 	using namespace DirectX;
-	tinyxml2::XMLDocument sceneDoc;
+	m_sourceDoc = make_unique<tinyxml2::XMLDocument>();
+	auto& sceneDoc = *m_sourceDoc;
 	auto error = sceneDoc.LoadFile(xml_file.c_str());
-
+	
 	assert(error == XMLError::XML_SUCCESS);
 
 	auto nScene = sceneDoc.FirstChildElement("scene");
 	auto nAssets = nScene->FirstChildElement("scene.assets");
 
+	m_settings = nScene->FirstChildElement("scene.settings");
 	ParseSceneSettings(nScene);
-	assets->ParseArchive(nAssets);
+	m_assets->ParseArchive(nAssets);
 
 	auto nHud = nScene->FirstChildElement("scene.hud");
 

@@ -92,7 +92,7 @@ char* JointNames[JointType_Count] = {
 	"ThumbRight",
 };
 
-std::unique_ptr<Causality::StaticArmature> TrackedBody::BodyArmature;
+std::unique_ptr<StaticArmature> TrackedBody::BodyArmature;
 
 struct FilteredPlayer : public TrackedBody
 {
@@ -146,7 +146,7 @@ public:
 		{
 			int parents[JointType_Count];
 			std::copy_n(KinectSensor::JointsParent, (int) JointType_Count, parents);
-			TrackedBody::BodyArmature = std::make_unique<Causality::StaticArmature>(JointType_Count, parents, JointNames);
+			TrackedBody::BodyArmature = std::make_unique<StaticArmature>(JointType_Count, parents, JointNames);
 		}
 		using namespace Microsoft::WRL;
 		using namespace std;
@@ -215,6 +215,9 @@ public:
 
 	bool StartTracking()
 	{
+		if (IsStarted())
+			return Resume();
+
 		WAITABLE_HANDLE hBFEvent = NULL;
 		HRESULT hr;
 		BOOLEAN active = FALSE;
@@ -301,6 +304,7 @@ public:
 			return;
 		if (m_pBodyFrameReader && m_FrameReadyEvent.Get() != NULL)
 		{
+			m_pBodyFrameReader->put_IsPaused(TRUE);
 			m_pBodyFrameReader->UnsubscribeFrameArrived(reinterpret_cast<WAITABLE_HANDLE>(m_FrameReadyEvent.Get()));
 			m_FrameReadyEvent.Detach();
 		}
@@ -309,6 +313,35 @@ public:
 			m_pThread->join();
 			m_pThread.reset();
 		}
+	}
+
+	bool IsTracking() const
+	{
+		BOOLEAN paused;
+		m_pBodyFrameReader->get_IsPaused(&paused);
+		return m_pThread != nullptr && !paused;
+	}
+
+	bool IsPaused()
+	{
+		BOOLEAN paused;
+		m_pBodyFrameReader->get_IsPaused(&paused);
+		return paused;
+	}
+
+	bool IsStarted()
+	{
+		return m_pThread != nullptr;
+	}
+
+	bool Pause(bool pause)
+	{
+		return SUCCEEDED(m_pBodyFrameReader->put_IsPaused((BOOLEAN)pause));
+	}
+
+	bool Resume()
+	{
+		return SUCCEEDED(m_pBodyFrameReader->put_IsPaused(FALSE));
 	}
 
 	bool HasNewFrame() const
@@ -438,7 +471,7 @@ public:
 		return true;
 	}
 
-	void UpdateTrackedBodyData(Causality::TrackedBody * player, IBody * pBody, time_t time, bool isNew = false)
+	void UpdateTrackedBodyData(TrackedBody * player, IBody * pBody, time_t time, bool isNew = false)
 	{
 		::Joint joints[JointType_Count];
 		JointOrientation oris[JointType_Count];
@@ -557,7 +590,7 @@ public:
 
 std::weak_ptr<KinectSensor> KinectSensor::wpCurrentDevice;
 
-std::shared_ptr<KinectSensor> Causality::Devices::KinectSensor::GetForCurrentView()
+std::shared_ptr<KinectSensor> Devices::KinectSensor::GetForCurrentView()
 {
 	if (wpCurrentDevice.expired())
 	{
@@ -591,7 +624,7 @@ void KinectSensor::EnableMirrowing(bool enable_mirrow)
 	pImpl->m_EnableMirrow = enable_mirrow;
 }
 
-bool Causality::Devices::KinectSensor::IsMirrowingEnable() const
+bool Devices::KinectSensor::IsMirrowingEnable() const
 {
 	return pImpl->m_EnableMirrow;
 }
@@ -606,22 +639,31 @@ void KinectSensor::ProcessFrame()
 	pImpl->ProcessFrame();
 }
 
-bool Causality::Devices::KinectSensor::Start()
+bool KinectSensor::Start()
 {
-	BufferedStreamViewer<int> buffer;
-	decltype(buffer) buffer2(buffer);
-
 	return pImpl->StartTracking();
 }
 
-void Causality::Devices::KinectSensor::Stop()
+void KinectSensor::Stop()
 {
+	pImpl->StopTracking();
+}
+
+bool KinectSensor::Pause()
+{
+	return pImpl->Pause(TRUE);
+}
+
+bool KinectSensor::Resume()
+{
+	return pImpl->Resume();
 }
 
 const std::list<TrackedBody>& KinectSensor::GetTrackedBodies() const
 {
 	return pImpl->m_Players;
 }
+
 std::list<TrackedBody>& KinectSensor::GetTrackedBodies()
 {
 	return pImpl->m_Players;
@@ -649,16 +691,16 @@ KinectSensor::KinectSensor()
 //	//PoseFrame.resize(BodyArmature->size());
 //}
 
-//Causality::TrackedBody::TrackedBody(const TrackedBody &)
+//TrackedBody::TrackedBody(const TrackedBody &)
 //{
 //}
 
-Causality::TrackedBody::TrackedBody(size_t bufferSize)
+TrackedBody::TrackedBody(size_t bufferSize)
 	: RefCount(0) , Id(0), m_IsTracked(false), m_LastTrackedTime(0), m_LostFrameCount(0), m_FrameBuffer(bufferSize)
 {
 }
 
-void Causality::TrackedBody::PushFrame(FrameType && frame)
+void TrackedBody::PushFrame(FrameType && frame)
 {
 	m_FrameBuffer.Push(std::move(frame));
 	m_FrameBuffer.LockBuffer();
@@ -674,44 +716,49 @@ void Causality::TrackedBody::PushFrame(FrameType && frame)
 	m_FrameBuffer.UnlockBuffer();
 }
 
-bool Causality::TrackedBody::ReadLatestFrame()
+bool TrackedBody::ReadLatestFrame()
 {
-	return m_FrameBuffer.MoveToLatest() != nullptr;
+	return m_FrameBuffer.MoveToLatest();
 }
 
-bool Causality::TrackedBody::ReadNextFrame()
+bool TrackedBody::ReadNextFrame()
 {
-	return m_FrameBuffer.MoveNext() != nullptr;;
+	return m_FrameBuffer.MoveNext();
 }
 
-const Causality::BoneHiracheryFrame & Causality::TrackedBody::PeekFrame() const
+const BoneHiracheryFrame & TrackedBody::PeekFrame() const
 {
 	return *m_FrameBuffer.GetCurrent();
 }
 
-const IArmature & Causality::TrackedBody::GetArmature() const { return *BodyArmature; }
+const IArmature & TrackedBody::GetArmature() const { return *BodyArmature; }
 
-float Causality::TrackedBody::DistanceToSensor() const
+float TrackedBody::DistanceToSensor() const
 {
 	return m_Distance;
 }
 
-void Causality::TrackedBody::AddRef() {
+void TrackedBody::AddRef() {
 	++RefCount;
 }
 
-void Causality::TrackedBody::Release() {
+void TrackedBody::Release() {
 	--RefCount;
 }
 
-Causality::TrackedBodySelector::TrackedBodySelector(KinectSensor * pKinect, SelectionMode mode)
+TrackedBodySelector::TrackedBodySelector(KinectSensor * pKinect, SelectionMode mode)
 	:pCurrent(nullptr), pKinect(nullptr), mode(None)
 {
 	Initialize(pKinect, mode);
 }
 
-Causality::TrackedBodySelector::~TrackedBodySelector()
+TrackedBodySelector::~TrackedBodySelector()
 {
+	fpTrackedBodyChanged = nullptr;
+	fpFrameArrived = nullptr;
+
+	ChangePlayer(nullptr);
+
 	if (pKinect)
 	{
 		con_tracked.disconnect();
@@ -719,7 +766,7 @@ Causality::TrackedBodySelector::~TrackedBodySelector()
 	}
 }
 
-void Causality::TrackedBodySelector::OnPlayerTracked(TrackedBody & body)
+void TrackedBodySelector::OnPlayerTracked(TrackedBody & body)
 {
 	if ((!pCurrent || !(mode & Sticky)))
 	{
@@ -730,7 +777,7 @@ void Causality::TrackedBodySelector::OnPlayerTracked(TrackedBody & body)
 	}
 }
 
-void Causality::TrackedBodySelector::OnPlayerLost(TrackedBody & body)
+void TrackedBodySelector::OnPlayerLost(TrackedBody & body)
 {
 	if (pCurrent && body == *pCurrent)
 	{
@@ -738,7 +785,7 @@ void Causality::TrackedBodySelector::OnPlayerLost(TrackedBody & body)
 	}
 }
 
-void Causality::TrackedBodySelector::ReSelectFromAllTrackedBodies()
+void TrackedBodySelector::ReSelectFromAllTrackedBodies()
 {
 	TrackedBody *pBestPlayer = nullptr;
 
@@ -770,14 +817,16 @@ void Causality::TrackedBodySelector::ReSelectFromAllTrackedBodies()
 
 }
 
-void Causality::TrackedBodySelector::Reset() {
-	fpTrackedBodyChanged(pCurrent, nullptr);
+void TrackedBodySelector::Reset() {
+
+	if (fpTrackedBodyChanged)
+		fpTrackedBodyChanged(pCurrent, nullptr);
 	if (pCurrent)
 		pCurrent->Release();
 	pCurrent = nullptr;
 }
 
-void Causality::TrackedBodySelector::Initialize(Devices::KinectSensor * pKinect, SelectionMode mode)
+void TrackedBodySelector::Initialize(Devices::KinectSensor * pKinect, SelectionMode mode)
 {
 	this->mode = mode;
 	if (pKinect)
@@ -785,12 +834,12 @@ void Causality::TrackedBodySelector::Initialize(Devices::KinectSensor * pKinect,
 		this->pKinect = pKinect->GetRef();
 		con_tracked =
 			pKinect->OnPlayerTracked += MakeEventHandler(&TrackedBodySelector::OnPlayerTracked, this);
-		con_tracked = 
+		con_lost =
 			pKinect->OnPlayerLost += MakeEventHandler(&TrackedBodySelector::OnPlayerLost, this);
 	}
 }
 
-void Causality::TrackedBodySelector::ChangePlayer(TrackedBody * pNewPlayer)
+void TrackedBodySelector::ChangePlayer(TrackedBody * pNewPlayer)
 {
 	auto pOld = pCurrent;
 	con_frame.disconnect();
@@ -799,29 +848,32 @@ void Causality::TrackedBodySelector::ChangePlayer(TrackedBody * pNewPlayer)
 	if (pCurrent)
 	{
 		pCurrent->AddRef();
-		con_frame = pCurrent->OnFrameArrived.connect(fpFrameArrived);
+		if (fpFrameArrived)
+			con_frame = pCurrent->OnFrameArrived.connect(fpFrameArrived);
 	}
 
-	fpTrackedBodyChanged(pOld, pCurrent);
+	if (fpTrackedBodyChanged)
+		fpTrackedBodyChanged(pOld, pCurrent);
 
 	if (pOld)
 		pOld->Release();
 }
 
-void Causality::TrackedBodySelector::SetFrameCallback(const FrameEventFunctionType & callback) {
+void TrackedBodySelector::SetFrameCallback(const FrameEventFunctionType & callback) {
 	fpFrameArrived = callback;
 	if (con_frame.connected())
 	{
 		con_frame.disconnect();
-		con_frame = pCurrent->OnFrameArrived.connect(fpFrameArrived);
+		if (fpFrameArrived)
+			con_frame = pCurrent->OnFrameArrived.connect(fpFrameArrived);
 	}
 }
 
-void Causality::TrackedBodySelector::SetPlayerChangeCallback(const PlayerEventFunctionType & callback) { 
+void TrackedBodySelector::SetPlayerChangeCallback(const PlayerEventFunctionType & callback) { 
 	fpTrackedBodyChanged = callback; 
 }
 
-void Causality::TrackedBodySelector::ChangeSelectionMode(SelectionMode mdoe)
+void TrackedBodySelector::ChangeSelectionMode(SelectionMode mdoe)
 {
 	this->mode = mode;
 	if (pCurrent)

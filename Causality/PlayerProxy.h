@@ -37,7 +37,12 @@ namespace Causality
 		virtual void AddChild(SceneObject* pChild) override;
 
 		// Render / UI Thread 
-		void	Update(time_seconds const& time_delta) override;
+		void Update(time_seconds const& time_delta) override;
+		void UpdateSelfMotionBinder(const time_seconds & time_delta);
+
+		void UpdateThreadRuntime();
+		void StartUpdateThread();
+		void StopUpdateThread();
 
 		// Inherited via IVisual
 		virtual bool IsVisible(const DirectX::BoundingGeometry & viewFrustum) const override;
@@ -69,19 +74,29 @@ namespace Causality
 		bool								m_EnableOverShoulderCam;
 		bool								m_IsInitialized;
 
+		std::thread							m_updateThread;
+		std::atomic_bool					m_stopUpdate;
 		std::mutex							m_controlMutex;
 		std::atomic_bool					m_mapTaskOnGoing;
+		std::atomic_bool					m_newFrameAvaiable;
+		std::atomic_int						m_updateCounter;
 		concurrency::task<void>				m_mapTask;
 
 		const IArmature*					m_pPlayerArmature;
-		ShrinkedArmature*					m_pParts;
+
+		uptr<ShrinkedArmature>				m_pParts;
 		int									m_Id;
 
 		sptr<Devices::KinectSensor>			m_pKinect;
 		TrackedBodySelector					m_playerSelector;
 
-		BoneHiracheryFrame					m_CurrentPlayerFrame;
-		BoneHiracheryFrame					m_LastPlayerFrame;
+		BoneHiracheryFrame					m_pushFrame;
+
+		double								m_updateTime;
+		std::chrono::time_point<std::chrono::system_clock> 
+											m_lastUpdateTime;
+		BoneHiracheryFrame					m_currentFrame;
+		BoneHiracheryFrame					m_lastFrame;
 
 		double								m_LowLikilyTime;
 		CyclicStreamClipinfo				m_CyclicInfo;

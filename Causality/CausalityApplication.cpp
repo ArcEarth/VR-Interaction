@@ -138,6 +138,11 @@ void App::OnStartup(const std::vector<std::string>& args)
 
 	pLeap = Devices::LeapMotion::GetForCurrentView();
 	pKinect = Devices::KinectSensor::GetForCurrentView();
+	XMMATRIX kinectCoord = XMMatrixRigidTransform(
+		XMQuaternionRotationRollPitchYaw(-XM_PI / 12.0f, XM_PI, 0), // Orientation
+		XMVectorSet(0, 0.0, 1.0f, 1.0f)); // Position
+	pKinect->SetDeviceCoordinate(kinectCoord);
+
 	//auto loadingScene = new Scene;
 	//Scenes.emplace_back(loadingScene);
 	//loadingScene->SetRenderDeviceAndContext(pDevice, pContext);
@@ -151,15 +156,7 @@ void App::OnStartup(const std::vector<std::string>& args)
 	concurrency::task<void> loadScene([&]() {
 		cout << "[Scene] Loading ...";
 		CoInitializeEx(NULL, COINIT::COINIT_APARTMENTTHREADED);
-		
 		selector->LoadFromFile((ResourceDirectory / sceneFile).string());
-
-		XMMATRIX kinectCoord = XMMatrixRigidTransform(
-			XMQuaternionRotationRollPitchYaw(-XM_PI / 12.0f, XM_PI, 0), // Orientation
-			XMVectorSet(0, 0.0, 1.0f, 1.0f)); // Position
-		pKinect->SetDeviceCoordinate(kinectCoord);
-		pKinect->Start();
-
 		CoUninitialize();
 		cout << "[Scene] Loading Finished!";
 	});

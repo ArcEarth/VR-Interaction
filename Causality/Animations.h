@@ -284,10 +284,10 @@ namespace Causality
 
 		typedef BoneHiracheryFrame frame_type;
 
-		const IArmature& SourceArmature() const { return *pSource; }
-		const IArmature& TargetArmature() const { return *pTarget; }
-		void SetSourceArmature(const IArmature& armature) { pSource = &armature; }
-		void SetTargetArmature(const IArmature& armature) { pTarget = &armature; }
+		const IArmature& SourceArmature() const { return *m_sArmature; }
+		const IArmature& TargetArmature() const { return *m_tArmature; }
+		void SetSourceArmature(const IArmature& armature) { m_sArmature = &armature; }
+		void SetTargetArmature(const IArmature& armature) { m_tArmature = &armature; }
 
 		int GetBindIndex(int sourceIdx) const;
 		int GetInverseBindIndex(int tragetIdx) const;
@@ -303,7 +303,7 @@ namespace Causality
 		virtual void TransformBack(_Out_ frame_type& source_frame, _In_ const frame_type& target_frame) const;
 
 	protected:
-		const IArmature	*pSource, *pTarget;
+		const IArmature	*m_sArmature, *m_tArmature;
 	};
 
 	template <typename FrameType>

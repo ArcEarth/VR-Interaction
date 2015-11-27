@@ -57,7 +57,7 @@ namespace Causality
 	protected: // Interfaces
 		virtual void SetInputState(const InputVectorType& input, ScalarType dt) = 0;
 		// Get the likilihood of partical state x in current time with pre-seted input state
-		virtual ScalarType Likilihood(const TrackingVectorBlockType &x) = 0;
+		virtual ScalarType Likilihood(int idx, const TrackingVectorBlockType &x) = 0;
 
 		virtual void Progate(TrackingVectorBlockType& x) = 0;
 

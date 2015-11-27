@@ -254,7 +254,10 @@ copy $(LeapSDK_Root)\lib\$(PlatformTarget)\Leap.dll "$(OutDir)"</Command>
     <ClCompile Include="CharacterObject.cpp" />
     <ClCompile Include="FloatHud.cpp" />
     <ClCompile Include="GaussianProcess.cpp" />
-    <ClCompile Include="GestureTracker.cpp" />
+    <ClCompile Include="GestureTracker.cpp">
+      <OpenMPSupport Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</OpenMPSupport>
+      <OpenMPSupport Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OpenMPSupport>
+    </ClCompile>
     <ClCompile Include="LightObject.cpp" />
     <ClCompile Include="MatrixVisualizer.cpp" />
     <ClCompile Include="pch_bcl.cpp">

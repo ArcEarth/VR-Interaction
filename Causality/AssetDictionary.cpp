@@ -265,7 +265,7 @@ inline std::wstring towstring(const string& str)
 AssetDictionary::mesh_type * AssetDictionary::LoadObjMesh(const string & key, const string & fileName)
 {
 	typedef DefaultStaticModel mesh_type;
-	auto *pObjModel = DefaultStaticModel::CreateFromObjFile((mesh_directory / fileName).wstring(), render_device.Get(), texture_directory.wstring());
+	auto *pObjModel = DefaultStaticModel::CreateFromObjFile((mesh_directory / fileName).wstring(), m_device.Get(), texture_directory.wstring());
 	if (!pObjModel)
 		return nullptr;
 	meshes[key] = pObjModel;
@@ -297,7 +297,7 @@ AssetDictionary::mesh_type * AssetDictionary::LoadFbxMesh(const string & key, co
 	// Force clear Diffuse Map
 	mesh.Material.DiffuseMapName = "";
 
-	auto pModel = model_type::CreateFromData(&mesh, texture_directory.wstring(), render_device.Get());
+	auto pModel = model_type::CreateFromData(&mesh, texture_directory.wstring(), m_device.Get());
 	//auto pModel = model_type::CreateCube(render_device,1.0f);
 
 	pModel->SetName(fileName);
@@ -352,7 +352,7 @@ AssetDictionary::mesh_type * AssetDictionary::LoadFbxMesh(const string & key, co
 		}
 	}
 
-	pModel->CreateDeviceResource(render_device.Get());
+	pModel->CreateDeviceResource(m_device.Get());
 
 	int i = 0;
 	for (auto& part : pModel->Parts)
@@ -373,7 +373,7 @@ AssetDictionary::mesh_type * AssetDictionary::LoadFbxMesh(const string & key, co
 
 AssetDictionary::texture_type * AssetDictionary::LoadTexture(const string & key, const string & fileName)
 {
-	textures[key] = DirectX::Texture::CreateFromDDSFile(render_device.Get(), (texture_directory / fileName).c_str());
+	textures[key] = DirectX::Texture::CreateFromDDSFile(m_device.Get(), (texture_directory / fileName).c_str());
 	return textures[key];
 }
 
@@ -381,7 +381,7 @@ AssetDictionary::armature_type * AssetDictionary::LoadArmature(const string & ke
 {
 	std::ifstream file((mesh_directory / fileName).wstring());
 	auto pArmature = new armature_type(file);
-	assets[key] = pArmature;
+	m_assets[key] = pArmature;
 	return pArmature;
 }
 
@@ -452,7 +452,7 @@ AssetDictionary::audio_clip_type* AssetDictionary::GetAudio(const string & key)
 
 void AssetDictionary::SetRenderDevice(IRenderDevice * device)
 {
-	render_device = device;
+	m_device = device;
 	if (!effect_factory)
 	{
 		auto up_factory = std::make_unique<DirectX::EffectFactory>(device);

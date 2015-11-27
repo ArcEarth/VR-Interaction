@@ -309,7 +309,7 @@ void CharacterObject::Parse(const ParamArchive * store)
 {
 	VisualObject::Parse(store);
 
-	auto& assets = Scene->Assets();
+	auto& m_assets = Scene->Assets();
 	const char* behv_src = nullptr;
 	GetParam(store, "behavier", behv_src);
 	if (behv_src != nullptr && strlen(behv_src) != 0)
@@ -317,7 +317,7 @@ void CharacterObject::Parse(const ParamArchive * store)
 		if (behv_src[0] == '{') // asset reference
 		{
 			const std::string key(behv_src + 1, behv_src + strlen(behv_src) - 1);
-			SetBehavier(*assets.GetBehavier(key));
+			SetBehavier(*m_assets.GetBehavier(key));
 		}
 	}
 	else
@@ -326,7 +326,7 @@ void CharacterObject::Parse(const ParamArchive * store)
 		if (inlineBehave)
 		{
 			inlineBehave = GetFirstChildArchive(inlineBehave);
-			auto behavier = assets.ParseBehavier(inlineBehave);
+			auto behavier = m_assets.ParseBehavier(inlineBehave);
 			SetBehavier(*behavier);
 		}
 	}
