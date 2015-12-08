@@ -18,12 +18,13 @@ namespace Causality
 	class CharacterClipinfo;
 	class ClipFacade;
 
-	void RemoveFrameRootTransform(BoneHiracheryFrame& frame, const IArmature& armature);
+	void RemoveFrameRootTransform(ArmatureFrameView frame, const IArmature& armature);
 
 	class CharacterController
 	{
 	public:
 		~CharacterController();
+		CharacterController();
 		void Initialize(const IArmature& player, CharacterObject& character, const ParamArchive* settings);
 
 		const ArmatureTransform& Binding() const;
@@ -47,7 +48,7 @@ namespace Causality
 		auto&	SubactiveParts() const { return m_SubactiveParts; }
 
 
-		float UpdateTargetCharacter(const BoneHiracheryFrame& sourceFrame, const BoneHiracheryFrame& lastSourceFrame, double deltaTime_seconds) const;
+		float UpdateTargetCharacter(ArmatureFrameConstView sourceFrame, ArmatureFrameConstView lastSourceFrame, double deltaTime_seconds) const;
 
 		void  SetReferenceSourcePose(const Bone& sourcePose);
 
@@ -63,7 +64,7 @@ namespace Causality
 
 		std::atomic_bool			IsReady;
 		int							ID;
-		BoneHiracheryFrame			PotientialFrame;
+		ArmatureFrame			PotientialFrame;
 
 		float						CharacterScore;
 		Vector3						MapRefPos;
@@ -94,7 +95,7 @@ namespace Causality
 	protected:
 		// Cache frame for character
 		mutable
-		BoneHiracheryFrame										m_charaFrame;
+		ArmatureFrame										m_charaFrame;
 		CharacterObject*										m_pCharacter;
 		std::vector<CharacterClipinfo>							m_Clipinfos;
 

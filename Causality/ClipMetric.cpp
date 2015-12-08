@@ -37,13 +37,25 @@ typedef
 
 typedef
 //ArmaturePartFeatures::WithVelocity<
+	NormalizeVelocity<
 	Localize<
 	EndEffector<
-		GblPosFeature >>
+		GblPosFeature >>>
+	PVSFeatureVel;
+
+typedef
+	Localize <
+	EndEffector <
+	GblPosFeature >>
 	PVSFeature;
 
 
 typedef PVSFeature PartsFeatureType;
+
+void Causality::CyclicStreamClipinfo::EnableCyclicMotionDetection(bool is_enable, float cyclicSupportThrehold) {
+	m_enableCyclicDtc = is_enable;
+	m_cyclicDtcThr = cyclicSupportThrehold;
+}
 
 void CyclicStreamClipinfo::InitializePvFacade(ShrinkedArmature& parts)
 {
@@ -68,14 +80,23 @@ void CharacterClipinfo::Initialize(const ShrinkedArmature& parts)
 
 	RcFacade.SetFeature(pRcF);
 
-	auto pPvF = std::make_shared<PVSFeature>();
-	PvFacade.SetFeature(pPvF);
+	if (g_UseVelocity)
+	{
+		auto pPvF = std::make_shared<PVSFeatureVel>();
+		pPvF->SetVelocityThreshold(g_VelocityNormalizeThreshold);
+		PvFacade.SetFeature(pPvF);
+	}
+	else
+	{
+		auto pPvF = std::make_shared<PVSFeature>();
+		PvFacade.SetFeature(pPvF);
+	}
 
 	RcFacade.Prepare(parts, -1, ClipFacade::ComputePca | ClipFacade::ComputeStaticEnergy);
 	PvFacade.Prepare(parts, -1, ClipFacade::ComputeAll);
 }
 
-void CharacterClipinfo::AnalyzeSequence(gsl::array_view<BoneHiracheryFrame> frames, double sequenceTime)
+void CharacterClipinfo::AnalyzeSequence(gsl::array_view<ArmatureFrame> frames, double sequenceTime)
 {
 	RcFacade.AnalyzeSequence(frames, sequenceTime);
 	PvFacade.AnalyzeSequence(frames, sequenceTime);
@@ -91,6 +112,11 @@ void CharacterClipinfo::SetClipName(const ::std::string& name)
 	m_clipName = name;
 	PvFacade.SetClipName(name);
 	RcFacade.SetClipName(name);
+}
+
+CyclicStreamClipinfo::~CyclicStreamClipinfo()
+{
+
 }
 
 CyclicStreamClipinfo::CyclicStreamClipinfo(ShrinkedArmature& parts, time_seconds minT, time_seconds maxT, double sampleRateHz, size_t interval_frames)
@@ -155,7 +181,7 @@ void CyclicStreamClipinfo::InitializeStreamView(ShrinkedArmature& parts, time_se
 	m_SmoothedBuffer.resize(m_windowSize, m_frameWidth);
 
 	m_cropMargin = m_sampleRate * 0.1; // 0.1s of frames as margin
-	m_cyclicDtcThr = 0.75f;
+	m_cyclicDtcThr = g_RevampActiveSupportThreshold;
 
 	int n = m_windowSize;
 
@@ -220,20 +246,10 @@ void Causality::CyclicStreamClipinfo::ResetStream()
 	m_bufferHead = m_bufferSize = m_frameCounter = 0;
 }
 
-struct scope_unlock
+std::mutex & Causality::CyclicStreamClipinfo::AqucireFacadeMutex()
 {
-	std::mutex& _mutex;
-
-	scope_unlock(std::mutex& mutex)
-		: _mutex(mutex)
-	{
-	}
-
-	~scope_unlock()
-	{
-		_mutex.unlock();
-	}
-};
+	return m_facadeMutex;
+}
 
 bool CyclicStreamClipinfo::AnaylzeRecentStream()
 {
@@ -245,10 +261,10 @@ bool CyclicStreamClipinfo::AnaylzeRecentStream()
 
 	auto fr = CaculatePeekFrequency(m_Spectrum);
 
-	if (fr.Support > m_cyclicDtcThr && m_facadeMutex.try_lock())
+	if (fr.Support > m_cyclicDtcThr)
 	{
-		{
-			scope_unlock guard(m_facadeMutex);
+		if (m_facadeMutex.try_lock()){
+			lock_guard<mutex> guard(m_facadeMutex,std::adopt_lock);
 
 			auto& X = ClipFacade::SetFeatureMatrix();
 			float Tseconds = 1 / fr.Frequency;
@@ -259,6 +275,14 @@ bool CyclicStreamClipinfo::AnaylzeRecentStream()
 
 			return true;
 		}
+		else
+		{
+			cout << "Assignment process failed due to facade busy" << fr.Support << endl;
+		}
+
+	}
+	else {
+		cout << "Assignment process reject, peak frequency support = " << fr.Support << endl;
 	}
 	return false;
 }
@@ -442,18 +466,19 @@ void ClipFacade::SetComputationFlags(int flags)
 	m_flag = flags;
 }
 
-void ClipFacade::AnalyzeSequence(gsl::array_view<BoneHiracheryFrame> frames, double sequenceTime)
+void ClipFacade::AnalyzeSequence(gsl::array_view<ArmatureFrame> frames, double sequenceTime)
 {
 	assert(m_pParts != nullptr);
 
 	m_clipTime = sequenceTime;
 
-	SetFeatureMatrix(frames);
+	//? HACK! IS BAD.
+	SetFeatureMatrix(frames, sequenceTime, true);
 
 	CaculatePartsMetric();
 }
 
-void ClipFacade::SetFeatureMatrix(gsl::array_view<BoneHiracheryFrame> frames)
+void ClipFacade::SetFeatureMatrix(gsl::array_view<ArmatureFrame> frames, double duration, bool cyclic)
 {
 	assert(m_pParts != nullptr && m_flag != NotInitialize);
 
@@ -462,9 +487,13 @@ void ClipFacade::SetFeatureMatrix(gsl::array_view<BoneHiracheryFrame> frames)
 	auto& parts = *m_pParts;
 	int fLength = m_partDim.back() + m_partSt.back();
 
+	auto dt = duration / (frames.size() - (size_t)(!cyclic));
+	bool useVelocity = dt > 0;
+
 	m_X.resize(frames.size(), fLength);
 	for (int f = 0; f < frames.size(); f++)
 	{
+		auto& lastFrame = frames[f>0?f-1:frames.size()-1];
 		auto& frame = frames[f];
 		for (int i = 0; i < parts.size(); i++)
 		{
@@ -472,7 +501,10 @@ void ClipFacade::SetFeatureMatrix(gsl::array_view<BoneHiracheryFrame> frames)
 
 			auto fv = m_X.block(f, m_partSt[i], 1, m_partDim[i]);
 
-			fv = m_pFeature->Get(*part, frame);
+			if (!useVelocity)
+				fv = m_pFeature->Get(*part, frame);
+			else
+				fv = m_pFeature->Get(*part, frame, lastFrame, dt);
 		}
 	}
 }

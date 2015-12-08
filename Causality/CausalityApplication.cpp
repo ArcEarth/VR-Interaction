@@ -104,7 +104,7 @@ void App::OnStartup(const std::vector<std::string>& args)
 
 	pWindow = make_shared<NativeWindow>();
 	if (!pRift)
-		pWindow->Initialize(std::string("Ghost Trick"), 1920, 1080, false);
+		pWindow->Initialize(std::string("Ghost Trick"), 1800, 1080, false);
 	else
 	{
 		//auto res = pRift->Resoulution();

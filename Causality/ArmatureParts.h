@@ -26,15 +26,15 @@ namespace Causality
 		virtual int GetDimension() const = 0;
 		virtual int GetDimension(_In_ const ArmaturePart& block) const = 0;
 
-		//void Get(_In_ const ShrinkedArmature& parts, _Out_ Eigen::RowVectorXf& feature, _In_ const BoneHiracheryFrame& frame);
+		//void Get(_In_ const ShrinkedArmature& parts, _Out_ Eigen::RowVectorXf& feature, _In_ ArmatureFrameConstView frame);
 
-		//virtual void Get(_In_ const ArmaturePart& block, _Out_ Eigen::RowVectorXf& feature, _In_ const BoneHiracheryFrame& frame);
+		//virtual void Get(_In_ const ArmaturePart& block, _Out_ Eigen::RowVectorXf& feature, _In_ ArmatureFrameConstView frame);
 
-		virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) = 0;
+		virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) = 0;
 
-		virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) = 0;
+		virtual void Set(_In_ const ArmaturePart& block, _Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) = 0;
 
-		virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time);
+		virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame, _In_ ArmatureFrameConstView last_frame, float frame_time);
 	};
 
 	// A Kinematic Block is a one-chain in the kinmatic tree, with additional anyalaze information 
@@ -46,7 +46,7 @@ namespace Causality
 	public:
 		int					Index;				// Index for this block, valid only through this layer
 		vector<const Joint*>Joints;				// Contained Joints
-		//BoneHiracheryFrame			ChainFrame;			// Stores the length data and etc
+		//ArmatureFrame			ChainFrame;			// Stores the length data and etc
 
 		// Structural feature
 		int					LoD;				// Level of detail
@@ -100,13 +100,13 @@ namespace Causality
 		//float				MotionEnergy;		// Motion Energy Level
 		//float				PotientialEnergy;	// Potenial Energy Level
 
-		BoundingOrientedBox GetBoundingBox(const BoneHiracheryFrame& frame) const;
+		BoundingOrientedBox GetBoundingBox(ArmatureFrameConstView frame) const;
 
 		//template <class FeatureType>
-		//Eigen::RowVectorXf			GetFeatureVector(const BoneHiracheryFrame& frame, bool blockwiseLocalize = false) const;
+		//Eigen::RowVectorXf			GetFeatureVector(ArmatureFrameConstView frame, bool blockwiseLocalize = false) const;
 
 		//template <class FeatureType>
-		//void				SetFeatureVector(_Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) const;
+		//void				SetFeatureVector(_Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) const;
 		//template <class FeatureType>
 		//size_t				GetFeatureDim() const {
 		//	return FeatureType::Dimension * Joints.size();
@@ -164,7 +164,7 @@ namespace Causality
 	};
 
 	//template <class FeatureType>
-	//inline Eigen::RowVectorXf ArmaturePart::GetFeatureVector(const BoneHiracheryFrame & frame, bool blockwiseLocalize) const
+	//inline Eigen::RowVectorXf ArmaturePart::GetFeatureVector(ArmatureFrameConstView frame, bool blockwiseLocalize) const
 	//{
 	//	Eigen::RowVectorXf Y(GetFeatureDim<FeatureType>());
 	//	for (size_t j = 0; j < Joints.size(); j++)
@@ -184,7 +184,7 @@ namespace Causality
 	//}
 
 	//template <class FeatureType>
-	//inline void ArmaturePart::SetFeatureVector(BoneHiracheryFrame & frame, const Eigen::RowVectorXf & X) const
+	//inline void ArmaturePart::SetFeatureVector(ArmatureFrameView frame, const Eigen::RowVectorXf & X) const
 	//{
 	//	for (size_t j = 0; j < Joints.size(); j++)
 	//	{
@@ -194,7 +194,7 @@ namespace Causality
 	//	}
 	//}
 
-	//inline void IArmaturePartFeature::Get(_In_ const ShrinkedArmature& parts, _Out_ Eigen::RowVectorXf& feature, _In_ const BoneHiracheryFrame& frame)
+	//inline void IArmaturePartFeature::Get(_In_ const ShrinkedArmature& parts, _Out_ Eigen::RowVectorXf& feature, _In_ ArmatureFrameConstView frame)
 	//{
 	//	int stIdx = 0;
 	//	for (int i = 0; i < parts.size(); i++)

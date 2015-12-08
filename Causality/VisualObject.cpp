@@ -88,14 +88,17 @@ RenderFlags VisualObject::GetRenderFlags() const
 
 void VisualObject::Render(IRenderContext * pContext, IEffect* pEffect)
 {
+	auto& drawer = g_PrimitiveDrawer;
 	if (g_ShowCharacterMesh && m_pRenderModel)
+	{
+		pContext->RSSetState(drawer.GetStates()->CullNone());
 		m_pRenderModel->Render(pContext, GlobalTransformMatrix(), pEffect);
+	}
 
 	if (g_ShowCharacterMesh && g_DebugView && m_pRenderModel)
 	{
 		BoundingGeometry geo(m_pRenderModel->GetBoundingBox());
 		geo.Transform(geo, GlobalTransformMatrix());
-		auto& drawer = g_PrimitiveDrawer;
 		drawer.Begin();
 		DrawGeometryOutline(geo, Colors::Orange);
 		drawer.End();

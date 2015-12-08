@@ -57,7 +57,7 @@ namespace Causality
 		animation_clip_type* ParseAnimation(const ParamArchive* store);
 		behavier_type*		 ParseBehavier(const ParamArchive* store);
 
-		mesh_type*		     LoadObjMesh(const string & key, const string& fileName);
+		mesh_type*		     LoadObjMesh(const string & key, const string& fileName, bool flipNormal = false);
 		mesh_type*		     LoadFbxMesh(const string & key, const string& fileName, const std::shared_ptr<material_type> &pMaterial = nullptr);
 		mesh_type*		     LoadFbxMesh(const string & key, const string& fileName, bool importMaterial);
 		texture_type*	     LoadTexture(const string & key, const string& fileName);

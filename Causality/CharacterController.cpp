@@ -42,27 +42,27 @@ const static Eigen::IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n
 bool ReadGprParamXML(tinyxml2::XMLElement * blockSetting, Eigen::Vector3d &param);
 void InitGprXML(tinyxml2::XMLElement * settings, const std::string & blockName, gaussian_process_regression& gpr);
 
-std::ostream& operator<<(std::ostream& os, const Joint& joint)
+inline std::ostream& operator<<(std::ostream& os, const Joint& joint)
 {
 	os << joint.Name;
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const Joint* joint)
+inline std::ostream& operator<<(std::ostream& os, const Joint* joint)
 {
 	os << joint->Name;
 	return os;
 }
 
 template <class T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T> &vec)
+inline std::ostream& operator<<(std::ostream& os, const std::vector<T> &vec)
 {
 	cout << '{';
 	for (auto& t : vec)
 	{
 		cout << t << ", ";
 	}
-	cout << "\b}";
+	cout << "\b\b}";
 	return os;
 }
 
@@ -136,7 +136,7 @@ public:
 		}
 	}
 
-	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override
+	virtual void Transform(_Out_ frame_view target_frame, _In_ const_frame_view source_frame) override
 	{
 		const auto& blocks = *pBlockArmature;
 		RowVectorXd X, Y;
@@ -163,10 +163,10 @@ public:
 			}
 		}
 
-		target_frame.RebuildGlobal(*m_tArmature);
+		FrameRebuildGlobal(*m_tArmature, target_frame);
 	}
 
-	virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const
+	virtual void Transform(_Out_ frame_view target_frame, _In_ const_frame_view source_frame, _In_ const_frame_view last_frame, float frame_time) override
 	{
 		//if (!g_UseVelocity)
 		//{
@@ -188,7 +188,7 @@ public:
 		{
 			//X[0] *= 13;
 
-			if (block->Index >0 && block->ActiveActions.size() > 0)
+			if (block->Index > 0 && block->ActiveActions.size() > 0)
 			{
 				auto& sik = pController->GetStylizedIK(block->Index);
 				auto& gpr = sik.Gplvm();
@@ -244,18 +244,8 @@ public:
 				}
 
 				xf = X.cast<float>();
-				if (pHandles)
-				{
-					pHandles->at(block->Index).first = Vector3(xf.data());
-					if (g_UseVelocity && g_PvDimension == 6)
-					{
-						pHandles->at(block->Index).second = Vector3(xf.data() + 3);
-					}
-					else
-					{
-						pHandles->at(block->Index).second = Vector3::Zero;
-					}
-				}
+
+				SetVisualizeHandle(block, xf);
 
 				//m_Xs.row(block->Index) = X;
 				Xabs.emplace_back(X);
@@ -348,7 +338,23 @@ public:
 
 		target_frame[0].LclTranslation = source_frame[0].LclTranslation;
 		target_frame[0].GblTranslation = source_frame[0].GblTranslation;
-		target_frame.RebuildGlobal(*m_tArmature);
+		FrameRebuildGlobal(*m_tArmature, target_frame);
+	}
+
+	void SetVisualizeHandle(Causality::ArmaturePart *const & block, Eigen::RowVectorXf &xf)
+	{
+		if (pHandles)
+		{
+			pHandles->at(block->Index).first = Vector3(xf.data());
+			if (g_UseVelocity && g_PvDimension == 6)
+			{
+				pHandles->at(block->Index).second = Vector3(xf.data() + 3);
+			}
+			else
+			{
+				pHandles->at(block->Index).second = Vector3::Zero;
+			}
+		}
 	}
 
 	void Visualize();
@@ -364,6 +370,9 @@ public:
 
 CharacterController::~CharacterController()
 {
+}
+
+CharacterController::CharacterController() {
 }
 
 void CharacterController::Initialize(const IArmature & player, CharacterObject & character, const ParamArchive* settings)
@@ -384,7 +393,7 @@ std::mutex & CharacterController::GetBindingMutex()
 	return m_bindMutex;
 }
 
-void CharacterController::SetBinding(std::unique_ptr<ArmatureTransform> &&pBinding)
+void CharacterController::SetBinding(std::unique_ptr<ArmatureTransform> && pBinding)
 {
 	lock_guard<mutex> guard(m_bindMutex);
 	m_pBinding = move(pBinding);
@@ -414,21 +423,49 @@ ShrinkedArmature & Causality::CharacterController::ArmatureParts()
 	return Character().Behavier().ArmatureParts();
 }
 
-float CharacterController::UpdateTargetCharacter(const BoneHiracheryFrame & frame, const BoneHiracheryFrame & lastframe, double deltaTime) const
+float CharacterController::UpdateTargetCharacter(ArmatureFrameConstView frame, ArmatureFrameConstView lastframe, double deltaTime) const
 {
-	if (m_pBinding == nullptr)
+	auto bidning = m_pBinding.get();
+
+	if (bidning == nullptr)
 		return 0;
+
+	if (try_lock(m_bindMutex))
 	{
-		std::lock_guard<mutex> guard(m_bindMutex);
+		std::lock_guard<mutex> guard(m_bindMutex,adopt_lock);
 		auto& cframe = m_charaFrame;
-		BoneHiracheryFrame f(frame), lf(lastframe);
+		ArmatureFrame f(frame), lf(lastframe);
+		auto& sarm = bidning->SourceArmature();
 		if (g_IngnoreInputRootRotation)
 		{
-			auto& sarm = m_pBinding->SourceArmature();
 			RemoveFrameRootTransform(f, sarm);
 			RemoveFrameRootTransform(lf, sarm);
 		}
-		m_pBinding->Transform(cframe, f, lf, deltaTime);
+
+		// Linear interpolation between frames
+		if (deltaTime > g_MaxiumTimeDelta)
+		{
+			//! This code pass is buggy!
+			ArmatureFrame tf(frame.size()), ltf(lastframe);
+
+			int subStep = (int)ceil(deltaTime / g_MaxiumTimeDelta);
+			auto dt = deltaTime / subStep;
+
+			for (int iter = 0; iter < subStep; iter++)
+			{
+				auto t = (iter + 1)*(1.0 / (subStep));
+				FrameLerp(tf, lf, f, t, sarm);
+
+				cout << "sub step [" << iter << ']' << endl;
+				bidning->Transform(cframe, tf, ltf, dt);
+
+				ltf = tf;
+			}
+		}
+		else
+		{
+			bidning->Transform(cframe, f, lf, deltaTime);
+		}
 		m_pCharacter->MapCurrentFrameForUpdate() = m_charaFrame;
 		m_pCharacter->ReleaseCurrentFrameFrorUpdate();
 	}
@@ -540,7 +577,7 @@ void GetVolocity(_In_ const Eigen::DenseBase<DerivedX>& displacement, _Out_ Eige
 	velocity /= (2 * frame_time);
 }
 
-vector<BoneHiracheryFrame> CreateReinforcedFrames(const BehavierSpace& behavier)
+vector<ArmatureFrame> CreateReinforcedFrames(const BehavierSpace& behavier)
 {
 	auto& clips = behavier.Clips();
 	auto& parts = behavier.ArmatureParts();
@@ -559,7 +596,7 @@ vector<BoneHiracheryFrame> CreateReinforcedFrames(const BehavierSpace& behavier)
 			cyclips.push_back(i);
 	}
 
-	vector<BoneHiracheryFrame> frames(n * cyclips.size() * k);
+	vector<ArmatureFrame> frames(n * cyclips.size() * k);
 
 	int ci = 0;
 	double totalTime = 0;
@@ -577,8 +614,8 @@ vector<BoneHiracheryFrame> CreateReinforcedFrames(const BehavierSpace& behavier)
 		{
 			for (int j = 0; j < n; j++)
 			{
-				ScaleFrame(frames[stidx + j], dframe, factors[i]);
-				frames[stidx + j].RebuildGlobal(armature);
+				FrameScale(frames[stidx + j], dframe, factors[i]);
+				FrameRebuildGlobal(armature, frames[stidx + j]);
 			}
 		}
 	}
@@ -627,6 +664,21 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 			anim.IsCyclic = false;
 		else
 			anim.IsCyclic = true;
+	}
+
+	{
+		cout << chara.Name << " Armature Parts" << endl;
+		int i = 0;
+		for (auto pPart : parts)
+		{
+			auto& part = *pPart;
+			cout << "Part[" << i++ << "] = " << part.Joints;
+			if (part.SymetricPair != nullptr)
+			{
+				cout << " <--> {" << part.SymetricPair->Joints[0] << "...}";
+			}
+			cout << endl;
+		}
 	}
 
 	//clips.erase(std::remove_if(BEGIN_TO_END(clips), [](const auto& anim) ->bool {return !anim.IsCyclic;}), clips.end());
@@ -718,7 +770,7 @@ void CharacterController::SetTargetCharacter(CharacterObject & chara) {
 			auto& Eb = clipinfo.PvFacade.GetAllPartsEnergy();
 			globalEnergyMax = std::max(Eb.maxCoeff(), globalEnergyMax);
 
-			DEBUGOUT(Eb);
+			//DEBUGOUT(Eb);
 		}
 
 		std::set<int> avtiveSet;
@@ -827,7 +879,7 @@ MatrixXf CharacterController::GenerateXapv(const std::vector<int> &activeParts)
 	MatrixXi apMask = VectorXi::Map(activeParts.data(), activeParts.size()).replicate(1, pvDim).transpose();
 
 
-	apMask.array() = apMask.array() * pvDim + incX.replicate(1,apMask.cols());
+	apMask.array() = apMask.array() * pvDim + incX.replicate(1, apMask.cols());
 
 	auto maskVec = VectorXi::Map(apMask.data(), apMask.size());
 	selectCols(pvFacade.GetAllPartsSequence(), maskVec, &Xabpv);
@@ -1183,7 +1235,7 @@ float FindPartToPartTransform(_Inout_ P2PTransform& transform, const ClipFacade&
 		//RowVectorXf alpha = (rawY.cwiseAbs2().colwise().sum().array() / rawX.cwiseAbs2().colwise().sum().array()).cwiseSqrt();
 		//float err = (rawY - rawX * alpha.asDiagonal()).cwiseAbs2().sum();
 
-		auto Transf = FindIsometricTransformXY(rawX, rawY,&err);
+		auto Transf = FindIsometricTransformXY(rawX, rawY, &err);
 		auto rank = rawX.cols();
 
 		transform.HomoMatrix.setIdentity(4, 4);
@@ -1265,12 +1317,13 @@ void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipFacad
 					auto cu = iclip.GetPartsDifferenceCovarience(Juk[i], Juk[j]);
 					auto cc = cclip.GetPartsDifferenceCovarience(Jck[si], Jck[sj]);
 
-					auto& sparti = *sparts[i];
-					auto& spartj = *sparts[j];
-					auto& cparti = *cparts[si];
-					auto& cpartj = *cparts[sj];
+					auto& sparti = *sparts[Juk[i]];
+					auto& spartj = *sparts[Juk[j]];
+					auto& cparti = *cparts[Jck[si]];
+					auto& cpartj = *cparts[Jck[sj]];
 
 					float val = 0;
+					// both are non-zero
 					if (xu.norm() > 0.1f && xc.norm() > 0.1f)
 					{
 
@@ -1278,18 +1331,24 @@ void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipFacad
 						RowVector3f _x = xu.array() * xc.array();
 						_x /= xu.norm() * xc.norm();
 						val = (_x.array() /** edim.transpose()*/).sum();
-						C(i, j, si, sj) = val;
-						C(j, i, sj, si) = val;
-						C(i, j, sj, si) = -val;
-						C(j, i, si, sj) = -val;
 
+						float extra = .0f;
 						// structrual bounus
-						if (is_symetric(cparti,cpartj))
+						if (is_symetric(cparti, cpartj))
 						{
 							if (is_symetric(sparti, spartj))
-								val += 0.3f;
+								extra += g_StructrualSymtricBonus;
+							else
+								extra -= g_StructrualDisSymtricPenalty;
 						}
-					}
+
+						C(i, j, si, sj) = val + extra;
+						C(j, i, sj, si) = val + extra;
+						C(i, j, sj, si) = -val + extra;
+						C(j, i, si, sj) = -val + extra;
+
+
+					} // one of them is zero
 					else if (xu.norm() + xc.norm() > 0.1f)
 					{
 						val = -1.0f;
@@ -1298,7 +1357,7 @@ void CaculateQuadraticDistanceMatrix(Eigen::Tensor<float, 4> &C, const ClipFacad
 						C(i, j, sj, si) = val;
 						C(j, i, si, sj) = val;
 					}
-					else
+					else // both zero
 					{
 						C(i, j, si, sj) = 0;
 						C(j, i, sj, si) = 0;
@@ -1329,12 +1388,16 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 	auto& clipinfos = controller.GetClipInfos();
 
 	controller.CharacterScore = numeric_limits<float>::min();
-	auto& anim = character.Behavier()["walk"];
+	//auto& anim = character.Behavier()["walk"];
 
 	//if (character.CurrentAction() == nullptr)
 	//	return 0.0f;
 
-	//auto& anim = *character.CurrentAction();
+	auto panim = character.CurrentAction();
+	if (panim == nullptr)
+		panim = &character.Behavier()["walk"];
+
+	auto& anim = *panim;
 
 	int T = iclip.ClipFrames(); //? /2 Maybe?
 	const std::vector<int> &Juk = iclip.ActiveParts();
@@ -1353,7 +1416,7 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 	std::vector<unique_ptr<PartilizedTransformer>> clipTransforms;
 	clipTransforms.reserve(clips.size());
 	Eigen::VectorXf clipTransformScores(clips.size());
-
+	clipTransformScores.setZero();
 	//for (auto& cclip : controller.GetClipInfos())	//? <= 5 animation per character
 	{
 		auto& cclip = controller.GetClipInfo(anim.Name);
@@ -1527,7 +1590,17 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 		auto pTransformer = new PartilizedTransformer(userParts, controller);
 		pTransformer->ActiveParts = move(partTransforms);
 
-		pTransformer->SetupTrackers(partAssignError,5,0.1,0.1,0.3,0.3,5.0,1,3);
+		pTransformer->SetupTrackers(
+			partAssignError, 
+			g_TrackerSubStep,
+			g_TrackerVtProgationStep,
+			g_TrackerScaleProgationStep,
+			g_TrackerStDevVt,
+			g_TrackerStDevScale,
+			g_TrackerTimeSubdivide,
+			g_TrackerVtSubdivide,
+			g_TrackerSclSubdivide);
+
 		pTransformer->EnableTracker(anim.Name);
 		pTransformer->GenerateDrivenAccesseryControl();
 
@@ -1536,16 +1609,16 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 	} // Animation clip scope
 
-	DenseIndex maxClipIdx = 0;
-	float maxScore = clipTransformScores.maxCoeff(&maxClipIdx);
+	DenseIndex maxClipIdx = -1;
+	float maxScore = clipTransformScores.segment(0, clipTransforms.size()).maxCoeff(&maxClipIdx);
 
 	cout << maxScore << endl;
-	if (&controller.Binding() == nullptr || maxScore > controller.CharacterScore * 1.2)
+	if (maxClipIdx >= 0 && (&controller.Binding() == nullptr || maxScore > controller.CharacterScore * 1.2))
 	{
-		auto pBinding = move(clipTransforms[maxClipIdx]);
-
-		controller.SetBinding(move(pBinding));
+		cout << "Trying to set binding..." << endl;
+		controller.SetBinding(move(clipTransforms[maxClipIdx]));
 		controller.CharacterScore = maxScore;
+		cout << "Finished set binding" << endl;
 	}
 
 	return maxScore;
@@ -1566,11 +1639,11 @@ float CreateControlTransform(CharacterController & controller, const ClipFacade&
 
 }
 
-void Causality::RemoveFrameRootTransform(BoneHiracheryFrame & frame, const IArmature & armature)
+void Causality::RemoveFrameRootTransform(ArmatureFrameView frame, const IArmature & armature)
 {
 	auto& rotBone = frame[armature.root()->ID];
 	rotBone.GblRotation = rotBone.LclRotation = Math::Quaternion::Identity;
 	rotBone.GblTranslation = rotBone.LclTranslation = Math::Vector3::Zero;
 	rotBone.GblScaling = rotBone.LclScaling = Math::Vector3::One;
-	frame.RebuildGlobal(armature);
+	FrameRebuildGlobal(armature, frame);
 }

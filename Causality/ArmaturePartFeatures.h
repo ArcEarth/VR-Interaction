@@ -25,7 +25,7 @@ namespace Causality
 				return block.Joints.size() * BoneFeatureType::Dimension;
 			}
 
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) override
 			{
 				Eigen::RowVectorXf Y(block.Joints.size() * BoneFeatureType::Dimension);
 				for (size_t j = 0; j < block.Joints.size(); j++)
@@ -38,7 +38,7 @@ namespace Causality
 				return Y;
 			}
 
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) override
 			{
 				for (size_t j = 0; j < block.Joints.size(); j++)
 				{
@@ -85,7 +85,7 @@ namespace Causality
 				m_pcas[bid] = principleComponents;
 			}
 
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) override
 			{
 				auto X = PartFeatureType::Get(block, frame);
 
@@ -93,7 +93,7 @@ namespace Causality
 				return (X - m_means[bid]) * m_pcas[bid];
 			}
 
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) override
 			{
 				auto bid = block.Index;
 				auto X = (feature * m_pcas[bid].transpose() + m_means[bid]).eval();
@@ -117,7 +117,7 @@ namespace Causality
 				return PartFeatureType::GetDimension(block) * 2;
 			}
 
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) override
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame, _In_ ArmatureFrameConstView last_frame, float frame_time) override
 			{
 				int dim = PartFeatureType::GetDimension(block);
 				Eigen::RowVectorXf Y(dim * 2);
@@ -130,11 +130,50 @@ namespace Causality
 				return Y;
 			}
 
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) override
 			{
 				int dim = PartFeatureType::GetDimension(block);
 				assert(feature.cols() == dim * 2);
 				PartFeatureType::Set(block, frame, feature.segment(0, dim));
+			}
+		};
+
+		template <class PartFeatureType>
+		class NormalizeVelocity : public WithVelocity<PartFeatureType>
+		{
+		private:
+			float m_VelThred;
+		public:
+			NormalizeVelocity()
+				: m_VelThred(0.01f)
+			{
+			}
+
+			float GetVelocityThreshold() const
+			{
+				return m_VelThred;
+			}
+
+			void SetVelocityThreshold(float threshold)
+			{
+				m_VelThred = threshold;
+			}
+
+			using BaseType = WithVelocity<PartFeatureType>;
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame, _In_ ArmatureFrameConstView last_frame, float frame_time) override
+			{
+				int dim = PartFeatureType::GetDimension(block);
+				Eigen::RowVectorXf Y = BaseType::Get(block,frame,last_frame,frame_time);
+
+				auto vel = Y.segment(dim, dim);
+				auto norm = vel.norm();
+
+				if (norm > m_VelThred)
+					vel /= norm;
+				else
+					vel.setZero();
+
+				return Y;
 			}
 		};
 
@@ -144,7 +183,7 @@ namespace Causality
 		public:
 			static_assert(std::is_base_of<IArmaturePartFeature, PartFeatureType>::value, "PartFeatureType must be derived type of IArmaturePartFeature");
 
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) override
 			{
 				Eigen::RowVectorXf Y = PartFeatureType::Get(block, frame);
 
@@ -156,7 +195,7 @@ namespace Causality
 				return Y;
 			}
 
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) override
 			{
 				assert(!"Localize could not be use to set frame");
 			}
@@ -166,7 +205,7 @@ namespace Causality
 		class Localize<AllJoints<BoneFeatureType>> : public AllJoints<BoneFeatureType>
 		{
 			typedef AllJoints<BoneFeatureType> PartFeatureType;
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) override
 			{
 				Eigen::RowVectorXf Y = PartFeatureType::Get(block, frame);
 
@@ -197,7 +236,7 @@ namespace Causality
 				return BoneFeatureType::Dimension;
 			}
 
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) override
 			{
 				Eigen::RowVectorXf Y(BoneFeatureType::Dimension);
 
@@ -206,7 +245,7 @@ namespace Causality
 				return Y;
 			}
 
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) override
 			{
 				assert(!"End Effector only block feature could not be use to set frame");
 			}
@@ -219,14 +258,14 @@ namespace Causality
 			static_assert(std::is_base_of<IArmaturePartFeature, PartFeatureType>::value, "PartFeatureType must be derived type of IArmaturePartFeature");
 			using PartFeatureType::BoneFeatureType;
 
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) override
 			{
 				Eigen::RowVectorXf Y = PartFeatureType::Get(block, frame);
 				Y.array() *= m_Weights.segment(m_Idices[block.Index], Y.size()).array();
 				return Y;
 			}
 
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) override
 			{
 
 				Eigen::RowVectorXf Y = feature;
@@ -270,7 +309,7 @@ namespace Causality
 
 			using PartFeatureType::PartFeatureType;
 
-			void SetDefaultFrame(const BoneHiracheryFrame& frame)
+			void SetDefaultFrame(ArmatureFrameConstView frame)
 			{
 				m_rframe = m_rlframe = m_dframe = m_dframeInv = frame;
 				for (auto& bone : m_dframeInv)
@@ -281,7 +320,7 @@ namespace Causality
 			}
 
 		protected:
-			void GetRelativeFrame(const Causality::ArmaturePart & block, const Causality::BoneHiracheryFrame & frame)
+			void GetRelativeFrame(const ArmaturePart & block, ArmatureFrameConstView frame)
 			{
 				for (auto joint : block.Joints)
 				{
@@ -295,7 +334,7 @@ namespace Causality
 				}
 			}
 
-			void SetAbsoluteFrame(const Causality::ArmaturePart & block, _Out_ Causality::BoneHiracheryFrame & frame)
+			void SetAbsoluteFrame(const ArmaturePart & block, _Out_ ArmatureFrameView frame)
 			{
 				for (auto joint : block.Joints)
 				{
@@ -307,26 +346,26 @@ namespace Causality
 			}
 
 		public:
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) override
 			{
 				GetRelativeFrame(block, frame);
 				return PartFeatureType::Get(block, m_rframe);
 			}
 
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) override
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame, _In_ ArmatureFrameConstView last_frame, float frame_time) override
 			{
 				GetRelativeFrame(block, frame);
 				return PartFeatureType::Get(block, m_rframe);
 			}
 
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) override
 			{
 				PartFeatureType::Set(block, m_rframe, feature);
 				SetAbsoluteFrame(block, frame);
 			}
 
 		private:
-			BoneHiracheryFrame m_dframe, m_dframeInv, m_rframe, m_rlframe;
+			ArmatureFrame m_dframe, m_dframeInv, m_rframe, m_rlframe;
 		};
 	}
 }

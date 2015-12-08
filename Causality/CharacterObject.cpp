@@ -135,6 +135,7 @@ const BehavierSpace & CharacterObject::Behavier() const { return *m_pBehavier; }
 void CharacterObject::SetBehavier(BehavierSpace & behaver) {
 	m_pBehavier = &behaver;
 	m_pArmature = &m_pBehavier->Armature();
+	m_CurrentFrame.resize(m_pArmature->size());
 }
 
 const ArmatureFrameAnimation * CharacterObject::CurrentAction() const { return m_pCurrentAction; }
@@ -206,7 +207,7 @@ void CharacterObject::Update(time_seconds const & time_delta)
 	if (m_pSkinModel)
 	{
 		auto pBones = m_BoneTransforms.data();
-		BoneHiracheryFrame::TransformMatrix(pBones, Armature().default_frame(), m_CurrentFrame, m_pSkinModel->GetBonesCount());
+		FrameTransformMatrix(pBones, Armature().default_frame(), m_CurrentFrame, m_pSkinModel->GetBonesCount());
 	}
 }
 
@@ -343,7 +344,7 @@ void CharacterObject::EnabeAutoDisplacement(bool is_enable)
 	m_SpeedFilter.Reset();
 }
 
-void Causality::DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color* colors, const Matrix4x4 & world, float thinkness)
+void Causality::DrawArmature(const IArmature & armature, ArmatureFrameConstView frame, const Color* colors, const Matrix4x4 & world, float thinkness)
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 
@@ -372,7 +373,7 @@ void Causality::DrawArmature(const IArmature & armature, const BoneHiracheryFram
 }
 
 
-void Causality::DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness)
+void Causality::DrawArmature(const IArmature & armature, ArmatureFrameConstView frame, const Color & color, const Matrix4x4 & world, float thinkness)
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 

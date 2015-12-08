@@ -89,9 +89,9 @@ namespace Causality
 		void							Prepare(const ShrinkedArmature& parts, int clipLength = -1, int flag = ComputeAll);
 		void							SetComputationFlags(int flags);
 
-		void							AnalyzeSequence(gsl::array_view<BoneHiracheryFrame> frames, double sequenceTime);
+		void							AnalyzeSequence(gsl::array_view<ArmatureFrame> frames, double sequenceTime);
 
-		void							SetFeatureMatrix(gsl::array_view<BoneHiracheryFrame> frames);
+		void							SetFeatureMatrix(gsl::array_view<ArmatureFrame> frames, double duration, bool cyclic);
 		void							SetFeatureMatrix(const Eigen::MatrixXf& X) { m_inited = false; m_X = X; }
 		void							SetFeatureMatrix(Eigen::MatrixXf&& X) { m_inited = false; m_X = std::move(X); }
 		Eigen::MatrixXf&				SetFeatureMatrix() { m_inited = false; return m_X; }
@@ -245,7 +245,7 @@ namespace Causality
 
 		void Initialize(const ShrinkedArmature& parts);
 
-		void AnalyzeSequence(gsl::array_view<BoneHiracheryFrame> frames, double sequenceTime);
+		void AnalyzeSequence(gsl::array_view<ArmatureFrame> frames, double sequenceTime);
 
 		explicit CharacterClipinfo(const ShrinkedArmature& parts);
 
@@ -274,7 +274,7 @@ namespace Causality
 	{
 	public:
 		typedef IArmatureStreamAnimation::frame_type FrameType;
-
+		~CyclicStreamClipinfo();
 		// set interval_frames == 0 to automaticly estimate based on windows size and sample rate
 		CyclicStreamClipinfo(ShrinkedArmature& parts, time_seconds minT, time_seconds maxT, double sampleRateHz, size_t interval_frames = 0);
 		CyclicStreamClipinfo();
@@ -287,18 +287,19 @@ namespace Causality
 
 		void ResetStream();
 
-		ClipFacade& AqucireFacade()
+		std::mutex& AqucireFacadeMutex();
+
+		ClipFacade& AsFacade()
 		{
-			m_facadeMutex.lock();
-			return static_cast<ClipFacade&>(*this);
+			return *this;
 		}
 
-		void		ReleaseFacade()
+		const ClipFacade& AsFacade() const
 		{
-			m_facadeMutex.unlock();
+			return *this;
 		}
 
-		void EnableCyclicMotionDetection(bool is_enable = true) { m_enableCyclicDtc = is_enable; }
+		void EnableCyclicMotionDetection(bool is_enable = true, float cyclicSupportThrehold = 0.65f);
 
 	protected:
 		void InitializePvFacade(ShrinkedArmature& parts);

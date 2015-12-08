@@ -223,7 +223,7 @@ void Scene::SetupEffectsLights(DirectX::IEffect * pEffect)
 		ID3D11ShaderResourceView* shadow;
 	};
 
-	XMVECTOR ambient = XMVectorSet(0.35, 0.35, 0.35, 1.0f);
+	XMVECTOR ambient = XMVectorSet(0.5f, 0.5f, 0.5f, 1.0f);
 
 	static const int MaxLights = IEffectLights::MaxDirectionalLights;
 	LightParam Lps[MaxLights];

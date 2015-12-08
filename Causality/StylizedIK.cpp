@@ -33,7 +33,7 @@ StylizedChainIK::StylizedChainIK()
 	Reset();
 }
 
-StylizedChainIK::StylizedChainIK(const std::vector<const Joint*>& joints, const BoneHiracheryFrame & defaultframe)
+StylizedChainIK::StylizedChainIK(const std::vector<const Joint*>& joints, ArmatureFrameConstView defaultframe)
 	: StylizedChainIK()
 {
 	SetChain(joints, defaultframe);
@@ -44,7 +44,7 @@ void Causality::StylizedChainIK::SetFeatureDecoder(std::unique_ptr<IFeatureDecod
 	m_fpDecoder = move(decoder);
 }
 
-void Causality::StylizedChainIK::SetChain(const std::vector<const Joint*>& joints, const BoneHiracheryFrame & defaultframe)
+void Causality::StylizedChainIK::SetChain(const std::vector<const Joint*>& joints, ArmatureFrameConstView defaultframe)
 {
 	m_chain.resize(joints.size());
 	m_chainRot.resize(joints.size());

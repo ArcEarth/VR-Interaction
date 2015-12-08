@@ -220,17 +220,17 @@ namespace Causality
 		mutable std::mutex			m_BufferMutex;
 	};
 
-	typedef Causality::BoneHiracheryFrame BodyFrame;
+	typedef Causality::ArmatureFrame BodyFrame;
 
 	// TrackedBody will host frames streaming from the Sensor
 	// You can select to process all frams incoming or the lastest one only
 	class TrackedBody : public IArmatureStreamAnimation
 	{
 	public:
-		typedef Causality::BoneHiracheryFrame		FrameType;
+		typedef Causality::ArmatureFrame		FrameType;
 
-		typedef LowPassDynamicFilter<Vector3, float>			Vector3DynamicFilter;
-		typedef LowPassDynamicFilter<QuaternionWrapper, float>  QuaternionDynamicFilter;
+		typedef LowPassDynamicFilter<Vector3, float>	Vector3DynamicFilter;
+		typedef LowPassDynamicFilter<Quaternion, float> QuaternionDynamicFilter;
 
 		// Allows KinectSensor to modify
 	private:

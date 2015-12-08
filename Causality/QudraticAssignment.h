@@ -109,11 +109,13 @@ namespace Eigen
 					optAss.assign(s.begin(), s.begin() + nx);
 					optScore = score;
 				}
+#ifdef _DEBUG
 				for (auto& i : s)
 				{
 					cout << i << ' ';
 				}
-				//cout << ':' << score << endl;
+				cout << ':' << score << endl;
+#endif
 			} while (std::next_permutation(s.begin(), s.begin() + nx));
 		} while (next_combination(s.begin(), s.begin() + nx, s.end()));
 

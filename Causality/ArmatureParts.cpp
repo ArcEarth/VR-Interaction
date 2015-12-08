@@ -7,6 +7,13 @@ using namespace DirectX;
 using namespace Eigen;
 using namespace std;
 
+//bool is_symetric(const ArmaturePart& lhs, const ArmaturePart& rhs)
+//{
+//	return
+//		(lhs.SymetricPair != nullptr && lhs.SymetricPair->Index == rhs.Index)
+//		|| (rhs.SymetricPair != nullptr && rhs.SymetricPair->Index == lhs.Index);
+//}
+
 void ShrinkedArmature::SetArmature(const IArmature & armature)
 {
 	m_pArmature = &armature;
@@ -20,6 +27,22 @@ void ShrinkedArmature::SetArmature(const IArmature & armature)
 		block.AccumulatedJointCount = accumIdx;
 		accumIdx += block.Joints.size();
 		//block.Wx = block.Wx.array().exp();
+	}
+
+	for (auto part : m_Parts)
+	{
+		auto pMj = part->Joints[0]->MirrorJoint;
+		if (pMj != nullptr && pMj->MirrorJoint == part->Joints[0])
+		{
+			auto itr = std::find_if(m_Parts.begin(), m_Parts.end(), [pMj](auto part)->bool {
+				return part->Joints[0] == pMj;
+			});
+			if (itr != m_Parts.end())
+			{
+				(*itr)->SymetricPair == part;
+				part->SymetricPair = *itr;
+			}
+		}
 	}
 }
 
@@ -61,7 +84,7 @@ IArmaturePartFeature::~IArmaturePartFeature()
 {
 }
 
-Eigen::RowVectorXf IArmaturePartFeature::Get(const ArmaturePart& block, const BoneHiracheryFrame& frame, const BoneHiracheryFrame& last_frame, float frame_time)
+Eigen::RowVectorXf IArmaturePartFeature::Get(const ArmaturePart& block, ArmatureFrameConstView frame, ArmatureFrameConstView last_frame, float frame_time)
 {
 	return Get(block, frame);
 }

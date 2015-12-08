@@ -84,9 +84,11 @@ AssetDictionary::mesh_type * AssetDictionary::ParseMesh(const ParamArchive * sto
 	const char* name = nullptr;
 	const char* src = nullptr;
 	const char* mat = nullptr;
+	bool flipNormal = false;
 	GetParam(store, "src", src);
 	GetParam(store, "name", name);
 	GetParam(store, "material", mat);
+	GetParam(store, "flip_normal", flipNormal);
 
 	if (!strcmp(type, "box"))
 	{
@@ -104,7 +106,7 @@ AssetDictionary::mesh_type * AssetDictionary::ParseMesh(const ParamArchive * sto
 			boost::filesystem::path ref(src);
 			if (ref.extension().string() == ".obj")
 			{
-				auto mesh = LoadObjMesh(name, src);
+				auto mesh = LoadObjMesh(name, src, flipNormal);
 				return mesh;
 			}
 			else if (ref.extension().string() == ".fbx")
@@ -150,6 +152,8 @@ sptr<AssetDictionary::material_type> AssetDictionary::ParseMaterial(const ParamA
 	GetParam(store, "alpha_discard", data.UseAlphaDiscard);
 
 	GetParam(store, "diffuse_color", data.DiffuseColor);
+	if (!GetParam(store, "alpha", data.Alpha) && data.DiffuseColor.A() != 1.0f)
+		data.Alpha = data.DiffuseColor.A();
 	GetParam(store, "ambient_color", data.AmbientColor);
 	GetParam(store, "specular_color", data.SpecularColor);
 	GetParam(store, "emissive_color", data.EmissiveColor);
@@ -262,10 +266,10 @@ inline std::wstring towstring(const string& str)
 	return std::wstring(str.begin(), str.end());
 }
 
-AssetDictionary::mesh_type * AssetDictionary::LoadObjMesh(const string & key, const string & fileName)
+AssetDictionary::mesh_type * AssetDictionary::LoadObjMesh(const string & key, const string & fileName, bool flipNormal)
 {
 	typedef DefaultStaticModel mesh_type;
-	auto *pObjModel = DefaultStaticModel::CreateFromObjFile((mesh_directory / fileName).wstring(), m_device.Get(), texture_directory.wstring());
+	auto *pObjModel = DefaultStaticModel::CreateFromObjFile((mesh_directory / fileName).wstring(), m_device.Get(), texture_directory.wstring(), flipNormal);
 	if (!pObjModel)
 		return nullptr;
 	meshes[key] = pObjModel;

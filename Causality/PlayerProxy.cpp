@@ -46,7 +46,6 @@ const static Eigen::IOFormat CSVFormat(StreamPrecision, DontAlignCols, ", ", "\n
 
 std::map<string, string> g_DebugLocalMotionAction;
 bool					 g_DebugLocalMotion = false;
-bool					 g_ForceRemappingAlwaysOn = false;
 
 static const DirectX::XMVECTORF32 HumanBoneColors[JointType_Count] = {
 	{ 0.0f,0.0f,0.0f,0.0f }, //JointType_SpineBase = 0,
@@ -135,7 +134,7 @@ void PlayerProxy::StreamPlayerFrame(const TrackedBody& body, const TrackedBody::
 	}
 
 	bool newMetric = m_CyclicInfo.StreamFrame(m_pushFrame);
-	if (newMetric && !m_mapTaskOnGoing)
+	if (newMetric && !m_mapTaskOnGoing/* && (m_mapTask.empty() || m_mapTask.is_done())*/)
 	{
 		m_mapTaskOnGoing = true;
 		m_mapTask = concurrency::create_task([this]() {
@@ -161,6 +160,31 @@ void PlayerProxy::ResetPlayer(TrackedBody * pOld, TrackedBody * pNew)
 		StopUpdateThread();
 }
 
+inline std::ostream& operator<<(std::ostream& os, const Joint& joint)
+{
+	os << joint.Name;
+	return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const Joint* joint)
+{
+	os << joint->Name;
+	return os;
+}
+
+template <class T>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<T> &vec)
+{
+	cout << '{';
+	for (auto& t : vec)
+	{
+		cout << t << ", ";
+	}
+	cout << "\b\b}";
+	return os;
+}
+
+
 
 PlayerProxy::PlayerProxy()
 	: m_IsInitialized(false),
@@ -179,6 +203,22 @@ PlayerProxy::PlayerProxy()
 	if (m_pParts->empty())
 	{
 		m_pParts->SetArmature(*m_pPlayerArmature);
+
+		{
+			cout << "Player Armature Parts" << endl;
+			int i = 0;
+			auto& parts = *m_pParts;
+			for (auto pPart : parts)
+			{
+				auto& part = *pPart;
+				cout << "Part[" << i++ << "] = " << part.Joints;
+				if (part.SymetricPair != nullptr)
+				{
+					cout << " <--> {" << part.SymetricPair->Joints[0] << "...}";
+				}
+				cout << endl;
+			}
+		}
 	}
 
 	m_CyclicInfo.Initialize(*m_pParts, time_seconds(0.5), time_seconds(3), 30, 0);
@@ -426,20 +466,22 @@ int PlayerProxy::MapCharacterByLatestMotion()
 	auto& player = *m_playerSelector;
 
 	CharacterController* pControl = nullptr;
-	auto& ifacade = m_CyclicInfo.AqucireFacade();
-	for (auto& controller : m_Controllers)			//? <= 5 character
 	{
-		if (!controller.IsReady)
-			continue;
-		controller.CreateControlBinding(ifacade);
+		std::lock_guard<std::mutex> guard(m_CyclicInfo.AqucireFacadeMutex());
+		cout << "FacadeLock Aquired" << endl;
+		for (auto& controller : m_Controllers)			//? <= 5 character
+		{
+			if (!controller.IsReady)
+				continue;
+			controller.CreateControlBinding(m_CyclicInfo.AsFacade());
 
-		if (!pControl || controller.CharacterScore > pControl->CharacterScore)
-			pControl = &controller;
+			if (!pControl || controller.CharacterScore > pControl->CharacterScore)
+				pControl = &controller;
+		}
+		cout << "FacadeLock Releasing" << endl;
 	}
-
 	// Disable re-matching when the controller has not request
 	m_CyclicInfo.EnableCyclicMotionDetection(false);
-	m_CyclicInfo.ReleaseFacade();
 
 	if (!pControl) return -1;
 
@@ -601,7 +643,7 @@ void PlayerProxy::OnKeyUp(const KeyboardEventArgs & e)
 		cout << "Persudo-Physics Walk = " << g_UsePersudoPhysicsWalk << endl;
 		for (auto& controller : m_Controllers)
 		{
-			controller.Character().EnabeAutoDisplacement(g_UsePersudoPhysicsWalk);
+			controller.Character().EnabeAutoDisplacement(g_UsePersudoPhysicsWalk && controller.ID == m_CurrentIdx);
 		}
 	}
 	else if (e.Key == 'M')
@@ -676,7 +718,7 @@ RenderFlags Causality::PlayerProxy::GetRenderFlags() const
 	return RenderFlags::SpecialEffects;
 }
 
-void AddNoise(BoneHiracheryFrame& frame, float sigma)
+void AddNoise(ArmatureFrameView frame, float sigma)
 {
 	//static std::random_device rd;
 	//static std::mt19937 gen(rd());
@@ -777,8 +819,8 @@ void PlayerProxy::Update(time_seconds const & time_delta)
 void PlayerProxy::UpdateSelfMotionBinder(const Causality::time_seconds & time_delta)
 {
 	current_time += time_delta;
-	BoneHiracheryFrame last_frame;
-	BoneHiracheryFrame anotherFrame, anotherLastFrame;
+	ArmatureFrame last_frame;
+	ArmatureFrame anotherFrame, anotherLastFrame;
 	for (auto& controller : m_Controllers)
 	{
 		if (!controller.IsReady)
@@ -792,6 +834,7 @@ void PlayerProxy::UpdateSelfMotionBinder(const Causality::time_seconds & time_de
 		auto frame = controller.Character().Armature().default_frame();
 
 		target_frame = frame;
+		last_frame = frame;
 		action.GetFrameAt(frame, current_time);
 		action.GetFrameAt(last_frame, current_time - time_delta);
 
@@ -853,11 +896,11 @@ bool PlayerProxy::IsVisible(const DirectX::BoundingGeometry & viewFrustum) const
 	return true;
 }
 
-void DrawJammedGuidingVectors(const ShrinkedArmature & barmature, const BoneHiracheryFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness = 0.015f)
+void DrawJammedGuidingVectors(const ShrinkedArmature & barmature, ArmatureFrameConstView frame, const Color & color, const Matrix4x4 & world, float thinkness = 0.015f)
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 	using namespace DirectX;
-	if (frame.empty())
+	if (frame.size() == 0)
 		return;
 	//g_PrimitiveDrawer.SetWorld(world);
 	g_PrimitiveDrawer.SetWorld(XMMatrixIdentity());
@@ -889,11 +932,11 @@ void DrawJammedGuidingVectors(const ShrinkedArmature & barmature, const BoneHira
 
 }
 
-void DrawGuidingVectors(const ShrinkedArmature & barmature, const BoneHiracheryFrame & frame, const Color & color, const Matrix4x4 & world, float thinkness = 0.015f)
+void DrawGuidingVectors(const ShrinkedArmature & barmature, ArmatureFrameConstView frame, const Color & color, const Matrix4x4 & world, float thinkness = 0.015f)
 {
 	using DirectX::Visualizers::g_PrimitiveDrawer;
 	using namespace DirectX;
-	if (frame.empty())
+	if (frame.size() == 0)
 		return;
 	//g_PrimitiveDrawer.SetWorld(world);
 	g_PrimitiveDrawer.SetWorld(XMMatrixIdentity());
@@ -964,7 +1007,7 @@ void DrawControllerHandle(const CharacterController& controller)
 
 void PlayerProxy::Render(IRenderContext * context, DirectX::IEffect* pEffect)
 {
-	BoneHiracheryFrame charaFrame;
+	Bone charaFrame[100];
 
 	if (g_DebugLocalMotion && g_DebugView)
 	{

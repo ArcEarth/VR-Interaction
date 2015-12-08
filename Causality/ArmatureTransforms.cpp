@@ -16,11 +16,12 @@ using namespace Causality;
 using namespace ArmaturePartFeatures;
 using namespace Eigen;
 
+static constexpr size_t MAX_FRAME_RATE = 30;
 
 bool g_GestureMappingOnly = true;
-int  g_TrackerTopK = 10;
+int  g_TrackerTopK = 30;
 
-double g_DynamicTraderKeyEnergy = 0.4;
+double g_DynamicTraderKeyEnergy = 0.2;
 extern double g_CurvePower;
 
 extern random_device g_rand;
@@ -76,7 +77,7 @@ T sqr(T x)
 }
 
 template <typename Derived>
-int GetFrameVector(IArmaturePartFeature* feature, _Out_ Eigen::DenseBase<Derived>& v, const BoneHiracheryFrame& frame, const ShrinkedArmature& parts)
+int GetFrameVector(IArmaturePartFeature* feature, _Out_ Eigen::DenseBase<Derived>& v, ArmatureFrameConstView frame, const ShrinkedArmature& parts)
 {
 	VectorXf vp;
 	int idx = 0;
@@ -90,7 +91,7 @@ int GetFrameVector(IArmaturePartFeature* feature, _Out_ Eigen::DenseBase<Derived
 }
 
 template <typename Derived>
-int SetFrameVector(IArmaturePartFeature* feature, _In_ const Eigen::DenseBase<Derived>& v, BoneHiracheryFrame& frame, const ShrinkedArmature& parts)
+int SetFrameVector(IArmaturePartFeature* feature, _In_ const Eigen::DenseBase<Derived>& v, ArmatureFrameView frame, const ShrinkedArmature& parts)
 {
 	RowVectorXf vp;
 	int idx = 0;
@@ -114,7 +115,7 @@ int EndEffectorGblPosQuadratized::GetDimension(const ArmaturePart& block) const
 	return 9;
 }
 
-RowVectorXf EndEffectorGblPosQuadratized::Get(const ArmaturePart & block, const BoneHiracheryFrame & frame)
+RowVectorXf EndEffectorGblPosQuadratized::Get(const ArmaturePart & block, ArmatureFrameConstView frame)
 {
 	using namespace Eigen;
 	RowVectorXf Y(BoneFeatureType::Dimension);
@@ -141,7 +142,7 @@ RowVectorXf EndEffectorGblPosQuadratized::Get(const ArmaturePart & block, const 
 
 // Inherited via IArmaturePartFeature
 
-void EndEffectorGblPosQuadratized::Set(const ArmaturePart & block, BoneHiracheryFrame & frame, const RowVectorXf & feature)
+void EndEffectorGblPosQuadratized::Set(const ArmaturePart & block, ArmatureFrameView frame, const RowVectorXf & feature)
 {
 	assert(false);
 }
@@ -164,7 +165,7 @@ void BlockizedArmatureTransform::SetFrom(const ShrinkedArmature * pSourceBlock, 
 	m_tArmature = &pTargetBlock->Armature();
 }
 
-void BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const frame_type & source_frame) const
+void BlockizedCcaArmatureTransform::Transform(frame_view target_frame, const_frame_view source_frame)
 {
 	using namespace Eigen;
 	using namespace std;
@@ -215,10 +216,10 @@ void BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const f
 
 	//target_frame[0].LclTranslation = source_frame[0].GblTranslation;
 	//target_frame[0].LclRotation = source_frame[0].LclRotation;
-	target_frame.RebuildGlobal(*m_tArmature);
+	FrameRebuildGlobal(*m_tArmature, target_frame);
 }
 
-void BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const frame_type & source_frame, const BoneHiracheryFrame & last_frame, float frame_time) const
+void BlockizedCcaArmatureTransform::Transform(frame_view target_frame, const_frame_view source_frame, const_frame_view last_frame, float frame_time)
 {
 	// redirect to pose transform
 	Transform(target_frame, source_frame);
@@ -244,7 +245,7 @@ void BlockizedCcaArmatureTransform::Transform(frame_type & target_frame, const f
 
 	//target_frame[0].LclTranslation = source_frame[0].GblTranslation;
 	//target_frame[0].LclRotation = source_frame[0].LclRotation;
-	target_frame.RebuildGlobal(*m_tArmature);
+	FrameRebuildGlobal(*m_tArmature, target_frame);
 }
 
 ArmaturePartFeatures::PerceptiveVector::PerceptiveVector(CharacterController & controller)
@@ -263,7 +264,7 @@ inline int ArmaturePartFeatures::PerceptiveVector::GetDimension(const ArmaturePa
 	return GetDimension();
 }
 
-RowVectorXf PerceptiveVector::Get(const ArmaturePart & block, const BoneHiracheryFrame & frame)
+RowVectorXf PerceptiveVector::Get(const ArmaturePart & block, ArmatureFrameConstView frame)
 {
 	using namespace Eigen;
 
@@ -296,7 +297,7 @@ RowVectorXf PerceptiveVector::Get(const ArmaturePart & block, const BoneHiracher
 
 
 template <class CharacterFeatureType>
-Vector3f GetChainEndPositionFromY(const BoneHiracheryFrame & dFrame, const std::vector<Joint*> & joints, const RowVectorXf & Y)
+Vector3f GetChainEndPositionFromY(ArmatureFrameConstView dFrame, const std::vector<Joint*> & joints, const RowVectorXf & Y)
 {
 	assert(joints.size() * CharacterFeatureType::Dimension == Y.size());
 
@@ -324,7 +325,7 @@ Vector3f GetChainEndPositionFromY(const BoneHiracheryFrame & dFrame, const std::
 }
 
 
-void PerceptiveVector::Set(const ArmaturePart & block, BoneHiracheryFrame & frame, const RowVectorXf& feature)
+void PerceptiveVector::Set(const ArmaturePart & block, ArmatureFrameView frame, const RowVectorXf& feature)
 {
 	using namespace DirectX;
 	using namespace Eigen;
@@ -387,6 +388,24 @@ PartilizedTransformer::PartilizedTransformer(const ShrinkedArmature& sParts, Cha
 	m_cParts = &parts;
 	m_sParts = &sParts;
 
+	m_trackerSwitchThreshold = g_TrackerSwitchCondifidentThreshold;
+	m_trackerSwitchTimeThreshold = g_TrackerSwitchTimeThreshold;
+
+	m_updateFreq = 30;
+	m_updateFreqf = 30.0f;
+	m_speedFilter.SetUpdateFrequency(&m_updateFreq);
+	m_speedFilter.SetCutoffFrequency(g_DynamicTraderSpeedFilterCutoffFrequency);
+	m_speedFilter.Reset();
+
+	m_jointFilters.resize(m_tArmature->size());
+	for (int i = 0; i < m_tArmature->size(); i++)
+	{
+		m_jointFilters[i].SetUpdateFrequency(&m_updateFreqf);
+		m_jointFilters[i].SetCutoffFrequency(g_CharacterJointFilterCutoffFrequency);
+		m_jointFilters[i].Reset();
+	}
+
+
 	auto pIF = std::make_shared<InputExtractorType>();
 	auto pOF = std::make_shared<OutputExtractorType>();
 
@@ -418,12 +437,12 @@ PartilizedTransformer::PartilizedTransformer(const ShrinkedArmature& sParts, Cha
 	m_pInputF = pIF;
 }
 
-void PartilizedTransformer::Transform(frame_type & target_frame, const frame_type & source_frame) const
+void PartilizedTransformer::Transform(frame_view target_frame, const_frame_view source_frame)
 {
 	Transform(target_frame, source_frame, source_frame, .0f);
 }
 
-void PartilizedTransformer::Transform(frame_type & target_frame, const frame_type & source_frame, const BoneHiracheryFrame & last_frame, float frame_time) const
+void PartilizedTransformer::Transform(frame_view target_frame, const_frame_view source_frame, const_frame_view last_frame, float frame_time)
 {
 	bool computeVelocity = frame_time != .0f && g_UseVelocity;
 
@@ -432,20 +451,24 @@ void PartilizedTransformer::Transform(frame_type & target_frame, const frame_typ
 
 	auto pvDim = m_pInputF->GetDimension(*sparts[0]);
 
+	m_updateFreq = 1 / frame_time;
+	m_updateFreqf = m_updateFreq;
+
 	m_ikDrivedFrame = target_frame;
 	m_trackerFrame = target_frame;
 	VectorXd actPartsEnergy(cparts.size());
 	actPartsEnergy.setOnes();
-
+	//cout << frame_time << '|';
 	for (auto& ctrl : this->ActiveParts)
 	{
 		assert(ctrl.DstIdx >= 0 && ctrl.SrcIdx >= 0);
 		auto& cpart = const_cast<ArmaturePart&>(*cparts[ctrl.DstIdx]);
 
 		auto energy = GetInputKinectEnergy(ctrl, source_frame, last_frame, frame_time);
-		actPartsEnergy[ctrl.DstIdx] = energy; //energy;
+		energy = m_speedFilter.Apply(energy);
+		actPartsEnergy[ctrl.DstIdx] = energy;
 
-		cout << energy << ' ';
+		//cout << energy << ' ';
 
 		RowVectorXf xf = GetInputVector(ctrl, source_frame, last_frame, frame_time * (int)computeVelocity, computeVelocity);
 		SetHandleVisualization(cpart, xf);
@@ -454,11 +477,12 @@ void PartilizedTransformer::Transform(frame_type & target_frame, const frame_typ
 		DriveActivePartSIK(cpart, m_ikDrivedFrame, xf, computeVelocity);
 	}
 
-	cout << endl;
+	//cout << endl;
 
-	if (g_EnableDependentControl && m_useTracker && DrivenParts.size() > 0)
+	if (g_EnableDependentControl && m_useTracker)
 	{
-		auto& ctrl = DrivenParts[0];
+		P2PTransform ctrl;
+		ctrl.SrcIdx = PvInputTypeEnum::ActiveParts;
 		computeVelocity = false; //! HACK to force use velocity
 		auto _x = GetInputVector(ctrl, source_frame, last_frame, frame_time * (int)computeVelocity, computeVelocity).cast<IGestureTracker::ScalarType>().eval();
 
@@ -483,19 +507,26 @@ void PartilizedTransformer::Transform(frame_type & target_frame, const frame_typ
 	actPartsEnergy = /*1.0 - */actPartsEnergy.array()/g_DynamicTraderKeyEnergy;
 	actPartsEnergy = actPartsEnergy.cwiseMax(.0).cwiseMin(1.0);
 
-	if (m_useTracker)
+	if (m_useTracker && m_pTrackerFeature)
 		BlendFrame(*m_pTrackerFeature, *m_cParts, target_frame, { actPartsEnergy.data(),(size_t)actPartsEnergy.size() }, m_ikDrivedFrame, m_trackerFrame);
 	else
 	{
 		target_frame = m_ikDrivedFrame;
-		target_frame.RebuildGlobal(*m_tArmature);
 	}
+
+	// Apply joint filter
+	for (int i = 0; i < m_tArmature->size(); i++)
+	{
+		target_frame[i].LclRotation = m_jointFilters[i].Apply(target_frame[i].LclRotation);
+	}
+
+	FrameRebuildGlobal(*m_tArmature, target_frame);
 
 	//target_frame[0].LclTranslation = source_frame[0].LclTranslation;
 	//target_frame[0].GblTranslation = source_frame[0].GblTranslation;
 }
 
-void Causality::BlendFrame(IArmaturePartFeature& feature, const ShrinkedArmature& parts, BoneHiracheryFrame& target, array_view<double> t, const BoneHiracheryFrame& f0, const BoneHiracheryFrame& f1)
+void Causality::BlendFrame(IArmaturePartFeature& feature, const ShrinkedArmature& parts, ArmatureFrameView target, array_view<double> t, ArmatureFrameConstView f0, ArmatureFrameConstView f1)
 {
 	VectorXf fv0,fv1;
 	for (int i = 0; i < parts.size(); i++)
@@ -506,10 +537,9 @@ void Causality::BlendFrame(IArmaturePartFeature& feature, const ShrinkedArmature
 		feature.Set(*parts[i], target, fv0);
 	}
 
-	target.RebuildGlobal(parts.Armature());
 }
 
-void PartilizedTransformer::DriveAccesseryPart(ArmaturePart & cpart, Eigen::RowVectorXd &Xd, BoneHiracheryFrame & target_frame) const
+void PartilizedTransformer::DriveAccesseryPart(ArmaturePart & cpart, Eigen::RowVectorXd &Xd, ArmatureFrameView target_frame)
 {
 	auto& sik = m_pController->GetStylizedIK(cpart.Index);
 	auto& gpr = sik.Gplvm();
@@ -520,7 +550,7 @@ void PartilizedTransformer::DriveAccesseryPart(ArmaturePart & cpart, Eigen::RowV
 	m_pDrivenF->Set(cpart, target_frame, Y.cast<float>());
 }
 
-void PartilizedTransformer::DriveActivePartSIK(ArmaturePart & cpart, BoneHiracheryFrame & target_frame, Eigen::RowVectorXf &xf, bool computeVelocity) const
+void PartilizedTransformer::DriveActivePartSIK(ArmaturePart & cpart, ArmatureFrameView target_frame, Eigen::RowVectorXf &xf, bool computeVelocity)
 {
 	RowVectorXd Xd, Y;
 
@@ -549,7 +579,7 @@ void PartilizedTransformer::DriveActivePartSIK(ArmaturePart & cpart, BoneHirache
 
 }
 
-void PartilizedTransformer::SetHandleVisualization(ArmaturePart & cpart, Eigen::RowVectorXf &xf) const
+void PartilizedTransformer::SetHandleVisualization(ArmaturePart & cpart, Eigen::RowVectorXf &xf)
 {
 	if (m_pHandles)
 	{
@@ -607,6 +637,9 @@ void PartilizedTransformer::GenerateDrivenAccesseryControl()
 	Pca<MatrixXf> pcaXapvs(Xapvs);
 	int dXapv = pcaXapvs.reducedRank(g_CharacterPcaCutoff);
 	QrStore<MatrixXf> qrXabpvs(pcaXapvs.coordinates(dXapv));
+	if (qrXabpvs.rank() == 0)
+		return;
+
 	Cca<float> cca;
 
 	PcaCcaMap map;
@@ -666,7 +699,7 @@ void PartilizedTransformer::ResetTrackers()
 		tracker.Reset();
 }
 
-RowVectorXf PartilizedTransformer::GetInputVector(const P2PTransform& Ctrl, const frame_type & source_frame, const BoneHiracheryFrame & last_frame, float frame_time, bool has_velocity) const
+RowVectorXf PartilizedTransformer::GetInputVector(const P2PTransform& Ctrl, const_frame_view source_frame, const_frame_view last_frame, float frame_time, bool has_velocity) const
 {
 	const auto& sparts = *m_sParts;
 	auto& feature = *m_pInputF;
@@ -720,7 +753,7 @@ RowVectorXf PartilizedTransformer::GetInputVector(const P2PTransform& Ctrl, cons
 }
 
 // The energy is compute in human-action space!
-double PartilizedTransformer::GetInputKinectEnergy(_In_ const P2PTransform& Ctrl, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, _In_ double frame_time) const
+double PartilizedTransformer::GetInputKinectEnergy(_In_ const P2PTransform& Ctrl, _In_ const_frame_view source_frame, _In_ const_frame_view last_frame, _In_ double frame_time) const
 {
 	const auto& sparts = *m_sParts;
 	auto& feature = *m_pInputF;
@@ -755,7 +788,7 @@ double PartilizedTransformer::GetInputKinectEnergy(_In_ const P2PTransform& Ctrl
 	return energy;
 }
 
-RowVectorXf PartilizedTransformer::GetCharacterInputVector(const P2PTransform& Ctrl, const frame_type & source_frame, const BoneHiracheryFrame & last_frame, float frame_time, bool has_velocity) const
+RowVectorXf PartilizedTransformer::GetCharacterInputVector(const P2PTransform& Ctrl, const_frame_view source_frame, const_frame_view last_frame, float frame_time, bool has_velocity) const
 {
 	const auto& cparts = *m_cParts;
 	auto& feature = *m_pInputF;
@@ -812,7 +845,12 @@ void PartilizedTransformer::SetupTrackers(double expectedError, int stepSubdiv, 
 {
 	bool trackerVel = g_UseVelocity;
 
+	m_lowConfidentFrameCount = 0;
+	m_lowConfidentTime = 0;
 	auto& clips = m_pController->Character().Behavier().Clips();
+	m_trackerConfidents.setZero(clips.size(),
+		m_trackerSwitchTimeThreshold * MAX_FRAME_RATE);
+
 	m_Trackers.reserve(clips.size());
 	for (auto& anim : clips)
 	{
@@ -851,7 +889,7 @@ int GetFrameVectorSize(const IArmaturePartFeature* feature, const ShrinkedArmatu
 
 }
 
-void PartilizedTransformer::DrivePartsTrackers(Eigen::Matrix<double, 1, -1> &_x, float frame_time, Causality::BoneHiracheryFrame & target_frame) const
+void PartilizedTransformer::DrivePartsTrackers(Eigen::Matrix<double, 1, -1> &_x, float frame_time, ArmatureFrameView target_frame)
 {
 	if (m_pTrackerFeature == nullptr)
 	{
@@ -861,17 +899,91 @@ void PartilizedTransformer::DrivePartsTrackers(Eigen::Matrix<double, 1, -1> &_x,
 		m_pTrackerFeature = spFeature;
 	}
 
+	auto& tarm = *m_tArmature;
+	int bestTracker = m_currentTracker;
+
+	auto confi = DrivePartsTracker(m_currentTracker, _x, frame_time, target_frame);
+
+	double confidents[20];
+
+	confidents[m_currentTracker] = confi;
+	m_trackerConfidents(m_currentTracker, m_lowConfidentFrameCount) = confi;
+
+	//cout << "confident = " << confi << endl;
+
+	if (confi < m_trackerSwitchThreshold)
+	{
+		//Causality::Bone temp[100];
+		ArmatureFrame temp(tarm.size());
+
+		if (m_lowConfidentTime < m_trackerSwitchTimeThreshold
+			|| m_lowConfidentFrameCount == m_trackerConfidents.cols())
+		{
+			for (int i = 0; i < m_Trackers.size(); i++)
+			{
+				if (i != m_currentTracker)
+				{
+					confidents[i] = DrivePartsTracker(i, _x, frame_time, temp);
+					m_trackerConfidents(i, m_lowConfidentFrameCount) = confidents[i];
+					//if (confidents[i] > confi)
+					//{
+					//	confi = confidents[i];
+					//	bestTracker = i;
+					//	std::copy_n(begin(temp), tarm.size(), target_frame.begin());
+					//}
+				}
+			}
+
+			m_lowConfidentTime += frame_time;
+			++m_lowConfidentFrameCount;
+		}
+		else
+		{
+			m_lowConfidentTime = 0;
+			m_lowConfidentFrameCount = 0;
+			bestTracker = m_currentTracker;
+			confi = m_trackerConfidents.leftCols(m_lowConfidentFrameCount)
+				.rowwise().sum().maxCoeff(&bestTracker) / m_lowConfidentFrameCount;
+			if (bestTracker != m_currentTracker && confi > m_trackerSwitchThreshold)
+			{
+				m_currentTracker = bestTracker;
+				auto& clips = m_pController->Character().Behavier().Clips();
+				if (m_currentTracker != -1)
+					cout << "Switched to action [" << clips[m_currentTracker].Name << ']' << endl;
+			}
+		}
+	}
+	else
+	{
+		m_lowConfidentTime = 0;
+		m_lowConfidentFrameCount = 0;
+	}
+
+
+
+	//RowVector3d ts;
+	//ts.setZero();
+	//tracker.GetScaledFrame(target_frame, ts[0], ts[1]);
+	//cout << setw(6) << confi << " | " << ts << endl;
+
+}
+
+
+double PartilizedTransformer::DrivePartsTracker(int whichTracker, Eigen::Matrix<double, 1, -1> & _x, float frame_time, ArmatureFrameView target_frame)
+{
 	auto& cparts = *m_cParts;
 	auto feature = m_pTrackerFeature.get();
-	auto& tracker = m_Trackers[m_currentTracker];
+
+
+	auto& tracker = m_Trackers[whichTracker];
 	auto confi = tracker.Step(_x, frame_time);
 
 	auto* idcies = tracker.GetTopKStates(g_TrackerTopK);
 	auto& sample = tracker.GetSampleMatrix();
-	double c = 0;
+	confi = 0;
 
 	auto fvsize = GetFrameVectorSize(feature, cparts);
-	MatrixXf fmat(g_TrackerTopK,fvsize);
+	MatrixXf fmat(g_TrackerTopK, fvsize);
 	for (int i = 0; i < g_TrackerTopK; i++)
 	{
 		int id = idcies[i];
@@ -879,18 +991,14 @@ void PartilizedTransformer::DrivePartsTrackers(Eigen::Matrix<double, 1, -1> &_x,
 		GetFrameVector(feature, fmat.row(i), target_frame, cparts);
 
 		fmat.row(i) *= sample(id, 0);
-		c += sample(id, 0);
+		confi += sample(id, 0);
 	}
 
-	auto fv = (fmat.colwise().sum() / c).eval();
-	
+	auto fv = (fmat.colwise().sum() / confi).eval();
+
 	SetFrameVector(feature, fv, target_frame, cparts);
 
-	//RowVector3d ts;
-	//ts.setZero();
-	//tracker.GetScaledFrame(target_frame, ts[0], ts[1]);
-	//cout << setw(6) << confi << " | " << ts << endl;
-
+	return confi / g_TrackerTopK;
 }
 
 CharacterActionTracker::CharacterActionTracker(const ArmatureFrameAnimation & animation, const PartilizedTransformer &transfomer)
@@ -978,7 +1086,7 @@ void CharacterActionTracker::SetInputState(const InputVectorType & input, Scalar
 
 CharacterActionTracker::ScalarType CharacterActionTracker::Likilihood(int idx, const TrackingVectorBlockType & x)
 {
-	static thread_local BoneHiracheryFrame frame;
+	thread_local Bone frame[100];
 	auto vx = GetCorrespondVector(x, frame, frame);
 	//m_fvectors.row(m_lidxCount++) = vx;
 
@@ -1002,7 +1110,7 @@ void CharacterActionTracker::Progate(TrackingVectorBlockType & x)
 	auto& vt = x[2];
 	//auto& ds = x[3];
 
-	//vt += g_normal_dist(g_rand_mt) * m_stdevDVt;
+	vt += g_normal_dist(g_rand_mt) * m_stdevDVt * m_dt;
 	auto dt = vt * m_dt;
 	// ds += ;
 
@@ -1012,7 +1120,7 @@ void CharacterActionTracker::Progate(TrackingVectorBlockType & x)
 	s += g_normal_dist(g_rand_mt) * m_stdevDs * m_dt;
 }
 
-CharacterActionTracker::InputVectorType CharacterActionTracker::GetCorrespondVector(const TrackingVectorBlockType & x, BoneHiracheryFrame& frameCache0, BoneHiracheryFrame& frameChache1) const
+CharacterActionTracker::InputVectorType CharacterActionTracker::GetCorrespondVector(const TrackingVectorBlockType & x, ArmatureFrameView frameCache0, ArmatureFrameView frameChache1) const
 {
 	InputVectorType vout;
 	bool has_vel = false;
@@ -1041,11 +1149,11 @@ CharacterActionTracker::InputVectorType CharacterActionTracker::GetCorrespondVec
 	return vout;
 }
 
-void CharacterActionTracker::GetScaledFrame(_Out_ BoneHiracheryFrame& frame, ScalarType t, ScalarType s) const
+void CharacterActionTracker::GetScaledFrame(_Out_ ArmatureFrameView frame, ScalarType t, ScalarType s) const
 {
 	m_Animation.GetFrameAt(frame, time_seconds(t));
-	ScaleFrame(frame, m_Animation.DefaultFrame(), s);
-	frame.RebuildGlobal(m_Animation.Armature());
+	FrameScale(frame, m_Animation.DefaultFrame(), s);
+	FrameRebuildGlobal(m_Animation.Armature(), frame);
 }
 
 void CharacterActionTracker::SetLikihoodVarience(const InputVectorType & v)

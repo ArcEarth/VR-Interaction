@@ -234,3 +234,5 @@ pip-log.txt
 Log/
 Causality/*.csv
 Causality/CharacterAnalayze/*.csv
+*.VC.db
+Causality/Causality.VC.db

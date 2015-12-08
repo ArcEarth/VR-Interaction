@@ -59,7 +59,7 @@ namespace Causality
 		void	ResetPrimaryCameraPoseToDefault();
 
 		// Helper methods
-		bool	UpdateByFrame(const BoneHiracheryFrame& frame);
+		bool	UpdateByFrame(ArmatureFrameConstView frame);
 
 		void	SetActiveController(int idx);
 		int		MapCharacterByLatestMotion();
@@ -90,13 +90,13 @@ namespace Causality
 		sptr<Devices::KinectSensor>			m_pKinect;
 		TrackedBodySelector					m_playerSelector;
 
-		BoneHiracheryFrame					m_pushFrame;
+		ArmatureFrame					m_pushFrame;
 
 		double								m_updateTime;
 		std::chrono::time_point<std::chrono::system_clock> 
 											m_lastUpdateTime;
-		BoneHiracheryFrame					m_currentFrame;
-		BoneHiracheryFrame					m_lastFrame;
+		ArmatureFrame					m_currentFrame;
+		ArmatureFrame					m_lastFrame;
 
 		double								m_LowLikilyTime;
 		CyclicStreamClipinfo				m_CyclicInfo;

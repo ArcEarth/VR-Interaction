@@ -64,6 +64,34 @@ JointType KinectSensor::JointsParent[JointType_Count] = {
 	JointType_HandRight,  //JointType_ThumbRight
 };
 
+JointType JointsMirrows[JointType_Count] = {
+	/*JointType_SpineBase*/ JointType_Count,
+	/*JointType_SpineMid*/ JointType_Count,
+	/*JointType_Neck*/ JointType_Count,
+	/*JointType_Head*/ JointType_Count,
+	/*JointType_ShoulderLeft*/ JointType_ShoulderRight,
+	/*JointType_ElbowLeft*/ JointType_ElbowRight,
+	/*JointType_WristLeft*/ JointType_WristRight,
+	/*JointType_HandLeft*/ JointType_HandRight,
+	/*JointType_ShoulderRight*/ JointType_ShoulderLeft,
+	/*JointType_ElbowRight*/ JointType_ElbowLeft,
+	/*JointType_WristRight*/ JointType_WristLeft,
+	/*JointType_HandRight*/ JointType_HandLeft,
+	/*JointType_HipLeft*/ JointType_HipRight,
+	/*JointType_KneeLeft*/ JointType_KneeRight,
+	/*JointType_AnkleLeft*/ JointType_AnkleRight,
+	/*JointType_FootLeft*/ JointType_FootRight,
+	/*JointType_HipRight*/ JointType_HipLeft,
+	/*JointType_KneeRight*/ JointType_KneeLeft,
+	/*JointType_AnkleRight*/ JointType_AnkleLeft,
+	/*JointType_FootRight*/ JointType_FootLeft,
+	/*JointType_SpineShoulder*/ JointType_SpineShoulder,
+	/*JointType_HandTipLeft*/ JointType_HandTipRight,
+	/*JointType_ThumbLeft*/ JointType_ThumbRight,
+	/*JointType_HandTipRight*/ JointType_HandTipLeft,
+	/*JointType_ThumbRight*/ JointType_ThumbLeft,
+};
+
 char* JointNames[JointType_Count] = {
 	"SpineBase",
 	"SpineMid",
@@ -147,6 +175,14 @@ public:
 			int parents[JointType_Count];
 			std::copy_n(KinectSensor::JointsParent, (int) JointType_Count, parents);
 			TrackedBody::BodyArmature = std::make_unique<StaticArmature>(JointType_Count, parents, JointNames);
+			auto& armature = *TrackedBody::BodyArmature;
+			for (int i = 0; i < armature.size(); i++)
+			{
+				if (JointsMirrows[i] < JointType_Count)
+				{
+					armature[i]->MirrorJoint = armature[JointsMirrows[i]];
+				}
+			}
 		}
 		using namespace Microsoft::WRL;
 		using namespace std;
@@ -542,7 +578,7 @@ public:
 
 		}
 
-		frame.RebuildLocal(armature);
+		FrameRebuildLocal(armature, frame);
 
 		player->PushFrame(std::move(frame));
 
@@ -571,7 +607,7 @@ public:
 		}
 	}
 
-	//static void FillFrameWithIBody(Kinematics::BoneHiracheryFrame& frame, IBody* pBody)
+	//static void FillFrameWithIBody(Kinematics::ArmatureFrameView frame, IBody* pBody)
 	//{
 	//	Joint joints[JointType_Count];
 	//	JointOrientation oris[JointType_Count];
@@ -726,7 +762,7 @@ bool TrackedBody::ReadNextFrame()
 	return m_FrameBuffer.MoveNext();
 }
 
-const BoneHiracheryFrame & TrackedBody::PeekFrame() const
+const TrackedBody::FrameType& TrackedBody::PeekFrame() const
 {
 	return *m_FrameBuffer.GetCurrent();
 }

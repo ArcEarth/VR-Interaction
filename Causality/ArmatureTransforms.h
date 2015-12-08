@@ -9,6 +9,7 @@
 #include "BoneFeatures.h"
 #include "ArmaturePartFeatures.h"
 #include "GestureTracker.h"
+#include "Common\Filter.h"
 
 namespace Causality
 {
@@ -30,10 +31,10 @@ namespace Causality
 			int GetDimension(_In_ const ArmaturePart& block) const override;
 
 			typedef BoneFeatures::QuadraticGblPosFeature BoneFeatureType;
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override;
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) override;
 
 			// Inherited via IArmaturePartFeature
-			virtual void Set(const ArmaturePart & block, BoneHiracheryFrame & frame, const Eigen::RowVectorXf & feature) override;
+			virtual void Set(const ArmaturePart & block, ArmatureFrameView frame, const Eigen::RowVectorXf & feature) override;
 		};
 
 		class AllJointRltLclRotLnQuatPcad : public Pcad<RelativeDeformation<AllJoints<BoneFeatures::LclRotLnQuatFeature>>>
@@ -68,9 +69,9 @@ namespace Causality
 
 		using BlockizedArmatureTransform::BlockizedArmatureTransform;
 
-		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override;
+		virtual void Transform(_Out_ frame_view target_frame, _In_ const_frame_view source_frame) override;
 
-		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const;
+		virtual void Transform(_Out_ frame_view target_frame, _In_ const_frame_view source_frame, _In_ const_frame_view last_frame, float frame_time);
 	};
 
 	namespace ArmaturePartFeatures
@@ -94,10 +95,10 @@ namespace Causality
 
 			virtual int GetDimension(_In_ const ArmaturePart& block) const override;
 
-			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ const BoneHiracheryFrame& frame) override;
+			virtual Eigen::RowVectorXf Get(_In_ const ArmaturePart& block, _In_ ArmatureFrameConstView frame) override;
 
 			// Inherited via IArmaturePartFeature
-			virtual void Set(_In_ const ArmaturePart& block, _Out_ BoneHiracheryFrame& frame, _In_ const Eigen::RowVectorXf& feature) override;
+			virtual void Set(_In_ const ArmaturePart& block, _Out_ ArmatureFrameView frame, _In_ const Eigen::RowVectorXf& feature) override;
 		};
 	}
 
@@ -122,7 +123,7 @@ namespace Causality
 
 	class PartilizedTransformer;
 
-	void BlendFrame(IArmaturePartFeature& feature, const ShrinkedArmature& parts, BoneHiracheryFrame& target, array_view<double> t, const BoneHiracheryFrame& f0, const BoneHiracheryFrame& f1);
+	void BlendFrame(IArmaturePartFeature& feature, const ShrinkedArmature& parts, ArmatureFrameView target, array_view<double> t, ArmatureFrameConstView f0, ArmatureFrameConstView f1);
 
 	struct CharacterActionTrackerParameters
 	{
@@ -153,7 +154,7 @@ namespace Causality
 
 		ScalarType		Step(const InputVectorType& input, ScalarType dt) override;
 
-		void			GetScaledFrame(_Out_ BoneHiracheryFrame& frame, ScalarType t, ScalarType s) const;
+		void			GetScaledFrame(_Out_ ArmatureFrameView frame, ScalarType t, ScalarType s) const;
 
 		void			SetLikihoodVarience(const InputVectorType& v);
 
@@ -167,14 +168,14 @@ namespace Causality
 		ScalarType		Likilihood(int idx, const TrackingVectorBlockType & x) override;
 		void			Progate(TrackingVectorBlockType & x) override;
 
-		InputVectorType GetCorrespondVector(const TrackingVectorBlockType & x, BoneHiracheryFrame& frameCache0, BoneHiracheryFrame& frameChache1) const;
+		InputVectorType GetCorrespondVector(const TrackingVectorBlockType & x, ArmatureFrameView frameCache0, ArmatureFrameView frameChache1) const;
 
 	protected:
 		const ArmatureFrameAnimation&	m_Animation;
 		const PartilizedTransformer&	m_Transformer;
 
-		//mutable vector<BoneHiracheryFrame>	m_Frames;
-		//mutable vector<BoneHiracheryFrame>	m_LastFrames;
+		//mutable vector<ArmatureFrame>	m_Frames;
+		//mutable vector<ArmatureFrame>	m_LastFrames;
 
 
 		InputVectorType					m_CurrentInput;
@@ -210,17 +211,18 @@ namespace Causality
 
 		void SetupTrackers(double expectedError, int stepSubdiv, double vtStep, double scaleStep, double vtStDev, double scaleStDev, double tInitDistSubdiv, int vtInitDistSubdiv, int scaleInitDistSubdiv);
 
-		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame) const override;
+		virtual void Transform(_Out_ frame_view target_frame, _In_ const_frame_view source_frame) override;
 
-		virtual void Transform(_Out_ frame_type& target_frame, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, float frame_time) const override;
+		virtual void Transform(_Out_ frame_view target_frame, _In_ const_frame_view source_frame, _In_ const_frame_view last_frame, float frame_time) override;
 
-		void DrivePartsTrackers(Eigen::Matrix<double, 1, -1> &_x, float frame_time, Causality::BoneHiracheryFrame & target_frame) const;
+		void DrivePartsTrackers(Eigen::Matrix<double, 1, -1> &_x, float frame_time, frame_view target_frame);
+		double DrivePartsTracker(int whichTracker, Eigen::Matrix<double, 1, -1> & _x, float frame_time, Causality::ArmatureFrameView target_frame);
 
-		void DriveAccesseryPart(Causality::ArmaturePart & cpart, Eigen::RowVectorXd &Xd, Causality::BoneHiracheryFrame & target_frame) const;
+		void DriveAccesseryPart(Causality::ArmaturePart & cpart, Eigen::RowVectorXd &Xd, frame_view target_frame);
 
-		void DriveActivePartSIK(Causality::ArmaturePart & cpart, Causality::BoneHiracheryFrame & target_frame, Eigen::RowVectorXf &xf, bool computeVelocity = false) const;
+		void DriveActivePartSIK(Causality::ArmaturePart & cpart, frame_view target_frame, Eigen::RowVectorXf &xf, bool computeVelocity = false);
 
-		void SetHandleVisualization(Causality::ArmaturePart & cpart, Eigen::RowVectorXf &xf) const;
+		void SetHandleVisualization(Causality::ArmaturePart & cpart, Eigen::RowVectorXf &xf);
 
 		static void TransformCtrlHandel(Eigen::RowVectorXf &xf, const Eigen::MatrixXf& homoMatrix);
 
@@ -236,41 +238,59 @@ namespace Causality
 		std::vector<P2PTransform> AccesseryParts; // These parts will be animated based on active parts (and driven parts?)
 
 		typedef Eigen::RowVectorXf InputVectorType;
-		InputVectorType GetInputVector(_In_ const P2PTransform& Ctrl, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, _In_ float frame_time, bool has_velocity) const;
+		InputVectorType GetInputVector(_In_ const P2PTransform& Ctrl, _In_ const_frame_view source_frame, _In_ const_frame_view last_frame, _In_ float frame_time, bool has_velocity) const;
 
-		InputVectorType GetCharacterInputVector(_In_ const P2PTransform& Ctrl, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, _In_ float frame_time, bool has_velocity) const;
+		InputVectorType GetCharacterInputVector(_In_ const P2PTransform& Ctrl, _In_ const_frame_view source_frame, _In_ const_frame_view last_frame, _In_ float frame_time, bool has_velocity) const;
 
-		double GetInputKinectEnergy(_In_ const P2PTransform& Ctrl, _In_ const frame_type& source_frame, _In_ const BoneHiracheryFrame& last_frame, _In_ double frame_time) const;
+		double GetInputKinectEnergy(_In_ const P2PTransform& Ctrl, _In_ const_frame_view source_frame, _In_ const_frame_view last_frame, _In_ double frame_time) const;
 	private:
 		typedef std::pair<Vector3, Vector3> LineSegment;
 
 		CharacterController			*m_pController;
 		std::vector<LineSegment>	*m_pHandles;
 
-		mutable
-		BoneHiracheryFrame			m_ikDrivedFrame;
-		mutable
-		BoneHiracheryFrame			m_trackerFrame;
+		
+		double						m_updateFreq;
+		float						m_updateFreqf;
+		
+		LowPassFilter<double>		m_speedFilter;
+
+		// Output Character Joint Filters
+		vector<LowPassFilter<Quaternion, float>>
+									m_jointFilters;;
+
+
+		
+		ArmatureFrame			m_ikDrivedFrame;
+		
+		ArmatureFrame			m_trackerFrame;
 
 		typedef std::shared_ptr<IArmaturePartFeature> FeaturePtr;
 
-		bool		m_useTracker;
-
-		mutable
 		FeaturePtr	m_pInputF;
-		mutable
+		
 		FeaturePtr	m_pActiveF;
-		mutable
+		
 		FeaturePtr	m_pDrivenF;
-		mutable
+		
 		FeaturePtr	m_pAccesseryF;
-		mutable
+		
 		FeaturePtr  m_pTrackerFeature;
 
+		bool		m_useTracker;
 		int			m_currentTracker;
 		// Tracker for different animations 
-		mutable
-		std::vector<CharacterActionTracker>
+		vector<CharacterActionTracker>
 					m_Trackers;
+
+		// Tracker Switcher
+		double		m_trackerSwitchThreshold;		// Confident threshold
+		double		m_trackerSwitchTimeThreshold;	// Time threshold
+
+		double		m_lowConfidentTime;
+		int			m_lowConfidentFrameCount;
+
+		Eigen::MatrixXd	
+					m_trackerConfidents;
 	};
 }

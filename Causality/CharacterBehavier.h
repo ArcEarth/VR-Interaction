@@ -14,7 +14,7 @@ namespace Causality
 	{
 	public:
 		typedef ArmatureFrameAnimation animation_type;
-		typedef BoneHiracheryFrame frame_type;
+		typedef ArmatureFrame frame_type;
 		typedef BoneVelocityFrame velocity_frame_type;
 		typedef vector<ArmatureFrameAnimation> container_type;
 

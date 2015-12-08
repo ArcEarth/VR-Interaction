@@ -101,6 +101,6 @@ namespace Causality
 		BoneColorVector		m_BoneColors;
 	};
 
-	void DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color & color, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);
-	void DrawArmature(const IArmature & armature, const BoneHiracheryFrame & frame, const Color* colors, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);
+	void DrawArmature(const IArmature & armature, ArmatureFrameConstView frame, const Color & color, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);
+	void DrawArmature(const IArmature & armature, ArmatureFrameConstView frame, const Color* colors, const Matrix4x4& world = Matrix4x4::Identity, float thinkness = 0.015f);
 }

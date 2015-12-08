@@ -88,7 +88,7 @@ namespace Causality
 
 	public:
 		StylizedChainIK();
-		StylizedChainIK(const std::vector<const Joint*> &joints, const BoneHiracheryFrame& defaultframe);
+		StylizedChainIK(const std::vector<const Joint*> &joints, ArmatureFrameConstView defaultframe);
 
 		// set the functional that decode feature vector "Y" to local rotation quaternions
 		// by default, Decoder is set to "Absolute Ln Quaternion of joint local orientation" 
@@ -97,7 +97,7 @@ namespace Causality
 		const IFeatureDecoder* GetDecoder() const { return m_fpDecoder.get(); }
 		IFeatureDecoder* GetDecoder() { return m_fpDecoder.get(); }
 
-		void SetChain(const std::vector<const Joint*> &joints, const BoneHiracheryFrame& defaultframe);
+		void SetChain(const std::vector<const Joint*> &joints, ArmatureFrameConstView defaultframe);
 		void SetGoal(const Eigen::Vector3d& goal);
 		void SetIKWeight(double weight);
 		void SetMarkovWeight(double weight);

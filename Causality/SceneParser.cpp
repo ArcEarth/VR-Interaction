@@ -124,6 +124,14 @@ void ParseNameText(tinyxml2::XMLElement * setting, const char* name, float& val,
 	node->QueryFloatText(&val);
 }
 
+void ParseNameText(tinyxml2::XMLElement * setting, const char* name, double& val, double defval)
+{
+	val = defval;
+	auto node = setting->FirstChildElement(name);
+	if (node == nullptr) return;
+	node->QueryDoubleText(&val);
+}
+
 void ParseNameText(tinyxml2::XMLElement * setting, const char* name, int& val, int defval)
 {
 	val = defval;

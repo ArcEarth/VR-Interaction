@@ -21,8 +21,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{CDF563C5-5714-413C-B987-CF0CDCEF24B2}</ProjectGuid>
     <RootNamespace>Geometrics</RootNamespace>
-    <TargetPlatformVersion>10.0.10240.0</TargetPlatformVersion>
-    <WindowsTargetPlatformVersion>10.0.10240.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.10586.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -141,6 +140,8 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="csg.cpp" />
+    <ClCompile Include="Extruder.cpp" />
     <ClCompile Include="MetaBallModel.cpp" />
     <ClCompile Include="Polygonizer.cpp" />
     <ClCompile Include="SpaceCurve.cpp" />
